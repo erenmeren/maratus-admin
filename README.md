@@ -1,36 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ditto — Admin Console (Frontend Prototype)
 
-## Getting Started
+Polished frontend prototype for **Ditto**, a digital-receipt SaaS. Stores install
+kiosk devices that replace paper receipts with a QR code customers scan to download
+a digital receipt.
 
-First, run the development server:
+This is a **UI prototype with mock data** — no backend yet, but structured so a real
+API can be wired in by changing one file.
+
+## Stack
+
+- **Next.js** (App Router) + **TypeScript**
+- **Tailwind v4** + **shadcn/ui** (radix-based, Neutral base)
+- **recharts** for charts, **next-themes** for light/dark, **lucide-react** icons
+- Brand accent: a single emerald `--primary` token on the app chrome.
+  > A store's own brand color is **data**, shown only inside the tenant Branding
+  > screen — never in the app chrome.
+
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev      # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Login is UI-only (no auth). From `/login` you can enter the **Tenant** workspace or
+the **Super Admin** panel; a workspace switcher in the sidebar moves between them.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Routes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Area | Route | Notes |
+| --- | --- | --- |
+| Auth | `/login` | Wordmark, email/password, SSO, panel shortcuts |
+| Tenant | `/tenant` | Dashboard: KPIs, eco impact, receipts chart |
+| Tenant | `/tenant/stores` · `/tenant/stores/[storeId]` · `/tenant/stores/[storeId]/[deviceId]` | Store → device hierarchy |
+| Tenant | `/tenant/branding` | Logo upload, accent picker, staff PIN, **live 720×720 kiosk preview** |
+| Tenant | `/tenant/reports` | Receipts, store/device breakdowns, eco over time, export (stub) |
+| Admin | `/admin` | Platform overview: MRR, receipts, fleet, top customers |
+| Admin | `/admin/customers` · `/admin/customers/[tenantId]` | Customer table + create dialog, detail |
+| Admin | `/admin/devices` | Global device fleet with customer/status filters |
+| Admin | `/admin/billing` | Pricing, amounts owed, invoices, revenue |
+| Public | `/r/[token]` | Stub customer receipt page |
 
-## Learn More
+## Wiring a real API
 
-To learn more about Next.js, take a look at the following resources:
+All data flows through a thin layer in **`lib/data.ts`** (functions like
+`getTenantDashboard()`, `getAllDevices()`, `getBillingOverview()`). Replace the
+bodies there with real API calls — every screen keeps working. Markers:
+`// TODO: replace with API`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- `lib/types.ts` — domain types (`Tenant`, `Store`, `Device`, `Invoice`, …)
+- `lib/mock-data.ts` — the stand-in dataset (a coffee chain, "Roastwell Coffee")
+- `lib/eco.ts` — centralized eco math with clearly-labeled **PLACEHOLDER** constants
+  (grams of paper, liters of water, grams of CO₂ per receipt) — refine later.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Components of note
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `components/device-preview/` — the reusable 720×720 kiosk mockup (idle + QR
+  screens), used by the Branding live preview.
+- `components/charts.tsx` — themed recharts wrappers (area / line / bar).
+- `components/app-shell.tsx` — one shell per panel (sidebar + top bar + theme toggle).

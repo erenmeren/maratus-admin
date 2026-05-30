@@ -1,0 +1,100 @@
+import { PageHeader } from "@/components/page-header";
+import { ExportButton } from "@/components/export-button";
+import {
+  BreakdownBarChart,
+  MetricAreaChart,
+  ReceiptsAreaChart,
+} from "@/components/charts";
+import { EcoSavingsCard } from "@/components/eco-savings";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { getTenant, getTenantStores, tenantMonthly } from "@/lib/data";
+import { computeEcoSavings, PAPER_GRAMS_PER_RECEIPT } from "@/lib/eco";
+
+export default function ReportsPage() {
+  const tenant = getTenant();
+  const monthly = tenantMonthly();
+  const stores = getTenantStores();
+
+  const byStore = [...stores]
+    .map((s) => ({ label: s.name.replace("Roastwell ", ""), value: s.receiptsThisMonth }))
+    .sort((a, b) => b.value - a.value);
+
+  const byDevice = tenant.stores
+    .flatMap((store) =>
+      store.devices.map((d) => ({
+        label: `${store.name.split(" ")[0]} · ${d.name}`,
+        value: d.receiptsThisMonth,
+      })),
+    )
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 8);
+
+  const ecoOverTime = monthly.map((p) => ({
+    label: p.label,
+    value: Math.round((p.receipts * PAPER_GRAMS_PER_RECEIPT) / 1000),
+  }));
+
+  const totalReceipts = monthly.reduce((a, p) => a + p.receipts, 0);
+  const eco = computeEcoSavings(totalReceipts);
+
+  return (
+    <>
+      <PageHeader
+        title="Reports"
+        description="Receipts, breakdowns, and eco savings across your fleet."
+      >
+        <ExportButton />
+      </PageHeader>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Receipts over time</CardTitle>
+          <CardDescription>Monthly digital receipts, last 9 months</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ReceiptsAreaChart data={monthly} height={300} />
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>By store</CardTitle>
+            <CardDescription>Receipts this month, per branch</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <BreakdownBarChart data={byStore} />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle>By device</CardTitle>
+            <CardDescription>Top kiosks by receipts this month</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <BreakdownBarChart data={byDevice} />
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle>Eco savings over time</CardTitle>
+            <CardDescription>Paper saved per month (kg)</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <MetricAreaChart data={ecoOverTime} unit="kg paper" height={260} />
+          </CardContent>
+        </Card>
+        <EcoSavingsCard eco={eco} period="last 9 months" />
+      </div>
+    </>
+  );
+}

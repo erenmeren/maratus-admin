@@ -1,0 +1,92 @@
+import Link from "next/link";
+import { ChevronRight } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { NewCustomerDialog } from "@/components/new-customer-dialog";
+import { TenantStatusBadge } from "@/components/tenant-status-badge";
+import { Card } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { getTenantSummaries } from "@/lib/data";
+import { formatCurrency, formatNumber } from "@/lib/format";
+
+export default function CustomersPage() {
+  const customers = getTenantSummaries();
+
+  return (
+    <>
+      <PageHeader
+        title="Customers"
+        description={`${customers.length} store chains on Ditto`}
+      >
+        <NewCustomerDialog />
+      </PageHeader>
+
+      <Card className="overflow-hidden py-0">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Customer</TableHead>
+              <TableHead className="text-center">Stores</TableHead>
+              <TableHead className="text-center">Devices</TableHead>
+              <TableHead className="text-right">Receipts (mo.)</TableHead>
+              <TableHead className="text-right">Revenue (mo.)</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead className="w-10" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {customers.map((c) => (
+              <TableRow key={c.id} className="group cursor-pointer">
+                <TableCell>
+                  <Link
+                    href={`/admin/customers/${c.id}`}
+                    className="flex items-center gap-3"
+                  >
+                    <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 font-display text-sm font-bold text-primary">
+                      {c.name.slice(0, 1)}
+                    </span>
+                    <div>
+                      <p className="font-medium">{c.name}</p>
+                      <p className="text-xs text-muted-foreground tabular-nums">
+                        {formatCurrency(c.perPrintPrice, { cents: true })} / print
+                      </p>
+                    </div>
+                  </Link>
+                </TableCell>
+                <TableCell className="text-center tabular-nums">
+                  {c.storeCount}
+                </TableCell>
+                <TableCell className="text-center tabular-nums">
+                  {c.deviceCount}
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  {formatNumber(c.receiptsThisMonth)}
+                </TableCell>
+                <TableCell className="text-right font-medium tabular-nums">
+                  {formatCurrency(c.revenueThisMonth, { cents: true })}
+                </TableCell>
+                <TableCell>
+                  <TenantStatusBadge status={c.status} />
+                </TableCell>
+                <TableCell>
+                  <Link
+                    href={`/admin/customers/${c.id}`}
+                    className="flex justify-end text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                  >
+                    <ChevronRight className="size-4" />
+                  </Link>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+    </>
+  );
+}

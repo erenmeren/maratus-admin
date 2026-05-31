@@ -45,13 +45,26 @@ export default async function ReportsPage() {
   const totalReceipts = monthly.reduce((a, p) => a + p.receipts, 0);
   const eco = computeEcoSavings(totalReceipts);
 
+  // Build a single CSV: a section per breakdown (monthly, by store, by device).
+  const exportHeaders = ["Section", "Label", "Receipts", "Revenue (USD)"];
+  const exportRows: (string | number)[][] = [
+    ...monthly.map((p) => ["Monthly", p.label, p.receipts, p.revenue.toFixed(2)]),
+    ...byStore.map((s) => ["By store", s.label, s.value, ""]),
+    ...byDevice.map((d) => ["By device", d.label, d.value, ""]),
+  ];
+
   return (
     <>
       <PageHeader
         title="Reports"
         description="Receipts, breakdowns, and eco savings across your fleet."
       >
-        <ExportButton />
+        <ExportButton
+          label="Export report"
+          filename={`${tenant.name.toLowerCase().replace(/\s+/g, "-")}-report.csv`}
+          headers={exportHeaders}
+          rows={exportRows}
+        />
       </PageHeader>
 
       <Card>

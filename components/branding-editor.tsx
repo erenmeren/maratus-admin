@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Eye, EyeOff, ImageUp, RotateCcw, Save, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Eye, EyeOff, ImageUp, Loader2, Lock, RotateCcw, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   KioskPreview,
@@ -18,6 +19,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { saveBranding } from "@/app/(tenant)/tenant/branding/actions";
 import { isValidHex } from "@/lib/color";
 import { cn } from "@/lib/utils";
 
@@ -26,22 +28,40 @@ const PRESETS = ["#B4541F", "#3F9D4E", "#1F5C8B", "#E5484D", "#7C5CFC", "#0F766E
 export function BrandingEditor({
   initialColor,
   initialLogoText,
+  initialLogoUrl,
   initialStaffPin,
   storeName,
+  canEdit,
 }: {
   initialColor: string;
   initialLogoText: string;
+  initialLogoUrl: string | null;
   initialStaffPin: string;
   storeName: string;
+  canEdit: boolean;
 }) {
+  const router = useRouter();
   const [color, setColor] = React.useState(initialColor);
   const [hexInput, setHexInput] = React.useState(initialColor);
   const [logoText, setLogoText] = React.useState(initialLogoText);
-  const [logoUrl, setLogoUrl] = React.useState<string | null>(null);
+  // Preview source (saved presigned URL or a local object URL for a new pick).
+  const [logoPreview, setLogoPreview] = React.useState<string | null>(
+    initialLogoUrl,
+  );
+  const [logoFile, setLogoFile] = React.useState<File | null>(null);
+  const [logoCleared, setLogoCleared] = React.useState(false);
   const [pin, setPin] = React.useState(initialStaffPin);
   const [showPin, setShowPin] = React.useState(false);
   const [screen, setScreen] = React.useState<KioskScreen>("qr");
+  const [saving, setSaving] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
+
+  // Has anything changed from the loaded state?
+  const dirty =
+    color !== initialColor ||
+    pin !== initialStaffPin ||
+    logoFile !== null ||
+    logoCleared;
 
   function commitHex(v: string) {
     setHexInput(v);
@@ -51,22 +71,78 @@ export function BrandingEditor({
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    // TODO: replace with API — upload the asset; here we preview locally.
-    setLogoUrl(URL.createObjectURL(file));
-    toast.success("Logo uploaded", { description: file.name });
+    if (!file.type.startsWith("image/")) {
+      toast.error("Logo must be an image file.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Logo must be under 2 MB.");
+      return;
+    }
+    setLogoFile(file);
+    setLogoCleared(false);
+    setLogoPreview(URL.createObjectURL(file));
   }
 
-  function save() {
-    // TODO: replace with API — persist branding for the tenant.
-    toast.success("Branding saved", {
-      description: "Your kiosks will update on next sync (stub).",
-    });
+  function removeLogo() {
+    setLogoFile(null);
+    setLogoPreview(null);
+    setLogoCleared(true);
+    if (fileRef.current) fileRef.current.value = "";
   }
+
+  function reset() {
+    setColor(initialColor);
+    setHexInput(initialColor);
+    setLogoText(initialLogoText);
+    setLogoPreview(initialLogoUrl);
+    setLogoFile(null);
+    setLogoCleared(false);
+    setPin(initialStaffPin);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
+  async function save() {
+    if (!isValidHex(hexInput)) {
+      toast.error("Enter a valid hex color first.");
+      return;
+    }
+    setSaving(true);
+    const fd = new FormData();
+    fd.set("brandColor", color);
+    fd.set("staffPin", pin);
+    if (logoFile) fd.set("logo", logoFile);
+    fd.set("removeLogo", logoCleared ? "true" : "false");
+
+    const res = await saveBranding(fd);
+    setSaving(false);
+
+    if (!res.ok) {
+      toast.error("Couldn't save branding", { description: res.error });
+      return;
+    }
+    toast.success("Branding saved", {
+      description: "Your kiosks will update on next sync.",
+    });
+    // Clear local-upload state and re-pull the server (fresh presigned logo URL).
+    setLogoFile(null);
+    setLogoCleared(false);
+    router.refresh();
+  }
+
+  const disabled = !canEdit || saving;
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       {/* Controls */}
       <div className="space-y-6">
+        {!canEdit && (
+          <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+            <Lock className="size-4 shrink-0" />
+            You have view-only access. Only owners and admins can edit branding.
+          </div>
+        )}
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Logo</CardTitle>
@@ -75,12 +151,13 @@ export function BrandingEditor({
           <CardContent className="space-y-3">
             <button
               type="button"
+              disabled={disabled}
               onClick={() => fileRef.current?.click()}
-              className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/30 px-4 py-8 text-center transition-colors hover:bg-muted/60"
+              className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/30 px-4 py-8 text-center transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {logoUrl ? (
+              {logoPreview ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoUrl} alt="Logo preview" className="max-h-16 object-contain" />
+                <img src={logoPreview} alt="Logo preview" className="max-h-16 object-contain" />
               ) : (
                 <>
                   <span className="flex size-10 items-center justify-center rounded-lg bg-background text-muted-foreground">
@@ -99,24 +176,27 @@ export function BrandingEditor({
               accept="image/*"
               className="hidden"
               onChange={onFile}
+              disabled={disabled}
             />
-            {logoUrl && (
+            {logoPreview && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setLogoUrl(null)}
+                onClick={removeLogo}
+                disabled={disabled}
                 className="w-full"
               >
-                <X className="size-4" /> Remove uploaded logo
+                <X className="size-4" /> Remove logo
               </Button>
             )}
             <div className="space-y-2">
-              <Label htmlFor="logoText">Logo text (fallback)</Label>
+              <Label htmlFor="logoText">Logo text (preview fallback)</Label>
               <Input
                 id="logoText"
                 value={logoText}
                 onChange={(e) => setLogoText(e.target.value)}
                 placeholder="Your brand"
+                disabled={disabled}
               />
             </div>
           </CardContent>
@@ -142,6 +222,7 @@ export function BrandingEditor({
                     setColor(e.target.value);
                     setHexInput(e.target.value);
                   }}
+                  disabled={disabled}
                   className="absolute inset-0 cursor-pointer opacity-0"
                   aria-label="Pick accent color"
                 />
@@ -152,6 +233,7 @@ export function BrandingEditor({
                   id="hex"
                   value={hexInput}
                   onChange={(e) => commitHex(e.target.value)}
+                  disabled={disabled}
                   className="font-mono"
                   aria-invalid={!isValidHex(hexInput)}
                 />
@@ -162,12 +244,13 @@ export function BrandingEditor({
                 <button
                   key={c}
                   type="button"
+                  disabled={disabled}
                   onClick={() => {
                     setColor(c);
                     setHexInput(c);
                   }}
                   className={cn(
-                    "size-8 rounded-lg ring-1 ring-border transition-transform hover:scale-110",
+                    "size-8 rounded-lg ring-1 ring-border transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-60",
                     color.toLowerCase() === c.toLowerCase() &&
                       "ring-2 ring-foreground ring-offset-2 ring-offset-background",
                   )}
@@ -193,6 +276,7 @@ export function BrandingEditor({
                 onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
                 type={showPin ? "text" : "password"}
                 inputMode="numeric"
+                disabled={disabled}
                 className="pr-10 font-mono tracking-[0.3em]"
                 placeholder="••••"
               />
@@ -209,19 +293,15 @@ export function BrandingEditor({
         </Card>
 
         <div className="flex gap-2">
-          <Button onClick={save} className="flex-1">
-            <Save className="size-4" /> Save branding
+          <Button onClick={save} className="flex-1" disabled={disabled || !dirty}>
+            {saving ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <Save className="size-4" />
+            )}
+            {saving ? "Saving…" : "Save branding"}
           </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setColor(initialColor);
-              setHexInput(initialColor);
-              setLogoText(initialLogoText);
-              setLogoUrl(null);
-              setPin(initialStaffPin);
-            }}
-          >
+          <Button variant="outline" onClick={reset} disabled={disabled || !dirty}>
             <RotateCcw className="size-4" /> Reset
           </Button>
         </div>
@@ -245,7 +325,7 @@ export function BrandingEditor({
           <CardContent>
             <div className="mx-auto max-w-[420px]">
               <KioskPreview
-                brand={{ brandColor: color, logoText, logoUrl, storeName }}
+                brand={{ brandColor: color, logoText, logoUrl: logoPreview, storeName }}
                 screen={screen}
               />
             </div>

@@ -23,6 +23,7 @@ import {
   user as userTable,
 } from "./db/schema";
 import { computeEcoSavings } from "./eco";
+import { presignedGetUrl } from "./storage";
 import type {
   Device,
   DeviceRow,
@@ -576,6 +577,42 @@ export async function tenantNameOf(organizationId: string): Promise<string> {
     .where(eq(orgTable.id, organizationId))
     .limit(1);
   return row?.name ?? organizationId;
+}
+
+// ============================================================================
+// Branding (tenant_settings)
+// ============================================================================
+
+export interface TenantBranding {
+  brandColor: string;
+  staffPin: string;
+  /** Presigned, ready-to-render image URL (null if no logo uploaded). */
+  logoUrl: string | null;
+  /** Whether a logo object exists in storage (drives the "remove" affordance). */
+  hasLogo: boolean;
+}
+
+export async function getTenantBranding(
+  organizationId: string,
+): Promise<TenantBranding> {
+  const [s] = await db
+    .select()
+    .from(settingsTable)
+    .where(eq(settingsTable.organizationId, organizationId))
+    .limit(1);
+
+  let logoUrl: string | null = null;
+  if (s?.logoUrl) {
+    // tenant_settings.logoUrl stores the R2 object key; presign for display.
+    logoUrl = await presignedGetUrl(s.logoUrl);
+  }
+
+  return {
+    brandColor: s?.brandColor ?? "#10A765",
+    staffPin: s?.staffPin ?? "",
+    logoUrl,
+    hasLogo: !!s?.logoUrl,
+  };
 }
 
 // Device provisioning helpers live in lib/receipts.ts (claimDevice,

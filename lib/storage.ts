@@ -1,8 +1,8 @@
-// Cloudflare R2 (S3-compatible) object storage for rendered receipts.
+// Cloudflare R2 (S3-compatible) object storage.
 //
-// Receipts are PRIVATE — the bucket is never public. Access is granted only via
-// short-lived presigned GET URLs, minted on demand when someone presents a
-// valid receipt token. The token is the capability; the URL is the delivery.
+// Objects are PRIVATE — the bucket is never public. Access is granted only via
+// short-lived presigned GET URLs minted on demand server-side. Used for both
+// rendered receipts and tenant logo assets.
 
 import {
   GetObjectCommand,
@@ -23,8 +23,10 @@ const client = new S3Client({
   },
 });
 
-/** Upload a rendered receipt to R2. Returns the storage key. */
-export async function putReceipt(
+// ---- Generic object helpers -------------------------------------------------
+
+/** Upload any object to R2. Returns the storage key. */
+export async function putObject(
   key: string,
   bytes: Uint8Array | Buffer,
   mimeType: string,
@@ -41,11 +43,11 @@ export async function putReceipt(
 }
 
 /**
- * Mint a short-lived presigned GET URL for a private receipt object.
+ * Mint a short-lived presigned GET URL for a private object.
  * Default TTL 5 minutes — long enough to view/download, short enough that a
- * leaked URL expires fast. The token check happens before this is ever called.
+ * leaked URL expires fast.
  */
-export async function presignedReceiptUrl(
+export async function presignedGetUrl(
   key: string,
   expiresInSeconds = 300,
 ): Promise<string> {
@@ -56,10 +58,28 @@ export async function presignedReceiptUrl(
   );
 }
 
+// ---- Receipt-specific (Phase 3 ingest path) --------------------------------
+
+/** Upload a rendered receipt to R2. Returns the storage key. */
+export const putReceipt = putObject;
+
+/** Mint a short-lived presigned GET URL for a private receipt object. */
+export const presignedReceiptUrl = presignedGetUrl;
+
 /** Object key convention for a receipt's rendered image. */
 export function receiptStorageKey(
   organizationId: string,
   receiptId: string,
 ): string {
   return `receipts/${organizationId}/${receiptId}`;
+}
+
+// ---- Tenant branding assets -------------------------------------------------
+
+/** Object key convention for a tenant's uploaded logo. */
+export function logoStorageKey(
+  organizationId: string,
+  assetId: string,
+): string {
+  return `logos/${organizationId}/${assetId}`;
 }

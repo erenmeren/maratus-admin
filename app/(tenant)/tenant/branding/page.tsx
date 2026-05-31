@@ -1,11 +1,17 @@
 import { PageHeader } from "@/components/page-header";
 import { BrandingEditor } from "@/components/branding-editor";
-import { getTenant } from "@/lib/data";
+import { getTenant, getTenantBranding } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
 
 export default async function BrandingPage() {
-  const { organizationId } = await requireTenant();
-  const tenant = await getTenant(organizationId);
+  const { ctx, organizationId } = await requireTenant();
+  const [tenant, branding] = await Promise.all([
+    getTenant(organizationId),
+    getTenantBranding(organizationId),
+  ]);
+
+  const membership = ctx.organizations.find((o) => o.id === organizationId);
+  const canEdit = !!membership && ["owner", "admin"].includes(membership.role);
 
   return (
     <>
@@ -14,10 +20,12 @@ export default async function BrandingPage() {
         description="Customize how your kiosks look to customers. Changes preview live."
       />
       <BrandingEditor
-        initialColor={tenant.brandColor}
+        initialColor={branding.brandColor}
         initialLogoText={tenant.logoText}
-        initialStaffPin={tenant.staffPin}
+        initialLogoUrl={branding.logoUrl}
+        initialStaffPin={branding.staffPin}
         storeName={tenant.name}
+        canEdit={canEdit}
       />
     </>
   );

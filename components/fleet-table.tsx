@@ -120,7 +120,11 @@ export function FleetTable({
                   {formatNumber(r.receiptsThisMonth)}
                 </TableCell>
                 <TableCell className="pr-4">
-                  <DeviceRowActions deviceId={r.id} status={r.status} />
+                  <DeviceRowActions
+                    deviceId={r.id}
+                    deviceName={r.name}
+                    status={r.status}
+                  />
                 </TableCell>
               </TableRow>
             ))}

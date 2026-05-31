@@ -85,6 +85,91 @@ export async function setDeviceActiveAdmin(
   return { ok: true, status: next };
 }
 
+/** Rename any device (platform-admin). */
+export async function renameDevice(
+  deviceId: string,
+  name: string,
+): Promise<ActionResult> {
+  await requirePlatformAdmin();
+  const clean = name.trim();
+  if (!clean) return { ok: false, error: "Name is required." };
+
+  const [device] = await db
+    .select({ storeId: deviceTable.storeId, organizationId: deviceTable.organizationId })
+    .from(deviceTable)
+    .where(eq(deviceTable.id, deviceId))
+    .limit(1);
+  if (!device) return { ok: false, error: "Device not found." };
+
+  await db
+    .update(deviceTable)
+    .set({ name: clean })
+    .where(eq(deviceTable.id, deviceId));
+
+  revalidatePath("/admin/devices");
+  revalidatePath(`/admin/customers/${device.organizationId}`);
+  if (device.storeId) revalidatePath(`/tenant/stores/${device.storeId}`);
+  return { ok: true };
+}
+
+/** Move a device to a different store within the SAME organization (platform-admin). */
+export async function reassignDevice(
+  deviceId: string,
+  storeId: string,
+): Promise<ActionResult> {
+  await requirePlatformAdmin();
+
+  const [device] = await db
+    .select()
+    .from(deviceTable)
+    .where(eq(deviceTable.id, deviceId))
+    .limit(1);
+  if (!device) return { ok: false, error: "Device not found." };
+
+  const [store] = await db
+    .select({ organizationId: storeTable.organizationId })
+    .from(storeTable)
+    .where(eq(storeTable.id, storeId))
+    .limit(1);
+  if (!store) return { ok: false, error: "Store not found." };
+  if (store.organizationId !== device.organizationId) {
+    return { ok: false, error: "Store belongs to a different customer." };
+  }
+
+  const prevStore = device.storeId;
+  await db
+    .update(deviceTable)
+    .set({ storeId })
+    .where(eq(deviceTable.id, deviceId));
+
+  revalidatePath("/admin/devices");
+  revalidatePath(`/admin/customers/${device.organizationId}`);
+  if (prevStore) revalidatePath(`/tenant/stores/${prevStore}`);
+  revalidatePath(`/tenant/stores/${storeId}`);
+  return { ok: true };
+}
+
+/**
+ * Permanently delete a device (platform-admin). Its receipt history is removed
+ * too (FK cascade), so this is destructive — the UI confirms first.
+ */
+export async function deleteDevice(deviceId: string): Promise<ActionResult> {
+  await requirePlatformAdmin();
+  const [device] = await db
+    .select({ storeId: deviceTable.storeId, organizationId: deviceTable.organizationId })
+    .from(deviceTable)
+    .where(eq(deviceTable.id, deviceId))
+    .limit(1);
+  if (!device) return { ok: false, error: "Device not found." };
+
+  await db.delete(deviceTable).where(eq(deviceTable.id, deviceId));
+
+  revalidatePath("/admin/devices");
+  revalidatePath(`/admin/customers/${device.organizationId}`);
+  if (device.storeId) revalidatePath(`/tenant/stores/${device.storeId}`);
+  return { ok: true };
+}
+
 export interface ProvisionDeviceResult {
   ok: boolean;
   error?: string;

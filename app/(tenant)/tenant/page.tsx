@@ -14,11 +14,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getTenantDashboard, getTenantStores } from "@/lib/data";
+import { requireTenant } from "@/lib/session";
 import { formatNumber } from "@/lib/format";
 
-export default function TenantDashboardPage() {
-  const dash = getTenantDashboard();
-  const stores = getTenantStores();
+export default async function TenantDashboardPage() {
+  const { organizationId } = await requireTenant();
+  const dash = await getTenantDashboard(organizationId);
+  const stores = await getTenantStores(organizationId);
   const topStores = [...stores]
     .sort((a, b) => b.receiptsThisMonth - a.receiptsThisMonth)
     .slice(0, 4);

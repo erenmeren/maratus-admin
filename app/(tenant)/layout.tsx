@@ -1,14 +1,26 @@
 import { AppShell } from "@/components/app-shell";
-import { getDefaultTenant } from "@/lib/data";
+import { requireTenant } from "@/lib/session";
 
-export default function TenantLayout({
+export default async function TenantLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const tenant = getDefaultTenant();
+  const { ctx, organizationId } = await requireTenant();
+  const activeName =
+    ctx.organizations.find((o) => o.id === organizationId)?.name ?? "Workspace";
+
   return (
-    <AppShell workspace="tenant" groupLabel="Workspace" topBarLabel={tenant.name}>
+    <AppShell
+      workspace="tenant"
+      groupLabel="Workspace"
+      topBarLabel={activeName}
+      user={ctx.user}
+      organizations={ctx.organizations}
+      role={ctx.user.role}
+      activeName={activeName}
+      activeOrganizationId={organizationId}
+    >
       {children}
     </AppShell>
   );

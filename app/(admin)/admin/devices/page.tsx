@@ -4,9 +4,9 @@ import { KpiCard } from "@/components/kpi-card";
 import { FleetTable } from "@/components/fleet-table";
 import { getAllDevices, getTenants } from "@/lib/data";
 
-export default function FleetPage() {
-  const rows = getAllDevices();
-  const customers = getTenants().map((t) => ({ id: t.id, name: t.name }));
+export default async function FleetPage() {
+  const rows = await getAllDevices();
+  const customers = (await getTenants()).map((t) => ({ id: t.id, name: t.name }));
   const online = rows.filter((r) => r.status === "online").length;
   const paused = rows.filter((r) => r.status === "paused").length;
   const offline = rows.filter((r) => r.status === "offline").length;

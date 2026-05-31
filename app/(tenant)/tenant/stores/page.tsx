@@ -13,10 +13,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getTenantStores } from "@/lib/data";
+import { requireTenant } from "@/lib/session";
 import { formatNumber } from "@/lib/format";
 
-export default function StoresPage() {
-  const stores = getTenantStores();
+export default async function StoresPage() {
+  const { organizationId } = await requireTenant();
+  const stores = await getTenantStores(organizationId);
   const totalDevices = stores.reduce((a, s) => a + s.deviceCount, 0);
   const totalOnline = stores.reduce((a, s) => a + s.onlineCount, 0);
 

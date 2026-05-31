@@ -14,12 +14,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getTenant, getTenantStores, tenantMonthly } from "@/lib/data";
+import { requireTenant } from "@/lib/session";
 import { computeEcoSavings, PAPER_GRAMS_PER_RECEIPT } from "@/lib/eco";
 
-export default function ReportsPage() {
-  const tenant = getTenant();
-  const monthly = tenantMonthly();
-  const stores = getTenantStores();
+export default async function ReportsPage() {
+  const { organizationId } = await requireTenant();
+  const tenant = await getTenant(organizationId);
+  const monthly = await tenantMonthly(organizationId);
+  const stores = await getTenantStores(organizationId);
 
   const byStore = [...stores]
     .map((s) => ({ label: s.name.replace("Roastwell ", ""), value: s.receiptsThisMonth }))

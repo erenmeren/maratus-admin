@@ -6,6 +6,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { DeviceCard } from "@/components/device-card";
 import { StatusBadge } from "@/components/status-badge";
 import { getStore } from "@/lib/data";
+import { requireTenant } from "@/lib/session";
 import { formatNumber } from "@/lib/format";
 
 export default async function StoreDetailPage({
@@ -14,8 +15,9 @@ export default async function StoreDetailPage({
   params: Promise<{ storeId: string }>;
 }) {
   const { storeId } = await params;
-  const result = getStore(storeId);
-  if (!result || result.tenant.id !== "roastwell") notFound();
+  const { organizationId } = await requireTenant();
+  const result = await getStore(storeId);
+  if (!result || result.tenant.id !== organizationId) notFound();
 
   const { store } = result;
   const online = store.devices.filter((d) => d.status === "online").length;

@@ -20,6 +20,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { getDevice } from "@/lib/data";
+import { requireTenant } from "@/lib/session";
 import { formatNumber, timeAgo } from "@/lib/format";
 
 export default async function DeviceDetailPage({
@@ -28,8 +29,9 @@ export default async function DeviceDetailPage({
   params: Promise<{ storeId: string; deviceId: string }>;
 }) {
   const { storeId, deviceId } = await params;
-  const result = getDevice(deviceId);
-  if (!result || result.tenant.id !== "roastwell") notFound();
+  const { organizationId } = await requireTenant();
+  const result = await getDevice(deviceId);
+  if (!result || result.tenant.id !== organizationId) notFound();
 
   const { device, store } = result;
 

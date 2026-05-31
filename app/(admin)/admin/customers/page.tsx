@@ -15,8 +15,8 @@ import {
 import { getTenantSummaries } from "@/lib/data";
 import { formatCurrency, formatNumber } from "@/lib/format";
 
-export default function CustomersPage() {
-  const customers = getTenantSummaries();
+export default async function CustomersPage() {
+  const customers = await getTenantSummaries();
 
   return (
     <>

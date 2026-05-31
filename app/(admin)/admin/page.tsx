@@ -23,8 +23,8 @@ import {
 import { getAdminOverview } from "@/lib/data";
 import { formatCompact, formatCurrency, formatNumber } from "@/lib/format";
 
-export default function AdminOverviewPage() {
-  const o = getAdminOverview();
+export default async function AdminOverviewPage() {
+  const o = await getAdminOverview();
 
   return (
     <>

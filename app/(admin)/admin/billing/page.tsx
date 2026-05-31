@@ -20,12 +20,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getBillingOverview, tenantNameOf } from "@/lib/data";
+import { getBillingOverview } from "@/lib/data";
 import { formatCurrency, formatNumber } from "@/lib/format";
 
-export default function BillingPage() {
-  const billing = getBillingOverview();
+export default async function BillingPage() {
+  const billing = await getBillingOverview();
   const mrr = billing.byTenant.reduce((a, t) => a + t.revenueThisMonth, 0);
+  // org id → display name, for the invoice table
+  const tenantNames = Object.fromEntries(
+    billing.byTenant.map((t) => [t.id, t.name]),
+  );
 
   return (
     <>
@@ -148,7 +152,7 @@ export default function BillingPage() {
                 <TableRow key={inv.id}>
                   <TableCell className="pl-6 font-mono text-xs">{inv.id}</TableCell>
                   <TableCell className="font-medium">
-                    {tenantNameOf(inv.tenantId)}
+                    {tenantNames[inv.tenantId] ?? inv.tenantId}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{inv.period}</TableCell>
                   <TableCell className="text-right tabular-nums">

@@ -1,22 +1,53 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArrowRight, Leaf, QrCode, Shield } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { ArrowRight, Leaf, Loader2, QrCode } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { DittoWordmark } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { authClient } from "@/lib/auth-client";
 
 export default function LoginPage() {
-  const router = useRouter();
+  return (
+    <React.Suspense>
+      <LoginForm />
+    </React.Suspense>
+  );
+}
 
-  function handleSubmit(e: React.FormEvent) {
+function LoginForm() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const [email, setEmail] = React.useState("dana@roastwell.co");
+  const [password, setPassword] = React.useState("password123");
+  const [loading, setLoading] = React.useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    // No real auth — UI-only. Route into the tenant workspace.
-    router.push("/tenant");
+    setLoading(true);
+    const { data, error } = await authClient.signIn.email({ email, password });
+    setLoading(false);
+
+    if (error || !data) {
+      toast.error("Sign in failed", {
+        description: error?.message ?? "Invalid email or password.",
+      });
+      return;
+    }
+
+    // Route to the right panel: platform staff → /admin, everyone else → /tenant.
+    const role = (data.user as { role?: string }).role;
+    const redirect = params.get("redirect");
+    const dest =
+      role === "platform_admin" ? "/admin" : redirect ?? "/tenant";
+    router.push(dest);
+    router.refresh();
   }
 
   return (
@@ -46,8 +77,10 @@ export default function LoginPage() {
                   id="email"
                   type="email"
                   placeholder="you@store.com"
-                  defaultValue="dana@roastwell.co"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
+                  required
                 />
               </div>
               <div className="space-y-2">
@@ -64,13 +97,21 @@ export default function LoginPage() {
                   id="password"
                   type="password"
                   placeholder="••••••••"
-                  defaultValue="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   autoComplete="current-password"
+                  required
                 />
               </div>
-              <Button type="submit" className="w-full">
-                Sign in
-                <ArrowRight className="size-4" />
+              <Button type="submit" className="w-full" disabled={loading}>
+                {loading ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <>
+                    Sign in
+                    <ArrowRight className="size-4" />
+                  </>
+                )}
               </Button>
             </form>
 
@@ -80,37 +121,61 @@ export default function LoginPage() {
               <Separator className="flex-1" />
             </div>
 
-            <Button variant="outline" className="w-full" asChild>
-              <Link href="/tenant">
-                <svg viewBox="0 0 24 24" className="size-4" aria-hidden>
-                  <path
-                    fill="currentColor"
-                    d="M21.35 11.1H12v3.83h5.35c-.23 1.4-1.62 4.1-5.35 4.1-3.22 0-5.85-2.67-5.85-5.95S8.78 7.13 12 7.13c1.83 0 3.06.78 3.76 1.45l2.56-2.47C16.74 4.6 14.6 3.6 12 3.6 6.95 3.6 2.85 7.7 2.85 12.75S6.95 21.9 12 21.9c5.27 0 8.76-3.7 8.76-8.92 0-.6-.06-1.05-.16-1.5z"
-                  />
-                </svg>
-                Continue with SSO
-              </Link>
+            <Button
+              variant="outline"
+              className="w-full"
+              type="button"
+              onClick={() =>
+                toast.info("SSO not configured", {
+                  description: "Single sign-on isn't set up in this prototype.",
+                })
+              }
+            >
+              <svg viewBox="0 0 24 24" className="size-4" aria-hidden>
+                <path
+                  fill="currentColor"
+                  d="M21.35 11.1H12v3.83h5.35c-.23 1.4-1.62 4.1-5.35 4.1-3.22 0-5.85-2.67-5.85-5.95S8.78 7.13 12 7.13c1.83 0 3.06.78 3.76 1.45l2.56-2.47C16.74 4.6 14.6 3.6 12 3.6 6.95 3.6 2.85 7.7 2.85 12.75S6.95 21.9 12 21.9c5.27 0 8.76-3.7 8.76-8.92 0-.6-.06-1.05-.16-1.5z"
+                />
+              </svg>
+              Continue with SSO
             </Button>
 
             <Separator />
 
-            {/* Prototype: clear entry points to both panels */}
-            <div className="space-y-2">
+            {/* Demo accounts seeded into the database */}
+            <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Prototype shortcuts
+                Demo accounts
               </p>
-              <div className="grid grid-cols-2 gap-2">
-                <Button variant="secondary" size="sm" asChild>
-                  <Link href="/tenant">
-                    <QrCode className="size-4" /> Tenant
-                  </Link>
-                </Button>
-                <Button variant="secondary" size="sm" asChild>
-                  <Link href="/admin">
-                    <Shield className="size-4" /> Super Admin
-                  </Link>
-                </Button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("dana@roastwell.co");
+                  setPassword("password123");
+                }}
+                className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent"
+              >
+                <span className="font-medium">Tenant owner</span>
+                <span className="font-mono text-muted-foreground">
+                  dana@roastwell.co
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setEmail("admin@ditto.app");
+                  setPassword("password123");
+                }}
+                className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent"
+              >
+                <span className="font-medium">Platform admin</span>
+                <span className="font-mono text-muted-foreground">
+                  admin@ditto.app
+                </span>
+              </button>
+              <p className="px-2 text-[11px] text-muted-foreground">
+                Password for both: <span className="font-mono">password123</span>
+              </p>
             </div>
           </div>
         </div>

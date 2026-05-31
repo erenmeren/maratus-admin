@@ -1,9 +1,11 @@
 import { PageHeader } from "@/components/page-header";
 import { BrandingEditor } from "@/components/branding-editor";
-import { getDefaultTenant } from "@/lib/data";
+import { getTenant } from "@/lib/data";
+import { requireTenant } from "@/lib/session";
 
-export default function BrandingPage() {
-  const tenant = getDefaultTenant();
+export default async function BrandingPage() {
+  const { organizationId } = await requireTenant();
+  const tenant = await getTenant(organizationId);
 
   return (
     <>

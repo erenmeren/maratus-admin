@@ -41,7 +41,7 @@ export default async function CustomerDetailPage({
   params: Promise<{ tenantId: string }>;
 }) {
   const { tenantId } = await params;
-  const detail = getCustomerDetail(tenantId);
+  const detail = await getCustomerDetail(tenantId);
   if (!detail) notFound();
 
   const { tenant, summary, devices, monthly } = detail;

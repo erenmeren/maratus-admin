@@ -3,15 +3,17 @@
 // Server action: persist tenant branding to tenant_settings.
 // Only org owners/admins may edit. A new logo is uploaded to R2 (private) and
 // its object key stored in tenant_settings.logoUrl; the public-facing image is
-// served later via a short-lived presigned URL.
+// served later via a short-lived presigned URL. When a logo is replaced or
+// removed, the previous R2 object is deleted so no orphans accumulate.
 
 import { revalidatePath } from "next/cache";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { tenantSettings } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
 import { isValidHex } from "@/lib/color";
 import { id } from "@/lib/ids";
-import { logoStorageKey, putObject } from "@/lib/storage";
+import { deleteObject, logoStorageKey, putObject } from "@/lib/storage";
 
 export interface SaveBrandingResult {
   ok: boolean;
@@ -67,6 +69,18 @@ export async function saveBranding(
     logoUrlUpdate = null;
   }
 
+  // If the logo is changing (replace or remove), capture the previous object
+  // key first so we can delete it after the DB write succeeds.
+  let previousLogoKey: string | null = null;
+  if (logoUrlUpdate !== undefined) {
+    const [existing] = await db
+      .select({ logoUrl: tenantSettings.logoUrl })
+      .from(tenantSettings)
+      .where(eq(tenantSettings.organizationId, organizationId))
+      .limit(1);
+    previousLogoKey = existing?.logoUrl ?? null;
+  }
+
   // --- Upsert tenant_settings --------------------------------------------
   const now = new Date();
   await db
@@ -86,6 +100,15 @@ export async function saveBranding(
         ...(logoUrlUpdate !== undefined ? { logoUrl: logoUrlUpdate } : {}),
       },
     });
+
+  // --- Clean up the orphaned old logo object (best-effort) ---------------
+  // Only after the DB no longer references it, and only if it actually changed.
+  if (
+    previousLogoKey &&
+    previousLogoKey !== logoUrlUpdate // not the same object
+  ) {
+    await deleteObject(previousLogoKey);
+  }
 
   revalidatePath("/tenant/branding");
   revalidatePath("/tenant");

@@ -5,6 +5,7 @@
 // rendered receipts and tenant logo assets.
 
 import {
+  DeleteObjectCommand,
   GetObjectCommand,
   PutObjectCommand,
   S3Client,
@@ -56,6 +57,23 @@ export async function presignedGetUrl(
     new GetObjectCommand({ Bucket: env.R2_BUCKET, Key: key }),
     { expiresIn: expiresInSeconds },
   );
+}
+
+/**
+ * Delete an object from R2. Best-effort: never throws — a failed cleanup of an
+ * orphaned object must not break the user-facing operation that triggered it.
+ * Returns true if the delete call succeeded.
+ */
+export async function deleteObject(key: string): Promise<boolean> {
+  try {
+    await client.send(
+      new DeleteObjectCommand({ Bucket: env.R2_BUCKET, Key: key }),
+    );
+    return true;
+  } catch (err) {
+    console.error(`R2 deleteObject failed for key ${key}`, err);
+    return false;
+  }
 }
 
 // ---- Receipt-specific (Phase 3 ingest path) --------------------------------

@@ -166,7 +166,9 @@ async function main() {
         connectionType: rand() > 0.45 ? "ethernet" : "wifi",
         firmwareVersion: pick(["2.4.1", "2.4.0", "2.3.7"]),
         lastSeenAt: new Date(Date.now() - Math.floor(rand() * 9) * 60_000),
-        pairingCode: pairingCode(),
+        // Claimed devices have a key hash and no pairing code (code is consumed
+        // at claim time).
+        pairingCode: null,
         deviceKeyHash: hash,
         claimedAt: new Date(),
         createdAt: new Date(),
@@ -175,6 +177,28 @@ async function main() {
     }
   }
   console.log(`  • created ${STORES.length} stores, ${allDeviceIds.length} devices`);
+
+  // --- Unclaimed devices (awaiting provisioning) --------------------------
+  // These have a pairing code, no store, no key — ready to be claimed in the UI.
+  const unclaimedCodes: string[] = [];
+  for (let i = 0; i < 3; i++) {
+    const code = pairingCode();
+    unclaimedCodes.push(code);
+    await db.insert(device).values({
+      id: id("dev"),
+      organizationId: orgId,
+      storeId: null,
+      name: `Unprovisioned Kiosk ${i + 1}`,
+      status: "offline",
+      connectionType: "wifi",
+      firmwareVersion: "2.4.1",
+      pairingCode: code,
+      deviceKeyHash: null,
+      claimedAt: null,
+      createdAt: new Date(),
+    });
+  }
+  console.log(`  • created 3 unclaimed devices (pairing codes: ${unclaimedCodes.join(", ")})`);
 
   // --- Receipts (≈30 across this month) -----------------------------------
   const now = new Date();

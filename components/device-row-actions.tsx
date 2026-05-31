@@ -1,6 +1,8 @@
 "use client";
 
-import { MoreHorizontal, Link2, Link2Off, Pause, Play } from "lucide-react";
+import * as React from "react";
+import { useRouter } from "next/navigation";
+import { Link2Off, Loader2, MoreHorizontal, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,26 +12,40 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { setDeviceActiveAdmin, unassignDevice } from "@/lib/actions/devices";
 import type { DeviceStatus } from "@/lib/types";
 
 export function DeviceRowActions({
   deviceId,
   status,
-  assigned = true,
 }: {
   deviceId: string;
   status: DeviceStatus;
-  assigned?: boolean;
 }) {
-  // TODO: replace with API — all actions are stubs for the prototype.
-  const act = (msg: string, desc: string) =>
-    toast.success(msg, { description: desc });
+  const router = useRouter();
+  const [pending, setPending] = React.useState(false);
+
+  async function run(fn: () => Promise<{ ok: boolean; error?: string }>, ok: string) {
+    setPending(true);
+    const res = await fn();
+    setPending(false);
+    if (!res.ok) {
+      toast.error("Action failed", { description: res.error });
+      return;
+    }
+    toast.success(ok, { description: `${deviceId} updated.` });
+    router.refresh();
+  }
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="size-8">
-          <MoreHorizontal className="size-4" />
+        <Button variant="ghost" size="icon" className="size-8" disabled={pending}>
+          {pending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <MoreHorizontal className="size-4" />
+          )}
           <span className="sr-only">Actions for {deviceId}</span>
         </Button>
       </DropdownMenuTrigger>
@@ -37,9 +53,9 @@ export function DeviceRowActions({
         {status !== "offline" && (
           <DropdownMenuItem
             onClick={() =>
-              act(
+              run(
+                () => setDeviceActiveAdmin(deviceId, status !== "online"),
                 status === "online" ? "Device paused" : "Device activated",
-                `${deviceId} updated (stub).`,
               )
             }
           >
@@ -55,20 +71,12 @@ export function DeviceRowActions({
           </DropdownMenuItem>
         )}
         <DropdownMenuSeparator />
-        {assigned ? (
-          <DropdownMenuItem
-            variant="destructive"
-            onClick={() => act("Device unassigned", `${deviceId} unassigned (stub).`)}
-          >
-            <Link2Off className="size-4" /> Unassign
-          </DropdownMenuItem>
-        ) : (
-          <DropdownMenuItem
-            onClick={() => act("Device assigned", `${deviceId} assigned (stub).`)}
-          >
-            <Link2 className="size-4" /> Assign
-          </DropdownMenuItem>
-        )}
+        <DropdownMenuItem
+          variant="destructive"
+          onClick={() => run(() => unassignDevice(deviceId), "Device unassigned")}
+        >
+          <Link2Off className="size-4" /> Unassign
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

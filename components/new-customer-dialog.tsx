@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Loader2, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,19 +17,29 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createCustomer } from "@/lib/actions/customers";
 
 export function NewCustomerDialog() {
+  const router = useRouter();
   const [open, setOpen] = React.useState(false);
+  const [pending, setPending] = React.useState(false);
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const data = new FormData(e.currentTarget);
-    const name = String(data.get("name") || "New customer");
-    // TODO: replace with API — POST the new customer.
+    const fd = new FormData(e.currentTarget);
+    const name = String(fd.get("name") || "New customer");
+    setPending(true);
+    const res = await createCustomer(fd);
+    setPending(false);
+    if (!res.ok) {
+      toast.error("Couldn't create customer", { description: res.error });
+      return;
+    }
     setOpen(false);
     toast.success("Customer created", {
-      description: `${name} has been added (stub).`,
+      description: `${name} has been added to Ditto.`,
     });
+    router.refresh();
   }
 
   return (
@@ -90,7 +101,10 @@ export function NewCustomerDialog() {
                 Cancel
               </Button>
             </DialogClose>
-            <Button type="submit">Create customer</Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+              {pending ? "Creating…" : "Create customer"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

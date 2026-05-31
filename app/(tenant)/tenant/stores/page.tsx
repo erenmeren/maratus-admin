@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ChevronRight, MapPin, Plus, Store as StoreIcon } from "lucide-react";
+import { ChevronRight, MapPin, Store as StoreIcon } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge, StatusDot } from "@/components/status-badge";
-import { Button } from "@/components/ui/button";
+import { AddStoreDialog } from "@/components/add-store-dialog";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -17,10 +17,12 @@ import { requireTenant } from "@/lib/session";
 import { formatNumber } from "@/lib/format";
 
 export default async function StoresPage() {
-  const { organizationId } = await requireTenant();
+  const { ctx, organizationId } = await requireTenant();
   const stores = await getTenantStores(organizationId);
   const totalDevices = stores.reduce((a, s) => a + s.deviceCount, 0);
   const totalOnline = stores.reduce((a, s) => a + s.onlineCount, 0);
+  const membership = ctx.organizations.find((o) => o.id === organizationId);
+  const canManage = !!membership && ["owner", "admin"].includes(membership.role);
 
   return (
     <>
@@ -28,10 +30,7 @@ export default async function StoresPage() {
         title="Stores"
         description={`${stores.length} branches · ${totalOnline}/${totalDevices} kiosks online`}
       >
-        <Button>
-          <Plus className="size-4" />
-          Add store
-        </Button>
+        {canManage && <AddStoreDialog />}
       </PageHeader>
 
       <Card className="overflow-hidden py-0">

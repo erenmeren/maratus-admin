@@ -8,21 +8,31 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { StatusDot } from "@/components/status-badge";
+import { setDeviceActive } from "@/lib/actions/devices";
 import type { Device } from "@/lib/types";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export function DeviceCard({ device }: { device: Device }) {
   const [status, setStatus] = React.useState(device.status);
+  const [pending, setPending] = React.useState(false);
   const offline = status === "offline";
 
-  function toggle(active: boolean) {
-    // TODO: replace with API — optimistic local update for the prototype.
-    const next = active ? "online" : "paused";
-    setStatus(next);
+  async function toggle(active: boolean) {
+    const prev = status;
+    setStatus(active ? "online" : "paused"); // optimistic
+    setPending(true);
+    const res = await setDeviceActive(device.id, active);
+    setPending(false);
+    if (!res.ok || !res.status) {
+      setStatus(prev); // roll back
+      toast.error("Couldn't update device", { description: res.error });
+      return;
+    }
+    setStatus(res.status);
     toast.success(
       active ? `${device.name} resumed` : `${device.name} paused`,
-      { description: `${device.id} is now ${next}.` },
+      { description: `${device.id} is now ${res.status}.` },
     );
   }
 
@@ -96,7 +106,7 @@ export function DeviceCard({ device }: { device: Device }) {
         <Switch
           id={`toggle-${device.id}`}
           checked={status === "online"}
-          disabled={offline}
+          disabled={offline || pending}
           onCheckedChange={toggle}
         />
       </div>

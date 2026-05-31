@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { Pause, Play } from "lucide-react";
+import { Loader2, Pause, Play } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { StatusDot } from "@/components/status-badge";
+import { setDeviceActive } from "@/lib/actions/devices";
 import type { DeviceStatus } from "@/lib/types";
 
 export function DevicePauseControl({
@@ -17,15 +18,22 @@ export function DevicePauseControl({
   initialStatus: DeviceStatus;
 }) {
   const [status, setStatus] = React.useState(initialStatus);
+  const [pending, setPending] = React.useState(false);
   const offline = status === "offline";
 
-  function toggle() {
-    // TODO: replace with API.
-    const next: DeviceStatus = status === "online" ? "paused" : "online";
-    setStatus(next);
+  async function toggle() {
+    const active = status !== "online"; // activate if paused, else pause
+    setPending(true);
+    const res = await setDeviceActive(deviceId, active);
+    setPending(false);
+    if (!res.ok || !res.status) {
+      toast.error("Couldn't update device", { description: res.error });
+      return;
+    }
+    setStatus(res.status);
     toast.success(
-      next === "online" ? `${deviceName} resumed` : `${deviceName} paused`,
-      { description: `${deviceId} is now ${next}.` },
+      res.status === "online" ? `${deviceName} resumed` : `${deviceName} paused`,
+      { description: `${deviceId} is now ${res.status}.` },
     );
   }
 
@@ -47,10 +55,12 @@ export function DevicePauseControl({
       <Button
         variant={status === "online" ? "outline" : "default"}
         size="sm"
-        disabled={offline}
+        disabled={offline || pending}
         onClick={toggle}
       >
-        {status === "online" ? (
+        {pending ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : status === "online" ? (
           <>
             <Pause className="size-4" /> Pause
           </>

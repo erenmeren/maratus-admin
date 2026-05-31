@@ -511,6 +511,7 @@ function mapInvoice(row: typeof invoiceTable.$inferSelect): Invoice {
     receipts: row.receiptCount,
     amount: dollars(row.amountDueCents),
     status,
+    lifecycle: row.status,
     issuedOn: row.createdAt.toISOString(),
   };
 }

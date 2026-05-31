@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { TenantStatus } from "@/lib/types";
+import type { InvoiceLifecycle, TenantStatus } from "@/lib/types";
 
 const META: Record<TenantStatus, { label: string; cls: string; dot: string }> = {
   active: {
@@ -59,6 +59,32 @@ export function InvoiceStatusBadge({
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize",
         INVOICE_META[status],
+        className,
+      )}
+    >
+      {status}
+    </span>
+  );
+}
+
+const LIFECYCLE_META: Record<InvoiceLifecycle, string> = {
+  draft: "bg-muted text-muted-foreground",
+  sent: "bg-status-paused/15 text-status-paused",
+  paid: "bg-status-online/10 text-status-online",
+};
+
+export function InvoiceLifecycleBadge({
+  status,
+  className,
+}: {
+  status: InvoiceLifecycle;
+  className?: string;
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize",
+        LIFECYCLE_META[status],
         className,
       )}
     >

@@ -3,8 +3,13 @@ import { CircleDollarSign, Clock, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { ExportButton } from "@/components/export-button";
+import { GenerateInvoicesButton } from "@/components/generate-invoices-button";
+import { InvoiceRowActions } from "@/components/invoice-row-actions";
 import { RevenueLineChart } from "@/components/charts";
-import { TenantStatusBadge, InvoiceStatusBadge } from "@/components/tenant-status-badge";
+import {
+  TenantStatusBadge,
+  InvoiceLifecycleBadge,
+} from "@/components/tenant-status-badge";
 import {
   Card,
   CardContent,
@@ -31,13 +36,37 @@ export default async function BillingPage() {
     billing.byTenant.map((t) => [t.id, t.name]),
   );
 
+  // Real CSV export of the invoice table.
+  const exportHeaders = [
+    "Invoice",
+    "Customer",
+    "Period",
+    "Receipts",
+    "Amount (USD)",
+    "Status",
+  ];
+  const exportRows = billing.invoices.map((inv) => [
+    inv.id,
+    tenantNames[inv.tenantId] ?? inv.tenantId,
+    inv.period,
+    inv.receipts,
+    inv.amount.toFixed(2),
+    inv.lifecycle,
+  ]);
+
   return (
     <>
       <PageHeader
         title="Billing & Revenue"
         description="Per-customer pricing, invoices, and Ditto's earnings."
       >
-        <ExportButton label="Export invoices" />
+        <ExportButton
+          label="Export invoices"
+          filename="ditto-invoices.csv"
+          headers={exportHeaders}
+          rows={exportRows}
+        />
+        <GenerateInvoicesButton />
       </PageHeader>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -133,7 +162,9 @@ export default async function BillingPage() {
       <Card className="overflow-hidden">
         <CardHeader>
           <CardTitle>Invoices</CardTitle>
-          <CardDescription>Recent billing across all customers</CardDescription>
+          <CardDescription>
+            Generated from real receipt counts × per-print price
+          </CardDescription>
         </CardHeader>
         <CardContent className="px-0 pb-0">
           <Table>
@@ -144,10 +175,22 @@ export default async function BillingPage() {
                 <TableHead>Period</TableHead>
                 <TableHead className="text-right">Receipts</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
-                <TableHead className="pr-6">Status</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-10 pr-4" />
               </TableRow>
             </TableHeader>
             <TableBody>
+              {billing.invoices.length === 0 && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell
+                    colSpan={7}
+                    className="py-12 text-center text-sm text-muted-foreground"
+                  >
+                    No invoices yet. Click “Generate invoices” to bill the
+                    current month.
+                  </TableCell>
+                </TableRow>
+              )}
               {billing.invoices.map((inv) => (
                 <TableRow key={inv.id}>
                   <TableCell className="pl-6 font-mono text-xs">{inv.id}</TableCell>
@@ -161,8 +204,14 @@ export default async function BillingPage() {
                   <TableCell className="text-right font-medium tabular-nums">
                     {formatCurrency(inv.amount, { cents: true })}
                   </TableCell>
-                  <TableCell className="pr-6">
-                    <InvoiceStatusBadge status={inv.status} />
+                  <TableCell>
+                    <InvoiceLifecycleBadge status={inv.lifecycle} />
+                  </TableCell>
+                  <TableCell className="pr-4">
+                    <InvoiceRowActions
+                      invoiceId={inv.id}
+                      lifecycle={inv.lifecycle}
+                    />
                   </TableCell>
                 </TableRow>
               ))}

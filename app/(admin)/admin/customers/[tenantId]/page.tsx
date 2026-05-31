@@ -15,7 +15,8 @@ import { KpiCard } from "@/components/kpi-card";
 import { RevenueLineChart, BreakdownBarChart } from "@/components/charts";
 import { StatusDot } from "@/components/status-badge";
 import { TenantStatusBadge } from "@/components/tenant-status-badge";
-import { AssignDeviceButton } from "@/components/assign-device-button";
+import { AddBranchDialog } from "@/components/add-branch-dialog";
+import { ProvisionDeviceDialog } from "@/components/provision-device-dialog";
 import { DeviceRowActions } from "@/components/device-row-actions";
 import {
   Card,
@@ -45,6 +46,7 @@ export default async function CustomerDetailPage({
   if (!detail) notFound();
 
   const { tenant, summary, devices, monthly } = detail;
+  const storeOptions = tenant.stores.map((s) => ({ id: s.id, name: s.name }));
 
   const byStore = tenant.stores
     .map((s) => ({
@@ -87,14 +89,20 @@ export default async function CustomerDetailPage({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 rounded-xl border bg-muted/40 px-4 py-3">
-            <Tag className="size-4 text-primary" />
-            <div>
-              <p className="font-display text-xl font-bold tabular-nums">
-                {formatCurrency(tenant.perPrintPrice, { cents: true })}
-              </p>
-              <p className="text-xs text-muted-foreground">per print</p>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 rounded-xl border bg-muted/40 px-4 py-3">
+              <Tag className="size-4 text-primary" />
+              <div>
+                <p className="font-display text-xl font-bold tabular-nums">
+                  {formatCurrency(tenant.perPrintPrice, { cents: true })}
+                </p>
+                <p className="text-xs text-muted-foreground">per print</p>
+              </div>
             </div>
+            <AddBranchDialog
+              organizationId={tenant.id}
+              customerName={tenant.name}
+            />
           </div>
         </CardContent>
       </Card>
@@ -144,7 +152,11 @@ export default async function CustomerDetailPage({
             <CardTitle>Assigned devices</CardTitle>
             <CardDescription>{devices.length} kiosks across all stores</CardDescription>
           </div>
-          <AssignDeviceButton customerName={tenant.name} />
+          <ProvisionDeviceDialog
+            organizationId={tenant.id}
+            customerName={tenant.name}
+            stores={storeOptions}
+          />
         </CardHeader>
         <CardContent className="px-0 pb-0">
           <Table>

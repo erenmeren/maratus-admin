@@ -3,9 +3,10 @@
 // Store mutations (tenant-scoped). Create a new branch in the active org.
 
 import { revalidatePath } from "next/cache";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { store as storeTable } from "@/lib/db/schema";
-import { requireTenant } from "@/lib/session";
+import { organization as orgTable, store as storeTable } from "@/lib/db/schema";
+import { requirePlatformAdmin, requireTenant } from "@/lib/session";
 import { id } from "@/lib/ids";
 
 export interface CreateStoreResult {
@@ -40,5 +41,40 @@ export async function createStore(
 
   revalidatePath("/tenant/stores");
   revalidatePath("/tenant");
+  return { ok: true, storeId };
+}
+
+/**
+ * Create a branch for a SPECIFIC customer (platform-admin). The superadmin
+ * version of createStore — not scoped to an active org.
+ */
+export async function createStoreForOrg(
+  organizationId: string,
+  formData: FormData,
+): Promise<CreateStoreResult> {
+  await requirePlatformAdmin();
+
+  const [org] = await db
+    .select({ id: orgTable.id })
+    .from(orgTable)
+    .where(eq(orgTable.id, organizationId))
+    .limit(1);
+  if (!org) return { ok: false, error: "Customer not found." };
+
+  const name = String(formData.get("name") ?? "").trim();
+  const address = String(formData.get("address") ?? "").trim();
+  if (!name) return { ok: false, error: "Branch name is required." };
+
+  const storeId = id("str");
+  await db.insert(storeTable).values({
+    id: storeId,
+    organizationId,
+    name,
+    address,
+    createdAt: new Date(),
+  });
+
+  revalidatePath(`/admin/customers/${organizationId}`);
+  revalidatePath("/admin");
   return { ok: true, storeId };
 }

@@ -12,6 +12,7 @@ import { nextCookies } from "better-auth/next-js";
 import { db } from "./db";
 import { schema } from "./db/schema";
 import { getEnv } from "./env";
+import { sendEmail } from "./email";
 
 const env = getEnv();
 
@@ -25,8 +26,19 @@ export const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
-    // Prototype: no email verification gate so seeded users can sign in.
-    requireEmailVerification: false,
+    requireEmailVerification: true,
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendEmail(
+        user.email,
+        "Verify your Ditto account",
+        `<p>Welcome to Ditto. Confirm your email to finish setting up your account:</p>` +
+          `<p><a href="${url}">Verify my email</a></p>`,
+      );
+    },
   },
   user: {
     additionalFields: {

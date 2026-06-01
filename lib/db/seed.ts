@@ -65,6 +65,12 @@ async function ensureUser(u: typeof OWNER): Promise<string> {
   const res = await auth.api.signUpEmail({
     body: { name: u.name, email: u.email, password: u.password },
   });
+  // Email verification is required for sign-in, but seeded accounts have no
+  // inbox — mark them verified so they can log in immediately.
+  await db
+    .update(user)
+    .set({ emailVerified: true })
+    .where(eq(user.id, res.user.id));
   console.log(`  • created user ${u.email}`);
   return res.user.id;
 }

@@ -15,7 +15,9 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { device as deviceTable, receipt as receiptTable } from "@/lib/db/schema";
+import { device as deviceTable, receipt as receiptTable, tenantSettings } from "@/lib/db/schema";
+import { stripe } from "@/lib/stripe";
+import { reportReceiptUsage } from "@/lib/billing/stripe-billing";
 import { hashDeviceKey, id, receiptToken } from "@/lib/ids";
 import { putReceipt, receiptStorageKey } from "@/lib/storage";
 import { getEnv } from "@/lib/env";
@@ -123,6 +125,20 @@ export async function POST(req: Request) {
     .update(deviceTable)
     .set({ lastSeenAt: now, status: "online" })
     .where(eq(deviceTable.id, device.id));
+
+  // Report metered usage to Stripe (best-effort: never fail ingestion on this).
+  if (stripe) {
+    const [settings] = await db
+      .select({ customerId: tenantSettings.stripeCustomerId })
+      .from(tenantSettings)
+      .where(eq(tenantSettings.organizationId, device.organizationId))
+      .limit(1);
+    if (settings?.customerId) {
+      reportReceiptUsage(settings.customerId).catch((e) =>
+        console.error("[ingest] meter event failed", e),
+      );
+    }
+  }
 
   // --- 4. Respond with the token + public short URL ----------------------
   const baseUrl = getEnv().BETTER_AUTH_URL;

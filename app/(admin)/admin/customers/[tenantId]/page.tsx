@@ -33,7 +33,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getCustomerDetail } from "@/lib/data";
+import { getCustomerDetail, getOrgAuditLog } from "@/lib/data";
 import { formatCurrency, formatNumber, timeAgo } from "@/lib/format";
 
 export default async function CustomerDetailPage({
@@ -44,6 +44,8 @@ export default async function CustomerDetailPage({
   const { tenantId } = await params;
   const detail = await getCustomerDetail(tenantId);
   if (!detail) notFound();
+
+  const activity = await getOrgAuditLog(tenantId, 50);
 
   const { tenant, summary, devices, monthly } = detail;
   const storeOptions = tenant.stores.map((s) => ({ id: s.id, name: s.name }));
@@ -196,6 +198,24 @@ export default async function CustomerDetailPage({
           </Table>
         </CardContent>
       </Card>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-medium">Activity</h2>
+        {activity.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No activity yet.</p>
+        ) : (
+          <ul className="flex flex-col gap-1 text-sm">
+            {activity.map((e) => (
+              <li key={e.id} className="flex justify-between border-t py-1.5">
+                <span>{e.action}</span>
+                <span className="text-muted-foreground">
+                  {e.actor} · {e.at.slice(0, 19).replace("T", " ")}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </>
   );
 }

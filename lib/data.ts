@@ -13,6 +13,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "./db";
 import {
+  auditLog as auditLogTable,
   device as deviceTable,
   invoice as invoiceTable,
   member as memberTable,
@@ -654,4 +655,21 @@ export async function getTenantBilling(organizationId: string) {
       hostedInvoiceUrl: i.hostedInvoiceUrl ?? null,
     })),
   };
+}
+
+export async function getOrgAuditLog(organizationId: string, limit = 100) {
+  const rows = await db
+    .select()
+    .from(auditLogTable)
+    .where(eq(auditLogTable.organizationId, organizationId))
+    .orderBy(desc(auditLogTable.createdAt))
+    .limit(limit);
+  return rows.map((r) => ({
+    id: r.id,
+    action: r.action,
+    actor: r.actorLabel ?? r.actorType,
+    target: r.targetType ? `${r.targetType}:${r.targetId}` : null,
+    metadata: (r.metadata as Record<string, unknown> | null) ?? null,
+    at: r.createdAt.toISOString(),
+  }));
 }

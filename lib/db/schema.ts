@@ -15,6 +15,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -298,6 +299,27 @@ export const invoice = pgTable(
   ],
 );
 
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    actorType: text("actor_type", { enum: ["user", "system", "stripe"] }).notNull(),
+    actorId: text("actor_id"),
+    actorLabel: text("actor_label"),
+    action: text("action").notNull(),
+    targetType: text("target_type"),
+    targetId: text("target_id"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at")
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (t) => [index("audit_log_org_created_idx").on(t.organizationId, t.createdAt)],
+);
+
 // Re-export a flat table map for the Drizzle adapter / db client.
 export const schema = {
   user,
@@ -312,6 +334,7 @@ export const schema = {
   device,
   receipt,
   invoice,
+  auditLog,
 };
 
 // Keep `sql` import used (some toolchains tree-shake otherwise).

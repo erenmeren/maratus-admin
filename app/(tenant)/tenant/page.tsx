@@ -29,7 +29,7 @@ export default async function TenantDashboardPage() {
     <>
       <PageHeader
         title={`Welcome back, ${dash.tenant.contact.name.split(" ")[0]}`}
-        description="Here's how Roastwell's paperless checkout is doing today."
+        description={`Here's how ${dash.tenant.name}'s paperless checkout is doing today.`}
       >
         <span className="inline-flex items-center gap-1.5 rounded-md border bg-card px-2.5 py-1.5 text-xs text-muted-foreground">
           <CalendarDays className="size-3.5" />

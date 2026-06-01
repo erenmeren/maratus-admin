@@ -177,6 +177,16 @@ function LoginForm() {
                 Password for both: <span className="font-mono">password123</span>
               </p>
             </div>
+
+            <p className="text-center text-sm text-muted-foreground">
+              New to Ditto?{" "}
+              <Link
+                href="/signup"
+                className="font-medium text-primary hover:underline"
+              >
+                Create an account
+              </Link>
+            </p>
           </div>
         </div>
 

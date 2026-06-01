@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { statusForStripeInvoice, meterEventPayload } from "./stripe-billing";
+import { statusForStripeInvoice, meterEventPayload } from "./billing-status";
 
 describe("statusForStripeInvoice", () => {
   it("maps draft → draft", () => expect(statusForStripeInvoice("draft")).toBe("draft"));

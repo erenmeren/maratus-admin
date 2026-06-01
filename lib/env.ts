@@ -22,6 +22,13 @@ const envSchema = z.object({
 
   // Transactional email (Resend). Optional: absent → emails are logged, not sent.
   RESEND_API_KEY: z.string().optional(),
+
+  // Stripe billing. All optional: absent → billing features are inert.
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_ID: z.string().optional(),
+  STRIPE_METER_EVENT_NAME: z.string().default("receipts"),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

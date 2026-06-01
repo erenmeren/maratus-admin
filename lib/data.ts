@@ -10,7 +10,7 @@
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
 //   • receiptsToday / receiptsThisMonth are derived from the receipt table
 
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { db } from "./db";
 import {
   device as deviceTable,
@@ -619,3 +619,39 @@ export async function getTenantBranding(
 // Device provisioning helpers live in lib/receipts.ts (claimDevice,
 // getUnclaimedDevices) — re-exported here so callers have one data entrypoint.
 export { claimDevice, getUnclaimedDevices } from "./receipts";
+
+// ============================================================================
+// Tenant billing view-model (subscription status, saved card, invoices).
+// ============================================================================
+
+export async function getTenantBilling(organizationId: string) {
+  const [settings] = await db
+    .select()
+    .from(settingsTable)
+    .where(eq(settingsTable.organizationId, organizationId))
+    .limit(1);
+
+  const invoices = await db
+    .select()
+    .from(invoiceTable)
+    .where(eq(invoiceTable.organizationId, organizationId))
+    .orderBy(desc(invoiceTable.periodStart));
+
+  return {
+    subscriptionStatus: settings?.subscriptionStatus ?? null,
+    hasSubscription: Boolean(settings?.stripeSubscriptionId),
+    card:
+      settings?.cardBrand && settings?.cardLast4
+        ? { brand: settings.cardBrand, last4: settings.cardLast4 }
+        : null,
+    invoices: invoices.map((i) => ({
+      id: i.id,
+      periodStart: i.periodStart.toISOString(),
+      periodEnd: i.periodEnd.toISOString(),
+      receiptCount: i.receiptCount,
+      amount: i.amountDueCents / 100,
+      status: i.status,
+      hostedInvoiceUrl: i.hostedInvoiceUrl ?? null,
+    })),
+  };
+}

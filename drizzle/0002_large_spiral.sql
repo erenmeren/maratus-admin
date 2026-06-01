@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "invoice_stripe_invoice_id_idx" ON "invoice" USING btree ("stripe_invoice_id");

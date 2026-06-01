@@ -162,6 +162,11 @@ export const tenantSettings = pgTable("tenant_settings", {
   brandColor: text("brand_color").default("#10A765").notNull(),
   logoUrl: text("logo_url"),
   staffPin: text("staff_pin"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  subscriptionStatus: text("subscription_status"),
+  cardBrand: text("card_brand"),
+  cardLast4: text("card_last4"),
   status: text("status", { enum: ["active", "paused"] })
     .default("active")
     .notNull(),
@@ -278,11 +283,19 @@ export const invoice = pgTable(
     status: text("status", { enum: ["draft", "sent", "paid"] })
       .default("draft")
       .notNull(),
+    stripeInvoiceId: text("stripe_invoice_id"),
+    hostedInvoiceUrl: text("hosted_invoice_url"),
     createdAt: timestamp("created_at")
       .$defaultFn(() => new Date())
       .notNull(),
   },
-  (t) => [index("invoice_organization_id_idx").on(t.organizationId)],
+  (t) => [
+    index("invoice_organization_id_idx").on(t.organizationId),
+    // One row per Stripe invoice — makes the webhook upsert idempotent under
+    // Stripe's at-least-once / concurrent delivery. NULLs (legacy rows) are
+    // allowed multiple times by Postgres unique semantics.
+    uniqueIndex("invoice_stripe_invoice_id_idx").on(t.stripeInvoiceId),
+  ],
 );
 
 // Re-export a flat table map for the Drizzle adapter / db client.

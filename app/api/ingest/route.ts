@@ -18,6 +18,7 @@ import { db } from "@/lib/db";
 import { device as deviceTable, receipt as receiptTable, tenantSettings } from "@/lib/db/schema";
 import { stripe } from "@/lib/stripe";
 import { reportReceiptUsage } from "@/lib/billing/stripe-billing";
+import { isSuspended } from "@/lib/billing/billing-status";
 import { hashDeviceKey, id, receiptToken } from "@/lib/ids";
 import { putReceipt, receiptStorageKey } from "@/lib/storage";
 import { getEnv } from "@/lib/env";
@@ -45,6 +46,21 @@ export async function POST(req: Request) {
 
   if (!device) return bad(401, "Unknown device key");
   if (device.status === "paused") return bad(403, "Device is paused");
+
+  // Block ingestion for orgs whose subscription is terminally unpaid. Fail safe
+  // (allow) on a transient read error so a DB blip can't block a paying customer.
+  try {
+    const [billing] = await db
+      .select({ status: tenantSettings.subscriptionStatus })
+      .from(tenantSettings)
+      .where(eq(tenantSettings.organizationId, device.organizationId))
+      .limit(1);
+    if (isSuspended(billing?.status ?? null)) {
+      return bad(403, "Subscription inactive");
+    }
+  } catch (err) {
+    console.error("[ingest] suspension check failed (allowing)", err);
+  }
 
   // Throttle per device: 30 receipts / minute is generous for a kiosk.
   const rl = checkRateLimit(keyHash, { limit: 30, windowMs: 60_000 });

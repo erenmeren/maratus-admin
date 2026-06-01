@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { organization as orgTable, store as storeTable } from "@/lib/db/schema";
 import { requirePlatformAdmin, requireTenant } from "@/lib/session";
 import { id } from "@/lib/ids";
+import { recordAudit, AUDIT } from "@/lib/audit";
 
 export interface CreateStoreResult {
   ok: boolean;
@@ -39,6 +40,14 @@ export async function createStore(
     createdAt: new Date(),
   });
 
+  await recordAudit({
+    organizationId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    action: AUDIT.storeCreated,
+    target: { type: "store", id: storeId },
+    metadata: { name },
+  });
+
   revalidatePath("/tenant/stores");
   revalidatePath("/tenant");
   return { ok: true, storeId };
@@ -52,7 +61,7 @@ export async function createStoreForOrg(
   organizationId: string,
   formData: FormData,
 ): Promise<CreateStoreResult> {
-  await requirePlatformAdmin();
+  const ctx = await requirePlatformAdmin();
 
   const [org] = await db
     .select({ id: orgTable.id })
@@ -72,6 +81,14 @@ export async function createStoreForOrg(
     name,
     address,
     createdAt: new Date(),
+  });
+
+  await recordAudit({
+    organizationId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    action: AUDIT.storeCreated,
+    target: { type: "store", id: storeId },
+    metadata: { name },
   });
 
   revalidatePath(`/admin/customers/${organizationId}`);

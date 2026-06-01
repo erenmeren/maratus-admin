@@ -12,6 +12,7 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { member, organization, tenantSettings, user } from "@/lib/db/schema";
 import { id } from "@/lib/ids";
+import { recordAudit, AUDIT } from "@/lib/audit";
 
 export interface RegisterResult {
   ok: boolean;
@@ -113,6 +114,13 @@ export async function registerCompany(
     .insert(tenantSettings)
     .values({ organizationId: orgId, status: "active" })
     .onConflictDoNothing();
+
+  await recordAudit({
+    organizationId: orgId,
+    actor: { type: "user", id: userId, label: email },
+    action: AUDIT.orgCreated,
+    metadata: { name: companyName },
+  });
 
   return { ok: true };
 }

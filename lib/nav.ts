@@ -7,6 +7,7 @@ import {
   Palette,
   BarChart3,
   Wallet,
+  Activity,
 } from "lucide-react";
 
 export interface NavItem {
@@ -28,4 +29,5 @@ export const TENANT_NAV: NavItem[] = [
   { label: "Branding", href: "/tenant/branding", icon: Palette },
   { label: "Reports", href: "/tenant/reports", icon: BarChart3 },
   { label: "Billing", href: "/tenant/billing", icon: Wallet },
+  { label: "Activity", href: "/tenant/activity", icon: Activity },
 ];

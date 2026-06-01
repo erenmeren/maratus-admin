@@ -6,17 +6,21 @@
 import type Stripe from "stripe";
 import { id } from "@/lib/ids";
 
-type InvoiceStatus = "draft" | "sent" | "paid";
+type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "void";
 
-/** Map a Stripe invoice status onto our 3-state enum. */
+/** Map a Stripe invoice status onto our enum. */
 export function statusForStripeInvoice(stripeStatus: string): InvoiceStatus {
   switch (stripeStatus) {
     case "draft":
       return "draft";
     case "paid":
       return "paid";
+    case "void":
+      return "void";
+    case "uncollectible":
+      return "overdue";
     default:
-      // open / uncollectible / void → treated as unpaid-but-issued for the MVP.
+      // open / unknown → unpaid-but-issued
       return "sent";
   }
 }
@@ -27,6 +31,13 @@ export function meterEventPayload(stripeCustomerId: string, eventName: string) {
     event_name: eventName,
     payload: { stripe_customer_id: stripeCustomerId, value: "1" },
   };
+}
+
+const SUSPENDED_STATUSES = new Set(["canceled", "unpaid", "incomplete_expired"]);
+
+/** True when a subscription is terminally unpaid (org should be suspended). */
+export function isSuspended(subscriptionStatus: string | null): boolean {
+  return subscriptionStatus != null && SUSPENDED_STATUSES.has(subscriptionStatus);
 }
 
 /** Pure: shape an `invoice` insert row from a Stripe invoice. */

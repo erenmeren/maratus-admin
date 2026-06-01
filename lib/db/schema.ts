@@ -15,6 +15,7 @@ import {
   boolean,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -280,7 +281,7 @@ export const invoice = pgTable(
     // Stored in cents to avoid floating-point money drift.
     unitPriceCents: integer("unit_price_cents").default(4).notNull(),
     amountDueCents: integer("amount_due_cents").default(0).notNull(),
-    status: text("status", { enum: ["draft", "sent", "paid"] })
+    status: text("status", { enum: ["draft", "sent", "paid", "overdue", "void"] })
       .default("draft")
       .notNull(),
     stripeInvoiceId: text("stripe_invoice_id"),
@@ -298,6 +299,27 @@ export const invoice = pgTable(
   ],
 );
 
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    actorType: text("actor_type", { enum: ["user", "system", "stripe"] }).notNull(),
+    actorId: text("actor_id"),
+    actorLabel: text("actor_label"),
+    action: text("action").notNull(),
+    targetType: text("target_type"),
+    targetId: text("target_id"),
+    metadata: jsonb("metadata"),
+    createdAt: timestamp("created_at")
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (t) => [index("audit_log_org_created_idx").on(t.organizationId, t.createdAt)],
+);
+
 // Re-export a flat table map for the Drizzle adapter / db client.
 export const schema = {
   user,
@@ -312,6 +334,7 @@ export const schema = {
   device,
   receipt,
   invoice,
+  auditLog,
 };
 
 // Keep `sql` import used (some toolchains tree-shake otherwise).

@@ -71,6 +71,8 @@ const LIFECYCLE_META: Record<InvoiceLifecycle, string> = {
   draft: "bg-muted text-muted-foreground",
   sent: "bg-status-paused/15 text-status-paused",
   paid: "bg-status-online/10 text-status-online",
+  overdue: "bg-destructive/15 text-destructive",
+  void: "bg-muted text-muted-foreground",
 };
 
 export function InvoiceLifecycleBadge({

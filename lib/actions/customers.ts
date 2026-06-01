@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { organization, tenantSettings } from "@/lib/db/schema";
 import { requirePlatformAdmin } from "@/lib/session";
 import { id } from "@/lib/ids";
+import { recordAudit, AUDIT } from "@/lib/audit";
 
 export interface CreateCustomerResult {
   ok: boolean;
@@ -26,7 +27,7 @@ function slugify(name: string): string {
 export async function createCustomer(
   formData: FormData,
 ): Promise<CreateCustomerResult> {
-  await requirePlatformAdmin();
+  const ctx = await requirePlatformAdmin();
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { ok: false, error: "Company name is required." };
@@ -59,6 +60,13 @@ export async function createCustomer(
     organizationId: orgId,
     perPrintPriceCents,
     status: "active",
+  });
+
+  await recordAudit({
+    organizationId: orgId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    action: AUDIT.customerCreated,
+    metadata: { name },
   });
 
   revalidatePath("/admin/customers");

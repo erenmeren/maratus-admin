@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { store as storeTable } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
 import { claimDevice } from "@/lib/receipts";
+import { recordAudit, AUDIT } from "@/lib/audit";
 
 export interface ClaimDeviceResult {
   ok: boolean;
@@ -50,6 +51,14 @@ export async function claimDeviceAction(
 
   try {
     const result = await claimDevice(pairingCode, storeId);
+
+    await recordAudit({
+      organizationId,
+      actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+      action: AUDIT.deviceClaimed,
+      target: { type: "device", id: result.deviceId },
+    });
+
     revalidatePath(`/tenant/stores/${storeId}`);
     revalidatePath("/tenant/stores");
     return {

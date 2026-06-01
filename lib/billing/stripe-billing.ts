@@ -35,9 +35,11 @@ export async function ensureStripeCustomer(organizationId: string): Promise<stri
 }
 
 /**
- * Create a metered subscription in `default_incomplete` mode and return the
- * setup-intent client secret (metered first invoice is $0, so Stripe attaches a
- * pending_setup_intent to collect the card).
+ * Create a Checkout Session in subscription mode (`ui_mode: "elements"`) and
+ * return its client secret. Stripe's recommended path for starting a
+ * subscription: Checkout creates the subscription and captures the card on
+ * confirm; we learn the subscription id/status via webhook. The metered first
+ * invoice is $0, so no immediate charge — the card is saved for off-session use.
  */
 export async function activateBilling(organizationId: string): Promise<{ clientSecret: string }> {
   const s = requireStripe();
@@ -45,23 +47,18 @@ export async function activateBilling(organizationId: string): Promise<{ clientS
   if (!priceId) throw new Error("STRIPE_PRICE_ID is not configured");
 
   const customerId = await ensureStripeCustomer(organizationId);
-  const sub = await s.subscriptions.create({
+  const session = await s.checkout.sessions.create({
+    mode: "subscription",
+    ui_mode: "elements",
     customer: customerId,
-    items: [{ price: priceId }],
-    payment_behavior: "default_incomplete",
-    expand: ["pending_setup_intent"],
+    line_items: [{ price: priceId }],
+    return_url: `${getEnv().BETTER_AUTH_URL}/tenant/billing`,
   });
 
-  await db
-    .update(tenantSettings)
-    .set({ stripeSubscriptionId: sub.id, subscriptionStatus: sub.status })
-    .where(eq(tenantSettings.organizationId, organizationId));
-
-  const intent = sub.pending_setup_intent;
-  if (!intent || typeof intent === "string" || !intent.client_secret) {
-    throw new Error("No setup intent returned for subscription");
+  if (!session.client_secret) {
+    throw new Error("No client secret returned for checkout session");
   }
-  return { clientSecret: intent.client_secret };
+  return { clientSecret: session.client_secret };
 }
 
 /** Fire one metered usage event for a customer. Caller handles errors. */

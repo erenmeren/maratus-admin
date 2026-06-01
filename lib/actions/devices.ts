@@ -279,7 +279,7 @@ export async function provisionDevice(
 
 /** Unassign a device from its store (platform-admin, spans all orgs). */
 export async function unassignDevice(deviceId: string): Promise<ActionResult> {
-  await requirePlatformAdmin();
+  const ctx = await requirePlatformAdmin();
   const [device] = await db
     .select()
     .from(deviceTable)
@@ -291,6 +291,13 @@ export async function unassignDevice(deviceId: string): Promise<ActionResult> {
     .update(deviceTable)
     .set({ storeId: null, status: "offline" })
     .where(eq(deviceTable.id, deviceId));
+
+  await recordAudit({
+    organizationId: device.organizationId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    action: AUDIT.deviceUnassigned,
+    target: { type: "device", id: deviceId },
+  });
 
   revalidatePath("/admin/devices");
   if (device.storeId) revalidatePath(`/tenant/stores/${device.storeId}`);

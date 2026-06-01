@@ -25,6 +25,7 @@ export const AUDIT = {
   deviceProvisioned: "device.provisioned",
   deviceRenamed: "device.renamed",
   deviceReassigned: "device.reassigned",
+  deviceUnassigned: "device.unassigned",
   deviceDeleted: "device.deleted",
   devicePaused: "device.paused",
   deviceResumed: "device.resumed",

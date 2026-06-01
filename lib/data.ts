@@ -668,7 +668,7 @@ export async function getOrgAuditLog(organizationId: string, limit = 100) {
     id: r.id,
     action: r.action,
     actor: r.actorLabel ?? r.actorType,
-    target: r.targetType ? `${r.targetType}:${r.targetId}` : null,
+    target: r.targetType && r.targetId ? `${r.targetType}:${r.targetId}` : null,
     metadata: (r.metadata as Record<string, unknown> | null) ?? null,
     at: r.createdAt.toISOString(),
   }));

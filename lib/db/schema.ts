@@ -289,7 +289,13 @@ export const invoice = pgTable(
       .$defaultFn(() => new Date())
       .notNull(),
   },
-  (t) => [index("invoice_organization_id_idx").on(t.organizationId)],
+  (t) => [
+    index("invoice_organization_id_idx").on(t.organizationId),
+    // One row per Stripe invoice — makes the webhook upsert idempotent under
+    // Stripe's at-least-once / concurrent delivery. NULLs (legacy rows) are
+    // allowed multiple times by Postgres unique semantics.
+    uniqueIndex("invoice_stripe_invoice_id_idx").on(t.stripeInvoiceId),
+  ],
 );
 
 // Re-export a flat table map for the Drizzle adapter / db client.

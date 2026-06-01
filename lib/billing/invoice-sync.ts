@@ -20,23 +20,18 @@ export async function upsertInvoiceFromStripe(si: Stripe.Invoice): Promise<void>
   if (!settings) return; // unknown customer — ignore
 
   const row = invoiceRowFromStripe(si, settings.organizationId);
-  const [existing] = await db
-    .select({ id: invoice.id })
-    .from(invoice)
-    .where(eq(invoice.stripeInvoiceId, si.id))
-    .limit(1);
-
-  if (existing) {
-    await db
-      .update(invoice)
-      .set({
+  // Atomic upsert on the unique stripeInvoiceId index — safe under Stripe's
+  // at-least-once / concurrent webhook delivery (no read-then-write race).
+  await db
+    .insert(invoice)
+    .values(row)
+    .onConflictDoUpdate({
+      target: invoice.stripeInvoiceId,
+      set: {
         status: row.status,
         amountDueCents: row.amountDueCents,
         hostedInvoiceUrl: row.hostedInvoiceUrl,
         receiptCount: row.receiptCount,
-      })
-      .where(eq(invoice.stripeInvoiceId, si.id));
-  } else {
-    await db.insert(invoice).values(row);
-  }
+      },
+    });
 }

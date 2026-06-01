@@ -53,7 +53,7 @@ export interface TimePoint {
 
 export type InvoiceStatus = "paid" | "due" | "overdue";
 /** Raw billing lifecycle stored in the DB. */
-export type InvoiceLifecycle = "draft" | "sent" | "paid";
+export type InvoiceLifecycle = "draft" | "sent" | "paid" | "overdue" | "void";
 
 export interface Invoice {
   id: string;

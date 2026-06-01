@@ -280,7 +280,7 @@ export const invoice = pgTable(
     // Stored in cents to avoid floating-point money drift.
     unitPriceCents: integer("unit_price_cents").default(4).notNull(),
     amountDueCents: integer("amount_due_cents").default(0).notNull(),
-    status: text("status", { enum: ["draft", "sent", "paid"] })
+    status: text("status", { enum: ["draft", "sent", "paid", "overdue", "void"] })
       .default("draft")
       .notNull(),
     stripeInvoiceId: text("stripe_invoice_id"),

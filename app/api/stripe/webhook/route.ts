@@ -39,9 +39,10 @@ export async function POST(req: Request) {
     case "customer.subscription.deleted": {
       const sub = event.data.object as Stripe.Subscription;
       const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+      // Checkout creates the subscription, so persist its id + status here.
       await db
         .update(tenantSettings)
-        .set({ subscriptionStatus: sub.status })
+        .set({ stripeSubscriptionId: sub.id, subscriptionStatus: sub.status })
         .where(eq(tenantSettings.stripeCustomerId, customerId));
       break;
     }

@@ -13,6 +13,7 @@ import {
 } from "@/lib/db/schema";
 import { requirePlatformAdmin, requireTenant } from "@/lib/session";
 import { id, pairingCode } from "@/lib/ids";
+import { recordAudit, AUDIT } from "@/lib/audit";
 import type { DeviceStatus } from "@/lib/types";
 
 export interface ActionResult {
@@ -26,7 +27,7 @@ export async function setDeviceActive(
   deviceId: string,
   active: boolean,
 ): Promise<ActionResult> {
-  const { organizationId } = await requireTenant();
+  const { ctx, organizationId } = await requireTenant();
 
   const [device] = await db
     .select()
@@ -50,6 +51,13 @@ export async function setDeviceActive(
     .set({ status: next })
     .where(eq(deviceTable.id, deviceId));
 
+  await recordAudit({
+    organizationId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    action: next === "paused" ? AUDIT.devicePaused : AUDIT.deviceResumed,
+    target: { type: "device", id: deviceId },
+  });
+
   revalidatePath(`/tenant/stores/${device.storeId}`);
   revalidatePath(`/tenant/stores/${device.storeId}/${deviceId}`);
   revalidatePath("/tenant");
@@ -64,7 +72,7 @@ export async function setDeviceActiveAdmin(
   deviceId: string,
   active: boolean,
 ): Promise<ActionResult> {
-  await requirePlatformAdmin();
+  const ctx = await requirePlatformAdmin();
   const [device] = await db
     .select()
     .from(deviceTable)
@@ -80,6 +88,13 @@ export async function setDeviceActiveAdmin(
     .set({ status: next })
     .where(eq(deviceTable.id, deviceId));
 
+  await recordAudit({
+    organizationId: device.organizationId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    action: next === "paused" ? AUDIT.devicePaused : AUDIT.deviceResumed,
+    target: { type: "device", id: deviceId },
+  });
+
   revalidatePath("/admin/devices");
   if (device.storeId) revalidatePath(`/tenant/stores/${device.storeId}`);
   return { ok: true, status: next };
@@ -90,7 +105,7 @@ export async function renameDevice(
   deviceId: string,
   name: string,
 ): Promise<ActionResult> {
-  await requirePlatformAdmin();
+  const ctx = await requirePlatformAdmin();
   const clean = name.trim();
   if (!clean) return { ok: false, error: "Name is required." };
 
@@ -106,6 +121,14 @@ export async function renameDevice(
     .set({ name: clean })
     .where(eq(deviceTable.id, deviceId));
 
+  await recordAudit({
+    organizationId: device.organizationId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    action: AUDIT.deviceRenamed,
+    target: { type: "device", id: deviceId },
+    metadata: { name: clean },
+  });
+
   revalidatePath("/admin/devices");
   revalidatePath(`/admin/customers/${device.organizationId}`);
   if (device.storeId) revalidatePath(`/tenant/stores/${device.storeId}`);
@@ -117,7 +140,7 @@ export async function reassignDevice(
   deviceId: string,
   storeId: string,
 ): Promise<ActionResult> {
-  await requirePlatformAdmin();
+  const ctx = await requirePlatformAdmin();
 
   const [device] = await db
     .select()
@@ -142,6 +165,14 @@ export async function reassignDevice(
     .set({ storeId })
     .where(eq(deviceTable.id, deviceId));
 
+  await recordAudit({
+    organizationId: device.organizationId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    action: AUDIT.deviceReassigned,
+    target: { type: "device", id: deviceId },
+    metadata: { storeId },
+  });
+
   revalidatePath("/admin/devices");
   revalidatePath(`/admin/customers/${device.organizationId}`);
   if (prevStore) revalidatePath(`/tenant/stores/${prevStore}`);
@@ -154,7 +185,7 @@ export async function reassignDevice(
  * too (FK cascade), so this is destructive — the UI confirms first.
  */
 export async function deleteDevice(deviceId: string): Promise<ActionResult> {
-  await requirePlatformAdmin();
+  const ctx = await requirePlatformAdmin();
   const [device] = await db
     .select({ storeId: deviceTable.storeId, organizationId: deviceTable.organizationId })
     .from(deviceTable)
@@ -163,6 +194,13 @@ export async function deleteDevice(deviceId: string): Promise<ActionResult> {
   if (!device) return { ok: false, error: "Device not found." };
 
   await db.delete(deviceTable).where(eq(deviceTable.id, deviceId));
+
+  await recordAudit({
+    organizationId: device.organizationId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    action: AUDIT.deviceDeleted,
+    target: { type: "device", id: deviceId },
+  });
 
   revalidatePath("/admin/devices");
   revalidatePath(`/admin/customers/${device.organizationId}`);
@@ -187,7 +225,7 @@ export async function provisionDevice(
   name: string,
   storeId?: string | null,
 ): Promise<ProvisionDeviceResult> {
-  await requirePlatformAdmin();
+  const ctx = await requirePlatformAdmin();
 
   const [org] = await db
     .select({ id: orgTable.id })
@@ -222,6 +260,14 @@ export async function provisionDevice(
     deviceKeyHash: null,
     claimedAt: null,
     createdAt: new Date(),
+  });
+
+  await recordAudit({
+    organizationId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    action: AUDIT.deviceProvisioned,
+    target: { type: "device", id: deviceId },
+    metadata: { name: name.trim() || "New Kiosk" },
   });
 
   revalidatePath(`/admin/customers/${organizationId}`);

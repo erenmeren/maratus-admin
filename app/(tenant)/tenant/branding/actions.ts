@@ -14,6 +14,7 @@ import { requireTenant } from "@/lib/session";
 import { isValidHex } from "@/lib/color";
 import { id } from "@/lib/ids";
 import { deleteObject, logoStorageKey, putObject } from "@/lib/storage";
+import { recordAudit, AUDIT } from "@/lib/audit";
 
 export interface SaveBrandingResult {
   ok: boolean;
@@ -109,6 +110,12 @@ export async function saveBranding(
   ) {
     await deleteObject(previousLogoKey);
   }
+
+  await recordAudit({
+    organizationId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    action: AUDIT.brandingUpdated,
+  });
 
   revalidatePath("/tenant/branding");
   revalidatePath("/tenant");

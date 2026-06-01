@@ -19,6 +19,8 @@ import { device as deviceTable, receipt as receiptTable } from "@/lib/db/schema"
 import { hashDeviceKey, id, receiptToken } from "@/lib/ids";
 import { putReceipt, receiptStorageKey } from "@/lib/storage";
 import { getEnv } from "@/lib/env";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { validateReceiptPayload } from "@/lib/ingest-validation";
 
 export const runtime = "nodejs";
 
@@ -41,6 +43,15 @@ export async function POST(req: Request) {
 
   if (!device) return bad(401, "Unknown device key");
   if (device.status === "paused") return bad(403, "Device is paused");
+
+  // Throttle per device: 30 receipts / minute is generous for a kiosk.
+  const rl = checkRateLimit(keyHash, { limit: 30, windowMs: 60_000 });
+  if (!rl.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded" },
+      { status: 429, headers: { "Retry-After": String(Math.ceil(rl.retryAfterMs / 1000)) } },
+    );
+  }
 
   // --- 2. Read the rendered receipt payload ------------------------------
   let bytes: Buffer;
@@ -78,7 +89,8 @@ export async function POST(req: Request) {
   if (bodyDeviceId && bodyDeviceId !== device.id) {
     return bad(400, "deviceId does not match device key");
   }
-  if (bytes.byteLength === 0) return bad(400, "Empty receipt payload");
+  const payloadCheck = validateReceiptPayload(bytes.byteLength, mimeType);
+  if (!payloadCheck.ok) return bad(payloadCheck.status, payloadCheck.error);
 
   // --- 3. Store in R2 + create the receipt row ---------------------------
   const receiptId = id("rcp");

@@ -46,7 +46,9 @@ export async function registerCompany(
     return { ok: false, error: "Password must be at least 8 characters." };
   }
 
-  // 1. Create the user + session (cookie set via nextCookies in this action).
+  // 1. Create the user. NOTE: with requireEmailVerification on, sign-up skips
+  // auto-sign-in (no session yet) and sign-in stays blocked until verified — we
+  // verify + sign in at the end so the new owner lands in the dashboard.
   try {
     await auth.api.signUpEmail({
       body: { name, email, password },
@@ -114,6 +116,17 @@ export async function registerCompany(
     .insert(tenantSettings)
     .values({ organizationId: orgId, status: "active" })
     .onConflictDoNothing();
+
+  // 5. The company creator owns this email (they're standing up their own org),
+  // so mark them verified and sign them in — establishing the session cookie via
+  // nextCookies — so the client redirect to /tenant lands them in the dashboard
+  // instead of bouncing to /login.
+  await db.update(user).set({ emailVerified: true }).where(eq(user.id, userId));
+  try {
+    await auth.api.signInEmail({ body: { email, password }, headers: await headers() });
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Could not sign in." };
+  }
 
   await recordAudit({
     organizationId: orgId,

@@ -10,11 +10,12 @@
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
 //   • receiptsToday / receiptsThisMonth are derived from the receipt table
 
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "./db";
 import {
   auditLog as auditLogTable,
   device as deviceTable,
+  invitation as invitationTable,
   invoice as invoiceTable,
   member as memberTable,
   organization as orgTable,
@@ -671,5 +672,41 @@ export async function getOrgAuditLog(organizationId: string, limit = 100) {
     target: r.targetType && r.targetId ? `${r.targetType}:${r.targetId}` : null,
     metadata: (r.metadata as Record<string, unknown> | null) ?? null,
     at: r.createdAt.toISOString(),
+  }));
+}
+
+export async function getOrgMembers(organizationId: string) {
+  const rows = await db
+    .select({
+      id: memberTable.id,
+      userId: memberTable.userId,
+      role: memberTable.role,
+      name: userTable.name,
+      email: userTable.email,
+      joinedAt: memberTable.createdAt,
+    })
+    .from(memberTable)
+    .innerJoin(userTable, eq(memberTable.userId, userTable.id))
+    .where(eq(memberTable.organizationId, organizationId));
+  return rows.map((r) => ({
+    id: r.id,
+    userId: r.userId,
+    role: r.role,
+    name: r.name,
+    email: r.email,
+    joinedAt: r.joinedAt.toISOString(),
+  }));
+}
+
+export async function getOrgInvitations(organizationId: string) {
+  const rows = await db
+    .select()
+    .from(invitationTable)
+    .where(and(eq(invitationTable.organizationId, organizationId), eq(invitationTable.status, "pending")));
+  return rows.map((r) => ({
+    id: r.id,
+    email: r.email,
+    role: r.role ?? "member",
+    expiresAt: r.expiresAt.toISOString(),
   }));
 }

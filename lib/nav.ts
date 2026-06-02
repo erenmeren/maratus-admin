@@ -27,6 +27,7 @@ export const TENANT_NAV: NavItem[] = [
   { label: "Dashboard", href: "/tenant", icon: LayoutDashboard },
   { label: "Stores", href: "/tenant/stores", icon: Store },
   { label: "Branding", href: "/tenant/branding", icon: Palette },
+  { label: "Members", href: "/tenant/members", icon: Users },
   { label: "Reports", href: "/tenant/reports", icon: BarChart3 },
   { label: "Billing", href: "/tenant/billing", icon: Wallet },
   { label: "Activity", href: "/tenant/activity", icon: Activity },

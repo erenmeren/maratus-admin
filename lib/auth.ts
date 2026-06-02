@@ -52,7 +52,18 @@ export const auth = betterAuth({
     },
   },
   plugins: [
-    organization(),
+    organization({
+      async sendInvitationEmail(data) {
+        const url = `${env.BETTER_AUTH_URL}/signup?invite=${data.id}`;
+        await sendEmail(
+          data.email,
+          `You're invited to ${data.organization.name} on Ditto`,
+          `<p>${data.inviter.user.name} invited you to join ` +
+            `<b>${data.organization.name}</b> on Ditto.</p>` +
+            `<p><a href="${url}">Accept the invitation</a></p>`,
+        );
+      },
+    }),
     // Must be last: forwards Set-Cookie headers in Next.js server actions.
     nextCookies(),
   ],

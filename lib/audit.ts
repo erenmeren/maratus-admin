@@ -32,6 +32,11 @@ export const AUDIT = {
   deviceClaimed: "device.claimed",
   storeCreated: "store.created",
   brandingUpdated: "branding.updated",
+  memberInvited: "member.invited",
+  memberAdded: "member.added",
+  memberRemoved: "member.removed",
+  memberRoleChanged: "member.role_changed",
+  invitationCanceled: "invitation.canceled",
 } as const;
 
 export async function recordAudit(input: {

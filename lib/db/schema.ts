@@ -128,6 +128,9 @@ export const member = pgTable(
   (t) => [
     index("member_organization_id_idx").on(t.organizationId),
     index("member_user_id_idx").on(t.userId),
+    // A user belongs to an org at most once — lets accept flows use
+    // onConflictDoNothing instead of inserting duplicate memberships.
+    uniqueIndex("member_org_user_idx").on(t.organizationId, t.userId),
   ],
 );
 

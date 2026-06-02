@@ -111,7 +111,10 @@ export async function acceptInvitationAction(invitationId: string): Promise<Resu
   if (!inv || inv.status !== "pending" || inv.expiresAt.getTime() < Date.now()) return { ok: false, error: "Invitation is no longer valid." };
   if (inv.email.toLowerCase() !== session.user.email.toLowerCase()) return { ok: false, error: "This invitation is for a different email." };
 
-  await db.insert(member).values({ id: genId("mem"), organizationId: inv.organizationId, userId: session.user.id, role: inv.role ?? "member", createdAt: new Date() });
+  await db
+    .insert(member)
+    .values({ id: genId("mem"), organizationId: inv.organizationId, userId: session.user.id, role: inv.role ?? "member", createdAt: new Date() })
+    .onConflictDoNothing();
   await db.update(invitation).set({ status: "accepted" }).where(eq(invitation.id, invitationId));
   await recordAudit({ organizationId: inv.organizationId, actor: { type: "user", id: session.user.id, label: session.user.email }, action: AUDIT.memberAdded, target: { type: "member", id: session.user.id } });
   return { ok: true };
@@ -134,8 +137,19 @@ export async function acceptInviteSignup(input: { invitationId: string; name: st
   const [created] = await db.select({ id: user.id }).from(user).where(eq(user.email, inv.email)).limit(1);
   if (!created) return { ok: false, error: "Could not load the new account." };
 
+  // The invitation proves inbox ownership → verify, then sign in so the user
+  // lands in the app with a real session (signUpEmail issues none while
+  // requireEmailVerification is on).
   await db.update(user).set({ emailVerified: true }).where(eq(user.id, created.id));
-  await db.insert(member).values({ id: genId("mem"), organizationId: inv.organizationId, userId: created.id, role: inv.role ?? "member", createdAt: new Date() });
+  try {
+    await auth.api.signInEmail({ body: { email: inv.email, password: input.password }, headers: await headers() });
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Could not sign in." };
+  }
+  await db
+    .insert(member)
+    .values({ id: genId("mem"), organizationId: inv.organizationId, userId: created.id, role: inv.role ?? "member", createdAt: new Date() })
+    .onConflictDoNothing();
   await db.update(invitation).set({ status: "accepted" }).where(eq(invitation.id, input.invitationId));
   await recordAudit({ organizationId: inv.organizationId, actor: { type: "user", id: created.id, label: inv.email }, action: AUDIT.memberAdded, target: { type: "member", id: created.id } });
   return { ok: true };

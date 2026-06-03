@@ -19,7 +19,8 @@ import { device as deviceTable, receipt as receiptTable, tenantSettings } from "
 import { stripe } from "@/lib/stripe";
 import { reportReceiptUsage } from "@/lib/billing/stripe-billing";
 import { isSuspended } from "@/lib/billing/billing-status";
-import { hashDeviceKey, id, receiptToken } from "@/lib/ids";
+import { id, receiptToken } from "@/lib/ids";
+import { authenticateDevice } from "@/lib/device-auth";
 import { putReceipt, receiptStorageKey } from "@/lib/storage";
 import { getEnv } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -33,18 +34,8 @@ function bad(status: number, error: string) {
 
 export async function POST(req: Request) {
   // --- 1. Authenticate the device by its bearer key ----------------------
-  const authHeader = req.headers.get("authorization") ?? "";
-  const match = authHeader.match(/^Bearer\s+(.+)$/i);
-  if (!match) return bad(401, "Missing device bearer token");
-
-  const keyHash = hashDeviceKey(match[1].trim());
-  const [device] = await db
-    .select()
-    .from(deviceTable)
-    .where(eq(deviceTable.deviceKeyHash, keyHash))
-    .limit(1);
-
-  if (!device) return bad(401, "Unknown device key");
+  const device = await authenticateDevice(req);
+  if (!device) return bad(401, "Unknown or missing device key");
   if (device.status === "paused") return bad(403, "Device is paused");
 
   // Block ingestion for orgs whose subscription is terminally unpaid. Fail safe
@@ -63,7 +54,8 @@ export async function POST(req: Request) {
   }
 
   // Throttle per device: 30 receipts / minute is generous for a kiosk.
-  const rl = checkRateLimit(keyHash, { limit: 30, windowMs: 60_000 });
+  // deviceKeyHash is non-null here: authenticateDevice only matches on a hash.
+  const rl = checkRateLimit(device.deviceKeyHash!, { limit: 30, windowMs: 60_000 });
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Rate limit exceeded" },
@@ -137,9 +129,10 @@ export async function POST(req: Request) {
   });
 
   // Bump device heartbeat + mark online.
+  const version = req.headers.get("x-device-version");
   await db
     .update(deviceTable)
-    .set({ lastSeenAt: now, status: "online" })
+    .set({ lastSeenAt: now, status: "online", ...(version ? { appVersion: version } : {}) })
     .where(eq(deviceTable.id, device.id));
 
   // Report metered usage to Stripe (best-effort: never fail ingestion on this).

@@ -10,7 +10,7 @@
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
 //   • receiptsToday / receiptsThisMonth are derived from the receipt table
 
-import { and, count, desc, eq, gte, lte } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNotNull, lt, lte, ne } from "drizzle-orm";
 import { db } from "./db";
 import {
   auditLog as auditLogTable,
@@ -25,6 +25,7 @@ import {
   user as userTable,
 } from "./db/schema";
 import { computeEcoSavings } from "./eco";
+import { computeAlerts, STALE_MINUTES, STUCK_PENDING_MINUTES, INACTIVE_DAYS, type HealthAlert } from "./health";
 import { type ReceiptFilters, PAGE_SIZE } from "./receipts-search";
 import { presignedGetUrl } from "./storage";
 import type {
@@ -833,4 +834,160 @@ export async function getReceiptFilterOptions(organizationId: string) {
     db.select({ id: deviceTable.id, name: deviceTable.name }).from(deviceTable).where(eq(deviceTable.organizationId, organizationId)),
   ]);
   return { stores, devices };
+}
+
+export interface PlatformHealth {
+  fleet: {
+    total: number;
+    online: number;
+    offline: number;
+    paused: number;
+    staleCount: number;
+    stale: { deviceId: string; name: string; tenantName: string | null; lastSeen: string }[];
+  };
+  ingest: {
+    last1h: number;
+    last24h: number;
+    ready: number;
+    downloaded: number;
+    pending: number;
+    stuckPending: number;
+  };
+  usage: {
+    topTenants: { id: string; name: string; count: number }[];
+    inactiveTenants: { id: string; name: string; lastReceiptAt: string | null }[];
+  };
+  alerts: HealthAlert[];
+}
+
+function zeroedHealth(): PlatformHealth {
+  return {
+    fleet: { total: 0, online: 0, offline: 0, paused: 0, staleCount: 0, stale: [] },
+    ingest: { last1h: 0, last24h: 0, ready: 0, downloaded: 0, pending: 0, stuckPending: 0 },
+    usage: { topTenants: [], inactiveTenants: [] },
+    alerts: [],
+  };
+}
+
+/** Read-only operational metrics across all orgs. Degrades to zeros on error. */
+export async function getPlatformHealth(): Promise<PlatformHealth> {
+  const now = new Date();
+  const ms = (n: number) => new Date(now.getTime() - n);
+  const h1 = ms(60 * 60 * 1000);
+  const h24 = ms(24 * 60 * 60 * 1000);
+  const staleCut = ms(STALE_MINUTES * 60 * 1000);
+  const stuckCut = ms(STUCK_PENDING_MINUTES * 60 * 1000);
+  const inactiveCut = ms(INACTIVE_DAYS * 24 * 60 * 60 * 1000);
+
+  try {
+    const statusRows = await db
+      .select({ status: deviceTable.status, c: count() })
+      .from(deviceTable)
+      .groupBy(deviceTable.status);
+    const byStatus = { online: 0, offline: 0, paused: 0 } as Record<string, number>;
+    let total = 0;
+    for (const r of statusRows) {
+      byStatus[r.status] = Number(r.c);
+      total += Number(r.c);
+    }
+
+    const stalePred = and(
+      isNotNull(deviceTable.lastSeenAt),
+      lt(deviceTable.lastSeenAt, staleCut),
+      ne(deviceTable.status, "paused"),
+    );
+    const staleRows = await db
+      .select({
+        deviceId: deviceTable.id,
+        name: deviceTable.name,
+        tenantName: orgTable.name,
+        lastSeen: deviceTable.lastSeenAt,
+      })
+      .from(deviceTable)
+      .leftJoin(orgTable, eq(deviceTable.organizationId, orgTable.id))
+      .where(stalePred)
+      .orderBy(deviceTable.lastSeenAt)
+      .limit(50);
+    const [{ staleCount }] = await db
+      .select({ staleCount: count() })
+      .from(deviceTable)
+      .where(stalePred);
+
+    const [{ last1h }] = await db.select({ last1h: count() }).from(receiptTable).where(gte(receiptTable.createdAt, h1));
+    const [{ last24h }] = await db.select({ last24h: count() }).from(receiptTable).where(gte(receiptTable.createdAt, h24));
+    const breakdownRows = await db
+      .select({ status: receiptTable.status, c: count() })
+      .from(receiptTable)
+      .where(gte(receiptTable.createdAt, h24))
+      .groupBy(receiptTable.status);
+    const breakdown = { ready: 0, downloaded: 0, pending: 0 } as Record<string, number>;
+    for (const r of breakdownRows) breakdown[r.status] = Number(r.c);
+    const [{ stuckPending }] = await db
+      .select({ stuckPending: count() })
+      .from(receiptTable)
+      .where(and(eq(receiptTable.status, "pending"), lt(receiptTable.createdAt, stuckCut)));
+
+    const topRows = await db
+      .select({ id: orgTable.id, name: orgTable.name, c: count() })
+      .from(receiptTable)
+      .innerJoin(orgTable, eq(receiptTable.organizationId, orgTable.id))
+      .where(gte(receiptTable.createdAt, h24))
+      .groupBy(orgTable.id, orgTable.name)
+      .orderBy(desc(count()))
+      .limit(5);
+    const topTenants = topRows.map((r) => ({ id: r.id, name: r.name, count: Number(r.c) }));
+
+    const allOrgs = await db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable);
+    const lastRows = await db
+      .select({ org: receiptTable.organizationId, last: receiptTable.createdAt })
+      .from(receiptTable)
+      .orderBy(desc(receiptTable.createdAt));
+    const lastByOrg = new Map<string, Date>();
+    for (const r of lastRows) if (!lastByOrg.has(r.org)) lastByOrg.set(r.org, r.last);
+    const inactiveTenants = allOrgs
+      .filter((o) => {
+        const last = lastByOrg.get(o.id);
+        return !last || last < inactiveCut;
+      })
+      .map((o) => ({
+        id: o.id,
+        name: o.name,
+        lastReceiptAt: lastByOrg.get(o.id)?.toISOString() ?? null,
+      }));
+
+    const alerts = computeAlerts({
+      staleCount: Number(staleCount),
+      stuckPendingCount: Number(stuckPending),
+      inactiveTenants: inactiveTenants.map((t) => ({ id: t.id, name: t.name })),
+    });
+
+    return {
+      fleet: {
+        total,
+        online: byStatus.online ?? 0,
+        offline: byStatus.offline ?? 0,
+        paused: byStatus.paused ?? 0,
+        staleCount: Number(staleCount),
+        stale: staleRows.map((r) => ({
+          deviceId: r.deviceId,
+          name: r.name,
+          tenantName: r.tenantName,
+          lastSeen: r.lastSeen ? r.lastSeen.toISOString() : "",
+        })),
+      },
+      ingest: {
+        last1h: Number(last1h),
+        last24h: Number(last24h),
+        ready: breakdown.ready ?? 0,
+        downloaded: breakdown.downloaded ?? 0,
+        pending: breakdown.pending ?? 0,
+        stuckPending: Number(stuckPending),
+      },
+      usage: { topTenants, inactiveTenants },
+      alerts,
+    };
+  } catch (err) {
+    console.error("[health] getPlatformHealth failed", err);
+    return zeroedHealth();
+  }
 }

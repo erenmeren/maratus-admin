@@ -43,6 +43,13 @@
       "when": 1780465241170,
       "tag": "0005_dark_sleepwalker",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1780509163337,
+      "tag": "0006_glorious_mister_fear",
+      "breakpoints": true
     }
   ]
 }

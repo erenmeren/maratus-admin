@@ -219,6 +219,7 @@ export const device = pgTable(
       .notNull(),
     firmwareVersion: text("firmware_version").default("2.4.1").notNull(),
     lastSeenAt: timestamp("last_seen_at"),
+    appVersion: text("app_version"),
     // One-time human-friendly code used to claim an unprovisioned device.
     pairingCode: text("pairing_code").unique(),
     // SHA-256 hash of the device's bearer key (raw key shown once at claim).
@@ -234,6 +235,25 @@ export const device = pgTable(
     uniqueIndex("device_pairing_code_idx").on(t.pairingCode),
     index("device_key_hash_idx").on(t.deviceKeyHash),
   ],
+);
+
+export type DeviceRowT = typeof device.$inferSelect;
+
+export const deviceCommand = pgTable(
+  "device_command",
+  {
+    id: text("id").primaryKey(),
+    deviceId: text("device_id").notNull().references(() => device.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    type: text("type", { enum: ["reboot", "refresh", "identify"] }).notNull(),
+    status: text("status", { enum: ["pending", "delivered", "acked", "failed"] }).default("pending").notNull(),
+    result: text("result"),
+    createdByUserId: text("created_by_user_id"),
+    createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
+    deliveredAt: timestamp("delivered_at"),
+    ackedAt: timestamp("acked_at"),
+  },
+  (t) => [index("device_command_device_status_idx").on(t.deviceId, t.status)],
 );
 
 export const receipt = pgTable(
@@ -336,6 +356,7 @@ export const schema = {
   tenantSettings,
   store,
   device,
+  deviceCommand,
   receipt,
   invoice,
   auditLog,

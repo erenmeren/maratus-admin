@@ -8,6 +8,7 @@ import {
   BarChart3,
   Wallet,
   Activity,
+  ReceiptText,
 } from "lucide-react";
 
 export interface NavItem {
@@ -29,6 +30,7 @@ export const TENANT_NAV: NavItem[] = [
   { label: "Branding", href: "/tenant/branding", icon: Palette },
   { label: "Members", href: "/tenant/members", icon: Users },
   { label: "Reports", href: "/tenant/reports", icon: BarChart3 },
+  { label: "Receipts", href: "/tenant/receipts", icon: ReceiptText },
   { label: "Billing", href: "/tenant/billing", icon: Wallet },
   { label: "Activity", href: "/tenant/activity", icon: Activity },
 ];

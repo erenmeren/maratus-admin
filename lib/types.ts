@@ -14,7 +14,8 @@ export interface Device {
   ipAddress: string;
   connectionType: ConnectionType;
   firmwareVersion: string;
-  lastSeen: string; // ISO timestamp
+  lastSeen: string; // ISO timestamp (falls back to createdAt for display)
+  lastSeenAt: string | null; // raw last-seen, null if never seen (for status)
   receiptsToday: number;
   receiptsThisMonth: number;
 }

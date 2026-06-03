@@ -236,6 +236,25 @@ export const device = pgTable(
   ],
 );
 
+export type DeviceRowT = typeof device.$inferSelect;
+
+export const deviceCommand = pgTable(
+  "device_command",
+  {
+    id: text("id").primaryKey(),
+    deviceId: text("device_id").notNull().references(() => device.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    type: text("type", { enum: ["reboot", "refresh", "identify"] }).notNull(),
+    status: text("status", { enum: ["pending", "delivered", "acked", "failed"] }).default("pending").notNull(),
+    result: text("result"),
+    createdByUserId: text("created_by_user_id"),
+    createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
+    deliveredAt: timestamp("delivered_at"),
+    ackedAt: timestamp("acked_at"),
+  },
+  (t) => [index("device_command_device_status_idx").on(t.deviceId, t.status)],
+);
+
 export const receipt = pgTable(
   "receipt",
   {
@@ -336,6 +355,7 @@ export const schema = {
   tenantSettings,
   store,
   device,
+  deviceCommand,
   receipt,
   invoice,
   auditLog,

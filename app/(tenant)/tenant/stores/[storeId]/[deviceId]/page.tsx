@@ -19,7 +19,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getDevice } from "@/lib/data";
+import { CommandBar } from "@/components/devices/command-bar";
+import { getDevice, getDeviceCommands } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
 import { formatNumber, timeAgo } from "@/lib/format";
 
@@ -34,6 +35,7 @@ export default async function DeviceDetailPage({
   if (!result || result.tenant.id !== organizationId) notFound();
 
   const { device, store } = result;
+  const commands = await getDeviceCommands(device.id);
 
   const specs: { icon: typeof Cpu; label: string; value: string; mono?: boolean }[] = [
     { icon: HardDrive, label: "Device ID", value: device.id, mono: true },
@@ -129,6 +131,25 @@ export default async function DeviceDetailPage({
           </Card>
         </div>
       </div>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-medium">Remote control</h2>
+        <CommandBar deviceId={device.id} />
+        {commands.length > 0 && (
+          <table className="w-full text-sm">
+            <thead><tr className="text-left text-muted-foreground"><th className="py-2">Command</th><th>Status</th><th>Queued</th></tr></thead>
+            <tbody>
+              {commands.map((c) => (
+                <tr key={c.id} className="border-t">
+                  <td className="py-2">{c.type}</td>
+                  <td>{c.status}</td>
+                  <td>{c.createdAt.slice(0, 19).replace("T", " ")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
     </>
   );
 }

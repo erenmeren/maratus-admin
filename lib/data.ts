@@ -25,6 +25,7 @@ import {
   tenantSettings as settingsTable,
   user as userTable,
 } from "./db/schema";
+import { effectiveDeviceStatus } from "./device-status";
 import { computeEcoSavings } from "./eco";
 import { computeAlerts, STALE_MINUTES, STUCK_PENDING_MINUTES, INACTIVE_DAYS, type HealthAlert } from "./health";
 import { type ReceiptFilters, PAGE_SIZE } from "./receipts-search";
@@ -402,11 +403,21 @@ export async function getTenantSummaries(): Promise<TenantSummary[]> {
 export async function getAllDevices(): Promise<DeviceRow[]> {
   const bundles = await loadAllOrgs();
   const rows: DeviceRow[] = [];
+  const now = new Date();
   for (const b of bundles) {
     const tenant = buildTenant(b);
     for (const store of tenant.stores) {
       for (const device of store.devices) {
-        rows.push({ ...device, tenantName: tenant.name, storeName: store.name });
+        rows.push({
+          ...device,
+          status: effectiveDeviceStatus(
+            device.status,
+            device.lastSeen ? new Date(device.lastSeen) : null,
+            now,
+          ),
+          tenantName: tenant.name,
+          storeName: store.name,
+        });
       }
     }
   }
@@ -881,16 +892,14 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
   const inactiveCut = ms(INACTIVE_DAYS * 24 * 60 * 60 * 1000);
 
   try {
-    const statusRows = await db
-      .select({ status: deviceTable.status, c: count() })
-      .from(deviceTable)
-      .groupBy(deviceTable.status);
+    const devRows = await db
+      .select({ status: deviceTable.status, lastSeenAt: deviceTable.lastSeenAt })
+      .from(deviceTable);
     const byStatus = { online: 0, offline: 0, paused: 0 } as Record<string, number>;
-    let total = 0;
-    for (const r of statusRows) {
-      byStatus[r.status] = Number(r.c);
-      total += Number(r.c);
+    for (const d of devRows) {
+      byStatus[effectiveDeviceStatus(d.status, d.lastSeenAt, now)] += 1;
     }
+    const total = devRows.length;
 
     const stalePred = and(
       isNotNull(deviceTable.lastSeenAt),

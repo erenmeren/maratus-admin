@@ -32,4 +32,11 @@ describe("computeAlerts", () => {
     expect(a).toHaveLength(1);
     expect(a[0]).toMatchObject({ key: "tenant-inactive:o1", severity: "info" });
   });
+  it("summarizes into one alert when many tenants are inactive", () => {
+    const many = Array.from({ length: 9 }, (_, i) => ({ id: `o${i}`, name: `Org ${i}` }));
+    const a = computeAlerts({ staleCount: 0, stuckPendingCount: 0, inactiveTenants: many });
+    expect(a).toHaveLength(1);
+    expect(a[0]).toMatchObject({ key: "tenants-inactive", severity: "info" });
+    expect(a[0].message).toContain("9");
+  });
 });

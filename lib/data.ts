@@ -10,7 +10,7 @@
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
 //   • receiptsToday / receiptsThisMonth are derived from the receipt table
 
-import { and, count, desc, eq, gte, isNotNull, lt, lte, ne } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNotNull, lt, lte, max, ne } from "drizzle-orm";
 import { db } from "./db";
 import {
   auditLog as auditLogTable,
@@ -938,12 +938,13 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
     const topTenants = topRows.map((r) => ({ id: r.id, name: r.name, count: Number(r.c) }));
 
     const allOrgs = await db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable);
+    // One row per org (max createdAt) — avoids reading the whole receipt table.
     const lastRows = await db
-      .select({ org: receiptTable.organizationId, last: receiptTable.createdAt })
+      .select({ org: receiptTable.organizationId, last: max(receiptTable.createdAt) })
       .from(receiptTable)
-      .orderBy(desc(receiptTable.createdAt));
+      .groupBy(receiptTable.organizationId);
     const lastByOrg = new Map<string, Date>();
-    for (const r of lastRows) if (!lastByOrg.has(r.org)) lastByOrg.set(r.org, r.last);
+    for (const r of lastRows) if (r.last) lastByOrg.set(r.org, r.last);
     const inactiveTenants = allOrgs
       .filter((o) => {
         const last = lastByOrg.get(o.id);

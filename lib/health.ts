@@ -4,6 +4,8 @@
 export const STALE_MINUTES = 15;
 export const STUCK_PENDING_MINUTES = 30;
 export const INACTIVE_DAYS = 7;
+/** Above this many inactive tenants, collapse into one summarized alert. */
+export const INACTIVE_ALERT_CAP = 5;
 
 export type AlertSeverity = "info" | "warning";
 export interface HealthAlert {
@@ -42,11 +44,21 @@ export function computeAlerts(input: {
       severity: "warning",
       message: `${input.stuckPendingCount} receipt(s) stuck pending ${STUCK_PENDING_MINUTES}+ minutes`,
     });
-  for (const t of input.inactiveTenants)
+  // Per-tenant alerts up to a cap; beyond that, one summarized alert so a
+  // platform with many empty orgs doesn't produce an alert wall.
+  if (input.inactiveTenants.length > INACTIVE_ALERT_CAP) {
     alerts.push({
-      key: `tenant-inactive:${t.id}`,
+      key: "tenants-inactive",
       severity: "info",
-      message: `${t.name}: no receipts in ${INACTIVE_DAYS} days`,
+      message: `${input.inactiveTenants.length} tenants have no receipts in ${INACTIVE_DAYS} days`,
     });
+  } else {
+    for (const t of input.inactiveTenants)
+      alerts.push({
+        key: `tenant-inactive:${t.id}`,
+        severity: "info",
+        message: `${t.name}: no receipts in ${INACTIVE_DAYS} days`,
+      });
+  }
   return alerts;
 }

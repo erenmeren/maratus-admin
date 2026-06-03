@@ -56,7 +56,7 @@ export function ReceiptFilters({
       </select>
       <Input type="date" defaultValue={params.get("from") ?? ""} onChange={(e) => set("from", e.target.value)} className="w-auto" />
       <Input type="date" defaultValue={params.get("to") ?? ""} onChange={(e) => set("to", e.target.value)} className="w-auto" />
-      <Input placeholder="Token…" defaultValue={params.get("token") ?? ""} onChange={(e) => set("token", e.target.value)} className="w-40" />
+      <Input placeholder="Exact token…" defaultValue={params.get("token") ?? ""} onChange={(e) => set("token", e.target.value)} className="w-40" />
     </div>
   );
 }

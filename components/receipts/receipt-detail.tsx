@@ -22,6 +22,7 @@ export function ReceiptDetail({ receipt }: { receipt: Detail }) {
         <dt className="text-muted-foreground">Status</dt><dd>{receipt.status}</dd>
         <dt className="text-muted-foreground">Created</dt><dd>{receipt.createdAt.slice(0, 19).replace("T", " ")}</dd>
         <dt className="text-muted-foreground">Downloaded</dt><dd>{receipt.downloadedAt ? receipt.downloadedAt.slice(0, 19).replace("T", " ") : "—"}</dd>
+        <dt className="text-muted-foreground">Size</dt><dd>{(receipt.byteSize / 1024).toFixed(1)} KB</dd>
         <dt className="text-muted-foreground">Public link</dt>
         <dd><a className="underline break-all" href={publicUrl} target="_blank" rel="noreferrer">{publicUrl}</a></dd>
       </dl>

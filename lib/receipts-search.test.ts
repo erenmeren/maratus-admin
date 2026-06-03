@@ -19,6 +19,13 @@ describe("parseReceiptFilters", () => {
     expect(parseReceiptFilters({ from: "2026-01-01" }).from).toBeInstanceOf(Date);
     expect(parseReceiptFilters({ from: "not-a-date" }).from).toBeUndefined();
   });
+  it("makes a date-only `to` inclusive of the whole day", () => {
+    const to = parseReceiptFilters({ to: "2026-06-03" }).to!;
+    expect(to.getUTCFullYear()).toBe(2026);
+    expect(to.getUTCDate()).toBe(3);
+    expect(to.getUTCHours()).toBe(23);
+    expect(to.getUTCMinutes()).toBe(59);
+  });
   it("trims token/ids and drops empties", () => {
     expect(parseReceiptFilters({ token: "  abc  " }).token).toBe("abc");
     expect(parseReceiptFilters({ token: "   " }).token).toBeUndefined();

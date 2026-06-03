@@ -219,7 +219,6 @@ export const device = pgTable(
       .notNull(),
     firmwareVersion: text("firmware_version").default("2.4.1").notNull(),
     lastSeenAt: timestamp("last_seen_at"),
-    appVersion: text("app_version"),
     // One-time human-friendly code used to claim an unprovisioned device.
     pairingCode: text("pairing_code").unique(),
     // SHA-256 hash of the device's bearer key (raw key shown once at claim).

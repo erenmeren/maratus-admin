@@ -195,6 +195,7 @@ function mapDevice(
     connectionType: d.connectionType,
     firmwareVersion: d.firmwareVersion,
     lastSeen: (d.lastSeenAt ?? d.createdAt).toISOString(),
+    lastSeenAt: d.lastSeenAt ? d.lastSeenAt.toISOString() : null,
     receiptsToday: todayBy.get(d.id) ?? 0,
     receiptsThisMonth: monthBy.get(d.id) ?? 0,
   };
@@ -412,7 +413,7 @@ export async function getAllDevices(): Promise<DeviceRow[]> {
           ...device,
           status: effectiveDeviceStatus(
             device.status,
-            device.lastSeen ? new Date(device.lastSeen) : null,
+            device.lastSeenAt ? new Date(device.lastSeenAt) : null,
             now,
           ),
           tenantName: tenant.name,

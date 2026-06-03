@@ -20,7 +20,7 @@ export async function GET(req: Request) {
     .set({
       lastSeenAt: now,
       ...(device.status === "paused" ? {} : { status: "online" }),
-      ...(version ? { appVersion: version } : {}),
+      ...(version ? { firmwareVersion: version } : {}),
     })
     .where(eq(deviceTable.id, device.id));
 

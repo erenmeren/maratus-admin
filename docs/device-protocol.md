@@ -2,7 +2,7 @@
 
 All device endpoints authenticate with the device key:
 `Authorization: Bearer <deviceKey>` (issued once at claim). Optional header
-`X-Device-Version: <semver>` reports the app version (stored + shown in the fleet).
+`X-Device-Version: <semver>` reports the app/firmware version (stored as the device firmware version, shown on the device detail page).
 
 ## POST /api/ingest
 Upload a rendered receipt (multipart `file`, or JSON `{ image: base64 }`).

@@ -132,7 +132,7 @@ export async function POST(req: Request) {
   const version = req.headers.get("x-device-version");
   await db
     .update(deviceTable)
-    .set({ lastSeenAt: now, status: "online", ...(version ? { appVersion: version } : {}) })
+    .set({ lastSeenAt: now, status: "online", ...(version ? { firmwareVersion: version } : {}) })
     .where(eq(deviceTable.id, device.id));
 
   // Report metered usage to Stripe (best-effort: never fail ingestion on this).

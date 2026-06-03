@@ -20,6 +20,9 @@ export const auth = betterAuth({
   appName: "Ditto",
   baseURL: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
+  // Trust the base URL plus all Vercel deployment domains (the production alias
+  // and per-deploy preview URLs) so login isn't blocked by INVALID_ORIGIN.
+  trustedOrigins: ["https://*.vercel.app", env.BETTER_AUTH_URL],
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,

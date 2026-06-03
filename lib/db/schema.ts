@@ -267,6 +267,7 @@ export const receipt = pgTable(
     uniqueIndex("receipt_token_idx").on(t.token),
     index("receipt_organization_id_idx").on(t.organizationId),
     index("receipt_device_id_idx").on(t.deviceId),
+    index("receipt_store_id_idx").on(t.storeId),
     index("receipt_created_at_idx").on(t.createdAt),
   ],
 );

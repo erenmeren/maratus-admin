@@ -10,7 +10,7 @@
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
 //   • receiptsToday / receiptsThisMonth are derived from the receipt table
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, gte, lte } from "drizzle-orm";
 import { db } from "./db";
 import {
   auditLog as auditLogTable,
@@ -25,6 +25,7 @@ import {
   user as userTable,
 } from "./db/schema";
 import { computeEcoSavings } from "./eco";
+import { type ReceiptFilters, PAGE_SIZE } from "./receipts-search";
 import { presignedGetUrl } from "./storage";
 import type {
   Device,
@@ -709,4 +710,127 @@ export async function getOrgInvitations(organizationId: string) {
     role: r.role ?? "member",
     expiresAt: r.expiresAt.toISOString(),
   }));
+}
+
+export interface ReceiptListRow {
+  id: string;
+  token: string;
+  status: "pending" | "ready" | "downloaded";
+  storeName: string | null;
+  deviceName: string | null;
+  createdAt: string;
+  byteSize: number;
+}
+
+/** Build the WHERE conditions shared by the list + count queries. */
+function receiptConditions(f: ReceiptFilters) {
+  const c = [];
+  if (f.organizationId) c.push(eq(receiptTable.organizationId, f.organizationId));
+  if (f.storeId) c.push(eq(receiptTable.storeId, f.storeId));
+  if (f.deviceId) c.push(eq(receiptTable.deviceId, f.deviceId));
+  if (f.status) c.push(eq(receiptTable.status, f.status));
+  if (f.from) c.push(gte(receiptTable.createdAt, f.from));
+  if (f.to) c.push(lte(receiptTable.createdAt, f.to));
+  if (f.token) c.push(eq(receiptTable.token, f.token));
+  return c;
+}
+
+/** Filterable, paginated receipt search (tenant: pass organizationId; admin: omit). */
+export async function searchReceipts(
+  f: ReceiptFilters,
+): Promise<{ rows: ReceiptListRow[]; total: number }> {
+  const conds = receiptConditions(f);
+  const where = conds.length ? and(...conds) : undefined;
+
+  const rows = await db
+    .select({
+      id: receiptTable.id,
+      token: receiptTable.token,
+      status: receiptTable.status,
+      storeName: storeTable.name,
+      deviceName: deviceTable.name,
+      createdAt: receiptTable.createdAt,
+      byteSize: receiptTable.byteSize,
+    })
+    .from(receiptTable)
+    .leftJoin(storeTable, eq(receiptTable.storeId, storeTable.id))
+    .leftJoin(deviceTable, eq(receiptTable.deviceId, deviceTable.id))
+    .where(where)
+    .orderBy(desc(receiptTable.createdAt))
+    .limit(PAGE_SIZE)
+    .offset((f.page - 1) * PAGE_SIZE);
+
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(receiptTable)
+    .where(where);
+
+  return {
+    rows: rows.map((r) => ({
+      id: r.id,
+      token: r.token,
+      status: r.status,
+      storeName: r.storeName,
+      deviceName: r.deviceName,
+      createdAt: r.createdAt.toISOString(),
+      byteSize: r.byteSize,
+    })),
+    total: Number(total),
+  };
+}
+
+/** One receipt + a fresh presigned image URL. Read-only — never flips status. */
+export async function getReceiptDetail(
+  receiptId: string,
+  opts: { organizationId?: string },
+) {
+  const conds = [eq(receiptTable.id, receiptId)];
+  if (opts.organizationId) conds.push(eq(receiptTable.organizationId, opts.organizationId));
+  const [r] = await db
+    .select({
+      id: receiptTable.id,
+      token: receiptTable.token,
+      status: receiptTable.status,
+      storageKey: receiptTable.storageKey,
+      byteSize: receiptTable.byteSize,
+      createdAt: receiptTable.createdAt,
+      downloadedAt: receiptTable.downloadedAt,
+      storeName: storeTable.name,
+      deviceName: deviceTable.name,
+    })
+    .from(receiptTable)
+    .leftJoin(storeTable, eq(receiptTable.storeId, storeTable.id))
+    .leftJoin(deviceTable, eq(receiptTable.deviceId, deviceTable.id))
+    .where(and(...conds))
+    .limit(1);
+  if (!r) return null;
+
+  let imageUrl: string | null = null;
+  if (r.status !== "pending") {
+    try {
+      imageUrl = await presignedGetUrl(r.storageKey);
+    } catch {
+      imageUrl = null;
+    }
+  }
+  return {
+    id: r.id,
+    token: r.token,
+    status: r.status,
+    storeName: r.storeName,
+    deviceName: r.deviceName,
+    byteSize: r.byteSize,
+    createdAt: r.createdAt.toISOString(),
+    downloadedAt: r.downloadedAt ? r.downloadedAt.toISOString() : null,
+    imageUrl,
+  };
+}
+
+/** Stores + devices for an org, for the tenant filter dropdowns. */
+export async function getReceiptFilterOptions(organizationId: string) {
+  const [stores, devices] = await Promise.all([
+    db.select({ id: storeTable.id, name: storeTable.name }).from(storeTable).where(eq(storeTable.organizationId, organizationId)),
+    db.select({ id: deviceTable.id, name: deviceTable.name }).from(deviceTable).where(eq(deviceTable.organizationId, organizationId)),
+  ]);
+  return { stores, devices };
 }

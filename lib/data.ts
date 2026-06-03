@@ -15,6 +15,7 @@ import { db } from "./db";
 import {
   auditLog as auditLogTable,
   device as deviceTable,
+  deviceCommand,
   invitation as invitationTable,
   invoice as invoiceTable,
   member as memberTable,
@@ -991,4 +992,20 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
     console.error("[health] getPlatformHealth failed", err);
     return zeroedHealth();
   }
+}
+
+export async function getDeviceCommands(deviceId: string, limit = 20) {
+  const rows = await db
+    .select()
+    .from(deviceCommand)
+    .where(eq(deviceCommand.deviceId, deviceId))
+    .orderBy(desc(deviceCommand.createdAt))
+    .limit(limit);
+  return rows.map((r) => ({
+    id: r.id,
+    type: r.type,
+    status: r.status,
+    createdAt: r.createdAt.toISOString(),
+    ackedAt: r.ackedAt ? r.ackedAt.toISOString() : null,
+  }));
 }

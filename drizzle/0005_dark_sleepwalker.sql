@@ -1,0 +1,1 @@
+CREATE INDEX "receipt_store_id_idx" ON "receipt" USING btree ("store_id");

@@ -21,6 +21,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard },
   { label: "Customers", href: "/admin/customers", icon: Users },
   { label: "Device Fleet", href: "/admin/devices", icon: Cpu },
+  { label: "Receipts", href: "/admin/receipts", icon: ReceiptText },
   { label: "Billing & Revenue", href: "/admin/billing", icon: Wallet },
 ];
 

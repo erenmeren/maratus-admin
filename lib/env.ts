@@ -22,6 +22,11 @@ const envSchema = z.object({
 
   // Transactional email (Resend). Optional: absent → emails are logged, not sent.
   RESEND_API_KEY: z.string().optional(),
+  // From-address for transactional email. Defaults to Resend's shared test
+  // sender (works with no verified domain, but only delivers to your own Resend
+  // account email). Set to "Ditto <noreply@yourdomain.com>" once a domain is
+  // verified in Resend.
+  EMAIL_FROM: z.string().default("Ditto <onboarding@resend.dev>"),
 
   // Error tracking (Sentry). All optional: absent → the SDK is never
   // initialized (no-ops). NEXT_PUBLIC_ is required for the browser DSN.

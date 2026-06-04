@@ -25,6 +25,7 @@ import { putReceipt, receiptStorageKey } from "@/lib/storage";
 import { getEnv } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateReceiptPayload } from "@/lib/ingest-validation";
+import { reportError } from "@/lib/observability";
 
 export const runtime = "nodejs";
 
@@ -51,6 +52,7 @@ export async function POST(req: Request) {
     }
   } catch (err) {
     console.error("[ingest] suspension check failed (allowing)", err);
+    reportError(err, { path: "ingest.suspension-check", extra: { orgId: device.organizationId, deviceId: device.id } });
   }
 
   // Throttle per device: 30 receipts / minute is generous for a kiosk.
@@ -111,6 +113,7 @@ export async function POST(req: Request) {
     await putReceipt(storageKey, bytes, mimeType);
   } catch (err) {
     console.error("R2 upload failed", err);
+    reportError(err, { path: "ingest.r2-upload", extra: { orgId: device.organizationId, deviceId: device.id, receiptId } });
     return bad(502, "Storage upload failed");
   }
 
@@ -143,9 +146,10 @@ export async function POST(req: Request) {
       .where(eq(tenantSettings.organizationId, device.organizationId))
       .limit(1);
     if (settings?.customerId) {
-      reportReceiptUsage(settings.customerId).catch((e) =>
-        console.error("[ingest] meter event failed", e),
-      );
+      reportReceiptUsage(settings.customerId).catch((e) => {
+        console.error("[ingest] meter event failed", e);
+        reportError(e, { path: "ingest.meter-event", extra: { orgId: device.organizationId } });
+      });
     }
   }
 

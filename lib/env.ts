@@ -23,6 +23,12 @@ const envSchema = z.object({
   // Transactional email (Resend). Optional: absent → emails are logged, not sent.
   RESEND_API_KEY: z.string().optional(),
 
+  // Error tracking (Sentry). All optional: absent → the SDK is never
+  // initialized (no-ops). NEXT_PUBLIC_ is required for the browser DSN.
+  SENTRY_DSN: z.string().optional(),
+  NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
+  SENTRY_ENVIRONMENT: z.string().default("development"),
+
   // Stripe billing. All optional: absent → billing features are inert.
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),

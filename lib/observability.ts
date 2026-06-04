@@ -33,6 +33,7 @@ export function sentryInitOptions(input: {
  * Report a swallowed error to Sentry. No-ops automatically when Sentry was never
  * initialized (no DSN). Never include secrets in `extra` — no device keys, no
  * receipt tokens.
+ * @param context.path A short static label for the operation (e.g. "ingest.r2-upload"), never a request URL.
  */
 export function reportError(
   error: unknown,

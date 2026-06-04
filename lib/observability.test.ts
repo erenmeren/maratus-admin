@@ -1,5 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { sentryInitOptions } from "./observability";
+import { describe, it, expect, vi } from "vitest";
+
+vi.mock("@sentry/nextjs", () => ({
+  captureException: vi.fn(),
+}));
+
+import * as Sentry from "@sentry/nextjs";
+import { sentryInitOptions, reportError } from "./observability";
 
 describe("sentryInitOptions", () => {
   it("returns null when no DSN is provided", () => {
@@ -19,5 +25,16 @@ describe("sentryInitOptions", () => {
   it("defaults environment to development when omitted", () => {
     const opts = sentryInitOptions({ dsn: "https://abc@o1.ingest.sentry.io/1" });
     expect(opts?.environment).toBe("development");
+  });
+});
+
+describe("reportError", () => {
+  it("forwards the error to Sentry.captureException with path tag and extra", () => {
+    const err = new Error("boom");
+    reportError(err, { path: "api/ingest", extra: { orgId: "org_1" } });
+    expect(Sentry.captureException).toHaveBeenCalledWith(err, {
+      tags: { path: "api/ingest" },
+      extra: { orgId: "org_1" },
+    });
   });
 });

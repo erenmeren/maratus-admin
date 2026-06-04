@@ -13,10 +13,16 @@ import { db } from "@/lib/db";
 import { member, organization, tenantSettings, user } from "@/lib/db/schema";
 import { id } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
+import { emailVerificationEnabled } from "@/lib/email-verification";
+import { getEnv } from "@/lib/env";
 
 export interface RegisterResult {
   ok: boolean;
   error?: string;
+  /** True when the account was created but must verify its email before sign-in. */
+  pendingVerification?: boolean;
+  /** Echoed back so the client can show "we emailed {email}". */
+  email?: string;
 }
 
 function slugify(name: string): string {
@@ -117,23 +123,29 @@ export async function registerCompany(
     .values({ organizationId: orgId, status: "active" })
     .onConflictDoNothing();
 
-  // 5. The company creator owns this email (they're standing up their own org),
-  // so mark them verified and sign them in — establishing the session cookie via
-  // nextCookies — so the client redirect to /tenant lands them in the dashboard
-  // instead of bouncing to /login.
-  await db.update(user).set({ emailVerified: true }).where(eq(user.id, userId));
-  try {
-    await auth.api.signInEmail({ body: { email, password }, headers: await headers() });
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : "Could not sign in." };
-  }
-
   await recordAudit({
     organizationId: orgId,
     actor: { type: "user", id: userId, label: email },
     action: AUDIT.orgCreated,
     metadata: { name: companyName },
   });
+
+  // 5. Finish based on whether real email verification is active.
+  if (emailVerificationEnabled(getEnv().RESEND_API_KEY)) {
+    // Verification email already dispatched by Better Auth (sendOnSignUp). Leave
+    // the user unverified + unsigned-in; the client routes to "check your email".
+    // The org + membership already exist, so verifying later drops them straight in.
+    return { ok: true, pendingVerification: true, email };
+  }
+
+  // No email delivery configured → the creator owns this email anyway, so verify
+  // and sign them in (session cookie via nextCookies) so /tenant doesn't bounce.
+  await db.update(user).set({ emailVerified: true }).where(eq(user.id, userId));
+  try {
+    await auth.api.signInEmail({ body: { email, password }, headers: await headers() });
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Could not sign in." };
+  }
 
   return { ok: true };
 }

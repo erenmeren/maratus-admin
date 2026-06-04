@@ -2,9 +2,12 @@
 
 // Self-serve company registration.
 //
-// Creates the owner user (and signs them in — nextCookies forwards the session
-// cookie from this server action), then their organization + owner membership +
-// tenant settings. After this resolves, the client redirects to /tenant.
+// Creates the owner user, then their organization + owner membership + tenant
+// settings. How it finishes depends on whether email verification is active
+// (RESEND_API_KEY set): if so, the owner is left unverified and the client
+// routes them to "check your email"; otherwise the owner is auto-verified and
+// signed in (nextCookies forwards the session cookie) and the client redirects
+// to /tenant.
 
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
@@ -53,8 +56,8 @@ export async function registerCompany(
   }
 
   // 1. Create the user. NOTE: with requireEmailVerification on, sign-up skips
-  // auto-sign-in (no session yet) and sign-in stays blocked until verified — we
-  // verify + sign in at the end so the new owner lands in the dashboard.
+  // auto-sign-in (no session yet) and sign-in stays blocked until verified. How
+  // we finish depends on the email-verification gate — see step 5.
   try {
     await auth.api.signUpEmail({
       body: { name, email, password },

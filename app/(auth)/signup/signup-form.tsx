@@ -27,6 +27,10 @@ export function SignupForm() {
       toast.error("Couldn't create your account", { description: res.error });
       return;
     }
+    if (res.pendingVerification) {
+      router.push(`/verify-email?email=${encodeURIComponent(res.email ?? "")}`);
+      return;
+    }
     toast.success("Welcome to Ditto", {
       description: "Your workspace is ready.",
     });

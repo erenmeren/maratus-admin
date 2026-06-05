@@ -4,6 +4,7 @@
 // eco) lives in this file. Bucketing is UTC, consistent across keys + SQL.
 
 import type { TimePoint } from "./types";
+import { computeEcoSavings, type EcoSavings } from "./eco";
 
 /** A grouped count row from SQL: a bucket key (day "YYYY-MM-DD" or month "YYYY-MM"). */
 export interface BucketCount { bucket: string; count: number }
@@ -49,4 +50,96 @@ export function bucketsToSeries(counts: BucketCount[], keys: BucketKey[], price:
     const receipts = byKey.get(k.key) ?? 0;
     return { label: k.label, receipts, revenue: round2(receipts * price) };
   });
+}
+
+export interface Trend {
+  current: number;
+  previous: number;
+  /** Percent change vs previous; null when previous is 0 (undefined ratio). */
+  pctChange: number | null;
+}
+export interface Peak {
+  busiestDow: number | null;
+  busiestDowLabel: string | null;
+  busiestDowCount: number;
+  peakHour: number | null;
+  peakHourLabel: string | null;
+  peakHourCount: number;
+}
+export interface StoreAnalytics {
+  daily: TimePoint[];
+  monthly: TimePoint[];
+  monthTrend: Trend;
+  revenueThisMonth: number;
+  eco: EcoSavings;
+  peak: Peak;
+}
+export interface StoreComparisonRow {
+  storeId: string;
+  storeName: string;
+  receiptsThisMonth: number;
+  trend: Trend;
+  revenueThisMonth: number;
+  eco: EcoSavings;
+}
+
+const DOW_LABELS = ["Sundays", "Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays"];
+
+export function computeTrend(current: number, previous: number): Trend {
+  const pctChange = previous === 0 ? null : Math.round(((current - previous) / previous) * 100);
+  return { current, previous, pctChange };
+}
+
+export function dowLabel(dow: number): string {
+  return DOW_LABELS[dow] ?? "";
+}
+
+export function hourLabel(hour: number): string {
+  const to12 = (h: number) => ({
+    base: h % 12 === 0 ? 12 : h % 12,
+    period: h < 12 ? "am" : "pm",
+  });
+  const start = to12(hour);
+  const end = to12((hour + 1) % 24);
+  return start.period === end.period
+    ? `${start.base}–${end.base}${end.period}`
+    : `${start.base}${start.period}–${end.base}${end.period}`;
+}
+
+export function pickPeakDow(rows: DowCount[]): { dow: number | null; count: number; label: string | null } {
+  let best: DowCount | null = null;
+  for (const r of rows) if (!best || r.count > best.count) best = r;
+  if (!best || best.count === 0) return { dow: null, count: 0, label: null };
+  return { dow: best.dow, count: best.count, label: dowLabel(best.dow) };
+}
+
+export function pickPeakHour(rows: HourCount[]): { hour: number | null; count: number; label: string | null } {
+  let best: HourCount | null = null;
+  for (const r of rows) if (!best || r.count > best.count) best = r;
+  if (!best || best.count === 0) return { hour: null, count: 0, label: null };
+  return { hour: best.hour, count: best.count, label: hourLabel(best.hour) };
+}
+
+export function buildPeak(dowRows: DowCount[], hourRows: HourCount[]): Peak {
+  const d = pickPeakDow(dowRows);
+  const h = pickPeakHour(hourRows);
+  return {
+    busiestDow: d.dow, busiestDowLabel: d.label, busiestDowCount: d.count,
+    peakHour: h.hour, peakHourLabel: h.label, peakHourCount: h.count,
+  };
+}
+
+export function toComparisonRows(
+  input: Array<{ storeId: string; storeName: string; current: number; previous: number; price: number }>,
+): StoreComparisonRow[] {
+  return input
+    .map((s) => ({
+      storeId: s.storeId,
+      storeName: s.storeName,
+      receiptsThisMonth: s.current,
+      trend: computeTrend(s.current, s.previous),
+      revenueThisMonth: round2(s.current * s.price),
+      eco: computeEcoSavings(s.current),
+    }))
+    .sort((a, b) => b.receiptsThisMonth - a.receiptsThisMonth);
 }

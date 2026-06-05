@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
 import { dayKeys, monthKeys, bucketsToSeries } from "./analytics";
+import {
+  computeTrend,
+  dowLabel,
+  hourLabel,
+  pickPeakDow,
+  pickPeakHour,
+  buildPeak,
+  toComparisonRows,
+} from "./analytics";
 
 const NOW = new Date("2026-06-05T12:00:00Z");
 
@@ -32,5 +41,64 @@ describe("bucketsToSeries", () => {
       { label: "Jun 4", receipts: 5, revenue: 20 },
       { label: "Jun 5", receipts: 0, revenue: 0 },
     ]);
+  });
+});
+
+describe("computeTrend", () => {
+  it("computes percent change", () => {
+    expect(computeTrend(10, 5)).toEqual({ current: 10, previous: 5, pctChange: 100 });
+    expect(computeTrend(5, 10)).toEqual({ current: 5, previous: 10, pctChange: -50 });
+  });
+  it("returns null pctChange when previous is 0", () => {
+    expect(computeTrend(5, 0).pctChange).toBeNull();
+    expect(computeTrend(0, 0).pctChange).toBeNull();
+  });
+});
+
+describe("dowLabel / hourLabel", () => {
+  it("labels days of week", () => {
+    expect(dowLabel(0)).toBe("Sundays");
+    expect(dowLabel(6)).toBe("Saturdays");
+  });
+  it("labels hour ranges across am/pm boundaries", () => {
+    expect(hourLabel(0)).toBe("12–1am");
+    expect(hourLabel(12)).toBe("12–1pm");
+    expect(hourLabel(23)).toBe("11pm–12am");
+  });
+});
+
+describe("pickPeakDow / pickPeakHour", () => {
+  it("returns the argmax (first on ties)", () => {
+    expect(pickPeakDow([{ dow: 1, count: 3 }, { dow: 6, count: 9 }])).toEqual({ dow: 6, count: 9, label: "Saturdays" });
+    expect(pickPeakHour([{ hour: 9, count: 2 }, { hour: 12, count: 8 }])).toEqual({ hour: 12, count: 8, label: "12–1pm" });
+  });
+  it("returns nulls when empty or all-zero", () => {
+    expect(pickPeakDow([])).toEqual({ dow: null, count: 0, label: null });
+    expect(pickPeakHour([{ hour: 3, count: 0 }])).toEqual({ hour: null, count: 0, label: null });
+  });
+});
+
+describe("buildPeak", () => {
+  it("composes dow + hour peaks", () => {
+    expect(buildPeak([{ dow: 6, count: 9 }], [{ hour: 12, count: 8 }])).toEqual({
+      busiestDow: 6, busiestDowLabel: "Saturdays", busiestDowCount: 9,
+      peakHour: 12, peakHourLabel: "12–1pm", peakHourCount: 8,
+    });
+  });
+});
+
+describe("toComparisonRows", () => {
+  it("maps + sorts by receipts desc", () => {
+    const rows = toComparisonRows([
+      { storeId: "a", storeName: "A", current: 3, previous: 2, price: 4 },
+      { storeId: "b", storeName: "B", current: 10, previous: 5, price: 4 },
+    ]);
+    expect(rows.map((r) => r.storeId)).toEqual(["b", "a"]);
+    expect(rows[0].trend.pctChange).toBe(100);
+    expect(rows[0].revenueThisMonth).toBe(40);
+    expect(rows[0].eco.receipts).toBe(10);
+  });
+  it("returns [] for empty input", () => {
+    expect(toComparisonRows([])).toEqual([]);
   });
 });

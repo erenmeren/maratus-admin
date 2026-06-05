@@ -102,3 +102,30 @@ describe("toComparisonRows", () => {
     expect(toComparisonRows([])).toEqual([]);
   });
 });
+
+describe("key boundary crossings", () => {
+  it("dayKeys crosses a month boundary", () => {
+    expect(dayKeys(new Date("2026-06-01T00:00:00Z"), 3)).toEqual([
+      { key: "2026-05-30", label: "May 30" },
+      { key: "2026-05-31", label: "May 31" },
+      { key: "2026-06-01", label: "Jun 1" },
+    ]);
+  });
+  it("monthKeys crosses a year boundary", () => {
+    expect(monthKeys(new Date("2026-01-15T00:00:00Z"), 3)).toEqual([
+      { key: "2025-11", label: "Nov" },
+      { key: "2025-12", label: "Dec" },
+      { key: "2026-01", label: "Jan" },
+    ]);
+  });
+});
+
+describe("hourLabel mid-range + dow tie", () => {
+  it("formats same-period hours", () => {
+    expect(hourLabel(9)).toBe("9–10am");
+    expect(hourLabel(14)).toBe("2–3pm");
+  });
+  it("pickPeakDow keeps the first element on a tie", () => {
+    expect(pickPeakDow([{ dow: 2, count: 5 }, { dow: 5, count: 5 }])).toEqual({ dow: 2, count: 5, label: "Tuesdays" });
+  });
+});

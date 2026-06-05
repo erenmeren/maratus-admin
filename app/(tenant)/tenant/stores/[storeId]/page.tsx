@@ -1,6 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Cpu, MapPin, Receipt, ReceiptText, Router } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarClock,
+  Clock,
+  Cpu,
+  MapPin,
+  Receipt,
+  ReceiptText,
+  Router,
+  TrendingUp,
+} from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { DeviceCard } from "@/components/device-card";
@@ -13,9 +23,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getStore, getUnclaimedDevices } from "@/lib/data";
+import { getStoreAnalytics, getUnclaimedDevices } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
-import { formatNumber } from "@/lib/format";
+import { ReceiptsAreaChart } from "@/components/charts";
+import { formatCurrency, formatNumber } from "@/lib/format";
 
 export default async function StoreDetailPage({
   params,
@@ -24,10 +35,10 @@ export default async function StoreDetailPage({
 }) {
   const { storeId } = await params;
   const { ctx, organizationId } = await requireTenant();
-  const result = await getStore(storeId);
-  if (!result || result.tenant.id !== organizationId) notFound();
+  const result = await getStoreAnalytics(storeId);
+  if (!result || result.store.tenantId !== organizationId) notFound();
 
-  const { store } = result;
+  const { store, analytics } = result;
   const membership = ctx.organizations.find((o) => o.id === organizationId);
   const canClaim = !!membership && ["owner", "admin"].includes(membership.role);
   const unclaimed = canClaim ? await getUnclaimedDevices(organizationId) : [];
@@ -89,6 +100,48 @@ export default async function StoreDetailPage({
           hint="receipts this month"
         />
       </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <KpiCard
+          label="Receipts this month"
+          value={formatNumber(analytics.monthTrend.current)}
+          delta={analytics.monthTrend.pctChange ?? undefined}
+          hint="vs last month"
+          icon={TrendingUp}
+        />
+        <KpiCard
+          label="Revenue this month"
+          value={formatCurrency(analytics.revenueThisMonth)}
+          icon={Receipt}
+        />
+        <KpiCard
+          label="Paper saved"
+          value={`${analytics.eco.paperKg.toFixed(1)} kg`}
+          hint="this month"
+        />
+        <KpiCard
+          label="Busiest day"
+          value={analytics.peak.busiestDowLabel ?? "—"}
+          hint="last 90 days"
+          icon={CalendarClock}
+        />
+        <KpiCard
+          label="Peak hour"
+          value={analytics.peak.peakHourLabel ?? "—"}
+          hint="last 90 days"
+          icon={Clock}
+        />
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Receipts over time</CardTitle>
+          <CardDescription>Daily digital receipts, last 30 days</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ReceiptsAreaChart data={analytics.daily} height={260} />
+        </CardContent>
+      </Card>
 
       <div>
         <h2 className="mb-3 text-sm font-semibold text-muted-foreground">

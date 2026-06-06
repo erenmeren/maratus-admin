@@ -49,4 +49,12 @@ describe("alertEmail", () => {
     expect(mail?.subject).toContain("1 new health alert");
     expect(mail?.html).toContain("2 devices stale");
   });
+  it("escapes HTML in messages (tenant names are user-controlled)", () => {
+    const mail = alertEmail([a("x", "<script>x</script>Acme: no receipts")]);
+    expect(mail?.html).toContain("&lt;script&gt;");
+    expect(mail?.html).not.toContain("<script>x</script>");
+  });
+  it("renders the severity label", () => {
+    expect(alertEmail([a("x", "m", "warning")])?.html).toContain("WARNING");
+  });
 });

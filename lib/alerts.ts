@@ -13,10 +13,11 @@ export interface OpenAlert {
 export interface AlertDiff {
   toOpen: HealthAlert[]; // tripped now, not currently open → insert
   toResolve: OpenAlert[]; // open in DB, no longer tripped → resolve
-  stillOpen: { key: string; message: string }[]; // persist → refresh message/lastSeen
+  stillOpen: OpenAlert[]; // persist → refresh message/lastSeen
 }
 
-/** Reconcile freshly-computed alerts against the currently-open persisted rows. */
+/** Reconcile freshly-computed alerts against the currently-open persisted rows.
+ *  Precondition: `current` has unique `key`s (computeAlerts guarantees this). */
 export function diffAlerts(current: HealthAlert[], open: OpenAlert[]): AlertDiff {
   const openByKey = new Map(open.map((o) => [o.key, o]));
   const currentKeys = new Set(current.map((a) => a.key));
@@ -29,6 +30,16 @@ export function diffAlerts(current: HealthAlert[], open: OpenAlert[]): AlertDiff
   };
 }
 
+/** Escape user-controlled text (alert messages include tenant names) for HTML. */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 /** Digest email for newly-opened alerts. null when there are none. */
 export function alertEmail(
   newAlerts: HealthAlert[],
@@ -36,7 +47,7 @@ export function alertEmail(
   if (newAlerts.length === 0) return null;
   const subject = `⚠ Ditto: ${newAlerts.length} new health alert${newAlerts.length > 1 ? "s" : ""}`;
   const items = newAlerts
-    .map((a) => `<li><strong>${a.severity.toUpperCase()}</strong>: ${a.message}</li>`)
+    .map((a) => `<li><strong>${a.severity.toUpperCase()}</strong>: ${escapeHtml(a.message)}</li>`)
     .join("");
   const html = `<p>New platform health alerts:</p><ul>${items}</ul>`;
   return { subject, html };

@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getContext } from "@/lib/session";
 import { getInvitationForSignup } from "@/lib/actions/members";
 import { SignupForm } from "./signup-form";
@@ -9,7 +10,13 @@ export default async function SignupPage({
   searchParams: Promise<{ invite?: string }>;
 }) {
   const { invite } = await searchParams;
-  if (!invite) return <SignupForm />;
+  if (!invite) {
+    // A signed-in user can't create a new company from here (see registerCompany's
+    // guard) — send them to their dashboard instead of showing a dead-end form.
+    const ctx = await getContext();
+    if (ctx) redirect(ctx.user.role === "platform_admin" ? "/admin" : "/tenant");
+    return <SignupForm />;
+  }
 
   const inv = await getInvitationForSignup(invite);
   if (!inv) {

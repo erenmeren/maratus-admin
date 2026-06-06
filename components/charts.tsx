@@ -233,3 +233,59 @@ export function BreakdownBarChart({
     </ResponsiveContainer>
   );
 }
+
+const COMPARE_COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+];
+
+/** Multi-line monthly receipts comparison — one line per store. */
+export function StoreCompareChart({
+  data,
+  height = 300,
+}: {
+  data: { storeId: string; storeName: string; monthly: TimePoint[] }[];
+  height?: number;
+}) {
+  if (data.length === 0 || (data[0]?.monthly.length ?? 0) === 0) {
+    return (
+      <div
+        className="flex items-center justify-center text-sm text-muted-foreground"
+        style={{ height }}
+      >
+        No data yet.
+      </div>
+    );
+  }
+  // Merge per-store series into rows keyed by month label: { label, [storeId]: receipts }.
+  const rows = data[0].monthly.map((point, i) => {
+    const row: Record<string, string | number> = { label: point.label };
+    for (const s of data) row[s.storeId] = s.monthly[i]?.receipts ?? 0;
+    return row;
+  });
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <LineChart data={rows} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
+        <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
+        <XAxis dataKey="label" {...AXIS} minTickGap={16} />
+        <YAxis {...AXIS} width={40} />
+        <Tooltip content={<ChartTooltip unit="receipts" />} cursor={{ stroke: "var(--border)" }} />
+        {data.map((s, i) => (
+          <Line
+            key={s.storeId}
+            type="monotone"
+            dataKey={s.storeId}
+            name={s.storeName}
+            stroke={COMPARE_COLORS[i % COMPARE_COLORS.length]}
+            strokeWidth={2}
+            dot={false}
+            activeDot={{ r: 4, strokeWidth: 0 }}
+          />
+        ))}
+      </LineChart>
+    </ResponsiveContainer>
+  );
+}

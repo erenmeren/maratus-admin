@@ -10,7 +10,7 @@
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
 //   • receiptsToday / receiptsThisMonth are derived from the receipt table
 
-import { and, count, desc, eq, gte, isNotNull, lt, lte, max, ne } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNotNull, lt, lte, max, ne, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
   auditLog as auditLogTable,
@@ -27,6 +27,16 @@ import {
 } from "./db/schema";
 import { effectiveDeviceStatus } from "./device-status";
 import { computeEcoSavings } from "./eco";
+import {
+  bucketsToSeries,
+  dayKeys,
+  monthKeys,
+  computeTrend,
+  buildPeak,
+  toComparisonRows,
+  type StoreAnalytics,
+  type StoreComparisonRow,
+} from "./analytics";
 import { computeAlerts, STALE_MINUTES, STUCK_PENDING_MINUTES, INACTIVE_DAYS, type HealthAlert } from "./health";
 import { type ReceiptFilters, PAGE_SIZE } from "./receipts-search";
 import { presignedGetUrl } from "./storage";
@@ -361,6 +371,110 @@ export async function getStore(
   const tenant = await getTenant(row.organizationId);
   const store = tenant.stores.find((s) => s.id === storeId);
   return store ? { store, tenant } : null;
+}
+
+/**
+ * Per-store analytics: daily/monthly receipt series, this-vs-last-month trend,
+ * revenue + eco for this month, and busiest day-of-week / peak hour. Returns the
+ * store too so the page can render without a second lookup. null if not found.
+ */
+export async function getStoreAnalytics(
+  storeId: string,
+): Promise<{ store: Store; analytics: StoreAnalytics } | null> {
+  const result = await getStore(storeId);
+  if (!result) return null;
+  const { store, tenant } = result;
+  const price = tenant.perPrintPrice;
+  const now = new Date();
+
+  const since30 = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29));
+  const since9mo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 8, 1));
+  const since90 = new Date(now.getTime() - 90 * 86_400_000);
+
+  const dayExpr = sql<string>`to_char(date_trunc('day', ${receiptTable.createdAt}), 'YYYY-MM-DD')`;
+  const monthExpr = sql<string>`to_char(date_trunc('month', ${receiptTable.createdAt}), 'YYYY-MM')`;
+  const dowExpr = sql<number>`extract(dow from ${receiptTable.createdAt})::int`;
+  const hourExpr = sql<number>`extract(hour from ${receiptTable.createdAt})::int`;
+  const scoped = (since: Date) =>
+    and(eq(receiptTable.storeId, storeId), gte(receiptTable.createdAt, since));
+
+  const [dailyRows, monthlyRows, dowRows, hourRows] = await Promise.all([
+    db.select({ bucket: dayExpr, count: count() }).from(receiptTable).where(scoped(since30)).groupBy(dayExpr),
+    db.select({ bucket: monthExpr, count: count() }).from(receiptTable).where(scoped(since9mo)).groupBy(monthExpr),
+    db.select({ dow: dowExpr, count: count() }).from(receiptTable).where(scoped(since90)).groupBy(dowExpr),
+    db.select({ hour: hourExpr, count: count() }).from(receiptTable).where(scoped(since90)).groupBy(hourExpr),
+  ]);
+
+  const daily = bucketsToSeries(dailyRows, dayKeys(now, 30), price);
+  const monthly = bucketsToSeries(monthlyRows, monthKeys(now, 9), price);
+  const thisMonth = monthly[monthly.length - 1]?.receipts ?? 0;
+  const lastMonth = monthly[monthly.length - 2]?.receipts ?? 0;
+
+  const analytics: StoreAnalytics = {
+    daily,
+    monthly,
+    monthTrend: computeTrend(thisMonth, lastMonth),
+    revenueThisMonth: Math.round(thisMonth * price * 100) / 100,
+    eco: computeEcoSavings(thisMonth),
+    peak: buildPeak(dowRows, hourRows),
+  };
+  return { store, analytics };
+}
+
+/**
+ * Cross-store comparison for the tenant Analytics page: per-store rows (receipts
+ * this month, trend vs last month, revenue, eco) sorted by receipts, plus a
+ * per-store monthly series for the comparison chart. Degrades to empty on error.
+ */
+export async function getStoresAnalytics(organizationId: string): Promise<{
+  rows: StoreComparisonRow[];
+  monthlyByStore: { storeId: string; storeName: string; monthly: TimePoint[] }[];
+}> {
+  try {
+    const tenant = await getTenant(organizationId);
+    const price = tenant.perPrintPrice;
+    const stores = tenant.stores;
+    if (stores.length === 0) return { rows: [], monthlyByStore: [] };
+
+    const now = new Date();
+    const since9mo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 8, 1));
+    const monthExpr = sql<string>`to_char(date_trunc('month', ${receiptTable.createdAt}), 'YYYY-MM')`;
+
+    const perStoreMonth = await db
+      .select({ storeId: receiptTable.storeId, bucket: monthExpr, count: count() })
+      .from(receiptTable)
+      .where(and(eq(receiptTable.organizationId, organizationId), gte(receiptTable.createdAt, since9mo)))
+      .groupBy(receiptTable.storeId, monthExpr);
+
+    const keys = monthKeys(now, 9);
+    const thisKey = keys[keys.length - 1].key;
+    const lastKey = keys[keys.length - 2].key;
+
+    const rows = toComparisonRows(
+      stores.map((s) => ({
+        storeId: s.id,
+        storeName: s.name,
+        current: perStoreMonth.find((r) => r.storeId === s.id && r.bucket === thisKey)?.count ?? 0,
+        previous: perStoreMonth.find((r) => r.storeId === s.id && r.bucket === lastKey)?.count ?? 0,
+        price,
+      })),
+    );
+
+    const monthlyByStore = stores.map((s) => ({
+      storeId: s.id,
+      storeName: s.name,
+      monthly: bucketsToSeries(
+        perStoreMonth.filter((r) => r.storeId === s.id).map((r) => ({ bucket: r.bucket, count: r.count })),
+        keys,
+        price,
+      ),
+    }));
+
+    return { rows, monthlyByStore };
+  } catch (err) {
+    console.error("[data] getStoresAnalytics failed", err);
+    return { rows: [], monthlyByStore: [] };
+  }
 }
 
 export async function getDevice(

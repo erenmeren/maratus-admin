@@ -46,17 +46,20 @@ export async function evaluateAndPersistAlerts(): Promise<{
   }
 
   if (diff.toOpen.length > 0) {
-    await db.insert(alertTable).values(
-      diff.toOpen.map((a) => ({
-        id: id("alt"),
-        key: a.key,
-        severity: a.severity,
-        message: a.message,
-        status: "open" as const,
-        firstSeenAt: now,
-        lastSeenAt: now,
-      })),
-    );
+    await db
+      .insert(alertTable)
+      .values(
+        diff.toOpen.map((a) => ({
+          id: id("alt"),
+          key: a.key,
+          severity: a.severity,
+          message: a.message,
+          status: "open" as const,
+          firstSeenAt: now,
+          lastSeenAt: now,
+        })),
+      )
+      .onConflictDoNothing();
 
     const mail = alertEmail(diff.toOpen);
     if (mail) {
@@ -64,16 +67,22 @@ export async function evaluateAndPersistAlerts(): Promise<{
         .select({ email: userTable.email })
         .from(userTable)
         .where(eq(userTable.role, "platform_admin"));
-      for (const adm of admins) await sendEmail(adm.email, mail.subject, mail.html);
-      await db
-        .update(alertTable)
-        .set({ notifiedAt: now })
-        .where(
-          and(
-            eq(alertTable.status, "open"),
-            inArray(alertTable.key, diff.toOpen.map((a) => a.key)),
-          ),
-        );
+      const results = await Promise.all(
+        admins.map((adm) => sendEmail(adm.email, mail.subject, mail.html)),
+      );
+      // Only mark notified if at least one email actually delivered (best-effort;
+      // sendEmail returns false when RESEND_API_KEY is unset or Resend rejects).
+      if (results.some(Boolean)) {
+        await db
+          .update(alertTable)
+          .set({ notifiedAt: now })
+          .where(
+            and(
+              eq(alertTable.status, "open"),
+              inArray(alertTable.key, diff.toOpen.map((a) => a.key)),
+            ),
+          );
+      }
     }
   }
 

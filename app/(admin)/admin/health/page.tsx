@@ -1,11 +1,13 @@
 import { requirePlatformAdmin } from "@/lib/session";
-import { getPlatformHealth } from "@/lib/data";
+import { getPlatformHealth, getAlertHistory } from "@/lib/data";
 import { KpiCard } from "@/components/kpi-card";
 import { AlertsBanner } from "@/components/health/alerts-banner";
+import { AlertHistory } from "@/components/health/alert-history";
 
 export default async function HealthPage() {
   await requirePlatformAdmin();
-  const h = await getPlatformHealth();
+  const [h, history] = await Promise.all([getPlatformHealth(), getAlertHistory()]);
+  const now = Date.now();
 
   return (
     <div className="flex flex-col gap-8 p-6">
@@ -83,6 +85,8 @@ export default async function HealthPage() {
           </div>
         </div>
       </section>
+
+      <AlertHistory open={history.open} resolved={history.resolved} now={now} />
     </div>
   );
 }

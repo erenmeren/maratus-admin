@@ -13,6 +13,7 @@
 import { and, count, desc, eq, gte, isNotNull, lt, lte, max, ne, sql } from "drizzle-orm";
 import { db } from "./db";
 import {
+  alert as alertTable,
   auditLog as auditLogTable,
   device as deviceTable,
   deviceCommand,
@@ -1093,6 +1094,98 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
   } catch (err) {
     console.error("[health] getPlatformHealth failed", err);
     return zeroedHealth();
+  }
+}
+
+/**
+ * The exact input `computeAlerts` needs, queried fresh. Standalone (the cron
+ * evaluator calls this without loading the full health dashboard). Mirrors the
+ * predicates getPlatformHealth uses so both produce the same alerts.
+ */
+export async function getAlertInputs(): Promise<{
+  staleCount: number;
+  stuckPendingCount: number;
+  inactiveTenants: { id: string; name: string }[];
+}> {
+  const now = new Date();
+  const staleCut = new Date(now.getTime() - STALE_MINUTES * 60_000);
+  const stuckCut = new Date(now.getTime() - STUCK_PENDING_MINUTES * 60_000);
+  const inactiveCut = new Date(now.getTime() - INACTIVE_DAYS * 24 * 60 * 60_000);
+
+  const [{ staleCount }] = await db
+    .select({ staleCount: count() })
+    .from(deviceTable)
+    .where(
+      and(
+        isNotNull(deviceTable.lastSeenAt),
+        lt(deviceTable.lastSeenAt, staleCut),
+        ne(deviceTable.status, "paused"),
+      ),
+    );
+  const [{ stuckPendingCount }] = await db
+    .select({ stuckPendingCount: count() })
+    .from(receiptTable)
+    .where(and(eq(receiptTable.status, "pending"), lt(receiptTable.createdAt, stuckCut)));
+
+  const allOrgs = await db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable);
+  const lastRows = await db
+    .select({ org: receiptTable.organizationId, last: max(receiptTable.createdAt) })
+    .from(receiptTable)
+    .groupBy(receiptTable.organizationId);
+  const lastByOrg = new Map<string, Date>();
+  for (const r of lastRows) if (r.last) lastByOrg.set(r.org, r.last);
+  const inactiveTenants = allOrgs
+    .filter((o) => {
+      const last = lastByOrg.get(o.id);
+      return !last || last < inactiveCut;
+    })
+    .map((o) => ({ id: o.id, name: o.name }));
+
+  return {
+    staleCount: Number(staleCount),
+    stuckPendingCount: Number(stuckPendingCount),
+    inactiveTenants,
+  };
+}
+
+export interface AlertRow {
+  id: string;
+  key: string;
+  severity: string;
+  message: string;
+  firstSeenAt: string;
+  resolvedAt: string | null;
+  notifiedAt: string | null;
+}
+
+/** Open alerts + alerts resolved in the last 7 days, for the health page. */
+export async function getAlertHistory(): Promise<{ open: AlertRow[]; resolved: AlertRow[] }> {
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60_000);
+    const toRow = (r: typeof alertTable.$inferSelect): AlertRow => ({
+      id: r.id,
+      key: r.key,
+      severity: r.severity,
+      message: r.message,
+      firstSeenAt: r.firstSeenAt.toISOString(),
+      resolvedAt: r.resolvedAt ? r.resolvedAt.toISOString() : null,
+      notifiedAt: r.notifiedAt ? r.notifiedAt.toISOString() : null,
+    });
+    const openRows = await db
+      .select()
+      .from(alertTable)
+      .where(eq(alertTable.status, "open"))
+      .orderBy(desc(alertTable.firstSeenAt));
+    const resolvedRows = await db
+      .select()
+      .from(alertTable)
+      .where(and(eq(alertTable.status, "resolved"), gte(alertTable.resolvedAt, sevenDaysAgo)))
+      .orderBy(desc(alertTable.resolvedAt))
+      .limit(25);
+    return { open: openRows.map(toRow), resolved: resolvedRows.map(toRow) };
+  } catch (err) {
+    console.error("[health] getAlertHistory failed", err);
+    return { open: [], resolved: [] };
   }
 }
 

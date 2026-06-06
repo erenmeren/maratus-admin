@@ -343,6 +343,28 @@ export const auditLog = pgTable(
   (t) => [index("audit_log_org_created_idx").on(t.organizationId, t.createdAt)],
 );
 
+export const alert = pgTable(
+  "alert",
+  {
+    id: text("id").primaryKey(),
+    // Stable identity from computeAlerts: "devices-stale", "receipts-stuck",
+    // "tenants-inactive", "tenant-inactive:<orgId>".
+    key: text("key").notNull(),
+    severity: text("severity", { enum: ["info", "warning"] }).notNull(),
+    message: text("message").notNull(),
+    status: text("status", { enum: ["open", "resolved"] }).notNull().default("open"),
+    firstSeenAt: timestamp("first_seen_at").$defaultFn(() => new Date()).notNull(),
+    lastSeenAt: timestamp("last_seen_at").$defaultFn(() => new Date()).notNull(),
+    resolvedAt: timestamp("resolved_at"),
+    notifiedAt: timestamp("notified_at"),
+  },
+  (t) => [
+    // At most one OPEN row per key; a key can re-open after resolving (new row).
+    uniqueIndex("alert_open_key_idx").on(t.key).where(sql`status = 'open'`),
+    index("alert_status_idx").on(t.status, t.lastSeenAt),
+  ],
+);
+
 // Re-export a flat table map for the Drizzle adapter / db client.
 export const schema = {
   user,
@@ -359,6 +381,7 @@ export const schema = {
   receipt,
   invoice,
   auditLog,
+  alert,
 };
 
 // Keep `sql` import used (some toolchains tree-shake otherwise).

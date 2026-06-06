@@ -29,6 +29,8 @@ import { effectiveDeviceStatus } from "./device-status";
 import { computeEcoSavings } from "./eco";
 import {
   bucketsToSeries,
+  countByDayKey,
+  countByMonthKey,
   dayKeys,
   monthKeys,
   computeTrend,
@@ -128,13 +130,16 @@ async function loadAllOrgs(): Promise<OrgBundle[]> {
 
 // ---- time helpers -----------------------------------------------------------
 
+// Bucketing is UTC everywhere (matches the SQL date_trunc/extract used by the
+// per-store analytics in getStoreAnalytics/getStoresAnalytics), so "today" and
+// "this month" agree across every surface regardless of server timezone.
 function startOfToday(): number {
   const n = new Date();
-  return new Date(n.getFullYear(), n.getMonth(), n.getDate()).getTime();
+  return Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), n.getUTCDate());
 }
 function startOfMonth(): number {
   const n = new Date();
-  return new Date(n.getFullYear(), n.getMonth(), 1).getTime();
+  return Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), 1);
 }
 
 /** receipts-per-device for today and this month. */
@@ -238,45 +243,18 @@ function summarize(b: OrgBundle): TenantSummary {
 }
 
 // ---- time series from real receipts ----------------------------------------
+// Both reuse the pure UTC bucketing primitives shared with the per-store
+// analytics (countBy*Key + day/monthKeys + bucketsToSeries) so org-wide and
+// per-store series can never drift apart.
 
 function dailySeries(b: OrgBundle, price: number): TimePoint[] {
-  const out: TimePoint[] = [];
-  const now = new Date();
-  for (let i = 29; i >= 0; i--) {
-    const day = new Date(now.getFullYear(), now.getMonth(), now.getDate() - i);
-    const next = new Date(day.getTime() + 86_400_000).getTime();
-    const start = day.getTime();
-    const receipts = b.receipts.filter((r) => {
-      const t = r.createdAt.getTime();
-      return t >= start && t < next;
-    }).length;
-    out.push({
-      label: day.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
-      receipts,
-      revenue: Math.round(receipts * price * 100) / 100,
-    });
-  }
-  return out;
+  const dates = b.receipts.map((r) => r.createdAt);
+  return bucketsToSeries(countByDayKey(dates), dayKeys(new Date(), 30), price);
 }
 
 function monthlySeries(b: OrgBundle, price: number): TimePoint[] {
-  const out: TimePoint[] = [];
-  const now = new Date();
-  for (let i = 8; i >= 0; i--) {
-    const m = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const next = new Date(now.getFullYear(), now.getMonth() - i + 1, 1).getTime();
-    const start = m.getTime();
-    const receipts = b.receipts.filter((r) => {
-      const t = r.createdAt.getTime();
-      return t >= start && t < next;
-    }).length;
-    out.push({
-      label: m.toLocaleDateString("en-US", { month: "short" }),
-      receipts,
-      revenue: Math.round(receipts * price * 100) / 100,
-    });
-  }
-  return out;
+  const dates = b.receipts.map((r) => r.createdAt);
+  return bucketsToSeries(countByMonthKey(dates), monthKeys(new Date(), 9), price);
 }
 
 function sumSeries(all: TimePoint[][]): TimePoint[] {

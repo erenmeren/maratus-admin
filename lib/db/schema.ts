@@ -145,6 +145,9 @@ export const invitation = pgTable(
     role: text("role"),
     status: text("status").default("pending").notNull(),
     expiresAt: timestamp("expires_at").notNull(),
+    // Better Auth's org plugin writes this on createInvitation — it MUST exist in
+    // this Drizzle table or the adapter throws "field createdAt does not exist".
+    createdAt: timestamp("created_at").defaultNow().notNull(),
     inviterId: text("inviter_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),

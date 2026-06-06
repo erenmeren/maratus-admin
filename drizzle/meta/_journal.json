@@ -57,6 +57,13 @@
       "when": 1780513855969,
       "tag": "0007_fluffy_tiger_shark",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1780765547512,
+      "tag": "0008_yielding_george_stacy",
+      "breakpoints": true
     }
   ]
 }

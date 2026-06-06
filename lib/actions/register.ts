@@ -55,6 +55,19 @@ export async function registerCompany(
     return { ok: false, error: "Password must be at least 8 characters." };
   }
 
+  // Reject if a session is already active: createOrganization (below) honors the
+  // session in the forwarded headers over the passed userId, so a signed-in user
+  // submitting this form would get the new org attached to THEIR user instead of
+  // the freshly-created one. Make them sign out first. (Invite acceptance for a
+  // signed-in user is a separate flow — acceptInviteSignup.)
+  const activeSession = await auth.api.getSession({ headers: await headers() });
+  if (activeSession?.user) {
+    return {
+      ok: false,
+      error: "You're already signed in. Sign out before creating a new company.",
+    };
+  }
+
   // 1. Create the user. NOTE: with requireEmailVerification on, sign-up skips
   // auto-sign-in (no session yet) and sign-in stays blocked until verified. How
   // we finish depends on the email-verification gate — see step 5.

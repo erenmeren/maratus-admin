@@ -40,6 +40,10 @@ const envSchema = z.object({
   STRIPE_PRICE_ID: z.string().optional(),
   STRIPE_METER_EVENT_NAME: z.string().default("receipts"),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
+
+  // Shared secret for the scheduled cron endpoint(s). Vercel sends it as
+  // `Authorization: Bearer <CRON_SECRET>`. Absent → the cron route returns 503.
+  CRON_SECRET: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

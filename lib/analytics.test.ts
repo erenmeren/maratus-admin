@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { dayKeys, monthKeys, bucketsToSeries } from "./analytics";
+import { dayKeys, monthKeys, bucketsToSeries, countByDayKey, countByMonthKey } from "./analytics";
 import {
   computeTrend,
   dowLabel,
@@ -127,5 +127,28 @@ describe("hourLabel mid-range + dow tie", () => {
   });
   it("pickPeakDow keeps the first element on a tie", () => {
     expect(pickPeakDow([{ dow: 2, count: 5 }, { dow: 5, count: 5 }])).toEqual({ dow: 2, count: 5, label: "Tuesdays" });
+  });
+});
+
+describe("countByDayKey / countByMonthKey", () => {
+  it("groups dates by UTC day (not local)", () => {
+    const dates = [
+      new Date("2026-06-05T23:00:00Z"),
+      new Date("2026-06-05T01:00:00Z"),
+      new Date("2026-06-04T12:00:00Z"),
+    ];
+    expect(new Map(countByDayKey(dates).map((c) => [c.bucket, c.count]))).toEqual(
+      new Map([["2026-06-05", 2], ["2026-06-04", 1]]),
+    );
+  });
+  it("groups dates by UTC month across a month boundary", () => {
+    const dates = [new Date("2026-06-30T23:00:00Z"), new Date("2026-07-01T00:00:00Z")];
+    expect(new Map(countByMonthKey(dates).map((c) => [c.bucket, c.count]))).toEqual(
+      new Map([["2026-06", 1], ["2026-07", 1]]),
+    );
+  });
+  it("returns [] for empty input", () => {
+    expect(countByDayKey([])).toEqual([]);
+    expect(countByMonthKey([])).toEqual([]);
   });
 });

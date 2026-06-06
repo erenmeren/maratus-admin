@@ -145,3 +145,23 @@ export function toComparisonRows(
     }))
     .sort((a, b) => b.receiptsThisMonth - a.receiptsThisMonth);
 }
+
+/** Group dates into UTC day-key ("YYYY-MM-DD") counts. Pairs with dayKeys. */
+export function countByDayKey(dates: Date[]): BucketCount[] {
+  const m = new Map<string, number>();
+  for (const d of dates) {
+    const k = d.toISOString().slice(0, 10);
+    m.set(k, (m.get(k) ?? 0) + 1);
+  }
+  return [...m].map(([bucket, count]) => ({ bucket, count }));
+}
+
+/** Group dates into UTC month-key ("YYYY-MM") counts. Pairs with monthKeys. */
+export function countByMonthKey(dates: Date[]): BucketCount[] {
+  const m = new Map<string, number>();
+  for (const d of dates) {
+    const k = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    m.set(k, (m.get(k) ?? 0) + 1);
+  }
+  return [...m].map(([bucket, count]) => ({ bucket, count }));
+}

@@ -194,6 +194,7 @@ export const store = pgTable(
       .references(() => organization.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     address: text("address").notNull().default(""),
+    timezone: text("timezone").notNull().default("UTC"), // IANA name; see lib/timezones.ts
     createdAt: timestamp("created_at")
       .$defaultFn(() => new Date())
       .notNull(),

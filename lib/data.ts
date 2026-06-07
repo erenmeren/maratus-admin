@@ -177,6 +177,7 @@ function buildTenant(b: OrgBundle): Tenant {
     tenantId: b.org.id,
     name: s.name,
     address: s.address,
+    timezone: s.timezone,
     devices: b.devices
       .filter((d) => d.storeId === s.id)
       .map((d) => mapDevice(d, b.org.id, todayBy, monthBy)),
@@ -331,6 +332,7 @@ export async function getTenantStores(
     id: s.id,
     name: s.name,
     address: s.address,
+    timezone: s.timezone,
     deviceCount: s.devices.length,
     onlineCount: s.devices.filter((d) => d.status === "online").length,
     receiptsThisMonth: s.devices.reduce((a, d) => a + d.receiptsThisMonth, 0),

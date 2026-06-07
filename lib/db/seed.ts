@@ -156,6 +156,7 @@ async function main() {
       organizationId: orgId,
       name: s.name,
       address: s.address,
+      timezone: "America/Los_Angeles",
       createdAt: new Date(),
     });
 

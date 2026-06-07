@@ -1280,8 +1280,16 @@ export async function listReceiptsByCursor(f: ApiReceiptFilters): Promise<ApiRec
   if (f.createdBefore) conds.push(lte(receiptTable.createdAt, f.createdBefore));
   if (f.token) conds.push(eq(receiptTable.token, f.token));
   if (f.cursor) {
-    // Keyset page: rows strictly "after" the cursor in (created_at DESC, id DESC).
-    conds.push(sql`(${receiptTable.createdAt}, ${receiptTable.id}) < (${f.cursor.t}, ${f.cursor.id})`);
+    // receipt.created_at is `timestamp without time zone`. Drizzle sends a JS Date
+    // as a `timestamptz` parameter; Postgres then coerces it to `timestamp` using
+    // the server's local timezone, shifting the value and breaking the boundary
+    // exclusion. Fix: supply the cursor as an explicit `::timestamp` cast from the
+    // ISO-8601 UTC string so no timezone conversion is applied. id is the strict
+    // unique tiebreaker for rows that share the same millisecond.
+    const tStr = f.cursor.t.toISOString(); // e.g. "2026-06-06T12:22:47.610Z"
+    conds.push(
+      sql`(${receiptTable.createdAt}, ${receiptTable.id}) < (${tStr}::timestamp, ${f.cursor.id})`,
+    );
   }
 
   const rows = await db

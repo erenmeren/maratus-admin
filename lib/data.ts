@@ -55,6 +55,7 @@ import type {
   TenantSummary,
   TimePoint,
 } from "./types";
+import type { ApiReceiptRow } from "@/lib/api/serialize";
 
 // ============================================================================
 // Internal: load an org's raw rows once, then build view-models from the bundle
@@ -911,6 +912,8 @@ export async function getReceiptDetail(
       downloadedAt: receiptTable.downloadedAt,
       storeName: storeTable.name,
       deviceName: deviceTable.name,
+      storeId: receiptTable.storeId,
+      deviceId: receiptTable.deviceId,
     })
     .from(receiptTable)
     .leftJoin(storeTable, eq(receiptTable.storeId, storeTable.id))
@@ -937,6 +940,8 @@ export async function getReceiptDetail(
     createdAt: r.createdAt.toISOString(),
     downloadedAt: r.downloadedAt ? r.downloadedAt.toISOString() : null,
     imageUrl,
+    storeId: r.storeId,
+    deviceId: r.deviceId,
   };
 }
 
@@ -1247,4 +1252,105 @@ export async function getApiKeys(organizationId: string): Promise<ApiKeyRow[]> {
     createdAt: r.createdAt.toISOString(),
     revokedAt: r.revokedAt ? r.revokedAt.toISOString() : null,
   }));
+}
+
+// ============================================================================
+// Public API v1 — cursor receipt list + usage aggregate
+// ============================================================================
+
+export interface ApiReceiptFilters {
+  organizationId: string;
+  storeId?: string;
+  deviceId?: string;
+  status?: "pending" | "ready" | "downloaded";
+  createdAfter?: Date;
+  createdBefore?: Date;
+  token?: string;
+  limit: number;            // pass desired+1 to detect a next page
+  cursor?: { t: Date; id: string };
+}
+
+/** Keyset (cursor) receipt list for /api/v1, newest first. Org-scoped. */
+export async function listReceiptsByCursor(f: ApiReceiptFilters): Promise<ApiReceiptRow[]> {
+  const conds = [eq(receiptTable.organizationId, f.organizationId)];
+  if (f.storeId) conds.push(eq(receiptTable.storeId, f.storeId));
+  if (f.deviceId) conds.push(eq(receiptTable.deviceId, f.deviceId));
+  if (f.status) conds.push(eq(receiptTable.status, f.status));
+  if (f.createdAfter) conds.push(gte(receiptTable.createdAt, f.createdAfter));
+  if (f.createdBefore) conds.push(lte(receiptTable.createdAt, f.createdBefore));
+  if (f.token) conds.push(eq(receiptTable.token, f.token));
+  if (f.cursor) {
+    // Keyset page: rows strictly "after" the cursor in (created_at DESC, id DESC).
+    conds.push(sql`(${receiptTable.createdAt}, ${receiptTable.id}) < (${f.cursor.t}, ${f.cursor.id})`);
+  }
+
+  const rows = await db
+    .select({
+      id: receiptTable.id,
+      token: receiptTable.token,
+      status: receiptTable.status,
+      storeId: receiptTable.storeId,
+      deviceId: receiptTable.deviceId,
+      byteSize: receiptTable.byteSize,
+      createdAt: receiptTable.createdAt,
+    })
+    .from(receiptTable)
+    .where(and(...conds))
+    .orderBy(desc(receiptTable.createdAt), desc(receiptTable.id))
+    .limit(f.limit);
+
+  return rows;
+}
+
+export interface ApiUsageData {
+  unitPriceCents: number;
+  receiptsThisMonth: number;
+  currentPeriod: { start: string; end: string; receiptCount: number; amountDueCents: number };
+  daily: { date: string; receipts: number }[];
+  monthly: { month: string; receipts: number }[];
+}
+
+/** Machine-keyed usage for /api/v1/usage (integer cents, UTC buckets). */
+export async function getApiUsage(organizationId: string): Promise<ApiUsageData> {
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+  const since30 = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29));
+  const since12mo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1));
+
+  const dayExpr = sql<string>`to_char(date_trunc('day', ${receiptTable.createdAt}), 'YYYY-MM-DD')`;
+  const monthExpr = sql<string>`to_char(date_trunc('month', ${receiptTable.createdAt}), 'YYYY-MM')`;
+  const orgScope = (since: Date) => and(eq(receiptTable.organizationId, organizationId), gte(receiptTable.createdAt, since));
+
+  const [settingsRow] = await db
+    .select({ price: settingsTable.perPrintPriceCents })
+    .from(settingsTable)
+    .where(eq(settingsTable.organizationId, organizationId))
+    .limit(1);
+  const unitPriceCents = settingsRow?.price ?? 4;
+
+  const [dailyRows, monthlyRows, monthCountRows] = await Promise.all([
+    db.select({ bucket: dayExpr, count: count() }).from(receiptTable).where(orgScope(since30)).groupBy(dayExpr),
+    db.select({ bucket: monthExpr, count: count() }).from(receiptTable).where(orgScope(since12mo)).groupBy(monthExpr),
+    db.select({ count: count() }).from(receiptTable).where(orgScope(monthStart)),
+  ]);
+
+  const dailyMap = new Map(dailyRows.map((r) => [r.bucket, Number(r.count)]));
+  const monthlyMap = new Map(monthlyRows.map((r) => [r.bucket, Number(r.count)]));
+  const daily = dayKeys(now, 30).map((k) => ({ date: k.key, receipts: dailyMap.get(k.key) ?? 0 }));
+  const monthly = monthKeys(now, 12).map((k) => ({ month: k.key, receipts: monthlyMap.get(k.key) ?? 0 }));
+  const receiptsThisMonth = Number(monthCountRows[0]?.count ?? 0);
+
+  return {
+    unitPriceCents,
+    receiptsThisMonth,
+    currentPeriod: {
+      start: monthStart.toISOString(),
+      end: monthEnd.toISOString(),
+      receiptCount: receiptsThisMonth,
+      amountDueCents: receiptsThisMonth * unitPriceCents,
+    },
+    daily,
+    monthly,
+  };
 }

@@ -385,7 +385,7 @@ export async function getStoreAnalytics(
   const [dailyRows, monthlyRows, gridRows] = await Promise.all([
     db.select({ bucket: dayExpr, count: count() }).from(receiptTable).where(scoped(since30)).groupBy(dayExpr),
     db.select({ bucket: monthExpr, count: count() }).from(receiptTable).where(scoped(since9mo)).groupBy(monthExpr),
-    db.select({ dow: dowExpr, hour: hourExpr, count: count() }).from(receiptTable).where(scoped(since90)).groupBy(dowExpr, hourExpr),
+    db.select({ dow: dowExpr, hour: hourExpr, count: count() }).from(receiptTable).where(scoped(since90)).groupBy(sql`1`, sql`2`),
   ]);
 
   const daily = bucketsToSeries(dailyRows, dayKeys(now, 30), price);

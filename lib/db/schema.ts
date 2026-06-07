@@ -259,6 +259,25 @@ export const deviceCommand = pgTable(
   (t) => [index("device_command_device_status_idx").on(t.deviceId, t.status)],
 );
 
+export const apiKey = pgTable(
+  "api_key",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    keyHash: text("key_hash").notNull(),
+    prefix: text("prefix").notNull(),
+    lastUsedAt: timestamp("last_used_at"),
+    createdByUserId: text("created_by_user_id"),
+    createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
+    revokedAt: timestamp("revoked_at"),
+  },
+  (t) => [
+    uniqueIndex("api_key_hash_idx").on(t.keyHash),
+    index("api_key_organization_id_idx").on(t.organizationId),
+  ],
+);
+
 export const receipt = pgTable(
   "receipt",
   {
@@ -382,6 +401,7 @@ export const schema = {
   store,
   device,
   deviceCommand,
+  apiKey,
   receipt,
   invoice,
   auditLog,

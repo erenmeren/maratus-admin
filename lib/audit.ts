@@ -32,6 +32,7 @@ export const AUDIT = {
   deviceResumed: "device.resumed",
   deviceClaimed: "device.claimed",
   storeCreated: "store.created",
+  storeUpdated: "store.updated",
   brandingUpdated: "branding.updated",
   memberInvited: "member.invited",
   memberAdded: "member.added",

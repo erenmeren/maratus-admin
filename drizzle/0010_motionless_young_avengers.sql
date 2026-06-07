@@ -1,0 +1,1 @@
+ALTER TABLE "store" ADD COLUMN "timezone" text DEFAULT 'UTC' NOT NULL;

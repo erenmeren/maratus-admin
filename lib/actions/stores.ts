@@ -3,12 +3,13 @@
 // Store mutations (tenant-scoped). Create a new branch in the active org.
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { organization as orgTable, store as storeTable } from "@/lib/db/schema";
 import { requirePlatformAdmin, requireTenant } from "@/lib/session";
 import { id } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
+import { normalizeTimezone } from "@/lib/timezones";
 
 export interface CreateStoreResult {
   ok: boolean;
@@ -29,6 +30,7 @@ export async function createStore(
 
   const name = String(formData.get("name") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim();
+  const timezone = normalizeTimezone(String(formData.get("timezone") ?? ""));
   if (!name) return { ok: false, error: "Store name is required." };
 
   const storeId = id("str");
@@ -37,6 +39,7 @@ export async function createStore(
     organizationId,
     name,
     address,
+    timezone,
     createdAt: new Date(),
   });
 
@@ -72,6 +75,7 @@ export async function createStoreForOrg(
 
   const name = String(formData.get("name") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim();
+  const timezone = normalizeTimezone(String(formData.get("timezone") ?? ""));
   if (!name) return { ok: false, error: "Branch name is required." };
 
   const storeId = id("str");
@@ -80,6 +84,7 @@ export async function createStoreForOrg(
     organizationId,
     name,
     address,
+    timezone,
     createdAt: new Date(),
   });
 
@@ -93,5 +98,51 @@ export async function createStoreForOrg(
 
   revalidatePath(`/admin/customers/${organizationId}`);
   revalidatePath("/admin");
+  return { ok: true, storeId };
+}
+
+/**
+ * Update a store's name/address/timezone (tenant-scoped, owner/admin only).
+ * Verifies the store belongs to the active org before mutating.
+ */
+export async function updateStore(
+  storeId: string,
+  formData: FormData,
+): Promise<CreateStoreResult> {
+  const { ctx, organizationId } = await requireTenant();
+
+  const membership = ctx.organizations.find((o) => o.id === organizationId);
+  if (!membership || !["owner", "admin"].includes(membership.role)) {
+    return { ok: false, error: "You don't have permission to edit stores." };
+  }
+
+  const [existing] = await db
+    .select({ id: storeTable.id })
+    .from(storeTable)
+    .where(and(eq(storeTable.id, storeId), eq(storeTable.organizationId, organizationId)))
+    .limit(1);
+  if (!existing) return { ok: false, error: "Store not found." };
+
+  const name = String(formData.get("name") ?? "").trim();
+  const address = String(formData.get("address") ?? "").trim();
+  const timezone = normalizeTimezone(String(formData.get("timezone") ?? ""));
+  if (!name) return { ok: false, error: "Store name is required." };
+
+  await db
+    .update(storeTable)
+    .set({ name, address, timezone })
+    .where(and(eq(storeTable.id, storeId), eq(storeTable.organizationId, organizationId)));
+
+  await recordAudit({
+    organizationId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    action: AUDIT.storeUpdated,
+    target: { type: "store", id: storeId },
+    metadata: { name, timezone },
+  });
+
+  revalidatePath("/tenant/stores");
+  revalidatePath(`/tenant/stores/${storeId}`);
+  revalidatePath("/tenant");
   return { ok: true, storeId };
 }

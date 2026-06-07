@@ -25,6 +25,7 @@ export interface Store {
   tenantId: string;
   name: string;
   address: string;
+  timezone: string;
   devices: Device[];
 }
 
@@ -90,6 +91,7 @@ export interface StoreSummary {
   id: string;
   name: string;
   address: string;
+  timezone: string;
   deviceCount: number;
   onlineCount: number;
   receiptsThisMonth: number;

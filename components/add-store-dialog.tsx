@@ -17,16 +17,26 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { TIMEZONES, DEFAULT_TIMEZONE } from "@/lib/timezones";
 import { createStore } from "@/lib/actions/stores";
 
 export function AddStoreDialog() {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [pending, setPending] = React.useState(false);
+  const [timezone, setTimezone] = React.useState(DEFAULT_TIMEZONE);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    fd.set("timezone", timezone);
     setPending(true);
     const res = await createStore(fd);
     setPending(false);
@@ -75,6 +85,24 @@ export function AddStoreDialog() {
                 name="address"
                 placeholder="412 Market St, San Francisco, CA"
               />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="timezone">Timezone</Label>
+              <Select value={timezone} onValueChange={setTimezone}>
+                <SelectTrigger id="timezone" className="w-full">
+                  <SelectValue placeholder="Select timezone" />
+                </SelectTrigger>
+                <SelectContent>
+                  {TIMEZONES.map((tz) => (
+                    <SelectItem key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Used for busiest-times analytics.
+              </p>
             </div>
           </div>
 

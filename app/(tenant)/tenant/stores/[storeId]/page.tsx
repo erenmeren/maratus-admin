@@ -26,6 +26,8 @@ import {
 import { getStoreAnalytics, getUnclaimedDevices } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
 import { ReceiptsAreaChart } from "@/components/charts";
+import { PeakHeatmap } from "@/components/peak-heatmap";
+import { StoreEditButton } from "@/components/store-edit-button";
 import { formatCurrency, formatNumber } from "@/lib/format";
 
 export default async function StoreDetailPage({
@@ -70,6 +72,16 @@ export default async function StoreDetailPage({
 
       <PageHeader title={store.name}>
         <StatusBadge status={rollup} />
+        {canClaim && (
+          <StoreEditButton
+            store={{
+              id: store.id,
+              name: store.name,
+              address: store.address,
+              timezone: store.timezone,
+            }}
+          />
+        )}
         {canClaim && <ClaimDeviceDialog storeId={store.id} />}
       </PageHeader>
       <p className="-mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
@@ -140,6 +152,18 @@ export default async function StoreDetailPage({
         </CardHeader>
         <CardContent>
           <ReceiptsAreaChart data={analytics.daily} height={260} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Busiest times</CardTitle>
+          <CardDescription>
+            Receipts by day of week and hour, last 90 days
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <PeakHeatmap heatmap={analytics.heatmap} timezone={store.timezone} />
         </CardContent>
       </Card>
 

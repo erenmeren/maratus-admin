@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChevronRight, MapPin, Store as StoreIcon } from "lucide-react";
+import { StoreRowActions } from "@/components/store-row-actions";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge, StatusDot } from "@/components/status-badge";
 import { AddStoreDialog } from "@/components/add-store-dialog";
@@ -79,13 +80,24 @@ export default async function StoresPage() {
                 <TableCell>
                   <StatusBadge status={s.status} />
                 </TableCell>
-                <TableCell>
-                  <Link
-                    href={`/tenant/stores/${s.id}`}
-                    className="flex justify-end text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                  >
-                    <ChevronRight className="size-4" />
-                  </Link>
+                <TableCell className="text-right">
+                  {canManage ? (
+                    <StoreRowActions
+                      store={{
+                        id: s.id,
+                        name: s.name,
+                        address: s.address,
+                        timezone: s.timezone,
+                      }}
+                    />
+                  ) : (
+                    <Link
+                      href={`/tenant/stores/${s.id}`}
+                      className="flex justify-end text-muted-foreground transition-transform group-hover:translate-x-0.5"
+                    >
+                      <ChevronRight className="size-4" />
+                    </Link>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

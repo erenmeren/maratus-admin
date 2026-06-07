@@ -14,6 +14,7 @@ import { and, count, desc, eq, gte, isNotNull, lt, lte, max, ne, sql } from "dri
 import { db } from "./db";
 import {
   alert as alertTable,
+  apiKey as apiKeyTable,
   auditLog as auditLogTable,
   device as deviceTable,
   deviceCommand,
@@ -1208,5 +1209,42 @@ export async function getDeviceCommands(deviceId: string, limit = 20) {
     status: r.status,
     createdAt: r.createdAt.toISOString(),
     ackedAt: r.ackedAt ? r.ackedAt.toISOString() : null,
+  }));
+}
+
+// ============================================================================
+// API keys
+// ============================================================================
+
+export interface ApiKeyRow {
+  id: string;
+  name: string;
+  prefix: string;
+  lastUsedAt: string | null;
+  createdAt: string;
+  revokedAt: string | null;
+}
+
+/** Non-secret API key listing for the management UI (never returns keyHash). */
+export async function getApiKeys(organizationId: string): Promise<ApiKeyRow[]> {
+  const rows = await db
+    .select({
+      id: apiKeyTable.id,
+      name: apiKeyTable.name,
+      prefix: apiKeyTable.prefix,
+      lastUsedAt: apiKeyTable.lastUsedAt,
+      createdAt: apiKeyTable.createdAt,
+      revokedAt: apiKeyTable.revokedAt,
+    })
+    .from(apiKeyTable)
+    .where(eq(apiKeyTable.organizationId, organizationId))
+    .orderBy(desc(apiKeyTable.createdAt));
+  return rows.map((r) => ({
+    id: r.id,
+    name: r.name,
+    prefix: r.prefix,
+    lastUsedAt: r.lastUsedAt ? r.lastUsedAt.toISOString() : null,
+    createdAt: r.createdAt.toISOString(),
+    revokedAt: r.revokedAt ? r.revokedAt.toISOString() : null,
   }));
 }

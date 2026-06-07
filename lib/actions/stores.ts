@@ -131,7 +131,7 @@ export async function updateStore(
   await db
     .update(storeTable)
     .set({ name, address, timezone })
-    .where(eq(storeTable.id, storeId));
+    .where(and(eq(storeTable.id, storeId), eq(storeTable.organizationId, organizationId)));
 
   await recordAudit({
     organizationId,

@@ -29,3 +29,14 @@ export function generateDeviceKey(): { key: string; hash: string } {
 export function hashDeviceKey(key: string): string {
   return createHash("sha256").update(key).digest("hex");
 }
+
+/** SHA-256 hex of an API key (same algorithm as device keys). */
+export function hashApiKey(key: string): string {
+  return createHash("sha256").update(key).digest("hex");
+}
+
+/** Raw API key (shown once) + its hash + a short visible prefix for the UI list. */
+export function generateApiKey(): { key: string; hash: string; prefix: string } {
+  const key = `dk_live_${nanoid(40)}`;
+  return { key, hash: hashApiKey(key), prefix: key.slice(0, "dk_live_".length + 6) };
+}

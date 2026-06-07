@@ -31,8 +31,13 @@ export function PeakHeatmap({ heatmap, timezone }: { heatmap: Heatmap; timezone:
     );
   }
 
+  const summary =
+    heatmap.peak.busiestDowLabel && heatmap.peak.peakHourLabel
+      ? `Receipt activity heatmap, last 90 days (${timezone}). Busiest on ${heatmap.peak.busiestDowLabel} around ${heatmap.peak.peakHourLabel}. ${total} receipts total.`
+      : `Receipt activity heatmap, last 90 days (${timezone}). ${total} receipts total.`;
+
   return (
-    <div className="@container">
+    <div className="@container" role="img" aria-label={summary}>
       <div className="overflow-x-auto">
         <div className="min-w-[480px]">
           {/* hour tick row */}

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { apiKey as apiKeyTable } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
@@ -25,6 +25,7 @@ export async function createApiKey(formData: FormData): Promise<CreateApiKeyResu
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { ok: false, error: "Key name is required." };
+  if (name.length > 100) return { ok: false, error: "Key name must be 100 characters or fewer." };
 
   const { key, hash, prefix } = generateApiKey();
   const keyId = id("ak");
@@ -63,14 +64,14 @@ export async function revokeApiKey(keyId: string): Promise<RevokeApiKeyResult> {
   const [existing] = await db
     .select({ id: apiKeyTable.id })
     .from(apiKeyTable)
-    .where(and(eq(apiKeyTable.id, keyId), eq(apiKeyTable.organizationId, organizationId)))
+    .where(and(eq(apiKeyTable.id, keyId), eq(apiKeyTable.organizationId, organizationId), isNull(apiKeyTable.revokedAt)))
     .limit(1);
   if (!existing) return { ok: false, error: "Key not found." };
 
   await db
     .update(apiKeyTable)
     .set({ revokedAt: new Date() })
-    .where(and(eq(apiKeyTable.id, keyId), eq(apiKeyTable.organizationId, organizationId)));
+    .where(and(eq(apiKeyTable.id, keyId), eq(apiKeyTable.organizationId, organizationId), isNull(apiKeyTable.revokedAt)));
 
   await recordAudit({
     organizationId,

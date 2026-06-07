@@ -35,7 +35,7 @@ import {
   dayKeys,
   monthKeys,
   computeTrend,
-  buildPeak,
+  buildHeatmap,
   toComparisonRows,
   type StoreAnalytics,
   type StoreComparisonRow,
@@ -374,16 +374,18 @@ export async function getStoreAnalytics(
 
   const dayExpr = sql<string>`to_char(date_trunc('day', ${receiptTable.createdAt}), 'YYYY-MM-DD')`;
   const monthExpr = sql<string>`to_char(date_trunc('month', ${receiptTable.createdAt}), 'YYYY-MM')`;
-  const dowExpr = sql<number>`extract(dow from ${receiptTable.createdAt})::int`;
-  const hourExpr = sql<number>`extract(hour from ${receiptTable.createdAt})::int`;
+  // created_at is `timestamp` (no tz) storing UTC wall-clock, so re-anchor to UTC
+  // before converting to the store's local zone — the double AT TIME ZONE is required.
+  const localTs = sql`((${receiptTable.createdAt} AT TIME ZONE 'UTC') AT TIME ZONE ${store.timezone})`;
+  const dowExpr = sql<number>`extract(dow from ${localTs})::int`;
+  const hourExpr = sql<number>`extract(hour from ${localTs})::int`;
   const scoped = (since: Date) =>
     and(eq(receiptTable.storeId, storeId), gte(receiptTable.createdAt, since));
 
-  const [dailyRows, monthlyRows, dowRows, hourRows] = await Promise.all([
+  const [dailyRows, monthlyRows, gridRows] = await Promise.all([
     db.select({ bucket: dayExpr, count: count() }).from(receiptTable).where(scoped(since30)).groupBy(dayExpr),
     db.select({ bucket: monthExpr, count: count() }).from(receiptTable).where(scoped(since9mo)).groupBy(monthExpr),
-    db.select({ dow: dowExpr, count: count() }).from(receiptTable).where(scoped(since90)).groupBy(dowExpr),
-    db.select({ hour: hourExpr, count: count() }).from(receiptTable).where(scoped(since90)).groupBy(hourExpr),
+    db.select({ dow: dowExpr, hour: hourExpr, count: count() }).from(receiptTable).where(scoped(since90)).groupBy(dowExpr, hourExpr),
   ]);
 
   const daily = bucketsToSeries(dailyRows, dayKeys(now, 30), price);
@@ -391,13 +393,15 @@ export async function getStoreAnalytics(
   const thisMonth = monthly[monthly.length - 1]?.receipts ?? 0;
   const lastMonth = monthly[monthly.length - 2]?.receipts ?? 0;
 
+  const heatmap = buildHeatmap(gridRows);
   const analytics: StoreAnalytics = {
     daily,
     monthly,
     monthTrend: computeTrend(thisMonth, lastMonth),
     revenueThisMonth: Math.round(thisMonth * price * 100) / 100,
     eco: computeEcoSavings(thisMonth),
-    peak: buildPeak(dowRows, hourRows),
+    peak: heatmap.peak,
+    heatmap,
   };
   return { store, analytics };
 }

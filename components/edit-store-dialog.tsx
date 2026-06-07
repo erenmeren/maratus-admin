@@ -39,11 +39,6 @@ export function EditStoreDialog({
   const [pending, setPending] = React.useState(false);
   const [timezone, setTimezone] = React.useState(normalizeTimezone(store.timezone));
 
-  // Re-sync the select when a different store is opened.
-  React.useEffect(() => {
-    if (open) setTimezone(normalizeTimezone(store.timezone));
-  }, [open, store.timezone]);
-
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
@@ -61,7 +56,7 @@ export function EditStoreDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog key={store.id} open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit}>
           <DialogHeader>

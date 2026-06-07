@@ -7,6 +7,7 @@ import {
   pickPeakDow,
   pickPeakHour,
   buildPeak,
+  buildHeatmap,
   toComparisonRows,
 } from "./analytics";
 
@@ -150,5 +151,57 @@ describe("countByDayKey / countByMonthKey", () => {
   it("returns [] for empty input", () => {
     expect(countByDayKey([])).toEqual([]);
     expect(countByMonthKey([])).toEqual([]);
+  });
+});
+
+describe("buildHeatmap", () => {
+  it("returns an all-zero 7x24 grid for empty input", () => {
+    const h = buildHeatmap([]);
+    expect(h.grid.length).toBe(7);
+    expect(h.grid.every((row) => row.length === 24)).toBe(true);
+    expect(h.grid.flat().every((c) => c === 0)).toBe(true);
+    expect(h.max).toBe(0);
+    expect(h.total).toBe(0);
+    expect(h.peak.busiestDow).toBeNull();
+    expect(h.peak.peakHour).toBeNull();
+  });
+
+  it("places a single cell and derives the peak", () => {
+    const h = buildHeatmap([{ dow: 2, hour: 8, count: 5 }]);
+    expect(h.grid[2][8]).toBe(5);
+    expect(h.max).toBe(5);
+    expect(h.total).toBe(5);
+    expect(h.peak.busiestDow).toBe(2);
+    expect(h.peak.busiestDowCount).toBe(5);
+    expect(h.peak.peakHour).toBe(8);
+    expect(h.peak.peakHourCount).toBe(5);
+  });
+
+  it("sums counts and tracks max/total across cells", () => {
+    const h = buildHeatmap([
+      { dow: 1, hour: 9, count: 3 },
+      { dow: 1, hour: 9, count: 2 },
+      { dow: 1, hour: 10, count: 4 },
+      { dow: 3, hour: 9, count: 1 },
+    ]);
+    expect(h.grid[1][9]).toBe(5);
+    expect(h.grid[1][10]).toBe(4);
+    expect(h.grid[3][9]).toBe(1);
+    expect(h.max).toBe(5);
+    expect(h.total).toBe(10);
+    expect(h.peak.busiestDow).toBe(1);
+    expect(h.peak.peakHour).toBe(9);
+  });
+
+  it("ignores out-of-range dow/hour", () => {
+    const h = buildHeatmap([
+      { dow: 7, hour: 0, count: 9 },
+      { dow: 0, hour: 24, count: 9 },
+      { dow: -1, hour: 5, count: 9 },
+      { dow: 0, hour: 0, count: 1 },
+    ]);
+    expect(h.total).toBe(1);
+    expect(h.max).toBe(1);
+    expect(h.grid[0][0]).toBe(1);
   });
 });

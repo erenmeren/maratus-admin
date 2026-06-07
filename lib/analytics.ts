@@ -66,6 +66,12 @@ export interface Peak {
   peakHourLabel: string | null;
   peakHourCount: number;
 }
+export interface Heatmap {
+  grid: number[][]; // [7][24] — grid[dow][hour] = receipt count (dow 0=Sun..6=Sat)
+  max: number;      // largest single-cell count (0 when empty); drives intensity
+  total: number;
+  peak: Peak;       // busiest day + peak hour, derived from the grid
+}
 export interface StoreAnalytics {
   daily: TimePoint[];
   monthly: TimePoint[];
@@ -73,6 +79,7 @@ export interface StoreAnalytics {
   revenueThisMonth: number;
   eco: EcoSavings;
   peak: Peak;
+  heatmap: Heatmap;
 }
 export interface StoreComparisonRow {
   storeId: string;
@@ -129,6 +136,34 @@ export function buildPeak(dowRows: DowCount[], hourRows: HourCount[]): Peak {
     busiestDow: d.dow, busiestDowLabel: d.label, busiestDowCount: d.count,
     peakHour: h.hour, peakHourLabel: h.label, peakHourCount: h.count,
   };
+}
+
+/**
+ * Build a 7×24 day-of-week × hour grid from sparse SQL count rows. The busiest
+ * day and peak hour are derived from the grid via buildPeak (so KPIs and heatmap
+ * share one source of truth). Out-of-range dow/hour rows are ignored.
+ */
+export function buildHeatmap(rows: { dow: number; hour: number; count: number }[]): Heatmap {
+  const grid: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
+  let total = 0;
+  for (const r of rows) {
+    if (r.dow < 0 || r.dow > 6 || r.hour < 0 || r.hour > 23) continue;
+    grid[r.dow][r.hour] += r.count;
+    total += r.count;
+  }
+  let max = 0;
+  for (const row of grid) for (const c of row) if (c > max) max = c;
+
+  const dowTotals: DowCount[] = grid.map((row, dow) => ({
+    dow,
+    count: row.reduce((a, c) => a + c, 0),
+  }));
+  const hourTotals: HourCount[] = Array.from({ length: 24 }, (_, hour) => ({
+    hour,
+    count: grid.reduce((a, row) => a + row[hour], 0),
+  }));
+
+  return { grid, max, total, peak: buildPeak(dowTotals, hourTotals) };
 }
 
 export function toComparisonRows(

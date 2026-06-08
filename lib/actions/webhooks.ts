@@ -152,6 +152,6 @@ export async function sendTestEvent(endpointId: string): Promise<TestEventResult
     })
     .returning();
 
-  const res = await attemptDelivery(row, endpoint);
+  const res = await attemptDelivery(row, endpoint, { countTowardDisable: false });
   return { ok: res.ok, responseStatus: res.responseStatus };
 }

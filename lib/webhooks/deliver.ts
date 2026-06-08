@@ -20,8 +20,15 @@ type EndpointRow = typeof epTable.$inferSelect;
 type DeliveryRow = typeof delTable.$inferSelect;
 
 /** Attempt one delivery (initial or retry). Returns the response status (or null).
- *  Updates the delivery row + the endpoint's failure bookkeeping. */
-export async function attemptDelivery(delivery: DeliveryRow, endpoint: EndpointRow): Promise<{ ok: boolean; responseStatus: number | null }> {
+ *  Updates the delivery row + the endpoint's failure bookkeeping.
+ *  Pass `{ countTowardDisable: false }` for test events to skip the failure
+ *  counter / auto-disable side-effects while still recording the delivery row. */
+export async function attemptDelivery(
+  delivery: DeliveryRow,
+  endpoint: EndpointRow,
+  opts: { countTowardDisable?: boolean } = {},
+): Promise<{ ok: boolean; responseStatus: number | null }> {
+  const countTowardDisable = opts.countTowardDisable ?? true;
   const now = new Date();
   const attempts = delivery.attempts + 1;
   const body = JSON.stringify(delivery.payload);
@@ -66,18 +73,20 @@ export async function attemptDelivery(delivery: DeliveryRow, endpoint: EndpointR
     nextRetryAt: backoff !== null ? new Date(now.getTime() + backoff) : null,
   }).where(eq(delTable.id, delivery.id));
 
-  const failures = endpoint.consecutiveFailures + 1;
-  if (failures >= AUTO_DISABLE_AT) {
-    await db.update(epTable).set({ enabled: false, disabledReason: "too_many_failures", consecutiveFailures: failures }).where(eq(epTable.id, endpoint.id));
-    await recordAudit({
-      organizationId: endpoint.organizationId,
-      actor: { type: "system" },
-      action: AUDIT.webhookEndpointDisabled,
-      target: { type: "webhook_endpoint", id: endpoint.id },
-      metadata: { reason: "too_many_failures" },
-    });
-  } else {
-    await db.update(epTable).set({ consecutiveFailures: failures }).where(eq(epTable.id, endpoint.id));
+  if (countTowardDisable) {
+    const failures = endpoint.consecutiveFailures + 1;
+    if (failures >= AUTO_DISABLE_AT) {
+      await db.update(epTable).set({ enabled: false, disabledReason: "too_many_failures", consecutiveFailures: failures }).where(eq(epTable.id, endpoint.id));
+      await recordAudit({
+        organizationId: endpoint.organizationId,
+        actor: { type: "system" },
+        action: AUDIT.webhookEndpointDisabled,
+        target: { type: "webhook_endpoint", id: endpoint.id },
+        metadata: { reason: "too_many_failures" },
+      });
+    } else {
+      await db.update(epTable).set({ consecutiveFailures: failures }).where(eq(epTable.id, endpoint.id));
+    }
   }
   return { ok: false, responseStatus };
 }

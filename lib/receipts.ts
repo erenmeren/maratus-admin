@@ -2,8 +2,10 @@
 // Separate from lib/data.ts because these are capability-scoped, not
 // organization-scoped: the token IS the access grant.
 
+import { after } from "next/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "./db";
+import { deliverEvent } from "@/lib/webhooks/deliver";
 import {
   device as deviceTable,
   organization as orgTable,
@@ -56,6 +58,17 @@ export async function getReceiptByToken(
         .update(receiptTable)
         .set({ status: "downloaded", downloadedAt: new Date() })
         .where(eq(receiptTable.id, r.id));
+      after(() =>
+        deliverEvent(r.organizationId, "receipt.downloaded", {
+          id: r.id,
+          token: r.token,
+          status: "downloaded",
+          storeId: r.storeId,
+          deviceId: r.deviceId,
+          byteSize: r.byteSize,
+          createdAt: r.createdAt,
+        }),
+      );
     }
   }
 

@@ -85,6 +85,13 @@
       "when": 1780847424902,
       "tag": "0011_demonic_iron_monger",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1780928156970,
+      "tag": "0012_sharp_hairball",
+      "breakpoints": true
     }
   ]
 }

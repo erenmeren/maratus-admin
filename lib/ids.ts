@@ -40,3 +40,8 @@ export function generateApiKey(): { key: string; hash: string; prefix: string } 
   const key = `dk_live_${nanoid(40)}`;
   return { key, hash: hashApiKey(key), prefix: key.slice(0, "dk_live_".length + 6) };
 }
+
+/** Webhook signing secret (shown once at endpoint creation; stored to sign deliveries). */
+export function generateWebhookSecret(): string {
+  return `whsec_${nanoid(40)}`;
+}

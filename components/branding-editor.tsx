@@ -18,15 +18,34 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { saveBranding } from "@/app/(tenant)/tenant/branding/actions";
 import { isValidHex } from "@/lib/color";
 import { cn } from "@/lib/utils";
 
 const PRESETS = ["#B4541F", "#3F9D4E", "#1F5C8B", "#E5484D", "#7C5CFC", "#0F766E", "#111827"];
 
+const SCREENS: { value: KioskScreen; label: string }[] = [
+  { value: "idle", label: "Idle / ready" },
+  { value: "processing", label: "Processing" },
+  { value: "qr", label: "Receipt ready" },
+  { value: "sent", label: "Sent ✓" },
+  { value: "error", label: "Error / offline" },
+  { value: "paused", label: "Paused" },
+  { value: "setup", label: "Setup / pairing" },
+];
+
 export function BrandingEditor({
   initialColor,
+  initialBg,
+  initialFg,
+  initialMuted,
   initialLogoText,
   initialLogoUrl,
   initialStaffPin,
@@ -34,6 +53,9 @@ export function BrandingEditor({
   canEdit,
 }: {
   initialColor: string;
+  initialBg: string;
+  initialFg: string;
+  initialMuted: string;
   initialLogoText: string;
   initialLogoUrl: string | null;
   initialStaffPin: string;
@@ -43,6 +65,9 @@ export function BrandingEditor({
   const router = useRouter();
   const [color, setColor] = React.useState(initialColor);
   const [hexInput, setHexInput] = React.useState(initialColor);
+  const [bg, setBg] = React.useState(initialBg);
+  const [fg, setFg] = React.useState(initialFg);
+  const [muted, setMuted] = React.useState(initialMuted);
   const [logoText, setLogoText] = React.useState(initialLogoText);
   // Preview source (saved presigned URL or a local object URL for a new pick).
   const [logoPreview, setLogoPreview] = React.useState<string | null>(
@@ -59,6 +84,9 @@ export function BrandingEditor({
   // Has anything changed from the loaded state?
   const dirty =
     color !== initialColor ||
+    bg !== initialBg ||
+    fg !== initialFg ||
+    muted !== initialMuted ||
     pin !== initialStaffPin ||
     logoFile !== null ||
     logoCleared;
@@ -94,6 +122,9 @@ export function BrandingEditor({
   function reset() {
     setColor(initialColor);
     setHexInput(initialColor);
+    setBg(initialBg);
+    setFg(initialFg);
+    setMuted(initialMuted);
     setLogoText(initialLogoText);
     setLogoPreview(initialLogoUrl);
     setLogoFile(null);
@@ -110,6 +141,9 @@ export function BrandingEditor({
     setSaving(true);
     const fd = new FormData();
     fd.set("brandColor", color);
+    fd.set("brandBg", bg);
+    fd.set("brandFg", fg);
+    fd.set("brandMuted", muted);
     fd.set("staffPin", pin);
     if (logoFile) fd.set("logo", logoFile);
     fd.set("removeLogo", logoCleared ? "true" : "false");
@@ -264,6 +298,20 @@ export function BrandingEditor({
 
         <Card>
           <CardHeader>
+            <CardTitle className="text-base">Kiosk theme</CardTitle>
+            <CardDescription>
+              Fine-tune the kiosk background and text. Leave as-is for the default look.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <ColorField label="Background" value={bg} onChange={setBg} disabled={disabled} />
+            <ColorField label="Text" value={fg} onChange={setFg} disabled={disabled} />
+            <ColorField label="Muted text" value={muted} onChange={setMuted} disabled={disabled} />
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle className="text-base">Staff PIN</CardTitle>
             <CardDescription>
               Unlocks on-device settings at the kiosk.
@@ -315,17 +363,31 @@ export function BrandingEditor({
               <CardTitle className="text-base">Live preview</CardTitle>
               <CardDescription>720 × 720 kiosk display</CardDescription>
             </div>
-            <Tabs value={screen} onValueChange={(v) => setScreen(v as KioskScreen)}>
-              <TabsList>
-                <TabsTrigger value="idle">Idle</TabsTrigger>
-                <TabsTrigger value="qr">Receipt</TabsTrigger>
-              </TabsList>
-            </Tabs>
+            <Select value={screen} onValueChange={(v) => setScreen(v as KioskScreen)}>
+              <SelectTrigger className="w-[170px]" aria-label="Preview screen">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SCREENS.map((s) => (
+                  <SelectItem key={s.value} value={s.value}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </CardHeader>
           <CardContent>
             <div className="mx-auto max-w-[420px]">
               <KioskPreview
-                brand={{ brandColor: color, logoText, logoUrl: logoPreview, storeName }}
+                brand={{
+                  brandColor: color,
+                  brandBg: bg,
+                  brandFg: fg,
+                  brandMuted: muted,
+                  logoText,
+                  logoUrl: logoPreview,
+                  storeName,
+                }}
                 screen={screen}
               />
             </div>
@@ -335,6 +397,54 @@ export function BrandingEditor({
             </p>
           </CardContent>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+/** Swatch + hex input for a single theme token. */
+function ColorField({
+  label,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  disabled?: boolean;
+}) {
+  const [hex, setHex] = React.useState(value);
+  React.useEffect(() => setHex(value), [value]);
+  return (
+    <div className="flex items-center gap-3">
+      <label
+        className="relative size-9 shrink-0 cursor-pointer overflow-hidden rounded-lg ring-1 ring-border"
+        style={{ background: value }}
+      >
+        <input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          disabled={disabled}
+          className="absolute inset-0 cursor-pointer opacity-0"
+          aria-label={`Pick ${label}`}
+        />
+      </label>
+      <div className="flex-1 space-y-1">
+        <Label className="text-xs text-muted-foreground">{label}</Label>
+        <Input
+          value={hex}
+          onChange={(e) => {
+            setHex(e.target.value);
+            if (isValidHex(e.target.value)) {
+              onChange(e.target.value.startsWith("#") ? e.target.value : `#${e.target.value}`);
+            }
+          }}
+          disabled={disabled}
+          className="h-8 font-mono text-xs"
+          aria-invalid={!isValidHex(hex)}
+        />
       </div>
     </div>
   );

@@ -1,24 +1,59 @@
-import { Leaf } from "lucide-react";
+import * as React from "react";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import { FauxQR } from "./qr-code";
-import { readableOn, withAlpha } from "@/lib/color";
+import { resolveBrandTokens, withAlpha } from "@/lib/color";
 import { cn } from "@/lib/utils";
 
-export type KioskScreen = "idle" | "qr";
+// Plus Jakarta Sans — the kiosk design's signature face (rounded, premium, calm).
+// Scoped to the preview via a CSS variable; the app chrome keeps its own fonts.
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+});
+
+/**
+ * The seven customer-facing kiosk states. `qr` is the receipt-ready hero (kept
+ * under that name for back-compat with existing embeds). The five extra states
+ * are surfaced by the Branding preview's screen switcher.
+ */
+export type KioskScreen =
+  | "idle"
+  | "processing"
+  | "qr"
+  | "sent"
+  | "error"
+  | "paused"
+  | "setup";
 
 export interface KioskBrand {
+  /** Accent = the tenant's brand color. */
   brandColor: string;
+  /** Optional theme tokens — derived from the accent when omitted. */
+  brandBg?: string | null;
+  brandFg?: string | null;
+  brandMuted?: string | null;
+  /** Logo glyph style when no uploaded logo is present. */
+  mark?: "diamond" | "bean";
   logoText: string;
   logoUrl?: string | null;
   storeName: string;
+  /** Lane/register label shown on the idle screen (e.g. "Lane 3"). */
+  lane?: string;
+  /** Pairing code shown on the setup screen. */
+  pairingCode?: string;
+  /** Static clock time on the idle screen (mockup; no live ticking). */
+  time?: string;
 }
 
+/** 720px design reference → container-query width units (100cqw = the square). */
+const cq = (px: number) => `${(px / 7.2).toFixed(2)}cqw`;
+
 /**
- * 720×720 kiosk mockup. Sizing is container-query based (cqw units), so the
- * design reference is a 720px square but it scales to any container width while
- * staying perfectly square. Reused on the Branding live-preview screen.
- *
- * The store's brand color is applied ONLY here — it is tenant DATA, never app
- * chrome.
+ * 720×720 kiosk mockup, container-query sized (cqw) so it scales to any width
+ * while staying square. The tenant's brand tokens are applied ONLY here — they
+ * are tenant DATA, never app chrome. Reused on the Branding live preview and a
+ * few device dialogs (which pass just `brandColor`; bg/fg/muted derive).
  */
 export function KioskPreview({
   brand,
@@ -29,30 +64,33 @@ export function KioskPreview({
   screen: KioskScreen;
   className?: string;
 }) {
-  const fg = readableOn(brand.brandColor);
+  const t = resolveBrandTokens(brand.brandColor, {
+    bg: brand.brandBg,
+    fg: brand.brandFg,
+    muted: brand.brandMuted,
+  });
+  const accentFg = "#ffffff";
+  const vars = {
+    "--k-accent": t.accent,
+    "--k-accent-fg": accentFg,
+    "--k-bg": t.bg,
+    "--k-fg": t.fg,
+    "--k-muted": t.muted,
+    "--k-card": "#ffffff",
+    "--k-hairline": withAlpha(t.fg, 0.1),
+    "--k-accent-soft": withAlpha(t.accent, 0.1),
+    fontFamily: jakarta.style.fontFamily,
+  } as React.CSSProperties;
 
-  const Logo = ({ color, size }: { color: string; size: number }) =>
-    brand.logoUrl ? (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={brand.logoUrl}
-        alt={brand.logoText}
-        style={{ height: `${size}cqw`, maxWidth: "70%", objectFit: "contain" }}
-      />
-    ) : (
-      <span
-        style={{
-          fontFamily: "var(--font-display)",
-          fontSize: `${size}cqw`,
-          fontWeight: 700,
-          letterSpacing: "-0.02em",
-          color,
-          lineHeight: 1,
-        }}
-      >
-        {brand.logoText}
-      </span>
-    );
+  const screens: Record<KioskScreen, React.ReactNode> = {
+    idle: <IdleScreen brand={brand} />,
+    processing: <ProcessingScreen />,
+    qr: <ReceiptScreen brand={brand} />,
+    sent: <SentScreen />,
+    error: <ErrorScreen />,
+    paused: <PausedScreen brand={brand} />,
+    setup: <SetupScreen brand={brand} />,
+  };
 
   return (
     <div
@@ -60,177 +98,453 @@ export function KioskPreview({
         "@container relative aspect-square w-full overflow-hidden rounded-[4cqw] shadow-2xl ring-1 ring-black/10 select-none",
         className,
       )}
-      style={{ background: screen === "idle" ? brand.brandColor : "#f4f5f7" }}
+      style={{
+        ...vars,
+        background: screen === "error" ? "#f7f1e8" : "var(--k-bg)",
+        color: "var(--k-fg)",
+      }}
     >
-      {screen === "idle" ? (
-        <IdleScreen brand={brand} fg={fg} Logo={Logo} />
-      ) : (
-        <QrScreen brand={brand} fg={fg} Logo={Logo} />
-      )}
+      {screens[screen]}
     </div>
   );
 }
 
-function IdleScreen({
+/* ── Logo: uploaded image, or a brand mark + wordmark ───────────────── */
+function Logo({
   brand,
-  fg,
-  Logo,
+  size,
+  stacked = false,
+  mono = false,
 }: {
   brand: KioskBrand;
-  fg: string;
-  Logo: (p: { color: string; size: number }) => React.ReactNode;
+  size: number; // mark size in design px
+  stacked?: boolean;
+  mono?: boolean;
 }) {
-  return (
-    <div className="absolute inset-0 flex flex-col items-center justify-between">
-      {/* ambient glow */}
-      <div
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background: `radial-gradient(120% 80% at 50% -10%, ${withAlpha("#ffffff", 0.18)}, transparent 60%)`,
-        }}
+  if (brand.logoUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={brand.logoUrl}
+        alt={brand.logoText}
+        style={{ height: cq(size), maxWidth: "70%", objectFit: "contain" }}
       />
+    );
+  }
+  const markColor = mono ? "var(--k-fg)" : "var(--k-accent)";
+  const mark =
+    brand.mark === "bean" ? (
+      <svg viewBox="0 0 48 48" fill="none" style={{ width: cq(size), height: cq(size) }} aria-hidden>
+        <circle cx="24" cy="24" r="22" fill={markColor} />
+        <path d="M16 31c0-10 6-16 16-16-1 10-6 16-16 16Z" fill="#fff" opacity="0.92" />
+        <path d="M17 30c5-1 11-7 13-13" stroke={markColor} strokeWidth="2.4" strokeLinecap="round" />
+      </svg>
+    ) : (
+      <svg viewBox="0 0 48 48" fill="none" style={{ width: cq(size), height: cq(size) }} aria-hidden>
+        <rect x="6" y="6" width="36" height="36" rx="11" fill={markColor} />
+        <path d="M24 15l9 9-9 9-9-9 9-9Z" fill="#fff" opacity="0.92" />
+      </svg>
+    );
+  const word = (
+    <span
+      style={{
+        fontSize: cq(size * (stacked ? 0.62 : 0.52)),
+        fontWeight: 800,
+        letterSpacing: "-0.02em",
+        color: "var(--k-fg)",
+        lineHeight: 1,
+        textAlign: "center",
+      }}
+    >
+      {brand.logoText}
+    </span>
+  );
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: stacked ? "column" : "row",
+        alignItems: "center",
+        gap: cq(stacked ? 18 : size * 0.34),
+      }}
+    >
+      {mark}
+      {word}
+    </div>
+  );
+}
+
+/* ── 1 · IDLE / READY ───────────────────────────────────────────────── */
+function IdleScreen({ brand }: { brand: KioskBrand }) {
+  return (
+    <div className="absolute inset-0" style={{ padding: cq(56) }}>
       <div
-        className="flex items-center gap-[1.6cqw] pt-[9cqw] text-center"
-        style={{ color: fg, opacity: 0.85 }}
+        style={{
+          position: "absolute",
+          top: cq(40),
+          left: cq(48),
+          display: "flex",
+          alignItems: "center",
+          gap: cq(9),
+          fontSize: cq(19),
+          fontWeight: 600,
+          color: "var(--k-muted)",
+          whiteSpace: "nowrap",
+        }}
+      >
+        <span>{brand.storeName}</span>
+        <span style={{ opacity: 0.4 }}>·</span>
+        <span>{brand.lane ?? "Lane 1"}</span>
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          top: cq(40),
+          right: cq(48),
+          display: "flex",
+          alignItems: "center",
+          gap: cq(9),
+          fontSize: cq(19),
+          fontWeight: 600,
+          color: "var(--k-muted)",
+        }}
       >
         <span
-          style={{
-            fontSize: "3cqw",
-            letterSpacing: "0.35em",
-            textTransform: "uppercase",
-            fontWeight: 600,
-          }}
-        >
-          {brand.storeName}
-        </span>
+          className="animate-pulse"
+          style={{ width: cq(9), height: cq(9), borderRadius: "50%", background: "#2bb673" }}
+        />
+        Ready
       </div>
 
-      <div className="relative flex flex-col items-center gap-[5cqw] px-[8cqw] text-center">
-        <Logo color={fg} size={13} />
-        <p
-          style={{
-            color: fg,
-            fontSize: "4.4cqw",
-            fontWeight: 500,
-            maxWidth: "80%",
-            lineHeight: 1.35,
-          }}
-        >
-          Thanks for visiting — your receipt is going paperless.
-        </p>
-        <div
-          className="flex items-center gap-[2cqw] rounded-full"
-          style={{
-            background: withAlpha(fg === "#ffffff" ? "#ffffff" : "#000000", 0.14),
-            color: fg,
-            padding: "2.4cqw 5cqw",
-            fontSize: "3.6cqw",
-            fontWeight: 600,
-          }}
-        >
-          <span
-            className="inline-block animate-pulse rounded-full"
-            style={{ width: "2.4cqw", height: "2.4cqw", background: fg }}
-          />
-          Tap anywhere to begin
+      <div className="flex h-full flex-col items-center justify-center" style={{ gap: cq(64) }}>
+        <Logo brand={brand} size={108} stacked />
+        <div style={{ textAlign: "center" }}>
+          <div
+            style={{
+              fontSize: cq(84),
+              fontWeight: 700,
+              letterSpacing: "-1.5px",
+              lineHeight: 1,
+              fontVariantNumeric: "tabular-nums",
+              color: "var(--k-fg)",
+            }}
+          >
+            {brand.time ?? "9:41"}
+          </div>
         </div>
       </div>
 
       <div
-        className="flex items-center gap-[1.4cqw] pb-[7cqw]"
-        style={{ color: fg, opacity: 0.7, fontSize: "3cqw" }}
+        style={{
+          position: "absolute",
+          bottom: cq(38),
+          left: 0,
+          right: 0,
+          textAlign: "center",
+          fontSize: cq(18),
+          fontWeight: 500,
+          color: "var(--k-muted)",
+          letterSpacing: "0.3px",
+        }}
       >
-        <Leaf style={{ width: "3.4cqw", height: "3.4cqw" }} />
-        Powered by Ditto
+        Tap your card or pay at the reader to begin
       </div>
     </div>
   );
 }
 
-function QrScreen({
-  brand,
-  fg,
-  Logo,
-}: {
-  brand: KioskBrand;
-  fg: string;
-  Logo: (p: { color: string; size: number }) => React.ReactNode;
-}) {
+/* ── 2 · PROCESSING ─────────────────────────────────────────────────── */
+function ProcessingScreen() {
   return (
-    <div className="absolute inset-0 flex flex-col">
-      {/* header band in brand color */}
+    <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ gap: cq(46) }}>
       <div
-        className="flex items-center justify-between"
+        className="animate-spin rounded-full"
         style={{
-          background: brand.brandColor,
-          color: fg,
-          padding: "5cqw 6cqw",
+          width: cq(108),
+          height: cq(108),
+          border: `${cq(8)} solid var(--k-accent-soft)`,
+          borderTopColor: "var(--k-accent)",
+        }}
+      />
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: cq(40), fontWeight: 700, letterSpacing: "-0.6px", whiteSpace: "nowrap" }}>
+          Preparing your receipt…
+        </div>
+        <div style={{ fontSize: cq(23), fontWeight: 500, color: "var(--k-muted)", marginTop: cq(14) }}>
+          This only takes a moment
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── 3 · RECEIPT READY — HERO ───────────────────────────────────────── */
+function ReceiptScreen({ brand }: { brand: KioskBrand }) {
+  const remain = "0:48";
+  const progress = 0.34;
+  return (
+    <div className="absolute inset-0 flex flex-col items-center" style={{ padding: cq(44) }}>
+      <div style={{ marginTop: cq(6) }}>
+        <Logo brand={brand} size={40} />
+      </div>
+      <div
+        style={{
+          fontSize: cq(44),
+          fontWeight: 800,
+          letterSpacing: "-0.9px",
+          marginTop: cq(26),
+          textAlign: "center",
+          lineHeight: 1.05,
         }}
       >
-        <Logo color={fg} size={6} />
-        <span style={{ fontSize: "3cqw", fontWeight: 600, opacity: 0.85 }}>
-          {brand.storeName}
-        </span>
+        Scan to get your receipt
       </div>
-
-      {/* body */}
-      <div className="flex flex-1 flex-col items-center justify-center gap-[4cqw] px-[8cqw] text-center">
-        <p
+      <div
+        style={{
+          marginTop: cq(28),
+          background: "#fff",
+          borderRadius: cq(32),
+          padding: cq(30),
+          boxShadow: "0 24px 60px -18px rgba(15,20,40,0.30), 0 2px 8px rgba(15,20,40,0.06)",
+        }}
+      >
+        <FauxQR seed={11} style={{ width: cq(300), height: cq(300), color: "#0b0b0c", display: "block" }} />
+      </div>
+      <div style={{ marginTop: cq(22), fontSize: cq(22), fontWeight: 500, color: "var(--k-muted)" }}>
+        Point your phone camera at the code
+      </div>
+      <div style={{ flex: 1 }} />
+      <div style={{ width: "100%", maxWidth: cq(480) }}>
+        <div
           style={{
-            color: "#0b1220",
-            fontFamily: "var(--font-display)",
-            fontSize: "5.4cqw",
-            fontWeight: 700,
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: cq(17),
+            fontWeight: 600,
+            color: "var(--k-muted)",
+            marginBottom: cq(10),
           }}
         >
-          Scan to download your receipt
-        </p>
-
-        <div
-          className="rounded-[4cqw] bg-white p-[4cqw] shadow-lg ring-1 ring-black/5"
-          style={{ "--qr-bg": "#ffffff" } as React.CSSProperties}
-        >
-          <FauxQR
-            seed={11}
+          <span>Code expires</span>
+          <span style={{ fontVariantNumeric: "tabular-nums" }}>{remain}</span>
+        </div>
+        <div style={{ height: cq(8), borderRadius: cq(8), background: "var(--k-hairline)", overflow: "hidden" }}>
+          <div
             style={{
-              width: "42cqw",
-              height: "42cqw",
-              color: brand.brandColor,
-              display: "block",
+              height: "100%",
+              width: `${Math.max(0, (1 - progress) * 100)}%`,
+              background: "var(--k-accent)",
+              borderRadius: cq(8),
             }}
           />
         </div>
-
-        <p style={{ color: "#5b6472", fontSize: "3.4cqw", lineHeight: 1.4 }}>
-          Or text a copy to your phone. Valid for 90 days.
-        </p>
-
-        <div
-          className="flex items-center gap-[1.5cqw] rounded-full"
-          style={{
-            background: withAlpha(brand.brandColor, 0.12),
-            color: brand.brandColor,
-            padding: "1.8cqw 4cqw",
-            fontSize: "3cqw",
-            fontWeight: 600,
-          }}
-        >
-          <Leaf style={{ width: "3.2cqw", height: "3.2cqw" }} />
-          You just saved a paper receipt
-        </div>
       </div>
+    </div>
+  );
+}
 
-      {/* footer */}
+/* ── 4 · SENT ✓ ─────────────────────────────────────────────────────── */
+function SentScreen() {
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ gap: cq(44) }}>
       <div
-        className="flex items-center justify-center gap-[1.4cqw] border-t"
+        className="flex items-center justify-center rounded-full"
         style={{
-          borderColor: "rgba(0,0,0,0.06)",
-          color: "#8a93a0",
-          padding: "3.5cqw",
-          fontSize: "2.8cqw",
+          width: cq(168),
+          height: cq(168),
+          background: "var(--k-accent)",
+          color: "var(--k-accent-fg)",
+          boxShadow: "0 22px 50px -14px var(--k-accent-soft)",
         }}
       >
-        Powered by Ditto · Digital receipts
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.6} strokeLinecap="round" strokeLinejoin="round" style={{ width: cq(92), height: cq(92) }}>
+          <path d="M5 12.5l4.5 4.5L19 7" />
+        </svg>
+      </div>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: cq(46), fontWeight: 800, letterSpacing: "-0.8px" }}>Your receipt is on its way</div>
+        <div style={{ fontSize: cq(24), fontWeight: 500, color: "var(--k-muted)", marginTop: cq(16) }}>
+          Check your phone — all set. Thank you!
+        </div>
+      </div>
+      <div
+        style={{
+          position: "absolute",
+          bottom: cq(40),
+          left: 0,
+          right: 0,
+          textAlign: "center",
+          fontSize: cq(17),
+          fontWeight: 500,
+          color: "var(--k-muted)",
+        }}
+      >
+        Returning to start…
+      </div>
+    </div>
+  );
+}
+
+/* ── 5 · ERROR / OFFLINE ────────────────────────────────────────────── */
+function ErrorScreen() {
+  const warn = "#b9772a";
+  return (
+    <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ gap: cq(40), padding: cq(56) }}>
+      <div
+        className="flex items-center justify-center rounded-full"
+        style={{ width: cq(138), height: cq(138), background: "rgba(185,119,42,0.12)", color: warn }}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" style={{ width: cq(70), height: cq(70) }}>
+          <path d="M2 8.5a16 16 0 0 1 6-4M22 8.5a16 16 0 0 0-3.5-2.8" />
+          <path d="M8.5 15.5a6 6 0 0 1 5-1.3" />
+          <path d="M3 3l18 18" />
+        </svg>
+      </div>
+      <div style={{ textAlign: "center", maxWidth: cq(540) }}>
+        <div style={{ fontSize: cq(42), fontWeight: 800, letterSpacing: "-0.7px", color: "#3a3024" }}>
+          We couldn’t send your receipt
+        </div>
+        <div style={{ fontSize: cq(25), fontWeight: 500, color: "#7a6a52", marginTop: cq(18), lineHeight: 1.4 }}>
+          The device is offline right now.
+        </div>
+      </div>
+      <div
+        style={{
+          marginTop: cq(6),
+          padding: `${cq(20)} ${cq(30)}`,
+          borderRadius: cq(20),
+          background: "rgba(185,119,42,0.10)",
+          color: "#7a5a23",
+          fontSize: cq(24),
+          fontWeight: 700,
+          textAlign: "center",
+          maxWidth: cq(560),
+        }}
+      >
+        Please ask a team member for a paper receipt
+      </div>
+    </div>
+  );
+}
+
+/* ── 6 · DISABLED / PAUSED ──────────────────────────────────────────── */
+function PausedScreen({ brand }: { brand: KioskBrand }) {
+  return (
+    <div
+      className="absolute inset-0 flex flex-col items-center justify-center"
+      style={{ gap: cq(40), padding: cq(56), opacity: 0.92 }}
+    >
+      <div style={{ opacity: 0.32, filter: "grayscale(0.6)" }}>
+        <Logo brand={brand} size={84} stacked />
+      </div>
+      <div
+        className="flex items-center"
+        style={{
+          gap: cq(12),
+          padding: `${cq(12)} ${cq(22)}`,
+          borderRadius: cq(100),
+          background: "var(--k-hairline)",
+          color: "var(--k-muted)",
+          fontSize: cq(20),
+          fontWeight: 600,
+        }}
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" style={{ width: cq(22), height: cq(22) }}>
+          <path d="M9 6v12M15 6v12" />
+        </svg>
+        Currently unavailable
+      </div>
+      <div style={{ fontSize: cq(22), fontWeight: 500, color: "var(--k-muted)", textAlign: "center", maxWidth: cq(460) }}>
+        Digital receipts are paused at this register.
+      </div>
+    </div>
+  );
+}
+
+/* ── 7 · SETUP / PAIRING ────────────────────────────────────────────── */
+function SetupScreen({ brand }: { brand: KioskBrand }) {
+  const code = brand.pairingCode ?? "K7P-4QX";
+  const steps = [
+    "Open your store admin dashboard",
+    "Go to Devices → Add device",
+    "Enter the pairing code below",
+  ];
+  return (
+    <div className="absolute inset-0 flex flex-col" style={{ padding: cq(52) }}>
+      <div className="flex items-center justify-between">
+        <Logo brand={brand} size={36} mono />
+        <div style={{ display: "flex", alignItems: "center", gap: cq(9), fontSize: cq(17), fontWeight: 600, color: "#2bb673" }}>
+          <span
+            style={{
+              width: cq(11),
+              height: cq(11),
+              borderRadius: "50%",
+              background: "#2bb673",
+              boxShadow: "0 0 0 4px rgba(43,182,115,0.16)",
+            }}
+          />
+          Connected
+        </div>
+      </div>
+      <div style={{ marginTop: cq(30) }}>
+        <div style={{ fontSize: cq(40), fontWeight: 800, letterSpacing: "-0.8px" }}>Let’s pair this device</div>
+        <div style={{ fontSize: cq(22), fontWeight: 500, color: "var(--k-muted)", marginTop: cq(12) }}>
+          Claim it from your admin dashboard to start.
+        </div>
+      </div>
+      <div className="flex flex-col" style={{ gap: cq(16), marginTop: cq(30) }}>
+        {steps.map((s, i) => (
+          <div key={i} className="flex items-center" style={{ gap: cq(16) }}>
+            <div
+              className="flex items-center justify-center"
+              style={{
+                width: cq(38),
+                height: cq(38),
+                borderRadius: "50%",
+                background: "var(--k-accent-soft)",
+                color: "var(--k-accent)",
+                fontSize: cq(20),
+                fontWeight: 800,
+                flex: "0 0 auto",
+              }}
+            >
+              {i + 1}
+            </div>
+            <div style={{ fontSize: cq(22), fontWeight: 600 }}>{s}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ flex: 1 }} />
+      <div
+        className="flex items-center justify-between"
+        style={{
+          background: "var(--k-card)",
+          border: "1px solid var(--k-hairline)",
+          borderRadius: cq(26),
+          padding: `${cq(26)} ${cq(30)}`,
+          boxShadow: "0 12px 32px -18px rgba(15,20,40,0.30)",
+        }}
+      >
+        <div>
+          <div style={{ fontSize: cq(16), fontWeight: 700, color: "var(--k-muted)", letterSpacing: "1.4px", textTransform: "uppercase" }}>
+            Pairing code
+          </div>
+          <div
+            style={{
+              fontSize: cq(60),
+              fontWeight: 800,
+              letterSpacing: "4px",
+              color: "var(--k-accent)",
+              fontVariantNumeric: "tabular-nums",
+              marginTop: cq(4),
+            }}
+          >
+            {code}
+          </div>
+        </div>
+        <div style={{ background: "#fff", borderRadius: cq(14), padding: cq(10), border: "1px solid var(--k-hairline)" }}>
+          <FauxQR seed={code.length + 3} style={{ width: cq(104), height: cq(104), color: "#0b0b0c", display: "block" }} />
+        </div>
       </div>
     </div>
   );

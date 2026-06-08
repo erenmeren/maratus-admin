@@ -167,6 +167,11 @@ export const tenantSettings = pgTable("tenant_settings", {
   // Price Ditto charges per digital receipt, in whole cents (avoids float drift).
   perPrintPriceCents: integer("per_print_price_cents").default(4).notNull(),
   brandColor: text("brand_color").default("#10A765").notNull(),
+  // Optional kiosk theme tokens (null → derived from brandColor). The kiosk
+  // preview lets a tenant tune background / foreground / muted separately.
+  brandBg: text("brand_bg"),
+  brandFg: text("brand_fg"),
+  brandMuted: text("brand_muted"),
   logoUrl: text("logo_url"),
   staffPin: text("staff_pin"),
   stripeCustomerId: text("stripe_customer_id"),

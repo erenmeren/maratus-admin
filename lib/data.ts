@@ -46,6 +46,7 @@ import {
 import { computeAlerts, STALE_MINUTES, STUCK_PENDING_MINUTES, INACTIVE_DAYS, type HealthAlert } from "./health";
 import { type ReceiptFilters, PAGE_SIZE } from "./receipts-search";
 import { presignedGetUrl } from "./storage";
+import { resolveBrandTokens } from "./color";
 import type {
   Device,
   DeviceRow,
@@ -706,6 +707,10 @@ export async function tenantNameOf(organizationId: string): Promise<string> {
 
 export interface TenantBranding {
   brandColor: string;
+  /** Kiosk theme tokens (bg/fg/muted resolved with defaults when unset). */
+  brandBg: string;
+  brandFg: string;
+  brandMuted: string;
   staffPin: string;
   /** Presigned, ready-to-render image URL (null if no logo uploaded). */
   logoUrl: string | null;
@@ -728,8 +733,17 @@ export async function getTenantBranding(
     logoUrl = await presignedGetUrl(s.logoUrl);
   }
 
+  const brandColor = s?.brandColor ?? "#10A765";
+  const tokens = resolveBrandTokens(brandColor, {
+    bg: s?.brandBg,
+    fg: s?.brandFg,
+    muted: s?.brandMuted,
+  });
   return {
-    brandColor: s?.brandColor ?? "#10A765",
+    brandColor,
+    brandBg: tokens.bg,
+    brandFg: tokens.fg,
+    brandMuted: tokens.muted,
     staffPin: s?.staffPin ?? "",
     logoUrl,
     hasLogo: !!s?.logoUrl,

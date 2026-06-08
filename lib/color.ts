@@ -38,3 +38,32 @@ export function withAlpha(hex: string, alpha: number): string {
 export function isValidHex(hex: string): boolean {
   return /^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex.trim());
 }
+
+/**
+ * Kiosk theme tokens. `accent` is the tenant's brand color; bg/fg/muted let a
+ * tenant tune the kiosk background / text / secondary-text independently. When a
+ * tenant hasn't set bg/fg/muted, these neutral defaults apply (a cool near-white
+ * surface, near-black text, mid-gray secondary) — they read cleanly under any accent.
+ */
+export interface BrandTokens {
+  accent: string;
+  bg: string;
+  fg: string;
+  muted: string;
+}
+
+export const DEFAULT_BRAND_BG = "#f3f4f7";
+export const DEFAULT_BRAND_FG = "#191b20";
+export const DEFAULT_BRAND_MUTED = "#8b909b";
+
+export function resolveBrandTokens(
+  accent: string,
+  t?: { bg?: string | null; fg?: string | null; muted?: string | null },
+): BrandTokens {
+  return {
+    accent,
+    bg: t?.bg || DEFAULT_BRAND_BG,
+    fg: t?.fg || DEFAULT_BRAND_FG,
+    muted: t?.muted || DEFAULT_BRAND_MUTED,
+  };
+}

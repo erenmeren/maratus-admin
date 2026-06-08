@@ -41,6 +41,16 @@ export async function saveBranding(
   }
   const brandColor = rawColor.startsWith("#") ? rawColor : `#${rawColor}`;
 
+  // Optional kiosk theme tokens. Empty or invalid → null (derive from accent).
+  const token = (key: string): string | null => {
+    const v = String(formData.get(key) ?? "").trim();
+    if (!v || !isValidHex(v)) return null;
+    return v.startsWith("#") ? v : `#${v}`;
+  };
+  const brandBg = token("brandBg");
+  const brandFg = token("brandFg");
+  const brandMuted = token("brandMuted");
+
   const staffPinRaw = String(formData.get("staffPin") ?? "").trim();
   const staffPin = staffPinRaw.replace(/\D/g, "").slice(0, 6);
 
@@ -89,6 +99,9 @@ export async function saveBranding(
     .values({
       organizationId,
       brandColor,
+      brandBg,
+      brandFg,
+      brandMuted,
       staffPin,
       ...(logoUrlUpdate !== undefined ? { logoUrl: logoUrlUpdate } : {}),
     })
@@ -96,6 +109,9 @@ export async function saveBranding(
       target: tenantSettings.organizationId,
       set: {
         brandColor,
+        brandBg,
+        brandFg,
+        brandMuted,
         staffPin,
         updatedAt: now,
         ...(logoUrlUpdate !== undefined ? { logoUrl: logoUrlUpdate } : {}),

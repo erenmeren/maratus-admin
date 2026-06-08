@@ -278,6 +278,46 @@ export const apiKey = pgTable(
   ],
 );
 
+export const webhookEndpoint = pgTable(
+  "webhook_endpoint",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    secret: text("secret").notNull(),
+    events: text("events").array().notNull(),
+    enabled: boolean("enabled").notNull().default(true),
+    consecutiveFailures: integer("consecutive_failures").notNull().default(0),
+    disabledReason: text("disabled_reason"),
+    createdByUserId: text("created_by_user_id"),
+    createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
+    lastDeliveryAt: timestamp("last_delivery_at"),
+  },
+  (t) => [index("webhook_endpoint_org_idx").on(t.organizationId)],
+);
+
+export const webhookDelivery = pgTable(
+  "webhook_delivery",
+  {
+    id: text("id").primaryKey(),
+    endpointId: text("endpoint_id").notNull().references(() => webhookEndpoint.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    eventId: text("event_id").notNull(),
+    eventType: text("event_type").notNull(),
+    payload: jsonb("payload").notNull(),
+    status: text("status", { enum: ["pending", "success", "failed"] }).notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    responseStatus: integer("response_status"),
+    nextRetryAt: timestamp("next_retry_at"),
+    lastAttemptAt: timestamp("last_attempt_at"),
+    createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
+  },
+  (t) => [
+    index("webhook_delivery_endpoint_idx").on(t.endpointId),
+    index("webhook_delivery_retry_idx").on(t.status, t.nextRetryAt),
+  ],
+);
+
 export const receipt = pgTable(
   "receipt",
   {
@@ -402,6 +442,8 @@ export const schema = {
   device,
   deviceCommand,
   apiKey,
+  webhookEndpoint,
+  webhookDelivery,
   receipt,
   invoice,
   auditLog,

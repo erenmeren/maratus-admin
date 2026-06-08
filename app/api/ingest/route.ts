@@ -13,6 +13,7 @@
 // device — but if supplied it must match, as a sanity check.
 
 import { NextResponse } from "next/server";
+import { after } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { device as deviceTable, receipt as receiptTable, tenantSettings } from "@/lib/db/schema";
@@ -22,6 +23,7 @@ import { isSuspended } from "@/lib/billing/billing-status";
 import { id, receiptToken } from "@/lib/ids";
 import { authenticateDevice } from "@/lib/device-auth";
 import { putReceipt, receiptStorageKey } from "@/lib/storage";
+import { deliverEvent } from "@/lib/webhooks/deliver";
 import { getEnv } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateReceiptPayload } from "@/lib/ingest-validation";
@@ -130,6 +132,19 @@ export async function POST(req: Request) {
     status: "ready",
     createdAt: now,
   });
+
+  // Fire receipt.created to subscribed webhooks — non-blocking, never affects the response.
+  after(() =>
+    deliverEvent(device.organizationId, "receipt.created", {
+      id: receiptId,
+      token,
+      status: "ready",
+      storeId: device.storeId,
+      deviceId: device.id,
+      byteSize: bytes.byteLength,
+      createdAt: now,
+    }),
+  );
 
   // Bump device heartbeat + mark online.
   const version = req.headers.get("x-device-version");

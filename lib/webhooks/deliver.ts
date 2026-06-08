@@ -6,7 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { webhookEndpoint as epTable, webhookDelivery as delTable } from "@/lib/db/schema";
 import { id } from "@/lib/ids";
-import { recordAudit } from "@/lib/audit";
+import { recordAudit, AUDIT } from "@/lib/audit";
 import { signPayload } from "./sign";
 import { isAllowedWebhookUrl } from "./url-guard";
 import { nextBackoff } from "./retry";
@@ -72,7 +72,7 @@ export async function attemptDelivery(delivery: DeliveryRow, endpoint: EndpointR
     await recordAudit({
       organizationId: endpoint.organizationId,
       actor: { type: "system" },
-      action: "webhook_endpoint.disabled",
+      action: AUDIT.webhookEndpointDisabled,
       target: { type: "webhook_endpoint", id: endpoint.id },
       metadata: { reason: "too_many_failures" },
     });

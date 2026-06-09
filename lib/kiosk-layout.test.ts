@@ -71,6 +71,11 @@ describe("normalizeKioskLayout", () => {
     expect(normalizeKioskLayout({ wifiLevel: 9 }).wifiLevel).toBe(4);
     expect(normalizeKioskLayout({ wifiLevel: -3 }).wifiLevel).toBe(0);
   });
+
+  it("stacks a custom text element above the built-ins by default", () => {
+    const l = normalizeKioskLayout({ elements: [{ id: "text-x", kind: "text", text: "Hi" }] });
+    expect(l.elements.find((e) => e.id === "text-x")!.z).toBeGreaterThanOrEqual(BUILTIN_IDS.length);
+  });
 });
 
 describe("createTextElement", () => {
@@ -88,5 +93,10 @@ describe("elementLabel", () => {
     const layout = normalizeKioskLayout({});
     expect(elementLabel(layout.elements.find((e) => e.builtin === "clock")!)).toBe("Clock");
     expect(elementLabel(createTextElement("A very long custom label here", 0))).toContain("A very long");
+  });
+
+  it("falls back to \"Text\" when the custom text is empty", () => {
+    const el = createTextElement("", 0);
+    expect(elementLabel(el)).toBe("Text");
   });
 });

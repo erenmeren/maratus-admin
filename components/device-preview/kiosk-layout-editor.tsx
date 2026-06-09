@@ -7,6 +7,8 @@ import {
   DEFAULT_KIOSK_LAYOUT,
   createTextElement,
   elementLabel,
+  MAX_CUSTOM,
+  MAX_TEXT_LEN,
   SCALE_MIN,
   SCALE_MAX,
   type KioskElement,
@@ -56,6 +58,8 @@ export function KioskLayoutEditor({
   const [selBox, setSelBox] = React.useState<Box | null>(null);
 
   const selected = layout.elements.find((e) => e.id === selectedId) ?? null;
+  const customCount = layout.elements.filter((e) => e.kind === "text").length;
+  const atCustomCap = customCount >= MAX_CUSTOM;
 
   function patch(id: string, p: Partial<KioskElement>) {
     onChange({ ...layout, elements: layout.elements.map((e) => (e.id === id ? { ...e, ...p } : e)) });
@@ -131,7 +135,7 @@ export function KioskLayoutEditor({
   }
 
   function addText() {
-    if (disabled) return;
+    if (disabled || atCustomCap) return;
     const maxZ = layout.elements.reduce((m, e) => Math.max(m, e.z), 0);
     const el = createTextElement("New text", maxZ + 1);
     onChange({ ...layout, elements: [...layout.elements, el] });
@@ -210,8 +214,9 @@ export function KioskLayoutEditor({
           <span className="text-sm font-medium">Elements</span>
           <button
             type="button"
-            disabled={disabled}
+            disabled={disabled || atCustomCap}
             onClick={addText}
+            title={atCustomCap ? `Limit of ${MAX_CUSTOM} custom text elements reached` : undefined}
             className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
           >
             <Plus className="size-3.5" /> Add text
@@ -416,7 +421,7 @@ function Inspector({
       {el.kind === "text" && (
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Text</Label>
-          <Input value={el.text ?? ""} disabled={disabled} maxLength={80} onChange={(e) => onPatch({ text: e.target.value })} className="h-8" />
+          <Input value={el.text ?? ""} disabled={disabled} maxLength={MAX_TEXT_LEN} onChange={(e) => onPatch({ text: e.target.value })} className="h-8" />
         </div>
       )}
 

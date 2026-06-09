@@ -117,7 +117,7 @@ export function elementLabel(e: KioskElement): string {
  */
 export function normalizeKioskLayout(raw: unknown): KioskLayout {
   const r = (raw ?? {}) as Partial<KioskLayout> & { elements?: unknown };
-  const list = Array.isArray(r.elements) ? (r.elements as Record<string, unknown>[]) : [];
+  const list = Array.isArray(r.elements) ? (r.elements as unknown as Record<string, unknown>[]) : [];
   const byBuiltin = new Map<BuiltinId, Record<string, unknown>>();
   for (const e of list) {
     const id = e?.id as string;

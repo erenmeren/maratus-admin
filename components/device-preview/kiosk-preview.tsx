@@ -6,7 +6,7 @@ import { resolveBrandTokens, withAlpha } from "@/lib/color";
 import {
   DEFAULT_KIOSK_LAYOUT,
   type KioskLayout,
-  type KioskElementId,
+  type KioskElement,
 } from "@/lib/kiosk-layout";
 import { cn } from "@/lib/utils";
 
@@ -187,11 +187,12 @@ function Logo({
   );
 }
 
-/* ── 1 · IDLE / READY (modular: free-positioned elements) ───────────── */
+/* ── 1 · IDLE / READY (modular: free-positioned, sx/sy-sized elements) ── */
 function IdleScreen({ brand, layout }: { brand: KioskBrand; layout: KioskLayout }) {
+  const ordered = [...layout.elements].sort((a, b) => a.z - b.z);
   return (
     <div className="absolute inset-0">
-      {layout.elements
+      {ordered
         .filter((el) => el.visible)
         .map((el) => (
           <div
@@ -201,12 +202,10 @@ function IdleScreen({ brand, layout }: { brand: KioskBrand; layout: KioskLayout 
               left: `${el.x * 100}%`,
               top: `${el.y * 100}%`,
               transform: "translate(-50%, -50%)",
-              display: "flex",
-              justifyContent: "center",
-              maxWidth: "92%",
+              zIndex: el.z,
             }}
           >
-            <KioskElementView id={el.id} brand={brand} layout={layout} scale={el.scale} />
+            <KioskElementView element={el} brand={brand} layout={layout} />
           </div>
         ))}
     </div>
@@ -214,35 +213,68 @@ function IdleScreen({ brand, layout }: { brand: KioskBrand; layout: KioskLayout 
 }
 
 /**
- * Renders a single idle-screen element's visual. Shared by the read-only
- * preview and the drag studio so both look identical.
+ * Renders a single idle-screen element. The visual is drawn at its NATURAL size
+ * and scaled by the element's sx/sy multipliers (sx=sy=1 → natural; sx≠sy →
+ * free-stretch). Shared by the read-only preview and the drag studio so both
+ * look identical.
  */
 export function KioskElementView({
-  id,
+  element,
   brand,
   layout,
-  scale,
 }: {
-  id: KioskElementId;
+  element: KioskElement;
   brand: KioskBrand;
   layout: KioskLayout;
-  scale: number;
 }) {
-  switch (id) {
+  return (
+    <div style={{ transform: `scale(${element.sx}, ${element.sy})`, transformOrigin: "center" }}>
+      <ElementVisual element={element} brand={brand} layout={layout} />
+    </div>
+  );
+}
+
+/** The natural-size visual for an element, before sx/sy scaling. */
+function ElementVisual({
+  element,
+  brand,
+  layout,
+}: {
+  element: KioskElement;
+  brand: KioskBrand;
+  layout: KioskLayout;
+}) {
+  if (element.kind === "text") {
+    return (
+      <div
+        style={{
+          fontSize: cq(22),
+          fontWeight: 600,
+          color: "var(--k-fg)",
+          letterSpacing: "0.2px",
+          textAlign: "center",
+          whiteSpace: "pre",
+        }}
+      >
+        {element.text}
+      </div>
+    );
+  }
+  switch (element.builtin) {
     case "logo":
-      return <Logo brand={brand} size={108 * scale} stacked />;
+      return <Logo brand={brand} size={108} stacked />;
     case "clock":
-      return <KioskClock timezone={layout.clockTimezone} hour24={layout.clock24h} scale={scale} />;
+      return <KioskClock timezone={layout.clockTimezone} hour24={layout.clock24h} />;
     case "wifi":
-      return <WifiSignal level={layout.wifiLevel} scale={scale} />;
+      return <WifiSignal level={layout.wifiLevel} />;
     case "lane":
       return (
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: cq(9 * scale),
-            fontSize: cq(19 * scale),
+            gap: cq(9),
+            fontSize: cq(19),
             fontWeight: 600,
             color: "var(--k-muted)",
             whiteSpace: "nowrap",
@@ -257,7 +289,7 @@ export function KioskElementView({
       return (
         <div
           style={{
-            fontSize: cq(18 * scale),
+            fontSize: cq(18),
             fontWeight: 500,
             color: "var(--k-muted)",
             letterSpacing: "0.3px",
@@ -268,22 +300,24 @@ export function KioskElementView({
           Tap your card or pay at the reader to begin
         </div>
       );
+    default:
+      return null;
   }
 }
 
-/** Ascending Wi-Fi signal bars (0–4 filled). */
-function WifiSignal({ level, scale }: { level: number; scale: number }) {
+/** Ascending Wi-Fi signal bars (0–4 filled), natural size. */
+function WifiSignal({ level }: { level: number }) {
   const bars = [0.45, 0.65, 0.85, 1];
-  const unit = 28 * scale; // overall height in design px
+  const unit = 28; // overall height in design px
   return (
-    <div style={{ display: "flex", alignItems: "flex-end", gap: cq(4 * scale), color: "var(--k-muted)" }}>
+    <div style={{ display: "flex", alignItems: "flex-end", gap: cq(4), color: "var(--k-muted)" }}>
       {bars.map((h, i) => (
         <span
           key={i}
           style={{
-            width: cq(7 * scale),
+            width: cq(7),
             height: cq(unit * h),
-            borderRadius: cq(3 * scale),
+            borderRadius: cq(3),
             background: "var(--k-fg)",
             opacity: i < level ? 0.85 : 0.2,
           }}

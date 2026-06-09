@@ -13,11 +13,9 @@ const cq = (px: number) => `${(px / 7.2).toFixed(2)}cqw`;
 export function KioskClock({
   timezone,
   hour24 = false,
-  scale = 1,
 }: {
   timezone: string;
   hour24?: boolean;
-  scale?: number;
 }) {
   const [now, setNow] = React.useState<Date | null>(null);
   React.useEffect(() => {
@@ -51,7 +49,7 @@ export function KioskClock({
     <div style={{ textAlign: "center" }} suppressHydrationWarning>
       <div
         style={{
-          fontSize: cq(84 * scale),
+          fontSize: cq(84),
           fontWeight: 700,
           letterSpacing: "-1.5px",
           lineHeight: 1,
@@ -62,7 +60,7 @@ export function KioskClock({
         {time}
       </div>
       {date && (
-        <div style={{ fontSize: cq(22 * scale), fontWeight: 500, color: "var(--k-muted)", marginTop: cq(12 * scale) }}>
+        <div style={{ fontSize: cq(22), fontWeight: 500, color: "var(--k-muted)", marginTop: cq(12) }}>
           {date}
         </div>
       )}

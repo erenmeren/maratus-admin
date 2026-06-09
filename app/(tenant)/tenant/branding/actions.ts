@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { tenantSettings } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
 import { isValidHex } from "@/lib/color";
+import { normalizeKioskLayout, type KioskLayout } from "@/lib/kiosk-layout";
 import { id } from "@/lib/ids";
 import { deleteObject, logoStorageKey, putObject } from "@/lib/storage";
 import { recordAudit, AUDIT } from "@/lib/audit";
@@ -50,6 +51,17 @@ export async function saveBranding(
   const brandBg = token("brandBg");
   const brandFg = token("brandFg");
   const brandMuted = token("brandMuted");
+
+  // Kiosk idle-screen layout (JSON). Normalized so bad input can't be stored.
+  let kioskLayout: KioskLayout | undefined;
+  const layoutRaw = String(formData.get("kioskLayout") ?? "").trim();
+  if (layoutRaw) {
+    try {
+      kioskLayout = normalizeKioskLayout(JSON.parse(layoutRaw));
+    } catch {
+      kioskLayout = undefined; // ignore malformed JSON; leave layout unchanged
+    }
+  }
 
   const staffPinRaw = String(formData.get("staffPin") ?? "").trim();
   const staffPin = staffPinRaw.replace(/\D/g, "").slice(0, 6);
@@ -103,6 +115,7 @@ export async function saveBranding(
       brandFg,
       brandMuted,
       staffPin,
+      ...(kioskLayout !== undefined ? { kioskLayout } : {}),
       ...(logoUrlUpdate !== undefined ? { logoUrl: logoUrlUpdate } : {}),
     })
     .onConflictDoUpdate({
@@ -114,6 +127,7 @@ export async function saveBranding(
         brandMuted,
         staffPin,
         updatedAt: now,
+        ...(kioskLayout !== undefined ? { kioskLayout } : {}),
         ...(logoUrlUpdate !== undefined ? { logoUrl: logoUrlUpdate } : {}),
       },
     });

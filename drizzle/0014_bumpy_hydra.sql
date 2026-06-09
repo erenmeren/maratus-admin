@@ -1,0 +1,1 @@
+ALTER TABLE "tenant_settings" ADD COLUMN "kiosk_layout" jsonb;

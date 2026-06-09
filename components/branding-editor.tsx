@@ -8,6 +8,8 @@ import {
   KioskPreview,
   type KioskScreen,
 } from "@/components/device-preview/kiosk-preview";
+import { KioskLayoutEditor } from "@/components/device-preview/kiosk-layout-editor";
+import { type KioskLayout } from "@/lib/kiosk-layout";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -43,6 +45,7 @@ const SCREENS: { value: KioskScreen; label: string }[] = [
 
 export function BrandingEditor({
   initialColor,
+  initialLayout,
   initialBg,
   initialFg,
   initialMuted,
@@ -53,6 +56,7 @@ export function BrandingEditor({
   canEdit,
 }: {
   initialColor: string;
+  initialLayout: KioskLayout;
   initialBg: string;
   initialFg: string;
   initialMuted: string;
@@ -68,6 +72,7 @@ export function BrandingEditor({
   const [bg, setBg] = React.useState(initialBg);
   const [fg, setFg] = React.useState(initialFg);
   const [muted, setMuted] = React.useState(initialMuted);
+  const [layout, setLayout] = React.useState<KioskLayout>(initialLayout);
   const [logoText, setLogoText] = React.useState(initialLogoText);
   // Preview source (saved presigned URL or a local object URL for a new pick).
   const [logoPreview, setLogoPreview] = React.useState<string | null>(
@@ -87,6 +92,7 @@ export function BrandingEditor({
     bg !== initialBg ||
     fg !== initialFg ||
     muted !== initialMuted ||
+    JSON.stringify(layout) !== JSON.stringify(initialLayout) ||
     pin !== initialStaffPin ||
     logoFile !== null ||
     logoCleared;
@@ -125,6 +131,7 @@ export function BrandingEditor({
     setBg(initialBg);
     setFg(initialFg);
     setMuted(initialMuted);
+    setLayout(initialLayout);
     setLogoText(initialLogoText);
     setLogoPreview(initialLogoUrl);
     setLogoFile(null);
@@ -144,6 +151,7 @@ export function BrandingEditor({
     fd.set("brandBg", bg);
     fd.set("brandFg", fg);
     fd.set("brandMuted", muted);
+    fd.set("kioskLayout", JSON.stringify(layout));
     fd.set("staffPin", pin);
     if (logoFile) fd.set("logo", logoFile);
     fd.set("removeLogo", logoCleared ? "true" : "false");
@@ -165,6 +173,15 @@ export function BrandingEditor({
   }
 
   const disabled = !canEdit || saving;
+  const kioskBrand = {
+    brandColor: color,
+    brandBg: bg,
+    brandFg: fg,
+    brandMuted: muted,
+    logoText,
+    logoUrl: logoPreview,
+    storeName,
+  };
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -378,22 +395,21 @@ export function BrandingEditor({
           </CardHeader>
           <CardContent>
             <div className="mx-auto max-w-[420px]">
-              <KioskPreview
-                brand={{
-                  brandColor: color,
-                  brandBg: bg,
-                  brandFg: fg,
-                  brandMuted: muted,
-                  logoText,
-                  logoUrl: logoPreview,
-                  storeName,
-                }}
-                screen={screen}
-              />
+              {screen === "idle" ? (
+                <KioskLayoutEditor
+                  brand={kioskBrand}
+                  layout={layout}
+                  onChange={setLayout}
+                  disabled={!canEdit}
+                />
+              ) : (
+                <KioskPreview brand={kioskBrand} layout={layout} screen={screen} />
+              )}
             </div>
             <p className="mt-4 text-center text-xs text-muted-foreground">
-              The QR code shown is illustrative. Real kiosks render a scannable
-              receipt code.
+              {screen === "idle"
+                ? "Drag to arrange the idle screen. Other screens preview your theme."
+                : "The QR code shown is illustrative. Real kiosks render a scannable receipt code."}
             </p>
           </CardContent>
         </Card>

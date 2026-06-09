@@ -1,7 +1,13 @@
 import * as React from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { FauxQR } from "./qr-code";
+import { KioskClock } from "./kiosk-clock";
 import { resolveBrandTokens, withAlpha } from "@/lib/color";
+import {
+  DEFAULT_KIOSK_LAYOUT,
+  type KioskLayout,
+  type KioskElementId,
+} from "@/lib/kiosk-layout";
 import { cn } from "@/lib/utils";
 
 // Plus Jakarta Sans — the kiosk design's signature face (rounded, premium, calm).
@@ -49,6 +55,26 @@ export interface KioskBrand {
 /** 720px design reference → container-query width units (100cqw = the square). */
 const cq = (px: number) => `${(px / 7.2).toFixed(2)}cqw`;
 
+/** CSS vars + font for the kiosk canvas. Shared by the preview and the studio. */
+export function kioskRootStyle(brand: KioskBrand): React.CSSProperties {
+  const t = resolveBrandTokens(brand.brandColor, {
+    bg: brand.brandBg,
+    fg: brand.brandFg,
+    muted: brand.brandMuted,
+  });
+  return {
+    "--k-accent": t.accent,
+    "--k-accent-fg": "#ffffff",
+    "--k-bg": t.bg,
+    "--k-fg": t.fg,
+    "--k-muted": t.muted,
+    "--k-card": "#ffffff",
+    "--k-hairline": withAlpha(t.fg, 0.1),
+    "--k-accent-soft": withAlpha(t.accent, 0.1),
+    fontFamily: jakarta.style.fontFamily,
+  } as React.CSSProperties;
+}
+
 /**
  * 720×720 kiosk mockup, container-query sized (cqw) so it scales to any width
  * while staying square. The tenant's brand tokens are applied ONLY here — they
@@ -58,32 +84,19 @@ const cq = (px: number) => `${(px / 7.2).toFixed(2)}cqw`;
 export function KioskPreview({
   brand,
   screen,
+  layout = DEFAULT_KIOSK_LAYOUT,
   className,
 }: {
   brand: KioskBrand;
   screen: KioskScreen;
+  /** Modular idle-screen layout (only the idle screen uses it). */
+  layout?: KioskLayout;
   className?: string;
 }) {
-  const t = resolveBrandTokens(brand.brandColor, {
-    bg: brand.brandBg,
-    fg: brand.brandFg,
-    muted: brand.brandMuted,
-  });
-  const accentFg = "#ffffff";
-  const vars = {
-    "--k-accent": t.accent,
-    "--k-accent-fg": accentFg,
-    "--k-bg": t.bg,
-    "--k-fg": t.fg,
-    "--k-muted": t.muted,
-    "--k-card": "#ffffff",
-    "--k-hairline": withAlpha(t.fg, 0.1),
-    "--k-accent-soft": withAlpha(t.accent, 0.1),
-    fontFamily: jakarta.style.fontFamily,
-  } as React.CSSProperties;
+  const vars = kioskRootStyle(brand);
 
   const screens: Record<KioskScreen, React.ReactNode> = {
-    idle: <IdleScreen brand={brand} />,
+    idle: <IdleScreen brand={brand} layout={layout} />,
     processing: <ProcessingScreen />,
     qr: <ReceiptScreen brand={brand} />,
     sent: <SentScreen />,
@@ -174,81 +187,108 @@ function Logo({
   );
 }
 
-/* ── 1 · IDLE / READY ───────────────────────────────────────────────── */
-function IdleScreen({ brand }: { brand: KioskBrand }) {
+/* ── 1 · IDLE / READY (modular: free-positioned elements) ───────────── */
+function IdleScreen({ brand, layout }: { brand: KioskBrand; layout: KioskLayout }) {
   return (
-    <div className="absolute inset-0" style={{ padding: cq(56) }}>
-      <div
-        style={{
-          position: "absolute",
-          top: cq(40),
-          left: cq(48),
-          display: "flex",
-          alignItems: "center",
-          gap: cq(9),
-          fontSize: cq(19),
-          fontWeight: 600,
-          color: "var(--k-muted)",
-          whiteSpace: "nowrap",
-        }}
-      >
-        <span>{brand.storeName}</span>
-        <span style={{ opacity: 0.4 }}>·</span>
-        <span>{brand.lane ?? "Lane 1"}</span>
-      </div>
-      <div
-        style={{
-          position: "absolute",
-          top: cq(40),
-          right: cq(48),
-          display: "flex",
-          alignItems: "center",
-          gap: cq(9),
-          fontSize: cq(19),
-          fontWeight: 600,
-          color: "var(--k-muted)",
-        }}
-      >
-        <span
-          className="animate-pulse"
-          style={{ width: cq(9), height: cq(9), borderRadius: "50%", background: "#2bb673" }}
-        />
-        Ready
-      </div>
-
-      <div className="flex h-full flex-col items-center justify-center" style={{ gap: cq(64) }}>
-        <Logo brand={brand} size={108} stacked />
-        <div style={{ textAlign: "center" }}>
+    <div className="absolute inset-0">
+      {layout.elements
+        .filter((el) => el.visible)
+        .map((el) => (
           <div
+            key={el.id}
             style={{
-              fontSize: cq(84),
-              fontWeight: 700,
-              letterSpacing: "-1.5px",
-              lineHeight: 1,
-              fontVariantNumeric: "tabular-nums",
-              color: "var(--k-fg)",
+              position: "absolute",
+              left: `${el.x * 100}%`,
+              top: `${el.y * 100}%`,
+              transform: "translate(-50%, -50%)",
+              display: "flex",
+              justifyContent: "center",
+              maxWidth: "92%",
             }}
           >
-            {brand.time ?? "9:41"}
+            <KioskElementView id={el.id} brand={brand} layout={layout} scale={el.scale} />
           </div>
-        </div>
-      </div>
+        ))}
+    </div>
+  );
+}
 
-      <div
-        style={{
-          position: "absolute",
-          bottom: cq(38),
-          left: 0,
-          right: 0,
-          textAlign: "center",
-          fontSize: cq(18),
-          fontWeight: 500,
-          color: "var(--k-muted)",
-          letterSpacing: "0.3px",
-        }}
-      >
-        Tap your card or pay at the reader to begin
-      </div>
+/**
+ * Renders a single idle-screen element's visual. Shared by the read-only
+ * preview and the drag studio so both look identical.
+ */
+export function KioskElementView({
+  id,
+  brand,
+  layout,
+  scale,
+}: {
+  id: KioskElementId;
+  brand: KioskBrand;
+  layout: KioskLayout;
+  scale: number;
+}) {
+  switch (id) {
+    case "logo":
+      return <Logo brand={brand} size={108 * scale} stacked />;
+    case "clock":
+      return <KioskClock timezone={layout.clockTimezone} hour24={layout.clock24h} scale={scale} />;
+    case "wifi":
+      return <WifiSignal level={layout.wifiLevel} scale={scale} />;
+    case "lane":
+      return (
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: cq(9 * scale),
+            fontSize: cq(19 * scale),
+            fontWeight: 600,
+            color: "var(--k-muted)",
+            whiteSpace: "nowrap",
+          }}
+        >
+          <span>{brand.storeName}</span>
+          <span style={{ opacity: 0.4 }}>·</span>
+          <span>{brand.lane ?? "Lane 1"}</span>
+        </div>
+      );
+    case "tagline":
+      return (
+        <div
+          style={{
+            fontSize: cq(18 * scale),
+            fontWeight: 500,
+            color: "var(--k-muted)",
+            letterSpacing: "0.3px",
+            textAlign: "center",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Tap your card or pay at the reader to begin
+        </div>
+      );
+  }
+}
+
+/** Ascending Wi-Fi signal bars (0–4 filled). */
+function WifiSignal({ level, scale }: { level: number; scale: number }) {
+  const bars = [0.45, 0.65, 0.85, 1];
+  const unit = 28 * scale; // overall height in design px
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", gap: cq(4 * scale), color: "var(--k-muted)" }}>
+      {bars.map((h, i) => (
+        <span
+          key={i}
+          style={{
+            width: cq(7 * scale),
+            height: cq(unit * h),
+            borderRadius: cq(3 * scale),
+            background: "var(--k-fg)",
+            opacity: i < level ? 0.85 : 0.2,
+          }}
+        />
+      ))}
     </div>
   );
 }

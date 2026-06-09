@@ -47,6 +47,7 @@ import { computeAlerts, STALE_MINUTES, STUCK_PENDING_MINUTES, INACTIVE_DAYS, typ
 import { type ReceiptFilters, PAGE_SIZE } from "./receipts-search";
 import { presignedGetUrl } from "./storage";
 import { resolveBrandTokens } from "./color";
+import { normalizeKioskLayout, type KioskLayout } from "./kiosk-layout";
 import type {
   Device,
   DeviceRow,
@@ -711,6 +712,8 @@ export interface TenantBranding {
   brandBg: string;
   brandFg: string;
   brandMuted: string;
+  /** Modular kiosk idle-screen layout (normalized; defaults applied). */
+  kioskLayout: KioskLayout;
   staffPin: string;
   /** Presigned, ready-to-render image URL (null if no logo uploaded). */
   logoUrl: string | null;
@@ -744,6 +747,7 @@ export async function getTenantBranding(
     brandBg: tokens.bg,
     brandFg: tokens.fg,
     brandMuted: tokens.muted,
+    kioskLayout: normalizeKioskLayout(s?.kioskLayout),
     staffPin: s?.staffPin ?? "",
     logoUrl,
     hasLogo: !!s?.logoUrl,

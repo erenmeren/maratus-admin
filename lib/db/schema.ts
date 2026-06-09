@@ -172,6 +172,9 @@ export const tenantSettings = pgTable("tenant_settings", {
   brandBg: text("brand_bg"),
   brandFg: text("brand_fg"),
   brandMuted: text("brand_muted"),
+  // Modular kiosk idle-screen layout (element positions/sizes/visibility +
+  // clock timezone). Shape is lib/kiosk-layout.ts KioskLayout; null → default.
+  kioskLayout: jsonb("kiosk_layout"),
   logoUrl: text("logo_url"),
   staffPin: text("staff_pin"),
   stripeCustomerId: text("stripe_customer_id"),

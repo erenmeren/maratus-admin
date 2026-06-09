@@ -52,7 +52,7 @@ export function resizeBox(box: Box, handle: Handle, pointer: { x: number; y: num
   if (movesN && h < MIN_BOX) { h = MIN_BOX; top = bottom - MIN_BOX; }
 
   // Corner drag: lock aspect ratio, driven by the new width.
-  const isCorner = handle.length === 2;
+  const isCorner = handle.length === 2; // "nw"/"ne"/"sw"/"se" vs single-char edges
   if (isCorner && keepAspect && box.h > 0) {
     const aspect = box.w / box.h;
     h = Math.max(MIN_BOX, w / aspect);

@@ -33,6 +33,39 @@ describe("resizeBox", () => {
     expect(r.w).toBeGreaterThanOrEqual(MIN_BOX);
     expect(r.w).toBeLessThanOrEqual(0.2);
   });
+
+  it("west edge moves only width, right edge stays fixed", () => {
+    const r = resizeBox(box, "w", { x: 0.45, y: 0.5 }, false);
+    expect(r.w).toBeCloseTo(0.15, 6);  // L0.45 → R0.6
+    expect(r.h).toBeCloseTo(0.1, 6);   // unchanged
+    expect(r.cx).toBeCloseTo(0.525, 6); // midpoint of 0.45..0.6
+    expect(r.cy).toBeCloseTo(0.5, 6);
+  });
+
+  it("north edge moves only height, bottom stays fixed", () => {
+    const r = resizeBox(box, "n", { x: 0.5, y: 0.4 }, false);
+    expect(r.h).toBeCloseTo(0.15, 6);  // T0.4 → B0.55
+    expect(r.w).toBeCloseTo(0.2, 6);   // unchanged
+    expect(r.cy).toBeCloseTo(0.475, 6); // midpoint of 0.4..0.55
+    expect(r.cx).toBeCloseTo(0.5, 6);
+  });
+
+  it("corner without keepAspect moves both edges independently", () => {
+    const r = resizeBox(box, "se", { x: 0.8, y: 0.9 }, false);
+    expect(r.w).toBeCloseTo(0.4, 6);   // L0.4 → R0.8
+    expect(r.h).toBeCloseTo(0.45, 6);  // T0.45 → B0.9 (no aspect lock)
+    expect(r.cx).toBeCloseTo(0.6, 6);
+    expect(r.cy).toBeCloseTo(0.675, 6);
+  });
+
+  it("nw corner with keepAspect re-anchors the top edge (not bottom)", () => {
+    // nw drag: anchor = bottom-right (0.6, 0.55). aspect w/h = 2.
+    const r = resizeBox(box, "nw", { x: 0.2, y: 0.2 }, true);
+    expect(r.w).toBeCloseTo(0.4, 6);   // L0.2 → R0.6
+    expect(r.h).toBeCloseTo(0.2, 6);   // aspect-locked: 0.4 / 2
+    expect(r.cx).toBeCloseTo(0.4, 6);  // midpoint 0.2..0.6
+    expect(r.cy).toBeCloseTo(0.45, 6); // bottom 0.55 fixed, top re-anchored to 0.35
+  });
 });
 
 describe("clampCenter", () => {

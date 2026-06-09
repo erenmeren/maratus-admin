@@ -112,14 +112,20 @@ export function KioskLayoutEditor({
     } else {
       const isCorner = d.handle.length === 2;
       const nb = clampCenter(resizeBox(d.startBox, d.handle, p, isCorner));
-      const sx = clamp(d.startEl.sx * (nb.w / d.startBox.w), SCALE_MIN, SCALE_MAX);
-      const sy = clamp(d.startEl.sy * (nb.h / d.startBox.h), SCALE_MIN, SCALE_MAX);
+      const sx = d.startBox.w > 0
+        ? clamp(d.startEl.sx * (nb.w / d.startBox.w), SCALE_MIN, SCALE_MAX)
+        : d.startEl.sx;
+      const sy = d.startBox.h > 0
+        ? clamp(d.startEl.sy * (nb.h / d.startBox.h), SCALE_MIN, SCALE_MAX)
+        : d.startEl.sy;
       patch(selected.id, { x: nb.cx, y: nb.cy, sx, sy });
     }
   }
 
   function onPointerUp(e: React.PointerEvent) {
-    if (drag.current) canvasRef.current?.releasePointerCapture(e.pointerId);
+    if (drag.current && canvasRef.current?.hasPointerCapture(e.pointerId)) {
+      canvasRef.current.releasePointerCapture(e.pointerId);
+    }
     drag.current = null;
     setGuide({ x: false, y: false });
   }
@@ -152,7 +158,7 @@ export function KioskLayoutEditor({
     }
     setSelBox(elementBox(selectedId));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, selected?.visible, selected?.x, selected?.y, selected?.sx, selected?.sy, selected?.text]);
+  }, [selectedId, selected?.visible, selected?.x, selected?.y, selected?.sx, selected?.sy, selected?.text, brand.logoUrl]);
 
   const ordered = [...layout.elements].sort((a, b) => a.z - b.z);
 

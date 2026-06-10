@@ -2,13 +2,28 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, ImageUp, Loader2, Lock, RotateCcw, Save, X } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  ImageUp,
+  LayoutGrid,
+  Loader2,
+  Lock,
+  Palette,
+  RotateCcw,
+  Save,
+  ShieldCheck,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import {
   KioskPreview,
   type KioskScreen,
+  type KioskBrand,
 } from "@/components/device-preview/kiosk-preview";
-import { KioskLayoutEditor } from "@/components/device-preview/kiosk-layout-editor";
+import { useKioskEditor } from "@/components/device-preview/kiosk-editor/use-kiosk-editor";
+import { KioskStage } from "@/components/device-preview/kiosk-editor/kiosk-stage";
+import { KioskControls } from "@/components/device-preview/kiosk-editor/kiosk-controls";
 import { type KioskLayout } from "@/lib/kiosk-layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -74,19 +89,22 @@ export function BrandingEditor({
   const [muted, setMuted] = React.useState(initialMuted);
   const [layout, setLayout] = React.useState<KioskLayout>(initialLayout);
   const [logoText, setLogoText] = React.useState(initialLogoText);
-  // Preview source (saved presigned URL or a local object URL for a new pick).
-  const [logoPreview, setLogoPreview] = React.useState<string | null>(
-    initialLogoUrl,
-  );
+  const [logoPreview, setLogoPreview] = React.useState<string | null>(initialLogoUrl);
   const [logoFile, setLogoFile] = React.useState<File | null>(null);
   const [logoCleared, setLogoCleared] = React.useState(false);
   const [pin, setPin] = React.useState(initialStaffPin);
   const [showPin, setShowPin] = React.useState(false);
-  const [screen, setScreen] = React.useState<KioskScreen>("qr");
+  const [screen, setScreen] = React.useState<KioskScreen>("idle");
   const [saving, setSaving] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
-  // Has anything changed from the loaded state?
+  const editor = useKioskEditor({
+    layout,
+    onChange: setLayout,
+    disabled: !canEdit,
+    remeasureKey: logoPreview,
+  });
+
   const dirty =
     color !== initialColor ||
     bg !== initialBg ||
@@ -163,17 +181,14 @@ export function BrandingEditor({
       toast.error("Couldn't save branding", { description: res.error });
       return;
     }
-    toast.success("Branding saved", {
-      description: "Your kiosks will update on next sync.",
-    });
-    // Clear local-upload state and re-pull the server (fresh presigned logo URL).
+    toast.success("Branding saved", { description: "Your kiosks will update on next sync." });
     setLogoFile(null);
     setLogoCleared(false);
     router.refresh();
   }
 
   const disabled = !canEdit || saving;
-  const kioskBrand = {
+  const kioskBrand: KioskBrand = {
     brandColor: color,
     brandBg: bg,
     brandFg: fg,
@@ -184,237 +199,216 @@ export function BrandingEditor({
   };
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      {/* Controls */}
-      <div className="space-y-6">
-        {!canEdit && (
-          <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
-            <Lock className="size-4 shrink-0" />
-            You have view-only access. Only owners and admins can edit branding.
-          </div>
-        )}
+    <div className="relative space-y-6">
+      {!canEdit && (
+        <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+          <Lock className="size-4 shrink-0" />
+          You have view-only access. Only owners and admins can edit branding.
+        </div>
+      )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Logo</CardTitle>
-            <CardDescription>Shown on the kiosk idle and receipt screens.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={() => fileRef.current?.click()}
-              className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/30 px-4 py-8 text-center transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {logoPreview ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={logoPreview} alt="Logo preview" className="max-h-16 object-contain" />
-              ) : (
-                <>
-                  <span className="flex size-10 items-center justify-center rounded-lg bg-background text-muted-foreground">
-                    <ImageUp className="size-5" />
-                  </span>
-                  <span className="text-sm font-medium">Click to upload a logo</span>
-                  <span className="text-xs text-muted-foreground">
-                    PNG or SVG, transparent background recommended
-                  </span>
-                </>
-              )}
-            </button>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={onFile}
-              disabled={disabled}
-            />
-            {logoPreview && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={removeLogo}
-                disabled={disabled}
-                className="w-full"
-              >
-                <X className="size-4" /> Remove logo
-              </Button>
-            )}
-            <div className="space-y-2">
-              <Label htmlFor="logoText">Logo text (preview fallback)</Label>
-              <Input
-                id="logoText"
-                value={logoText}
-                onChange={(e) => setLogoText(e.target.value)}
-                placeholder="Your brand"
-                disabled={disabled}
-              />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Accent color</CardTitle>
-            <CardDescription>
-              Your brand color — applied to kiosks only, not the Ditto console.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-3">
-              <label
-                className="relative size-12 shrink-0 cursor-pointer overflow-hidden rounded-xl ring-1 ring-border"
-                style={{ background: color }}
-              >
-                <input
-                  type="color"
-                  value={color}
-                  onChange={(e) => {
-                    setColor(e.target.value);
-                    setHexInput(e.target.value);
-                  }}
-                  disabled={disabled}
-                  className="absolute inset-0 cursor-pointer opacity-0"
-                  aria-label="Pick accent color"
-                />
-              </label>
-              <div className="flex-1 space-y-1.5">
-                <Label htmlFor="hex">Hex</Label>
-                <Input
-                  id="hex"
-                  value={hexInput}
-                  onChange={(e) => commitHex(e.target.value)}
-                  disabled={disabled}
-                  className="font-mono"
-                  aria-invalid={!isValidHex(hexInput)}
-                />
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:items-start">
+        {/* LEFT — grouped controls */}
+        <div className="space-y-6">
+          <Section icon={Palette} title="Brand" description="Your logo and colors, shown to customers on the kiosk.">
+            {logoPreview ? (
+              <div className="flex items-center gap-3 rounded-xl border bg-muted/30 p-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={logoPreview} alt="Logo preview" className="size-12 rounded-lg object-contain" />
+                <div className="flex flex-1 gap-2">
+                  <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => fileRef.current?.click()}>
+                    <ImageUp className="size-4" /> Replace
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={removeLogo}>
+                    <X className="size-4" /> Remove
+                  </Button>
+                </div>
               </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {PRESETS.map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => {
-                    setColor(c);
-                    setHexInput(c);
-                  }}
-                  className={cn(
-                    "size-8 rounded-lg ring-1 ring-border transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-60",
-                    color.toLowerCase() === c.toLowerCase() &&
-                      "ring-2 ring-foreground ring-offset-2 ring-offset-background",
-                  )}
-                  style={{ background: c }}
-                  aria-label={`Use ${c}`}
-                />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Kiosk theme</CardTitle>
-            <CardDescription>
-              Fine-tune the kiosk background and text. Leave as-is for the default look.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <ColorField label="Background" value={bg} onChange={setBg} disabled={disabled} />
-            <ColorField label="Text" value={fg} onChange={setFg} disabled={disabled} />
-            <ColorField label="Muted text" value={muted} onChange={setMuted} disabled={disabled} />
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Staff PIN</CardTitle>
-            <CardDescription>
-              Unlocks on-device settings at the kiosk.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="relative">
-              <Input
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                type={showPin ? "text" : "password"}
-                inputMode="numeric"
-                disabled={disabled}
-                className="pr-10 font-mono tracking-[0.3em]"
-                placeholder="••••"
-              />
+            ) : (
               <button
                 type="button"
-                onClick={() => setShowPin((s) => !s)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                aria-label={showPin ? "Hide PIN" : "Show PIN"}
+                disabled={disabled}
+                onClick={() => fileRef.current?.click()}
+                className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/30 px-4 py-8 text-center transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {showPin ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                <span className="flex size-10 items-center justify-center rounded-lg bg-background text-muted-foreground"><ImageUp className="size-5" /></span>
+                <span className="text-sm font-medium">Click to upload a logo</span>
+                <span className="text-xs text-muted-foreground">PNG or SVG, transparent background recommended</span>
               </button>
-            </div>
-          </CardContent>
-        </Card>
-
-        <div className="flex gap-2">
-          <Button onClick={save} className="flex-1" disabled={disabled || !dirty}>
-            {saving ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Save className="size-4" />
             )}
-            {saving ? "Saving…" : "Save branding"}
-          </Button>
-          <Button variant="outline" onClick={reset} disabled={disabled || !dirty}>
-            <RotateCcw className="size-4" /> Reset
-          </Button>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} disabled={disabled} />
+
+            <div className="space-y-2">
+              <Label htmlFor="logoText">Logo text (preview fallback)</Label>
+              <Input id="logoText" value={logoText} onChange={(e) => setLogoText(e.target.value)} placeholder="Your brand" disabled={disabled} />
+            </div>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <label className="relative size-12 shrink-0 cursor-pointer overflow-hidden rounded-xl ring-1 ring-border" style={{ background: color }}>
+                  <input
+                    type="color"
+                    value={color}
+                    onChange={(e) => { setColor(e.target.value); setHexInput(e.target.value); }}
+                    disabled={disabled}
+                    className="absolute inset-0 cursor-pointer opacity-0"
+                    aria-label="Pick accent color"
+                  />
+                </label>
+                <div className="flex-1 space-y-1.5">
+                  <Label htmlFor="hex">Accent color (hex)</Label>
+                  <Input id="hex" value={hexInput} onChange={(e) => commitHex(e.target.value)} disabled={disabled} className="font-mono" aria-invalid={!isValidHex(hexInput)} />
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {PRESETS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => { setColor(c); setHexInput(c); }}
+                    className={cn(
+                      "size-8 rounded-lg ring-1 ring-border transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-60",
+                      color.toLowerCase() === c.toLowerCase() && "ring-2 ring-foreground ring-offset-2 ring-offset-background",
+                    )}
+                    style={{ background: c }}
+                    aria-label={`Use ${c}`}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3 rounded-lg border bg-muted/20 p-3">
+              <p className="text-xs font-medium text-muted-foreground">Advanced theme — leave as-is for the default look</p>
+              <ColorField label="Background" value={bg} onChange={setBg} disabled={disabled} />
+              <ColorField label="Text" value={fg} onChange={setFg} disabled={disabled} />
+              <ColorField label="Muted text" value={muted} onChange={setMuted} disabled={disabled} />
+            </div>
+          </Section>
+
+          <Section icon={LayoutGrid} title="Idle layout" description="Arrange what customers see on the idle screen.">
+            {screen === "idle" ? (
+              <KioskControls editor={editor} />
+            ) : (
+              <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-center text-sm text-muted-foreground">
+                Switch the preview to{" "}
+                <button type="button" onClick={() => setScreen("idle")} className="font-medium text-foreground underline underline-offset-2">
+                  Idle / ready
+                </button>{" "}
+                to edit the layout.
+              </div>
+            )}
+          </Section>
+
+          <Section icon={ShieldCheck} title="Security" description="Unlocks on-device settings at the kiosk.">
+            <div className="space-y-2">
+              <Label htmlFor="staffPin">Staff PIN</Label>
+              <div className="relative">
+                <Input
+                  id="staffPin"
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  type={showPin ? "text" : "password"}
+                  inputMode="numeric"
+                  disabled={disabled}
+                  className="pr-10 font-mono tracking-[0.3em]"
+                  placeholder="••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPin((s) => !s)}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  aria-label={showPin ? "Hide PIN" : "Show PIN"}
+                >
+                  {showPin ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+            </div>
+          </Section>
+        </div>
+
+        {/* RIGHT — stage */}
+        <div className="lg:sticky lg:top-24 lg:self-start">
+          <Card>
+            <CardHeader className="flex-row items-center justify-between space-y-0">
+              <div className="space-y-1">
+                <CardTitle className="text-base">Live preview</CardTitle>
+                <CardDescription>720 × 720 kiosk display</CardDescription>
+              </div>
+              <Select value={screen} onValueChange={(v) => setScreen(v as KioskScreen)}>
+                <SelectTrigger className="w-[170px]" aria-label="Preview screen"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {SCREENS.map((s) => (<SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </CardHeader>
+            <CardContent>
+              <div className="mx-auto w-full max-w-[600px]">
+                {screen === "idle" ? (
+                  <KioskStage editor={editor} brand={kioskBrand} />
+                ) : (
+                  <KioskPreview brand={kioskBrand} layout={layout} screen={screen} />
+                )}
+              </div>
+              <p className="mt-4 text-center text-xs text-muted-foreground">
+                {screen === "idle"
+                  ? "Drag to arrange the idle screen. Other screens preview your theme."
+                  : "The QR code shown is illustrative. Real kiosks render a scannable receipt code."}
+              </p>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
-      {/* Live preview */}
-      <div className="lg:sticky lg:top-24 lg:self-start">
-        <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <div className="space-y-1">
-              <CardTitle className="text-base">Live preview</CardTitle>
-              <CardDescription>720 × 720 kiosk display</CardDescription>
-            </div>
-            <Select value={screen} onValueChange={(v) => setScreen(v as KioskScreen)}>
-              <SelectTrigger className="w-[170px]" aria-label="Preview screen">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SCREENS.map((s) => (
-                  <SelectItem key={s.value} value={s.value}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </CardHeader>
-          <CardContent>
-            <div className="mx-auto max-w-[420px]">
-              {screen === "idle" ? (
-                <KioskLayoutEditor
-                  brand={kioskBrand}
-                  layout={layout}
-                  onChange={setLayout}
-                  disabled={!canEdit}
-                />
-              ) : (
-                <KioskPreview brand={kioskBrand} layout={layout} screen={screen} />
-              )}
-            </div>
-            <p className="mt-4 text-center text-xs text-muted-foreground">
-              {screen === "idle"
-                ? "Drag to arrange the idle screen. Other screens preview your theme."
-                : "The QR code shown is illustrative. Real kiosks render a scannable receipt code."}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* STICKY SAVE BAR */}
+      {canEdit && (
+        <div className="sticky bottom-4 z-30 mt-2 flex items-center justify-between gap-3 rounded-xl border bg-background/85 px-4 py-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/70">
+          <span className="flex items-center gap-2 text-sm text-muted-foreground">
+            <span className={cn("size-2 rounded-full", dirty ? "bg-amber-500" : "bg-emerald-500")} />
+            {dirty ? "Unsaved changes" : "All changes saved"}
+          </span>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={reset} disabled={disabled || !dirty}>
+              <RotateCcw className="size-4" /> Reset
+            </Button>
+            <Button onClick={save} disabled={disabled || !dirty}>
+              {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+              {saving ? "Saving…" : "Save branding"}
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+/** A titled section group with an icon header. */
+function Section({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+            <Icon className="size-4" />
+          </span>
+          <div className="space-y-0.5">
+            <CardTitle className="text-base">{title}</CardTitle>
+            <CardDescription>{description}</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">{children}</CardContent>
+    </Card>
   );
 }
 
@@ -434,10 +428,7 @@ function ColorField({
   React.useEffect(() => setHex(value), [value]);
   return (
     <div className="flex items-center gap-3">
-      <label
-        className="relative size-9 shrink-0 cursor-pointer overflow-hidden rounded-lg ring-1 ring-border"
-        style={{ background: value }}
-      >
+      <label className="relative size-9 shrink-0 cursor-pointer overflow-hidden rounded-lg ring-1 ring-border" style={{ background: value }}>
         <input
           type="color"
           value={value}

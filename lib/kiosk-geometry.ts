@@ -117,18 +117,31 @@ export function snapResize(box: Box, handle: Handle, others: Box[], threshold: n
   let top = box.y;
   let right = box.x + box.w;
   let bottom = box.y + box.h;
-  const vx: number[] = [];
-  const hy: number[] = [];
   const tx = targetsX(others);
   const ty = targetsY(others);
 
-  if (handle.includes("e")) { const s = snapValue(right, tx, threshold); if (s != null) { right = s; vx.push(s); } }
-  if (handle.includes("w")) { const s = snapValue(left, tx, threshold); if (s != null) { left = s; vx.push(s); } }
-  if (handle.includes("s")) { const s = snapValue(bottom, ty, threshold); if (s != null) { bottom = s; hy.push(s); } }
-  if (handle.includes("n")) { const s = snapValue(top, ty, threshold); if (s != null) { top = s; hy.push(s); } }
+  // Snap the dragged edges...
+  const sE = handle.includes("e") ? snapValue(right, tx, threshold) : null;
+  const sW = handle.includes("w") ? snapValue(left, tx, threshold) : null;
+  const sS = handle.includes("s") ? snapValue(bottom, ty, threshold) : null;
+  const sN = handle.includes("n") ? snapValue(top, ty, threshold) : null;
+  if (sE != null) right = sE;
+  if (sW != null) left = sW;
+  if (sS != null) bottom = sS;
+  if (sN != null) top = sN;
 
+  // ...then enforce the MIN_BOX floor (which may override a snap).
   if (right - left < MIN_BOX) { if (handle.includes("w")) left = right - MIN_BOX; else right = left + MIN_BOX; }
   if (bottom - top < MIN_BOX) { if (handle.includes("n")) top = bottom - MIN_BOX; else bottom = top + MIN_BOX; }
+
+  // Emit a guide only for snaps that actually held after MIN_BOX recovery, so a
+  // guide line never lies about where an edge sits.
+  const vx: number[] = [];
+  const hy: number[] = [];
+  if (sE != null && Math.abs(right - sE) < SNAP_EPS) vx.push(sE);
+  if (sW != null && Math.abs(left - sW) < SNAP_EPS) vx.push(sW);
+  if (sS != null && Math.abs(bottom - sS) < SNAP_EPS) hy.push(sS);
+  if (sN != null && Math.abs(top - sN) < SNAP_EPS) hy.push(sN);
 
   return { box: { x: left, y: top, w: right - left, h: bottom - top }, guides: { vx, hy } };
 }

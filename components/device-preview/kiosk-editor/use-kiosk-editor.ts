@@ -2,22 +2,23 @@
 
 import * as React from "react";
 import {
-  DEFAULT_KIOSK_LAYOUT,
-  createTextElement,
+  createTextObject,
+  defaultLayout,
   MAX_CUSTOM,
-  SCALE_MIN,
-  SCALE_MAX,
-  type KioskElement,
+  type KioskObject,
   type KioskLayout,
 } from "@/lib/kiosk-layout";
-import { resizeBox, clampCenter, type Box, type Handle } from "@/lib/kiosk-geometry";
+import { resizeBox, snapMove, snapResize, clampToCanvas, type Box, type Handle, type Guides } from "@/lib/kiosk-geometry";
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
-const SNAP = 0.025; // snap-to-center threshold (fraction)
+const SNAP = 0.012; // snap threshold (fraction)
+const EMPTY_GUIDES: Guides = { vx: [], hy: [] };
+
+const toBox = (o: KioskObject): Box => ({ x: o.x, y: o.y, w: o.w, h: o.h });
 
 type DragKind =
-  | { type: "move" }
-  | { type: "resize"; handle: Handle; startBox: Box; startEl: KioskElement };
+  | { type: "move"; offset: { x: number; y: number } }
+  | { type: "resize"; handle: Handle; startBox: Box };
 
 /** Everything the kiosk canvas (KioskStage) and controls (KioskControls) share. */
 export interface KioskEditor {
@@ -25,56 +26,47 @@ export interface KioskEditor {
   onChange: (l: KioskLayout) => void;
   disabled: boolean;
   canvasRef: React.RefObject<HTMLDivElement | null>;
-  elRefs: React.RefObject<Map<string, HTMLDivElement>>;
   selectedId: string | null;
   setSelectedId: React.Dispatch<React.SetStateAction<string | null>>;
-  selected: KioskElement | null;
-  guide: { x: boolean; y: boolean };
+  selected: KioskObject | null;
   selBox: Box | null;
-  ordered: KioskElement[];
+  guides: Guides;
+  ordered: KioskObject[];
   atCustomCap: boolean;
-  patch: (id: string, p: Partial<KioskElement>) => void;
+  patch: (id: string, p: Partial<KioskObject>) => void;
   startMove: (id: string, e: React.PointerEvent) => void;
   startResize: (handle: Handle, e: React.PointerEvent) => void;
   onPointerMove: (e: React.PointerEvent) => void;
   onPointerUp: (e: React.PointerEvent) => void;
   onCanvasPointerDown: () => void;
   addText: () => void;
-  removeEl: (id: string) => void;
+  removeObject: (id: string) => void;
   bringToFront: (id: string) => void;
   resetLayout: () => void;
   endInteraction: () => void;
 }
 
-/**
- * Owns kiosk idle-layout editing state/handlers so the canvas and the controls
- * can render in separate panes off one instance. `remeasureKey` re-measures the
- * selection overlay when an external visual changes natural size (e.g. the logo).
- */
 export function useKioskEditor({
   layout,
   onChange,
   disabled = false,
-  remeasureKey,
 }: {
   layout: KioskLayout;
   onChange: (l: KioskLayout) => void;
   disabled?: boolean;
-  remeasureKey?: unknown;
 }): KioskEditor {
   const canvasRef = React.useRef<HTMLDivElement>(null);
-  const elRefs = React.useRef<Map<string, HTMLDivElement>>(new Map());
   const drag = React.useRef<DragKind | null>(null);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
-  const [guide, setGuide] = React.useState<{ x: boolean; y: boolean }>({ x: false, y: false });
-  const [selBox, setSelBox] = React.useState<Box | null>(null);
+  const [guides, setGuides] = React.useState<Guides>(EMPTY_GUIDES);
 
-  const selected = layout.elements.find((e) => e.id === selectedId) ?? null;
-  const customCount = layout.elements.filter((e) => e.kind === "text").length;
+  const selected = layout.objects.find((o) => o.id === selectedId) ?? null;
+  const selBox = selected && selected.visible ? toBox(selected) : null;
+  const customCount = layout.objects.filter((o) => o.type === "text").length;
   const atCustomCap = customCount >= MAX_CUSTOM;
 
-  function patch(id: string, p: Partial<KioskElement>) {
-    onChange({ ...layout, elements: layout.elements.map((e) => (e.id === id ? { ...e, ...p } : e)) });
+  function patch(id: string, p: Partial<KioskObject>) {
+    onChange({ ...layout, objects: layout.objects.map((o) => (o.id === id ? { ...o, ...p } : o)) });
   }
 
   function pointerFrac(e: React.PointerEvent): { x: number; y: number } {
@@ -82,16 +74,8 @@ export function useKioskEditor({
     return { x: clamp((e.clientX - r.left) / r.width, 0, 1), y: clamp((e.clientY - r.top) / r.height, 0, 1) };
   }
 
-  /** Element visual rect in canvas fractions (includes the scale transform). */
-  function elementBox(id: string): Box {
-    const canvas = canvasRef.current!.getBoundingClientRect();
-    const node = elRefs.current.get(id)!.getBoundingClientRect();
-    return {
-      cx: (node.left + node.width / 2 - canvas.left) / canvas.width,
-      cy: (node.top + node.height / 2 - canvas.top) / canvas.height,
-      w: node.width / canvas.width,
-      h: node.height / canvas.height,
-    };
+  function others(excludeId: string): Box[] {
+    return layout.objects.filter((o) => o.id !== excludeId && o.visible).map(toBox);
   }
 
   function startMove(id: string, e: React.PointerEvent) {
@@ -99,7 +83,9 @@ export function useKioskEditor({
     e.stopPropagation();
     e.preventDefault();
     setSelectedId(id);
-    drag.current = { type: "move" };
+    const obj = layout.objects.find((o) => o.id === id);
+    const p = pointerFrac(e);
+    drag.current = { type: "move", offset: obj ? { x: p.x - obj.x, y: p.y - obj.y } : { x: 0, y: 0 } };
     canvasRef.current?.setPointerCapture(e.pointerId);
   }
 
@@ -107,7 +93,7 @@ export function useKioskEditor({
     if (disabled || !selected) return;
     e.stopPropagation();
     e.preventDefault();
-    drag.current = { type: "resize", handle, startBox: elementBox(selected.id), startEl: selected };
+    drag.current = { type: "resize", handle, startBox: toBox(selected) };
     canvasRef.current?.setPointerCapture(e.pointerId);
   }
 
@@ -116,25 +102,17 @@ export function useKioskEditor({
     if (!d || !selected) return;
     const p = pointerFrac(e);
     if (d.type === "move") {
-      let x = p.x;
-      let y = p.y;
-      const snapX = Math.abs(x - 0.5) < SNAP;
-      const snapY = Math.abs(y - 0.5) < SNAP;
-      if (snapX) x = 0.5;
-      if (snapY) y = 0.5;
-      setGuide({ x: snapX, y: snapY });
-      const c = clampCenter({ cx: x, cy: y, w: 0, h: 0 });
-      patch(selected.id, { x: c.cx, y: c.cy });
+      const moved: Box = { x: p.x - d.offset.x, y: p.y - d.offset.y, w: selected.w, h: selected.h };
+      const snapped = snapMove(moved, others(selected.id), SNAP);
+      const box = clampToCanvas(snapped.box);
+      setGuides(snapped.guides);
+      patch(selected.id, { x: box.x, y: box.y });
     } else {
-      const isCorner = d.handle.length === 2;
-      const nb = clampCenter(resizeBox(d.startBox, d.handle, p, isCorner));
-      const sx = d.startBox.w > 0
-        ? clamp(d.startEl.sx * (nb.w / d.startBox.w), SCALE_MIN, SCALE_MAX)
-        : d.startEl.sx;
-      const sy = d.startBox.h > 0
-        ? clamp(d.startEl.sy * (nb.h / d.startBox.h), SCALE_MIN, SCALE_MAX)
-        : d.startEl.sy;
-      patch(selected.id, { x: nb.cx, y: nb.cy, sx, sy });
+      const raw = resizeBox(d.startBox, d.handle, p);
+      const snapped = snapResize(raw, d.handle, others(selected.id), SNAP);
+      const box = clampToCanvas(snapped.box);
+      setGuides(snapped.guides);
+      patch(selected.id, { x: box.x, y: box.y, w: box.w, h: box.h });
     }
   }
 
@@ -143,7 +121,7 @@ export function useKioskEditor({
       canvasRef.current.releasePointerCapture(e.pointerId);
     }
     drag.current = null;
-    setGuide({ x: false, y: false });
+    setGuides(EMPTY_GUIDES);
   }
 
   function onCanvasPointerDown() {
@@ -152,59 +130,46 @@ export function useKioskEditor({
 
   function addText() {
     if (disabled || atCustomCap) return;
-    const maxZ = layout.elements.reduce((m, e) => Math.max(m, e.z), 0);
-    const el = createTextElement("New text", maxZ + 1);
-    onChange({ ...layout, elements: [...layout.elements, el] });
-    setSelectedId(el.id);
+    const maxZ = layout.objects.reduce((m, o) => Math.max(m, o.z), 0);
+    const o = createTextObject("New text", maxZ + 1);
+    onChange({ ...layout, objects: [...layout.objects, o] });
+    setSelectedId(o.id);
   }
 
-  function removeEl(id: string) {
-    onChange({ ...layout, elements: layout.elements.filter((e) => e.id !== id) });
+  function removeObject(id: string) {
+    onChange({ ...layout, objects: layout.objects.filter((o) => o.id !== id) });
     if (selectedId === id) setSelectedId(null);
   }
 
   function bringToFront(id: string) {
-    const maxZ = layout.elements.reduce((m, e) => Math.max(m, e.z), 0);
+    const maxZ = layout.objects.reduce((m, o) => Math.max(m, o.z), 0);
     patch(id, { z: maxZ + 1 });
   }
 
   function resetLayout() {
-    onChange(DEFAULT_KIOSK_LAYOUT);
+    onChange(defaultLayout());
     setSelectedId(null);
   }
 
-  /** Clear all transient interaction state (drag, selection, guides). Called when
-   *  the canvas unmounts so stale state can't bleed across screen switches. */
+  /** Clear transient interaction state when the canvas unmounts. */
   function endInteraction() {
     drag.current = null;
-    setGuide({ x: false, y: false });
+    setGuides(EMPTY_GUIDES);
     setSelectedId(null);
-    setSelBox(null);
   }
 
-  // Keep the handle overlay synced to the selected element's measured visual box.
-  React.useLayoutEffect(() => {
-    if (!selectedId || !selected?.visible || !elRefs.current.get(selectedId) || !canvasRef.current) {
-      setSelBox(null);
-      return;
-    }
-    setSelBox(elementBox(selectedId));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, selected?.visible, selected?.x, selected?.y, selected?.sx, selected?.sy, selected?.text, remeasureKey]);
-
-  const ordered = [...layout.elements].sort((a, b) => a.z - b.z);
+  const ordered = [...layout.objects].sort((a, b) => a.z - b.z);
 
   return {
     layout,
     onChange,
     disabled,
     canvasRef,
-    elRefs,
     selectedId,
     setSelectedId,
     selected,
-    guide,
     selBox,
+    guides,
     ordered,
     atCustomCap,
     patch,
@@ -214,7 +179,7 @@ export function useKioskEditor({
     onPointerUp,
     onCanvasPointerDown,
     addText,
-    removeEl,
+    removeObject,
     bringToFront,
     resetLayout,
     endInteraction,

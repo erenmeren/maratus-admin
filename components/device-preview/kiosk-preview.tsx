@@ -6,7 +6,7 @@ import { resolveBrandTokens, withAlpha } from "@/lib/color";
 import {
   DEFAULT_KIOSK_LAYOUT,
   type KioskLayout,
-  type KioskElement,
+  type KioskObject,
 } from "@/lib/kiosk-layout";
 import { cn } from "@/lib/utils";
 
@@ -187,25 +187,26 @@ function Logo({
   );
 }
 
-/* ── 1 · IDLE / READY (modular: free-positioned, sx/sy-sized elements) ── */
+/* ── 1 · IDLE / READY (object boxes) ─────────────────────────────────── */
 function IdleScreen({ brand, layout }: { brand: KioskBrand; layout: KioskLayout }) {
-  const ordered = [...layout.elements].sort((a, b) => a.z - b.z);
+  const ordered = [...layout.objects].sort((a, b) => a.z - b.z);
   return (
     <div className="absolute inset-0">
       {ordered
-        .filter((el) => el.visible)
-        .map((el) => (
+        .filter((o) => o.visible)
+        .map((o) => (
           <div
-            key={el.id}
+            key={o.id}
             style={{
               position: "absolute",
-              left: `${el.x * 100}%`,
-              top: `${el.y * 100}%`,
-              transform: "translate(-50%, -50%)",
-              zIndex: el.z,
+              left: `${o.x * 100}%`,
+              top: `${o.y * 100}%`,
+              width: `${o.w * 100}%`,
+              height: `${o.h * 100}%`,
+              zIndex: o.z,
             }}
           >
-            <KioskElementView element={el} brand={brand} layout={layout} />
+            <ObjectVisual object={o} brand={brand} layout={layout} />
           </div>
         ))}
     </div>
@@ -213,111 +214,95 @@ function IdleScreen({ brand, layout }: { brand: KioskBrand; layout: KioskLayout 
 }
 
 /**
- * Renders a single idle-screen element. The visual is drawn at its NATURAL size
- * and scaled by the element's sx/sy multipliers (sx=sy=1 → natural; sx≠sy →
- * free-stretch). Shared by the read-only preview and the drag studio so both
- * look identical.
+ * Renders one idle object filling its box. Text wraps inside the box at its own
+ * font size; logo/clock/wifi size deterministically from the box (no transform
+ * scale, no DOM measurement). Shared by the read-only preview and the editor.
  */
-export function KioskElementView({
-  element,
+export function ObjectVisual({
+  object,
   brand,
   layout,
 }: {
-  element: KioskElement;
+  object: KioskObject;
   brand: KioskBrand;
   layout: KioskLayout;
 }) {
-  return (
-    <div style={{ transform: `scale(${element.sx}, ${element.sy})`, transformOrigin: "center" }}>
-      <ElementVisual element={element} brand={brand} layout={layout} />
-    </div>
-  );
-}
-
-/** The natural-size visual for an element, before sx/sy scaling. */
-function ElementVisual({
-  element,
-  brand,
-  layout,
-}: {
-  element: KioskElement;
-  brand: KioskBrand;
-  layout: KioskLayout;
-}) {
-  if (element.kind === "text") {
-    return (
-      <div
-        style={{
-          fontSize: cq(22),
-          fontWeight: 600,
-          color: "var(--k-fg)",
-          letterSpacing: "0.2px",
-          textAlign: "center",
-          whiteSpace: "pre",
-        }}
-      >
-        {element.text}
-      </div>
-    );
-  }
-  switch (element.builtin) {
+  switch (object.type) {
+    case "text":
+      return <TextObject object={object} />;
     case "logo":
-      return <Logo brand={brand} size={108} stacked />;
+      return <LogoObject object={object} brand={brand} />;
     case "clock":
-      return <KioskClock timezone={layout.clockTimezone} hour24={layout.clock24h} />;
+      return <ClockObject object={object} layout={layout} />;
     case "wifi":
-      return <WifiSignal level={layout.wifiLevel} />;
-    case "lane":
-      return (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: cq(9),
-            fontSize: cq(19),
-            fontWeight: 600,
-            color: "var(--k-muted)",
-            whiteSpace: "nowrap",
-          }}
-        >
-          <span>{brand.storeName}</span>
-          <span style={{ opacity: 0.4 }}>·</span>
-          <span>{brand.lane ?? "Lane 1"}</span>
-        </div>
-      );
-    case "tagline":
-      return (
-        <div
-          style={{
-            fontSize: cq(18),
-            fontWeight: 500,
-            color: "var(--k-muted)",
-            letterSpacing: "0.3px",
-            textAlign: "center",
-            whiteSpace: "nowrap",
-          }}
-        >
-          Tap your card or pay at the reader to begin
-        </div>
-      );
+      return <WifiObject object={object} level={layout.wifiLevel} />;
     default:
       return null;
   }
 }
 
-/** Ascending Wi-Fi signal bars (0–4 filled), natural size. */
-function WifiSignal({ level }: { level: number }) {
-  const bars = [0.45, 0.65, 0.85, 1];
-  const unit = 28; // overall height in design px
+function TextObject({ object }: { object: KioskObject }) {
+  const align = object.align ?? "center";
+  const justify = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
   return (
-    <div style={{ display: "flex", alignItems: "flex-end", gap: cq(4), color: "var(--k-muted)" }}>
-      {bars.map((h, i) => (
+    <div
+      style={{
+        width: "100%",
+        height: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: justify,
+        textAlign: align,
+        fontSize: cq(object.fontSize ?? 22),
+        fontWeight: 600,
+        color: "var(--k-fg)",
+        lineHeight: 1.15,
+        overflow: "hidden",
+        overflowWrap: "anywhere",
+        whiteSpace: "pre-wrap",
+      }}
+    >
+      {object.text}
+    </div>
+  );
+}
+
+function LogoObject({ object, brand }: { object: KioskObject; brand: KioskBrand }) {
+  if (brand.logoUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={brand.logoUrl} alt={brand.logoText} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+    );
+  }
+  const size = Math.min(object.w, object.h) * 720; // contain within the box
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Logo brand={brand} size={size} stacked />
+    </div>
+  );
+}
+
+function ClockObject({ object, layout }: { object: KioskObject; layout: KioskLayout }) {
+  const timeFont = object.h * 720 * 0.5; // time font ~ half the box height
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+      <KioskClock timezone={layout.clockTimezone} hour24={layout.clock24h} size={timeFont} />
+    </div>
+  );
+}
+
+function WifiObject({ object, level }: { object: KioskObject; level: number }) {
+  const base = Math.min(object.w, object.h) * 720; // fit size in design px
+  const bars = [0.45, 0.65, 0.85, 1];
+  return (
+    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "flex-end", justifyContent: "center", gap: cq(base * 0.14), color: "var(--k-muted)" }}>
+      {bars.map((bh, i) => (
         <span
           key={i}
           style={{
-            width: cq(7),
-            height: cq(unit * h),
-            borderRadius: cq(3),
+            width: cq(base * 0.22),
+            height: cq(base * bh),
+            borderRadius: cq(base * 0.1),
             background: "var(--k-fg)",
             opacity: i < level ? 0.85 : 0.2,
           }}

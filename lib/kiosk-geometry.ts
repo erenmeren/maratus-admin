@@ -1,70 +1,141 @@
-// Pure resize geometry for the kiosk editor. Operates on the element's VISUAL
-// rectangle in canvas fractions (0..1); no React/DOM so it is unit-testable.
-// The component converts the result back into sx/sy multipliers and x/y center.
+// Pure resize + snap geometry for the kiosk editor. Operates on a top-left box in
+// canvas fractions (0..1); no React/DOM so it is unit-testable.
 
 export interface Box {
-  cx: number; // center x, fraction 0..1
-  cy: number; // center y, fraction 0..1
-  w: number;  // width, fraction 0..1
-  h: number;  // height, fraction 0..1
+  x: number; // left, fraction 0..1
+  y: number; // top, fraction 0..1
+  w: number; // width, fraction 0..1
+  h: number; // height, fraction 0..1
 }
 
 /** The 8 resize handles. n/s/e/w = edges; nw/ne/sw/se = corners. */
 export const HANDLES = ["nw", "n", "ne", "e", "se", "s", "sw", "w"] as const;
 export type Handle = (typeof HANDLES)[number];
 
-/** Minimum visual size as a fraction of the canvas — keeps elements grabbable. */
+/** Active alignment guide lines to draw: vertical at x's, horizontal at y's. */
+export interface Guides {
+  vx: number[];
+  hy: number[];
+}
+
+/** Minimum box size as a fraction of the canvas — keeps objects grabbable. */
 export const MIN_BOX = 0.04;
+
+/** Distance tie-break epsilon for snapping (ignore sub-nanometer float noise). */
+const SNAP_EPS = 1e-9;
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 
 /**
  * Resize `box` by dragging `handle` to `pointer` (canvas fractions). The edge or
- * corner opposite the handle stays fixed. Corners with `keepAspect` lock the
- * original w:h ratio (driven by the horizontal delta). Result width/height are
- * floored at MIN_BOX and never invert past the fixed anchor.
+ * corner opposite the handle stays fixed; width/height are floored at MIN_BOX and
+ * never invert.
  */
-export function resizeBox(box: Box, handle: Handle, pointer: { x: number; y: number }, keepAspect: boolean): Box {
-  let left = box.cx - box.w / 2;
-  let right = box.cx + box.w / 2;
-  let top = box.cy - box.h / 2;
-  let bottom = box.cy + box.h / 2;
+export function resizeBox(box: Box, handle: Handle, pointer: { x: number; y: number }): Box {
+  let left = box.x;
+  let top = box.y;
+  let right = box.x + box.w;
+  let bottom = box.y + box.h;
 
-  const movesE = handle === "e" || handle === "ne" || handle === "se";
-  const movesW = handle === "w" || handle === "nw" || handle === "sw";
-  const movesS = handle === "s" || handle === "se" || handle === "sw";
-  const movesN = handle === "n" || handle === "ne" || handle === "nw";
+  const movesE = handle.includes("e");
+  const movesW = handle.includes("w");
+  const movesS = handle.includes("s");
+  const movesN = handle.includes("n");
 
   if (movesE) right = pointer.x;
   if (movesW) left = pointer.x;
   if (movesS) bottom = pointer.y;
   if (movesN) top = pointer.y;
 
+  // Enforce the MIN_BOX floor by setting the dimension exactly and re-anchoring
+  // the moving edge — avoids floating-point underflow from re-subtraction
+  // (e.g. (0.4 + 0.04) - 0.4 = 0.03999…).
   let w = right - left;
   let h = bottom - top;
+  if (w < MIN_BOX) { w = MIN_BOX; if (movesW) left = right - MIN_BOX; else right = left + MIN_BOX; }
+  if (h < MIN_BOX) { h = MIN_BOX; if (movesN) top = bottom - MIN_BOX; else bottom = top + MIN_BOX; }
 
-  // Floor each dimension to MIN_BOX and re-anchor the moving edge so the
-  // fixed edge never shifts. This avoids floating-point drift from computing
-  // MIN_BOX via addition/subtraction (e.g. 0.4 + 0.04 - 0.4 ≠ 0.04 exactly).
-  if (movesE && w < MIN_BOX) { w = MIN_BOX; right = left + MIN_BOX; }
-  if (movesW && w < MIN_BOX) { w = MIN_BOX; left = right - MIN_BOX; }
-  if (movesS && h < MIN_BOX) { h = MIN_BOX; bottom = top + MIN_BOX; }
-  if (movesN && h < MIN_BOX) { h = MIN_BOX; top = bottom - MIN_BOX; }
-
-  // Corner drag: lock aspect ratio, driven by the new width.
-  const isCorner = handle.length === 2; // "nw"/"ne"/"sw"/"se" vs single-char edges
-  if (isCorner && keepAspect && box.h > 0) {
-    const aspect = box.w / box.h;
-    h = Math.max(MIN_BOX, w / aspect);
-    // Re-anchor height to the fixed vertical edge.
-    if (movesS) bottom = top + h;
-    if (movesN) top = bottom - h;
-  }
-
-  return { cx: (left + right) / 2, cy: (top + bottom) / 2, w, h };
+  return { x: left, y: top, w, h };
 }
 
-/** Keep an element's center on-canvas (size may overhang the edges). */
-export function clampCenter(box: Box): Box {
-  return { ...box, cx: clamp(box.cx, 0, 1), cy: clamp(box.cy, 0, 1) };
+/** Canvas + other-object snap targets along each axis. */
+function targetsX(others: Box[]): number[] {
+  const t = [0, 0.5, 1];
+  for (const o of others) t.push(o.x, o.x + o.w / 2, o.x + o.w);
+  return t;
+}
+function targetsY(others: Box[]): number[] {
+  const t = [0, 0.5, 1];
+  for (const o of others) t.push(o.y, o.y + o.h / 2, o.y + o.h);
+  return t;
+}
+
+/** Best snap of any probe to any target within threshold → {delta, line} or null. */
+function bestSnap(probes: number[], targets: number[], threshold: number): { delta: number; line: number } | null {
+  let best: { delta: number; line: number; dist: number } | null = null;
+  for (const p of probes) {
+    for (const t of targets) {
+      const dist = Math.abs(t - p);
+      // SNAP_EPS tie-break: keep the earlier probe (left/top before center before
+      // right/bottom) on near-equal distances, so floating-point noise can't flip it.
+      if (dist <= threshold && (!best || dist < best.dist - SNAP_EPS)) best = { delta: t - p, line: t, dist };
+    }
+  }
+  return best ? { delta: best.delta, line: best.line } : null;
+}
+
+/** Snap nearest target to a single value (an edge) within threshold, or null. */
+function snapValue(value: number, targets: number[], threshold: number): number | null {
+  let best: { v: number; dist: number } | null = null;
+  for (const t of targets) {
+    const dist = Math.abs(t - value);
+    if (dist <= threshold && (!best || dist < best.dist - SNAP_EPS)) best = { v: t, dist };
+  }
+  return best ? best.v : null;
+}
+
+/**
+ * Snap a moving box (left/center/right & top/middle/bottom probes) to the canvas
+ * lines (0/0.5/1) and other objects' edges/centers. Returns the snapped box and
+ * the guide lines that became active.
+ */
+export function snapMove(box: Box, others: Box[], threshold: number): { box: Box; guides: Guides } {
+  const sx = bestSnap([box.x, box.x + box.w / 2, box.x + box.w], targetsX(others), threshold);
+  const sy = bestSnap([box.y, box.y + box.h / 2, box.y + box.h], targetsY(others), threshold);
+  return {
+    box: { ...box, x: box.x + (sx?.delta ?? 0), y: box.y + (sy?.delta ?? 0) },
+    guides: { vx: sx ? [sx.line] : [], hy: sy ? [sy.line] : [] },
+  };
+}
+
+/**
+ * Snap the dragged edges of a (already-resized) box to the canvas lines and other
+ * objects' edges, keeping the opposite edges fixed and the MIN_BOX floor.
+ */
+export function snapResize(box: Box, handle: Handle, others: Box[], threshold: number): { box: Box; guides: Guides } {
+  let left = box.x;
+  let top = box.y;
+  let right = box.x + box.w;
+  let bottom = box.y + box.h;
+  const vx: number[] = [];
+  const hy: number[] = [];
+  const tx = targetsX(others);
+  const ty = targetsY(others);
+
+  if (handle.includes("e")) { const s = snapValue(right, tx, threshold); if (s != null) { right = s; vx.push(s); } }
+  if (handle.includes("w")) { const s = snapValue(left, tx, threshold); if (s != null) { left = s; vx.push(s); } }
+  if (handle.includes("s")) { const s = snapValue(bottom, ty, threshold); if (s != null) { bottom = s; hy.push(s); } }
+  if (handle.includes("n")) { const s = snapValue(top, ty, threshold); if (s != null) { top = s; hy.push(s); } }
+
+  if (right - left < MIN_BOX) { if (handle.includes("w")) left = right - MIN_BOX; else right = left + MIN_BOX; }
+  if (bottom - top < MIN_BOX) { if (handle.includes("n")) top = bottom - MIN_BOX; else bottom = top + MIN_BOX; }
+
+  return { box: { x: left, y: top, w: right - left, h: bottom - top }, guides: { vx, hy } };
+}
+
+/** Clamp a box fully onto the canvas (size preserved where possible). */
+export function clampToCanvas(box: Box): Box {
+  const w = clamp(box.w, MIN_BOX, 1);
+  const h = clamp(box.h, MIN_BOX, 1);
+  return { x: clamp(box.x, 0, 1 - w), y: clamp(box.y, 0, 1 - h), w, h };
 }

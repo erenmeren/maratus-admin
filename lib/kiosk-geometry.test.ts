@@ -1,75 +1,67 @@
 import { describe, it, expect } from "vitest";
-import { resizeBox, clampCenter, MIN_BOX, type Box } from "./kiosk-geometry";
+import { resizeBox, snapMove, snapResize, MIN_BOX, type Box } from "./kiosk-geometry";
 
-const box: Box = { cx: 0.5, cy: 0.5, w: 0.2, h: 0.1 }; // edges: L0.4 R0.6 T0.45 B0.55
+const box: Box = { x: 0.4, y: 0.45, w: 0.2, h: 0.1 }; // edges L0.4 R0.6 T0.45 B0.55
 
-describe("resizeBox", () => {
-  it("right edge moves only width, left edge stays fixed", () => {
-    const r = resizeBox(box, "e", { x: 0.7, y: 0.99 }, false);
-    expect(r.w).toBeCloseTo(0.3, 6);   // L0.4 → R0.7
-    expect(r.h).toBeCloseTo(0.1, 6);   // unchanged
-    expect(r.cx).toBeCloseTo(0.55, 6); // midpoint of 0.4..0.7
-    expect(r.cy).toBeCloseTo(0.5, 6);
+describe("resizeBox (top-left box)", () => {
+  it("east edge changes width, left fixed", () => {
+    const r = resizeBox(box, "e", { x: 0.8, y: 0.99 });
+    expect(r.x).toBeCloseTo(0.4, 6);
+    expect(r.w).toBeCloseTo(0.4, 6);
+    expect(r.h).toBeCloseTo(0.1, 6);
   });
-
-  it("bottom edge moves only height, top stays fixed", () => {
-    const r = resizeBox(box, "s", { x: 0.99, y: 0.75 }, false);
-    expect(r.h).toBeCloseTo(0.3, 6);   // T0.45 → B0.75
-    expect(r.w).toBeCloseTo(0.2, 6);
-    expect(r.cy).toBeCloseTo(0.6, 6);
+  it("west edge changes x and width, right fixed", () => {
+    const r = resizeBox(box, "w", { x: 0.5, y: 0.5 });
+    expect(r.x).toBeCloseTo(0.5, 6);
+    expect(r.w).toBeCloseTo(0.1, 6); // R0.6 - 0.5
   });
-
-  it("corner keeps aspect ratio (driven by width), opposite corner fixed", () => {
-    // se corner: anchor = top-left (0.4, 0.45). aspect w/h = 2.
-    const r = resizeBox(box, "se", { x: 0.8, y: 0.99 }, true);
-    expect(r.w).toBeCloseTo(0.4, 6);   // 0.4 → 0.8
-    expect(r.h).toBeCloseTo(0.2, 6);   // aspect-locked: 0.4 / 2
-    expect(r.cx).toBeCloseTo(0.6, 6);  // midpoint 0.4..0.8
-    expect(r.cy).toBeCloseTo(0.55, 6); // midpoint 0.45..0.65
+  it("south-east corner changes width and height independently", () => {
+    const r = resizeBox(box, "se", { x: 0.9, y: 0.85 });
+    expect(r.w).toBeCloseTo(0.5, 6);
+    expect(r.h).toBeCloseTo(0.4, 6);
   });
-
-  it("clamps to a minimum size and never inverts", () => {
-    const r = resizeBox(box, "e", { x: 0.3, y: 0.5 }, false); // dragged past left edge
+  it("floors at MIN_BOX and never inverts", () => {
+    const r = resizeBox(box, "e", { x: 0.1, y: 0.5 }); // dragged past left
     expect(r.w).toBeGreaterThanOrEqual(MIN_BOX);
-    expect(r.w).toBeLessThanOrEqual(0.2);
-  });
-
-  it("west edge moves only width, right edge stays fixed", () => {
-    const r = resizeBox(box, "w", { x: 0.45, y: 0.5 }, false);
-    expect(r.w).toBeCloseTo(0.15, 6);  // L0.45 → R0.6
-    expect(r.h).toBeCloseTo(0.1, 6);   // unchanged
-    expect(r.cx).toBeCloseTo(0.525, 6); // midpoint of 0.45..0.6
-    expect(r.cy).toBeCloseTo(0.5, 6);
-  });
-
-  it("north edge moves only height, bottom stays fixed", () => {
-    const r = resizeBox(box, "n", { x: 0.5, y: 0.4 }, false);
-    expect(r.h).toBeCloseTo(0.15, 6);  // T0.4 → B0.55
-    expect(r.w).toBeCloseTo(0.2, 6);   // unchanged
-    expect(r.cy).toBeCloseTo(0.475, 6); // midpoint of 0.4..0.55
-    expect(r.cx).toBeCloseTo(0.5, 6);
-  });
-
-  it("corner without keepAspect moves both edges independently", () => {
-    const r = resizeBox(box, "se", { x: 0.8, y: 0.9 }, false);
-    expect(r.w).toBeCloseTo(0.4, 6);   // L0.4 → R0.8
-    expect(r.h).toBeCloseTo(0.45, 6);  // T0.45 → B0.9 (no aspect lock)
-    expect(r.cx).toBeCloseTo(0.6, 6);
-    expect(r.cy).toBeCloseTo(0.675, 6);
-  });
-
-  it("nw corner with keepAspect re-anchors the top edge (not bottom)", () => {
-    // nw drag: anchor = bottom-right (0.6, 0.55). aspect w/h = 2.
-    const r = resizeBox(box, "nw", { x: 0.2, y: 0.2 }, true);
-    expect(r.w).toBeCloseTo(0.4, 6);   // L0.2 → R0.6
-    expect(r.h).toBeCloseTo(0.2, 6);   // aspect-locked: 0.4 / 2
-    expect(r.cx).toBeCloseTo(0.4, 6);  // midpoint 0.2..0.6
-    expect(r.cy).toBeCloseTo(0.45, 6); // bottom 0.55 fixed, top re-anchored to 0.35
+    expect(r.x).toBeCloseTo(0.4, 6);
   });
 });
 
-describe("clampCenter", () => {
-  it("keeps the center within [0,1]", () => {
-    expect(clampCenter({ cx: -0.2, cy: 1.5, w: 0.1, h: 0.1 })).toMatchObject({ cx: 0, cy: 1 });
+describe("snapMove", () => {
+  it("snaps the box center to the canvas center", () => {
+    const moving: Box = { x: 0.39, y: 0.45, w: 0.2, h: 0.1 }; // centerX 0.49, near 0.5
+    const { box: r, guides } = snapMove(moving, [], 0.02);
+    expect(r.x + r.w / 2).toBeCloseTo(0.5, 6);
+    expect(guides.vx).toContain(0.5);
+  });
+  it("snaps the left edge to another object's left edge", () => {
+    const other: Box = { x: 0.2, y: 0.0, w: 0.1, h: 0.1 };
+    const moving: Box = { x: 0.205, y: 0.5, w: 0.1, h: 0.1 };
+    const { box: r, guides } = snapMove(moving, [other], 0.02);
+    expect(r.x).toBeCloseTo(0.2, 6);
+    expect(guides.vx).toContain(0.2);
+  });
+  it("does not snap outside the threshold", () => {
+    const moving: Box = { x: 0.1, y: 0.1, w: 0.2, h: 0.1 };
+    const { box: r, guides } = snapMove(moving, [], 0.005);
+    expect(r.x).toBeCloseTo(0.1, 6);
+    expect(guides.vx).toHaveLength(0);
+    expect(guides.hy).toHaveLength(0);
+  });
+});
+
+describe("snapResize", () => {
+  it("snaps the dragged east edge to the canvas right and reports a guide", () => {
+    const b: Box = { x: 0.2, y: 0.2, w: 0.78, h: 0.2 }; // right edge 0.98, near 1
+    const { box: r, guides } = snapResize(b, "e", [], 0.03);
+    expect(r.x + r.w).toBeCloseTo(1, 6);
+    expect(guides.vx).toContain(1);
+  });
+  it("leaves the non-dragged edges alone", () => {
+    const b: Box = { x: 0.2, y: 0.2, w: 0.6, h: 0.6 };
+    const { box: r } = snapResize(b, "e", [], 0.03);
+    expect(r.x).toBeCloseTo(0.2, 6);
+    expect(r.y).toBeCloseTo(0.2, 6);
+    expect(r.h).toBeCloseTo(0.6, 6);
   });
 });

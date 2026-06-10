@@ -78,22 +78,23 @@ function SelectionOverlay({
   );
 }
 
+const HANDLE_POS: Record<Handle, string> = {
+  nw: "left-0 top-0", n: "left-1/2 top-0", ne: "right-0 top-0",
+  e: "right-0 top-1/2", se: "right-0 bottom-0", s: "left-1/2 bottom-0",
+  sw: "left-0 bottom-0", w: "left-0 top-1/2",
+};
+const HANDLE_CURSOR: Record<Handle, string> = {
+  nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize",
+  n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize",
+};
+
 /** A single resize handle dot, positioned on the overlay edge by compass name. */
 function ResizeHandleDot({ handle, onDown }: { handle: Handle; onDown: (e: React.PointerEvent) => void }) {
-  const pos: Record<Handle, string> = {
-    nw: "left-0 top-0", n: "left-1/2 top-0", ne: "right-0 top-0",
-    e: "right-0 top-1/2", se: "right-0 bottom-0", s: "left-1/2 bottom-0",
-    sw: "left-0 bottom-0", w: "left-0 top-1/2",
-  };
-  const cursor: Record<Handle, string> = {
-    nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize",
-    n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize",
-  };
   return (
     <div
       onPointerDown={onDown}
-      className={cn("pointer-events-auto absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow", pos[handle])}
-      style={{ cursor: cursor[handle], background: "var(--k-accent)" }}
+      className={cn("pointer-events-auto absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow", HANDLE_POS[handle])}
+      style={{ cursor: HANDLE_CURSOR[handle], background: "var(--k-accent)" }}
       aria-label={`Resize ${handle}`}
     />
   );

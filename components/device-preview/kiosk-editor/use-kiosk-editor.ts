@@ -71,7 +71,9 @@ export function useKioskEditor({
 
   function pointerFrac(e: React.PointerEvent): { x: number; y: number } {
     const r = canvasRef.current!.getBoundingClientRect();
-    return { x: clamp((e.clientX - r.left) / r.width, 0, 1), y: clamp((e.clientY - r.top) / r.height, 0, 1) };
+    const w = r.width || 1; // guard against a zero-sized canvas producing NaN
+    const h = r.height || 1;
+    return { x: clamp((e.clientX - r.left) / w, 0, 1), y: clamp((e.clientY - r.top) / h, 0, 1) };
   }
 
   function others(excludeId: string): Box[] {

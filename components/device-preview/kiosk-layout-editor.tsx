@@ -436,7 +436,9 @@ function Inspector({
   );
 }
 
-/** Small labelled numeric input (px). */
+/** Small labelled numeric input (px). Buffers keystrokes locally and commits on
+ *  blur/Enter so multi-digit typing isn't fought by parent re-renders; while not
+ *  focused it tracks the live `value` (e.g. during a drag). */
 function NumberField({
   label,
   value,
@@ -448,17 +450,36 @@ function NumberField({
   disabled?: boolean;
   onChange: (v: number) => void;
 }) {
+  const [draft, setDraft] = React.useState<string>(value?.toString() ?? "");
+  const [focused, setFocused] = React.useState(false);
+
+  // Track external updates only while the user isn't actively editing.
+  React.useEffect(() => {
+    if (!focused) setDraft(value?.toString() ?? "");
+  }, [value, focused]);
+
+  const commit = () => {
+    const n = Number(draft);
+    if (draft.trim() !== "" && Number.isFinite(n)) onChange(n);
+    else setDraft(value?.toString() ?? ""); // revert empty/invalid
+  };
+
   return (
     <div className="space-y-1">
       <Label className="text-[10px] text-muted-foreground">{label}</Label>
       <Input
         type="number"
         inputMode="numeric"
-        value={value ?? ""}
+        value={draft}
         disabled={disabled}
-        onChange={(e) => {
-          const n = Number(e.target.value);
-          if (Number.isFinite(n)) onChange(n);
+        onFocus={() => setFocused(true)}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={() => { setFocused(false); commit(); }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            commit();
+            (e.currentTarget as HTMLInputElement).blur();
+          }
         }}
         className="h-8 px-2 font-mono text-xs tabular-nums"
       />

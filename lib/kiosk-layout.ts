@@ -1,177 +1,187 @@
-// Kiosk idle-screen layout: which elements show, where (fractional 0..1 center
-// anchors so positions are resolution-independent on the scaling 720² canvas),
-// and how big (sx/sy multipliers of each element's NATURAL size; 1 = natural,
-// sx≠sy = free-stretch). Built-in elements are a fixed set; users may also add
-// custom text elements (open id set). Persisted per tenant as jsonb; always
-// loaded through normalizeKioskLayout so malformed/old data can never break the
-// render (it also migrates the legacy single `scale` field to sx=sy=scale).
+// Kiosk idle-screen layout (v2): a list of objects, each a real box (top-left
+// x/y + w/h as fractions of the 720² canvas, resolution-independent). Object
+// types: text (editable content + font size + align), and the fixed widgets
+// logo/clock/wifi (one each, hideable, not deletable). Persisted per tenant as
+// jsonb; always loaded through normalizeKioskLayout so malformed/old (v1) data
+// can never break the render — v1 layouts are reset to the default.
 import { isValidTimezone } from "./timezones";
+import { MIN_BOX } from "./kiosk-geometry";
 
-export const BUILTIN_IDS = ["logo", "clock", "wifi", "lane", "tagline"] as const;
-export type BuiltinId = (typeof BUILTIN_IDS)[number];
+export const OBJECT_TYPES = ["text", "logo", "clock", "wifi"] as const;
+export type KioskObjectType = (typeof OBJECT_TYPES)[number];
 
-export const KIOSK_ELEMENT_LABEL: Record<BuiltinId, string> = {
+export const FIXED_TYPES = ["logo", "clock", "wifi"] as const;
+export type FixedType = (typeof FIXED_TYPES)[number];
+
+export const TYPE_LABEL: Record<KioskObjectType, string> = {
+  text: "Text",
   logo: "Logo",
   clock: "Clock",
   wifi: "Wi-Fi signal",
-  lane: "Lane label",
-  tagline: "Tagline",
 };
 
-export interface KioskElement {
-  id: string;             // builtin id, or "text-<rand>" for custom
-  kind: "builtin" | "text";
-  builtin?: BuiltinId;    // present when kind === "builtin"
-  text?: string;          // present when kind === "text"
-  visible: boolean;
-  x: number;              // center anchor, fraction 0..1
+export type TextAlign = "left" | "center" | "right";
+
+export interface KioskObject {
+  id: string;
+  type: KioskObjectType;
+  x: number; // top-left, fraction 0..1
   y: number;
-  sx: number;             // width multiplier of natural size (1 = natural)
-  sy: number;             // height multiplier of natural size
-  z: number;              // stacking order
+  w: number; // size, fraction 0..1
+  h: number;
+  visible: boolean;
+  z: number;
+  text?: string;
+  fontSize?: number; // px on the 720 reference
+  align?: TextAlign;
 }
 
 export interface KioskLayout {
-  version: 1;
-  clockTimezone: string; // IANA
+  version: 2;
+  clockTimezone: string;
   clock24h: boolean;
   wifiLevel: number; // 0..4
-  elements: KioskElement[];
+  objects: KioskObject[];
 }
 
-export const SCALE_MIN = 0.2;
-export const SCALE_MAX = 6;
+export const FONT_MIN = 8;
+export const FONT_MAX = 160;
 export const MAX_CUSTOM = 20;
 export const MAX_TEXT_LEN = 80;
 
-const DEFAULT_BUILTIN: Record<BuiltinId, { visible: boolean; x: number; y: number }> = {
-  lane: { visible: true, x: 0.27, y: 0.085 },
-  wifi: { visible: true, x: 0.9, y: 0.085 },
-  logo: { visible: true, x: 0.5, y: 0.4 },
-  clock: { visible: true, x: 0.5, y: 0.62 },
-  tagline: { visible: true, x: 0.5, y: 0.93 },
-};
-
-export const DEFAULT_KIOSK_LAYOUT: KioskLayout = {
-  version: 1,
-  clockTimezone: "UTC",
-  clock24h: false,
-  wifiLevel: 3,
-  elements: BUILTIN_IDS.map((id, i) => ({
-    id,
-    kind: "builtin" as const,
-    builtin: id,
-    visible: DEFAULT_BUILTIN[id].visible,
-    x: DEFAULT_BUILTIN[id].x,
-    y: DEFAULT_BUILTIN[id].y,
-    sx: 1,
-    sy: 1,
-    z: i,
-  })),
-};
-
+const ALIGNS: TextAlign[] = ["left", "center", "right"];
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
-
 function num(v: unknown, fallback: number): number {
   return typeof v === "number" && Number.isFinite(v) ? v : fallback;
 }
 
-/** Read sx/sy, falling back to a legacy single `scale`, then to 1. */
-function readScale(e: Record<string, unknown>, axis: "sx" | "sy"): number {
-  const legacy = e.scale;
-  const v = num(e[axis], num(legacy, 1));
-  return clamp(v, SCALE_MIN, SCALE_MAX);
+/** Default box + props for each fixed widget, reproducing today's arrangement. */
+const FIXED_DEFAULTS: Record<FixedType, Pick<KioskObject, "x" | "y" | "w" | "h">> = {
+  wifi: { x: 0.82, y: 0.04, w: 0.1, h: 0.06 },
+  logo: { x: 0.3, y: 0.28, w: 0.4, h: 0.22 },
+  clock: { x: 0.25, y: 0.52, w: 0.5, h: 0.18 },
+};
+
+/** Two seeded text objects (the old lane + tagline lines), now editable. */
+function seededText(): KioskObject[] {
+  return [
+    { id: "text-lane", type: "text", x: 0.06, y: 0.05, w: 0.4, h: 0.06, visible: true, z: 3, text: "Lane 1", fontSize: 19, align: "left" },
+    { id: "text-tagline", type: "text", x: 0.15, y: 0.88, w: 0.7, h: 0.08, visible: true, z: 4, text: "Tap your card or pay at the reader to begin", fontSize: 18, align: "center" },
+  ];
 }
 
-/** A fresh custom text element, centered at natural size, on top (`z`). */
-export function createTextElement(text: string, z: number): KioskElement {
+/** A fresh default layout (new object each call so callers can't mutate it). */
+export function defaultLayout(): KioskLayout {
+  const fixed: KioskObject[] = FIXED_TYPES.map((type, i) => ({
+    id: type,
+    type,
+    ...FIXED_DEFAULTS[type],
+    visible: true,
+    z: i,
+  }));
+  return {
+    version: 2,
+    clockTimezone: "UTC",
+    clock24h: false,
+    wifiLevel: 3,
+    objects: [...fixed, ...seededText()],
+  };
+}
+
+export const DEFAULT_KIOSK_LAYOUT: KioskLayout = defaultLayout();
+
+const DEFAULT_FONT: Record<KioskObjectType, number> = { text: 24, logo: 24, clock: 24, wifi: 24 };
+
+/** A fresh custom text object, centered, on top (`z`). */
+export function createTextObject(text: string, z: number): KioskObject {
   const rand = typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID().slice(0, 8)
     : Math.floor(Math.random() * 1e9).toString(36);
   return {
     id: `text-${rand}`,
-    kind: "text",
-    text: text.slice(0, MAX_TEXT_LEN),
+    type: "text",
+    x: 0.35,
+    y: 0.45,
+    w: 0.3,
+    h: 0.1,
     visible: true,
-    x: 0.5,
-    y: 0.5,
-    sx: 1,
-    sy: 1,
     z,
+    text: text.slice(0, MAX_TEXT_LEN),
+    fontSize: 24,
+    align: "center",
   };
 }
 
-/** Display name for the element list / inspector. */
-export function elementLabel(e: KioskElement): string {
-  if (e.kind === "builtin" && e.builtin) return KIOSK_ELEMENT_LABEL[e.builtin];
-  const t = (e.text ?? "").trim();
+/** Display name for the object list / inspector. */
+export function objectLabel(o: KioskObject): string {
+  if (o.type !== "text") return TYPE_LABEL[o.type];
+  const t = (o.text ?? "").trim();
   return t ? (t.length > 18 ? `${t.slice(0, 18)}…` : t) : "Text";
 }
 
+/** Clamp a box onto the canvas with a minimum size. */
+function sanitizeBox(o: Record<string, unknown>, d: Pick<KioskObject, "x" | "y" | "w" | "h">) {
+  const w = clamp(num(o.w, d.w), MIN_BOX, 1);
+  const h = clamp(num(o.h, d.h), MIN_BOX, 1);
+  const x = clamp(num(o.x, d.x), 0, 1 - w);
+  const y = clamp(num(o.y, d.y), 0, 1 - h);
+  return { x, y, w, h };
+}
+
 /**
- * Coerce arbitrary stored/loaded data into a valid KioskLayout: all 5 built-ins
- * present exactly once (re-added if missing), plus up to MAX_CUSTOM valid custom
- * text elements. Coords clamped to [0,1], sx/sy to [SCALE_MIN,SCALE_MAX], a known
- * timezone, wifi 0..4. Legacy `scale` migrates to sx=sy=scale. Unknown ids and
- * text-less custom elements are dropped.
+ * Coerce arbitrary stored data into a valid v2 KioskLayout. Non-v2 input (incl.
+ * legacy v1 sx/sy layouts) is reset to the default. Guarantees one of each fixed
+ * widget, ≤ MAX_CUSTOM valid text objects, clamped boxes/fonts, a known timezone,
+ * and wifi 0..4. Never throws.
  */
 export function normalizeKioskLayout(raw: unknown): KioskLayout {
-  const r = (raw ?? {}) as Partial<KioskLayout> & { elements?: unknown };
-  const list = Array.isArray(r.elements) ? (r.elements as unknown as Record<string, unknown>[]) : [];
-  const byBuiltin = new Map<BuiltinId, Record<string, unknown>>();
-  for (const e of list) {
-    const id = e?.id as string;
-    if (BUILTIN_IDS.includes(id as BuiltinId)) byBuiltin.set(id as BuiltinId, e);
+  const r = raw as { version?: unknown; objects?: unknown; clockTimezone?: unknown; clock24h?: unknown; wifiLevel?: unknown } | null;
+  if (!r || typeof r !== "object" || r.version !== 2 || !Array.isArray(r.objects)) {
+    return defaultLayout();
   }
+  const list = r.objects as Record<string, unknown>[];
 
-  // 1) Built-ins, in their default z order.
-  const elements: KioskElement[] = BUILTIN_IDS.map((id, i) => {
-    const d = DEFAULT_BUILTIN[id];
-    const e = byBuiltin.get(id) ?? {};
+  // 1) Fixed widgets — one of each, in default z order.
+  const objects: KioskObject[] = FIXED_TYPES.map((type, i) => {
+    const found = list.find((o) => o && o.type === type) ?? {};
     return {
-      id,
-      kind: "builtin" as const,
-      builtin: id,
-      visible: typeof e.visible === "boolean" ? e.visible : d.visible,
-      x: clamp(num(e.x, d.x), 0, 1),
-      y: clamp(num(e.y, d.y), 0, 1),
-      sx: readScale(e, "sx"),
-      sy: readScale(e, "sy"),
-      z: typeof e.z === "number" && Number.isFinite(e.z) ? e.z : i,
+      id: type,
+      type,
+      ...sanitizeBox(found, FIXED_DEFAULTS[type]),
+      visible: typeof found.visible === "boolean" ? found.visible : true,
+      z: typeof found.z === "number" && Number.isFinite(found.z) ? found.z : i,
     };
   });
 
-  // 2) Custom text elements (open id set), capped.
-  let zNext = BUILTIN_IDS.length;
+  // 2) Text objects, capped.
+  let zNext = FIXED_TYPES.length;
   let kept = 0;
-  for (const e of list) {
+  for (const o of list) {
     if (kept >= MAX_CUSTOM) break;
-    const id = e?.id as string;
-    if (!id || BUILTIN_IDS.includes(id as BuiltinId)) continue;
-    if (e.kind !== "text" || typeof e.text !== "string" || e.text.trim() === "") continue;
-    elements.push({
-      id,
-      kind: "text",
-      text: e.text.slice(0, MAX_TEXT_LEN),
-      visible: typeof e.visible === "boolean" ? e.visible : true,
-      x: clamp(num(e.x, 0.5), 0, 1),
-      y: clamp(num(e.y, 0.5), 0, 1),
-      sx: readScale(e, "sx"),
-      sy: readScale(e, "sy"),
-      z: typeof e.z === "number" && Number.isFinite(e.z) ? e.z : zNext++,
+    if (!o || o.type !== "text" || typeof o.text !== "string" || o.text.trim() === "") continue;
+    const align = ALIGNS.includes(o.align as TextAlign) ? (o.align as TextAlign) : "center";
+    objects.push({
+      id: typeof o.id === "string" && o.id ? o.id : `text-${kept}`,
+      type: "text",
+      ...sanitizeBox(o, { x: 0.35, y: 0.45, w: 0.3, h: 0.1 }),
+      visible: typeof o.visible === "boolean" ? o.visible : true,
+      z: typeof o.z === "number" && Number.isFinite(o.z) ? o.z : zNext++,
+      text: o.text.slice(0, MAX_TEXT_LEN),
+      fontSize: clamp(num(o.fontSize, DEFAULT_FONT.text), FONT_MIN, FONT_MAX),
+      align,
     });
     kept++;
   }
 
   const tz = typeof r.clockTimezone === "string" && isValidTimezone(r.clockTimezone)
     ? r.clockTimezone
-    : DEFAULT_KIOSK_LAYOUT.clockTimezone;
+    : "UTC";
 
   return {
-    version: 1,
+    version: 2,
     clockTimezone: tz,
     clock24h: typeof r.clock24h === "boolean" ? r.clock24h : false,
     wifiLevel: clamp(Math.round(num(r.wifiLevel, 3)), 0, 4),
-    elements,
+    objects,
   };
 }

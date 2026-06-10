@@ -102,7 +102,6 @@ export function BrandingEditor({
     layout,
     onChange: setLayout,
     disabled: !canEdit,
-    remeasureKey: logoPreview,
   });
 
   const dirty =

@@ -1,18 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { KioskElementView, kioskRootStyle, type KioskBrand } from "../kiosk-preview";
+import { ObjectVisual, kioskRootStyle, type KioskBrand } from "../kiosk-preview";
 import { HANDLES, type Box, type Handle } from "@/lib/kiosk-geometry";
 import type { KioskEditor } from "./use-kiosk-editor";
 import { cn } from "@/lib/utils";
 
-/** The editable kiosk canvas: positioned elements, snap guides, and the
+/** The editable kiosk canvas: object boxes, alignment guides, and the
  *  selection/resize overlay. Driven entirely by a useKioskEditor instance. */
 export function KioskStage({ editor, brand }: { editor: KioskEditor; brand: KioskBrand }) {
-  const { layout, disabled, canvasRef, elRefs, ordered, guide, selBox, selectedId } = editor;
+  const { layout, disabled, canvasRef, ordered, guides, selBox, selectedId } = editor;
 
-  // Clear drag/selection when the canvas unmounts (e.g. switching preview
-  // screens) so stale interaction state can't bleed back in on remount.
+  // Clear drag/selection when the canvas unmounts (e.g. switching preview screens).
   const endInteraction = editor.endInteraction;
   React.useEffect(() => {
     return () => endInteraction();
@@ -29,26 +28,28 @@ export function KioskStage({ editor, brand }: { editor: KioskEditor; brand: Kios
       className="@container relative aspect-square w-full touch-none overflow-hidden rounded-[4cqw] shadow-2xl ring-1 ring-black/10 select-none"
       style={{ ...kioskRootStyle(brand), background: "var(--k-bg)", color: "var(--k-fg)" }}
     >
-      {guide.x && <div className="pointer-events-none absolute inset-y-0 left-1/2 w-px -translate-x-1/2" style={{ background: "var(--k-accent)" }} />}
-      {guide.y && <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2" style={{ background: "var(--k-accent)" }} />}
-
       {ordered
-        .filter((e) => e.visible)
-        .map((e) => (
+        .filter((o) => o.visible)
+        .map((o) => (
           <div
-            key={e.id}
-            ref={(n) => {
-              if (n) elRefs.current.set(e.id, n);
-              else elRefs.current.delete(e.id);
-            }}
-            onPointerDown={(ev) => editor.startMove(e.id, ev)}
+            key={o.id}
+            onPointerDown={(ev) => editor.startMove(o.id, ev)}
             className={cn("absolute", !disabled && "cursor-grab active:cursor-grabbing")}
-            style={{ left: `${e.x * 100}%`, top: `${e.y * 100}%`, transform: "translate(-50%, -50%)", zIndex: e.z }}
+            style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, width: `${o.w * 100}%`, height: `${o.h * 100}%`, zIndex: o.z }}
           >
-            <KioskElementView element={e} brand={brand} layout={layout} />
+            <ObjectVisual object={o} brand={brand} layout={layout} />
           </div>
         ))}
 
+      {/* alignment guides */}
+      {guides.vx.map((x, i) => (
+        <div key={`v${i}`} className="pointer-events-none absolute inset-y-0 w-px" style={{ left: `${x * 100}%`, background: "var(--k-accent)" }} />
+      ))}
+      {guides.hy.map((y, i) => (
+        <div key={`h${i}`} className="pointer-events-none absolute inset-x-0 h-px" style={{ top: `${y * 100}%`, background: "var(--k-accent)" }} />
+      ))}
+
+      {/* selection overlay */}
       {selBox && selectedId && !disabled && (
         <SelectionOverlay box={selBox} onResizeStart={editor.startResize} />
       )}
@@ -56,11 +57,7 @@ export function KioskStage({ editor, brand }: { editor: KioskEditor; brand: Kios
   );
 }
 
-/**
- * Selection ring + 8 resize handles, on its own layer at the element's measured
- * visual box. Pointer-transparent except the handle dots, so dragging the body
- * underneath still moves it.
- */
+/** Selection ring + 8 resize handles on the selected object's box. */
 function SelectionOverlay({
   box,
   onResizeStart,
@@ -71,15 +68,9 @@ function SelectionOverlay({
   return (
     <div
       className="pointer-events-none absolute"
-      style={{
-        left: `${(box.cx - box.w / 2) * 100}%`,
-        top: `${(box.cy - box.h / 2) * 100}%`,
-        width: `${box.w * 100}%`,
-        height: `${box.h * 100}%`,
-        zIndex: 9999,
-      }}
+      style={{ left: `${box.x * 100}%`, top: `${box.y * 100}%`, width: `${box.w * 100}%`, height: `${box.h * 100}%`, zIndex: 9999 }}
     >
-      <div className="absolute -inset-1 rounded-[1cqw] ring-2" style={{ "--tw-ring-color": "var(--k-accent)" } as React.CSSProperties} />
+      <div className="absolute -inset-px rounded-[1cqw] ring-2" style={{ "--tw-ring-color": "var(--k-accent)" } as React.CSSProperties} />
       {HANDLES.map((h) => (
         <ResizeHandleDot key={h} handle={h} onDown={(e) => onResizeStart(h, e)} />
       ))}
@@ -97,7 +88,7 @@ const HANDLE_CURSOR: Record<Handle, string> = {
   n: "ns-resize", s: "ns-resize", e: "ew-resize", w: "ew-resize",
 };
 
-/** A single resize handle dot, positioned on the overlay edge by compass name. */
+/** A single resize handle dot, positioned on the box edge by compass name. */
 function ResizeHandleDot({ handle, onDown }: { handle: Handle; onDown: (e: React.PointerEvent) => void }) {
   return (
     <div

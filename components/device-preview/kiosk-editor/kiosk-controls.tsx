@@ -1,15 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { Eye, EyeOff, Plus, RotateCcw, Trash2, Wifi } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Eye, EyeOff, Plus, RotateCcw, Trash2, Wifi } from "lucide-react";
 import {
-  elementLabel,
+  objectLabel,
+  FONT_MIN,
+  FONT_MAX,
   MAX_CUSTOM,
   MAX_TEXT_LEN,
-  SCALE_MIN,
-  SCALE_MAX,
-  type KioskElement,
+  type KioskObject,
+  type TextAlign,
 } from "@/lib/kiosk-layout";
+import { MIN_BOX } from "@/lib/kiosk-geometry";
 import type { KioskEditor } from "./use-kiosk-editor";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -25,59 +27,54 @@ import { TIMEZONES } from "@/lib/timezones";
 import { cn } from "@/lib/utils";
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
-const CANVAS_REF_PX = 720; // design reference for pixel readouts
+const CANVAS_REF_PX = 720;
 
-/** All idle-layout controls (element list, inspector, clock/wifi, reset). */
+/** Object list + a type-aware properties panel for the selected object. */
 export function KioskControls({ editor }: { editor: KioskEditor }) {
-  const { layout, onChange, disabled, ordered, selectedId, setSelectedId, selected, atCustomCap } = editor;
+  const { ordered, disabled, selectedId, setSelectedId, selected, atCustomCap } = editor;
 
   return (
     <div className="space-y-4">
-      {/* Add / element list */}
       <div className="space-y-2 rounded-xl border p-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">Elements</span>
+          <span className="text-sm font-medium">Objects</span>
           <button
             type="button"
             disabled={disabled || atCustomCap}
             onClick={editor.addText}
-            title={atCustomCap ? `Limit of ${MAX_CUSTOM} custom text elements reached` : undefined}
+            title={atCustomCap ? `Limit of ${MAX_CUSTOM} text objects reached` : undefined}
             className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
           >
             <Plus className="size-3.5" /> Add text
           </button>
         </div>
-        {ordered.map((e) => {
-          const active = selectedId === e.id;
+        {ordered.map((o) => {
+          const active = selectedId === o.id;
           return (
             <div
-              key={e.id}
-              onClick={() => e.visible && setSelectedId(e.id)}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors",
-                active && "bg-accent",
-                e.visible && "cursor-pointer",
-              )}
+              key={o.id}
+              onClick={() => o.visible && setSelectedId(o.id)}
+              className={cn("flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors", active && "bg-accent", o.visible && "cursor-pointer")}
             >
               <button
                 type="button"
                 disabled={disabled}
-                onClick={(ev) => { ev.stopPropagation(); editor.patch(e.id, { visible: !e.visible }); }}
+                onClick={(ev) => { ev.stopPropagation(); editor.patch(o.id, { visible: !o.visible }); }}
                 className="text-muted-foreground hover:text-foreground disabled:opacity-50"
-                aria-label={e.visible ? `Hide ${elementLabel(e)}` : `Show ${elementLabel(e)}`}
+                aria-label={o.visible ? `Hide ${objectLabel(o)}` : `Show ${objectLabel(o)}`}
               >
-                {e.visible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
+                {o.visible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
               </button>
-              <span className={cn("flex-1 text-sm font-medium", !e.visible && "text-muted-foreground line-through")}>
-                {elementLabel(e)}
+              <span className={cn("flex-1 text-sm font-medium", !o.visible && "text-muted-foreground line-through")}>
+                {objectLabel(o)}
               </span>
-              {e.kind === "text" && (
+              {o.type === "text" && (
                 <button
                   type="button"
                   disabled={disabled}
-                  onClick={(ev) => { ev.stopPropagation(); editor.removeEl(e.id); }}
+                  onClick={(ev) => { ev.stopPropagation(); editor.removeObject(o.id); }}
                   className="text-muted-foreground hover:text-destructive disabled:opacity-50"
-                  aria-label={`Delete ${elementLabel(e)}`}
+                  aria-label={`Delete ${objectLabel(o)}`}
                 >
                   <Trash2 className="size-4" />
                 </button>
@@ -87,44 +84,7 @@ export function KioskControls({ editor }: { editor: KioskEditor }) {
         })}
       </div>
 
-      {/* Inspector for the selected element */}
-      {selected && <Inspector key={selected.id} el={selected} editor={editor} />}
-
-      {/* Clock + Wi-Fi */}
-      <div className="grid gap-3 rounded-xl border p-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Clock timezone</Label>
-          <Select value={layout.clockTimezone} onValueChange={(v) => onChange({ ...layout, clockTimezone: v })} disabled={disabled}>
-            <SelectTrigger className="h-8 w-full"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {TIMEZONES.map((tz) => (<SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-center justify-between">
-          <Label htmlFor="clock-24h" className="text-xs text-muted-foreground">24-hour clock</Label>
-          <Switch id="clock-24h" checked={layout.clock24h} onCheckedChange={(v) => onChange({ ...layout, clock24h: v })} disabled={disabled} />
-        </div>
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label className="flex items-center gap-1.5 text-xs text-muted-foreground"><Wifi className="size-3.5" /> Wi-Fi signal</Label>
-          <div className="flex gap-1.5">
-            {[0, 1, 2, 3, 4].map((lvl) => (
-              <button
-                key={lvl}
-                type="button"
-                disabled={disabled}
-                onClick={() => onChange({ ...layout, wifiLevel: lvl })}
-                className={cn(
-                  "h-8 flex-1 rounded-md border text-xs font-medium transition-colors disabled:opacity-50",
-                  layout.wifiLevel === lvl ? "border-foreground bg-foreground text-background" : "hover:bg-accent",
-                )}
-              >
-                {lvl}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      {selected && <Properties key={selected.id} object={selected} editor={editor} />}
 
       <button
         type="button"
@@ -138,59 +98,98 @@ export function KioskControls({ editor }: { editor: KioskEditor }) {
   );
 }
 
-/** Inspector: pixel X/Y/W/H number boxes + per-kind controls for one element. */
-function Inspector({ el, editor }: { el: KioskElement; editor: KioskEditor }) {
-  const { canvasRef, elRefs, disabled } = editor;
-  const onPatch = (p: Partial<KioskElement>) => editor.patch(el.id, p);
-
-  // Natural pixel size on the 720 reference (visual size ÷ current sx/sy).
-  const [natural, setNatural] = React.useState<{ w: number; h: number } | null>(null);
-  React.useLayoutEffect(() => {
-    const canvas = canvasRef.current;
-    const node = elRefs.current?.get(el.id);
-    if (!canvas || !node) return;
-    const cw = canvas.getBoundingClientRect().width || 1;
-    const r = node.getBoundingClientRect();
-    const k = CANVAS_REF_PX / cw;
-    setNatural({ w: (r.width * k) / el.sx, h: (r.height * k) / el.sy });
-  }, [el.id, el.sx, el.sy, el.text, canvasRef, elRefs]);
-
-  const wPx = natural ? Math.round(natural.w * el.sx) : null;
-  const hPx = natural ? Math.round(natural.h * el.sy) : null;
-
-  const setWidthPx = (v: number) => { if (natural && natural.w > 0) onPatch({ sx: clamp(v / natural.w, SCALE_MIN, SCALE_MAX) }); };
-  const setHeightPx = (v: number) => { if (natural && natural.h > 0) onPatch({ sy: clamp(v / natural.h, SCALE_MIN, SCALE_MAX) }); };
+/** Type-aware properties for the selected object. */
+function Properties({ object, editor }: { object: KioskObject; editor: KioskEditor }) {
+  const { disabled, layout, onChange } = editor;
+  const set = (p: Partial<KioskObject>) => editor.patch(object.id, p);
 
   return (
     <div className="space-y-3 rounded-xl border p-3">
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">{elementLabel(el)}</span>
-        <button type="button" disabled={disabled} onClick={() => editor.bringToFront(el.id)} className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50">
+        <span className="text-sm font-medium">{objectLabel(object)}</span>
+        <button type="button" disabled={disabled} onClick={() => editor.bringToFront(object.id)} className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50">
           Bring to front
         </button>
       </div>
 
-      {el.kind === "text" && (
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Text</Label>
-          <Input value={el.text ?? ""} disabled={disabled} maxLength={MAX_TEXT_LEN} onChange={(e) => onPatch({ text: e.target.value })} className="h-8" />
-        </div>
+      {object.type === "text" && (
+        <>
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Text</Label>
+            <Input value={object.text ?? ""} disabled={disabled} maxLength={MAX_TEXT_LEN} onChange={(e) => set({ text: e.target.value })} className="h-8" />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <NumberField label="Font size" value={Math.round(object.fontSize ?? 24)} disabled={disabled} onChange={(v) => set({ fontSize: clamp(v, FONT_MIN, FONT_MAX) })} />
+            <div className="space-y-1">
+              <Label className="text-[10px] text-muted-foreground">Align</Label>
+              <div className="flex gap-1">
+                {([["left", AlignLeft], ["center", AlignCenter], ["right", AlignRight]] as [TextAlign, typeof AlignLeft][]).map(([a, Icon]) => (
+                  <button
+                    key={a}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => set({ align: a })}
+                    aria-label={`Align ${a}`}
+                    className={cn("flex h-8 flex-1 items-center justify-center rounded-md border transition-colors disabled:opacity-50", (object.align ?? "center") === a ? "border-foreground bg-foreground text-background" : "hover:bg-accent")}
+                  >
+                    <Icon className="size-4" />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
       )}
 
       <div className="grid grid-cols-4 gap-2">
-        <NumberField label="X" value={Math.round(el.x * CANVAS_REF_PX)} disabled={disabled} onChange={(v) => onPatch({ x: clamp(v / CANVAS_REF_PX, 0, 1) })} />
-        <NumberField label="Y" value={Math.round(el.y * CANVAS_REF_PX)} disabled={disabled} onChange={(v) => onPatch({ y: clamp(v / CANVAS_REF_PX, 0, 1) })} />
-        <NumberField label="W" value={wPx} disabled={disabled || !natural} onChange={setWidthPx} />
-        <NumberField label="H" value={hPx} disabled={disabled || !natural} onChange={setHeightPx} />
+        <NumberField label="X" value={Math.round(object.x * CANVAS_REF_PX)} disabled={disabled} onChange={(v) => set({ x: clamp(v / CANVAS_REF_PX, 0, 1 - object.w) })} />
+        <NumberField label="Y" value={Math.round(object.y * CANVAS_REF_PX)} disabled={disabled} onChange={(v) => set({ y: clamp(v / CANVAS_REF_PX, 0, 1 - object.h) })} />
+        <NumberField label="W" value={Math.round(object.w * CANVAS_REF_PX)} disabled={disabled} onChange={(v) => set({ w: clamp(v / CANVAS_REF_PX, MIN_BOX, 1 - object.x) })} />
+        <NumberField label="H" value={Math.round(object.h * CANVAS_REF_PX)} disabled={disabled} onChange={(v) => set({ h: clamp(v / CANVAS_REF_PX, MIN_BOX, 1 - object.y) })} />
       </div>
       <p className="text-[10px] text-muted-foreground">Pixels on the 720 × 720 kiosk canvas.</p>
+
+      {object.type === "clock" && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Timezone</Label>
+            <Select value={layout.clockTimezone} onValueChange={(v) => onChange({ ...layout, clockTimezone: v })} disabled={disabled}>
+              <SelectTrigger className="h-8 w-full"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {TIMEZONES.map((tz) => (<SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="clock-24h" className="text-xs text-muted-foreground">24-hour</Label>
+            <Switch id="clock-24h" checked={layout.clock24h} onCheckedChange={(v) => onChange({ ...layout, clock24h: v })} disabled={disabled} />
+          </div>
+        </div>
+      )}
+
+      {object.type === "wifi" && (
+        <div className="space-y-1.5">
+          <Label className="flex items-center gap-1.5 text-xs text-muted-foreground"><Wifi className="size-3.5" /> Signal level</Label>
+          <div className="flex gap-1.5">
+            {[0, 1, 2, 3, 4].map((lvl) => (
+              <button
+                key={lvl}
+                type="button"
+                disabled={disabled}
+                onClick={() => onChange({ ...layout, wifiLevel: lvl })}
+                className={cn("h-8 flex-1 rounded-md border text-xs font-medium transition-colors disabled:opacity-50", layout.wifiLevel === lvl ? "border-foreground bg-foreground text-background" : "hover:bg-accent")}
+              >
+                {lvl}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-/** Small labelled numeric input (px). Buffers keystrokes locally and commits on
- *  blur/Enter so multi-digit typing isn't fought by parent re-renders; while not
- *  focused it tracks the live `value` (e.g. during a drag). */
+/** Small labelled numeric input. Buffers keystrokes; commits on blur/Enter. */
 function NumberField({
   label,
   value,
@@ -198,21 +197,21 @@ function NumberField({
   onChange,
 }: {
   label: string;
-  value: number | null;
+  value: number;
   disabled?: boolean;
   onChange: (v: number) => void;
 }) {
-  const [draft, setDraft] = React.useState<string>(value?.toString() ?? "");
+  const [draft, setDraft] = React.useState<string>(value.toString());
   const [focused, setFocused] = React.useState(false);
 
   React.useEffect(() => {
-    if (!focused) setDraft(value?.toString() ?? "");
+    if (!focused) setDraft(value.toString());
   }, [value, focused]);
 
   const commit = () => {
     const n = Number(draft);
     if (draft.trim() !== "" && Number.isFinite(n)) onChange(n);
-    else setDraft(value?.toString() ?? "");
+    else setDraft(value.toString());
   };
 
   return (
@@ -226,12 +225,7 @@ function NumberField({
         onFocus={() => setFocused(true)}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={() => { setFocused(false); commit(); }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            commit();
-            (e.currentTarget as HTMLInputElement).blur();
-          }
-        }}
+        onKeyDown={(e) => { if (e.key === "Enter") { commit(); (e.currentTarget as HTMLInputElement).blur(); } }}
         className="h-8 px-2 font-mono text-xs tabular-nums"
       />
     </div>

@@ -274,9 +274,11 @@ function LogoObject({ object, brand }: { object: KioskObject; brand: KioskBrand 
       <img src={brand.logoUrl} alt={brand.logoText} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
     );
   }
-  const size = Math.min(object.w, object.h) * 720; // contain within the box
+  // Height-driven so the stacked mark + wordmark fits the box; overflow clipped
+  // so an undersized box never lets the logo overlap neighbouring objects.
+  const size = object.h * 720 * 0.55;
   return (
-    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
       <Logo brand={brand} size={size} stacked />
     </div>
   );

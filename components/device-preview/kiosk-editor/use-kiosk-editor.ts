@@ -43,6 +43,7 @@ export interface KioskEditor {
   removeEl: (id: string) => void;
   bringToFront: (id: string) => void;
   resetLayout: () => void;
+  endInteraction: () => void;
 }
 
 /**
@@ -172,6 +173,15 @@ export function useKioskEditor({
     setSelectedId(null);
   }
 
+  /** Clear all transient interaction state (drag, selection, guides). Called when
+   *  the canvas unmounts so stale state can't bleed across screen switches. */
+  function endInteraction() {
+    drag.current = null;
+    setGuide({ x: false, y: false });
+    setSelectedId(null);
+    setSelBox(null);
+  }
+
   // Keep the handle overlay synced to the selected element's measured visual box.
   React.useLayoutEffect(() => {
     if (!selectedId || !selected?.visible || !elRefs.current.get(selectedId) || !canvasRef.current) {
@@ -207,5 +217,6 @@ export function useKioskEditor({
     removeEl,
     bringToFront,
     resetLayout,
+    endInteraction,
   };
 }

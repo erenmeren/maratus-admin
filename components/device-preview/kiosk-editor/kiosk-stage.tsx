@@ -10,6 +10,15 @@ import { cn } from "@/lib/utils";
  *  selection/resize overlay. Driven entirely by a useKioskEditor instance. */
 export function KioskStage({ editor, brand }: { editor: KioskEditor; brand: KioskBrand }) {
   const { layout, disabled, canvasRef, elRefs, ordered, guide, selBox, selectedId } = editor;
+
+  // Clear drag/selection when the canvas unmounts (e.g. switching preview
+  // screens) so stale interaction state can't bleed back in on remount.
+  const endInteraction = editor.endInteraction;
+  React.useEffect(() => {
+    return () => endInteraction();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div
       ref={canvasRef}

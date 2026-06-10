@@ -361,8 +361,7 @@ export function BrandingEditor({
       </div>
 
       {/* STICKY SAVE BAR */}
-      {canEdit && (
-        <div className="sticky bottom-4 z-30 mt-2 flex items-center justify-between gap-3 rounded-xl border bg-background/85 px-4 py-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/70">
+      <div className="sticky bottom-4 z-30 mt-2 flex items-center justify-between gap-3 rounded-xl border bg-background/85 px-4 py-3 shadow-lg backdrop-blur supports-[backdrop-filter]:bg-background/70">
           <span className="flex items-center gap-2 text-sm text-muted-foreground">
             <span className={cn("size-2 rounded-full", dirty ? "bg-amber-500" : "bg-emerald-500")} />
             {dirty ? "Unsaved changes" : "All changes saved"}
@@ -377,7 +376,6 @@ export function BrandingEditor({
             </Button>
           </div>
         </div>
-      )}
     </div>
   );
 }

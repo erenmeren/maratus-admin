@@ -79,9 +79,9 @@ function SelectionOverlay({
 }
 
 const HANDLE_POS: Record<Handle, string> = {
-  nw: "left-0 top-0", n: "left-1/2 top-0", ne: "right-0 top-0",
-  e: "right-0 top-1/2", se: "right-0 bottom-0", s: "left-1/2 bottom-0",
-  sw: "left-0 bottom-0", w: "left-0 top-1/2",
+  nw: "left-0 top-0", n: "left-1/2 top-0", ne: "left-full top-0",
+  e: "left-full top-1/2", se: "left-full top-full", s: "left-1/2 top-full",
+  sw: "left-0 top-full", w: "left-0 top-1/2",
 };
 const HANDLE_CURSOR: Record<Handle, string> = {
   nw: "nwse-resize", se: "nwse-resize", ne: "nesw-resize", sw: "nesw-resize",

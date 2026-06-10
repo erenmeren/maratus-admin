@@ -21,8 +21,14 @@ export const auth = betterAuth({
   baseURL: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
   // Trust the base URL plus all Vercel deployment domains (the production alias
-  // and per-deploy preview URLs) so login isn't blocked by INVALID_ORIGIN.
-  trustedOrigins: ["https://*.vercel.app", env.BETTER_AUTH_URL],
+  // and per-deploy preview URLs) so login isn't blocked by INVALID_ORIGIN. In
+  // development also trust any localhost port, since `next dev` falls back to a
+  // different port when 3000 is taken (which would otherwise be rejected).
+  trustedOrigins: [
+    "https://*.vercel.app",
+    env.BETTER_AUTH_URL,
+    ...(process.env.NODE_ENV === "production" ? [] : ["http://localhost:*"]),
+  ],
   database: drizzleAdapter(db, {
     provider: "pg",
     schema,

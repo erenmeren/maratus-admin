@@ -805,7 +805,7 @@ export async function getTenantBranding(
   for (const screen of KIOSK_SCREENS) {
     for (const o of config.screens[screen].objects) {
       if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) {
-        o.icon = { ...o.icon, url: signed.get(o.icon.url) ?? o.icon.url };
+        o.icon = { ...o.icon, signedUrl: signed.get(o.icon.url) ?? undefined };
       }
     }
   }

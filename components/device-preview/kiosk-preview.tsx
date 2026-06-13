@@ -324,7 +324,7 @@ function IconObject({ object, brand: _brand }: { object: KioskObject; brand: Kio
   const Inner = () =>
     ic.source === "upload" && ic.url ? (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={ic.url} alt="" className="size-full object-contain" />
+      <img src={ic.signedUrl ?? ic.url} alt="" className="size-full object-contain" />
     ) : (
       (() => {
         const Glyph = resolveIconComponent(ic.preset);

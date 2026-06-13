@@ -55,6 +55,8 @@ export interface KioskIcon {
   source: "preset" | "upload";
   preset?: IconPreset;
   url?: string;
+  /** Display-only presigned URL for an uploaded icon; NEVER persisted (normalize drops it). */
+  signedUrl?: string;
   tint?: IconTint;
   circle?: boolean;
 }

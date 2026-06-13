@@ -245,4 +245,35 @@ describe("normalizeKioskConfig", () => {
     });
     expect(cfg.screens.idle.objects.filter((o) => o.type === "qr")).toHaveLength(1);
   });
+
+  it("drops signedUrl from upload icons — it is never persisted", () => {
+    // Simulate what getTenantBranding sends to the client: an upload icon that has
+    // both the canonical R2 key in `url` and an ephemeral presigned URL in `signedUrl`.
+    // normalizeKioskConfig must strip `signedUrl` so it never round-trips back on save.
+    const cfg = normalizeKioskConfig({
+      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
+      screens: {
+        idle: {
+          objects: [
+            {
+              id: "icon-1", type: "icon", x: 0.4, y: 0.4, w: 0.2, h: 0.2, visible: true, z: 0,
+              icon: {
+                source: "upload",
+                url: "branding/o/icons/x",
+                signedUrl: "https://r2.example.com/branding/o/icons/x?X-Amz-Expires=300&sig=abc",
+                tint: "accent",
+                circle: false,
+              },
+            },
+          ],
+        },
+      },
+    });
+    const icon = cfg.screens.idle.objects.find((o) => o.type === "icon");
+    expect(icon).toBeDefined();
+    // The R2 key must be preserved.
+    expect(icon!.icon!.url).toBe("branding/o/icons/x");
+    // The ephemeral display URL must be stripped by normalize.
+    expect(icon!.icon!.signedUrl).toBeUndefined();
+  });
 });

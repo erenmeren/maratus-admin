@@ -1,18 +1,21 @@
 /** Pure helpers for the Branding studio shell (zoom + screen carousel). */
 
 export const ZOOM_MIN = 50;
-export const ZOOM_MAX = 125;
+export const ZOOM_MAX = 200;
 export const ZOOM_STEP = 5;
 export const ZOOM_DEFAULT = 100;
 
 /**
- * Preview canvas width (px) at 100% zoom = the printer's NATIVE resolution.
- * The device (Waveshare ESP32-P4-WIFI6-Touch-LCD-4B) is a 720×720 square panel,
- * so 100% renders 1 preview px per device px (true device pixels). The editor's
- * viewport cap may scale this down to fit a short window, but the zoom % stays
- * anchored to the real device resolution.
+ * Preview canvas width (px) at 100% zoom = the printer's PHYSICAL screen size,
+ * NOT its pixel resolution. The device (Waveshare ESP32-P4-WIFI6-Touch-LCD-4B)
+ * is a 4-inch diagonal, 1:1 square panel → side ≈ 4"/√2 ≈ 2.83" ≈ 71.8 mm.
+ * At CSS's 96 px/inch reference that's ≈ 272 px, so 100% shows the preview at
+ * roughly the real 4" device size. (Approximate: browsers anchor physical units
+ * to 96 dpi, so exact on-screen size varies with the monitor's true DPI.)
+ * Zoom in (up to 200%) to edit detail; the full 720×720 design is always shown,
+ * just scaled to this physical size.
  */
-export const PREVIEW_BASE_PX = 720;
+export const PREVIEW_BASE_PX = 272;
 
 /** Clamp a zoom percentage to [MIN, MAX], snapped to the nearest step. */
 export function clampZoom(pct: number): number {

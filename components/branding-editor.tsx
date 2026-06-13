@@ -376,7 +376,7 @@ export function BrandingEditor({
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <div className="space-y-1">
                 <CardTitle className="text-base">Live preview</CardTitle>
-                <CardDescription>720 × 720 device-native · 100% = full resolution</CardDescription>
+                <CardDescription>4″ printer · 720 × 720 · 100% ≈ actual size</CardDescription>
               </div>
               <Select value={screen} onValueChange={(v) => setScreen(v as PrinterScreen)}>
                 <SelectTrigger className="w-[150px]" aria-label="Preview screen"><SelectValue /></SelectTrigger>

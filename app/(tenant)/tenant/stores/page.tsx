@@ -29,7 +29,7 @@ export default async function StoresPage() {
     <>
       <PageHeader
         title="Stores"
-        description={`${stores.length} branches · ${totalOnline}/${totalDevices} kiosks online`}
+        description={`${stores.length} branches · ${totalOnline}/${totalDevices} printers online`}
       >
         {canManage && <AddStoreDialog />}
       </PageHeader>
@@ -40,7 +40,7 @@ export default async function StoresPage() {
             <TableRow className="hover:bg-transparent">
               <TableHead>Store</TableHead>
               <TableHead>Address</TableHead>
-              <TableHead className="text-center">Kiosks</TableHead>
+              <TableHead className="text-center">Printers</TableHead>
               <TableHead className="text-right">Receipts (mo.)</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-10" />

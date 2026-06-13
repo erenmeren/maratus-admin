@@ -56,7 +56,7 @@ export async function POST(req: Request) {
     reportError(err, { path: "ingest.suspension-check", extra: { orgId: device.organizationId, deviceId: device.id } });
   }
 
-  // Throttle per device: 30 receipts / minute is generous for a kiosk.
+  // Throttle per device: 30 receipts / minute is generous for a printer.
   // deviceKeyHash is non-null here: authenticateDevice only matches on a hash.
   const rl = await checkRateLimit(device.deviceKeyHash!, { limit: 30, windowMs: 60_000 });
   if (!rl.allowed) {

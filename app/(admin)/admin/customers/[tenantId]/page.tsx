@@ -152,7 +152,7 @@ export default async function CustomerDetailPage({
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <div className="space-y-1">
             <CardTitle>Assigned devices</CardTitle>
-            <CardDescription>{devices.length} kiosks across all stores</CardDescription>
+            <CardDescription>{devices.length} printers across all stores</CardDescription>
           </div>
           <ProvisionDeviceDialog
             organizationId={tenant.id}

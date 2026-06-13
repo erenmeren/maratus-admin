@@ -1,6 +1,6 @@
 // Small color helpers for the Branding live preview.
 // A tenant's brand color is DATA — these helpers render it safely on the
-// kiosk mockup without leaking into the app chrome.
+// printer mockup without leaking into the app chrome.
 
 /** Parse #rgb / #rrggbb into [r,g,b] (0–255). Falls back to emerald. */
 export function hexToRgb(hex: string): [number, number, number] {
@@ -40,8 +40,8 @@ export function isValidHex(hex: string): boolean {
 }
 
 /**
- * Kiosk theme tokens. `accent` is the tenant's brand color; bg/fg/muted let a
- * tenant tune the kiosk background / text / secondary-text independently. When a
+ * Printer theme tokens. `accent` is the tenant's brand color; bg/fg/muted let a
+ * tenant tune the printer background / text / secondary-text independently. When a
  * tenant hasn't set bg/fg/muted, these neutral defaults apply (a cool near-white
  * surface, near-black text, mid-gray secondary) — they read cleanly under any accent.
  */

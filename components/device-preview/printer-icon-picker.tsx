@@ -4,8 +4,8 @@ import * as React from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ICON_PRESETS, type KioskIcon, type IconPreset, type IconTint } from "@/lib/kiosk-layout";
-import { ICON_COMPONENTS } from "@/lib/kiosk-icons";
+import { ICON_PRESETS, type PrinterIcon, type IconPreset, type IconTint } from "@/lib/printer-layout";
+import { ICON_COMPONENTS } from "@/lib/printer-icons";
 import { cn } from "@/lib/utils";
 
 const TINTS: { value: IconTint; label: string }[] = [
@@ -15,15 +15,15 @@ const TINTS: { value: IconTint; label: string }[] = [
   { value: "none", label: "None" },
 ];
 
-export function KioskIconPicker({
+export function PrinterIconPicker({
   icon,
   disabled,
   onChange,
   onUpload,
 }: {
-  icon: KioskIcon;
+  icon: PrinterIcon;
   disabled?: boolean;
-  onChange: (next: KioskIcon) => void;
+  onChange: (next: PrinterIcon) => void;
   onUpload: (file: File) => void;
 }) {
   const fileRef = React.useRef<HTMLInputElement>(null);

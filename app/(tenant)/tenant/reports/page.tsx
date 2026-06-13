@@ -90,7 +90,7 @@ export default async function ReportsPage() {
         <Card>
           <CardHeader>
             <CardTitle>By device</CardTitle>
-            <CardDescription>Top kiosks by receipts this month</CardDescription>
+            <CardDescription>Top printers by receipts this month</CardDescription>
           </CardHeader>
           <CardContent>
             <BreakdownBarChart data={byDevice} />

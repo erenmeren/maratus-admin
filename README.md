@@ -1,7 +1,7 @@
 # Ditto — Admin Console
 
 Multi-tenant admin console for **Ditto**, a digital-receipt SaaS. Stores install
-kiosk devices that replace paper receipts with a QR code customers scan to
+printer devices that replace paper receipts with a QR code customers scan to
 download a digital receipt. This repo is the admin console plus the device-facing
 ingest/command API — backed by a real database, auth, object storage, and billing.
 
@@ -97,7 +97,7 @@ Key seams:
 3. **Ingest** — `POST /api/ingest`, authenticated by `Authorization: Bearer
    <deviceKey>` (not a user session). Stores the rendered image in R2, inserts a
    `receipt` row with a 40-char capability token, reports metered usage to Stripe,
-   and returns `{ token, url }` for the kiosk to render as a QR.
+   and returns `{ token, url }` for the printer to render as a QR.
 4. **Public receipt** — `/r/[token]` (no auth, the **token is the capability**).
    Renders the image via a fresh 5-minute presigned R2 URL; first view flips the
    receipt `ready → downloaded`.

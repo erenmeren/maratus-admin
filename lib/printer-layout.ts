@@ -1,21 +1,21 @@
-// Kiosk idle-screen layout (v2): a list of objects, each a real box (top-left
+// Printer idle-screen layout (v2): a list of objects, each a real box (top-left
 // x/y + w/h as fractions of the 720² canvas, resolution-independent). Object
 // types: text (editable content + font size + align), and the fixed widgets
 // logo/clock/wifi (one each, hideable, not deletable). Persisted per tenant as
-// jsonb; always loaded through normalizeKioskLayout so malformed/old (v1) data
+// jsonb; always loaded through normalizePrinterLayout so malformed/old (v1) data
 // can never break the render — v1 layouts are reset to the default.
 import { isValidTimezone } from "./timezones";
-import { MIN_BOX } from "./kiosk-geometry";
+import { MIN_BOX } from "./printer-geometry";
 
-export const KIOSK_SCREENS = ["idle", "processing", "qr", "sent", "error", "paused", "setup"] as const;
-export type KioskScreen = (typeof KIOSK_SCREENS)[number];
+export const PRINTER_SCREENS = ["idle", "processing", "qr", "sent", "error", "paused", "setup"] as const;
+export type PrinterScreen = (typeof PRINTER_SCREENS)[number];
 
 export const OBJECT_TYPES = [
   "text", "logo", "clock", "wifi",
   "icon",
   "qr", "spinner", "countdown", "pairingCode", "steps",
 ] as const;
-export type KioskObjectType = (typeof OBJECT_TYPES)[number];
+export type PrinterObjectType = (typeof OBJECT_TYPES)[number];
 
 // Legacy v2 fixed widgets (idle screen). Kept for v2 normalize + migration.
 export const FIXED_TYPES = ["logo", "clock", "wifi"] as const;
@@ -29,7 +29,7 @@ export type WidgetType = (typeof WIDGET_TYPES)[number];
 export const ADDABLE_TYPES = ["text", "icon"] as const;
 export type AddableType = (typeof ADDABLE_TYPES)[number];
 
-export const TYPE_LABEL: Record<KioskObjectType, string> = {
+export const TYPE_LABEL: Record<PrinterObjectType, string> = {
   text: "Text",
   logo: "Logo",
   clock: "Clock",
@@ -51,7 +51,7 @@ export type IconPreset = (typeof ICON_PRESETS)[number];
 export const DEFAULT_ICON_PRESET: IconPreset = "check";
 export type IconTint = "accent" | "muted" | "warn" | "none";
 
-export interface KioskIcon {
+export interface PrinterIcon {
   source: "preset" | "upload";
   preset?: IconPreset;
   url?: string;
@@ -63,9 +63,9 @@ export interface KioskIcon {
 
 export type TextAlign = "left" | "center" | "right";
 
-export interface KioskObject {
+export interface PrinterObject {
   id: string;
-  type: KioskObjectType;
+  type: PrinterObjectType;
   x: number; // top-left, fraction 0..1
   y: number;
   w: number; // size, fraction 0..1
@@ -75,27 +75,27 @@ export interface KioskObject {
   text?: string;
   fontSize?: number; // px on the 720 reference
   align?: TextAlign;
-  icon?: KioskIcon; // icon objects
+  icon?: PrinterIcon; // icon objects
 }
 
-export interface KioskLayout {
+export interface PrinterLayout {
   version: 2;
   clockTimezone: string;
   clock24h: boolean;
   wifiLevel: number; // 0..4
-  objects: KioskObject[];
+  objects: PrinterObject[];
 }
 
 export interface ScreenLayout {
-  objects: KioskObject[];
+  objects: PrinterObject[];
 }
 
-export interface KioskConfig {
+export interface PrinterConfig {
   version: 3;
   clockTimezone: string;
   clock24h: boolean;
   wifiLevel: number; // 0..4
-  screens: Record<KioskScreen, ScreenLayout>;
+  screens: Record<PrinterScreen, ScreenLayout>;
 }
 
 export const FONT_MIN = 8;
@@ -110,14 +110,14 @@ function num(v: unknown, fallback: number): number {
 }
 
 /** Default box + props for each fixed widget, reproducing today's arrangement. */
-const FIXED_DEFAULTS: Record<FixedType, Pick<KioskObject, "x" | "y" | "w" | "h">> = {
+const FIXED_DEFAULTS: Record<FixedType, Pick<PrinterObject, "x" | "y" | "w" | "h">> = {
   wifi: { x: 0.82, y: 0.04, w: 0.1, h: 0.06 },
   logo: { x: 0.3, y: 0.28, w: 0.4, h: 0.22 },
   clock: { x: 0.25, y: 0.52, w: 0.5, h: 0.18 },
 };
 
 /** Two seeded text objects (the old lane + tagline lines), now editable. */
-function seededText(): KioskObject[] {
+function seededText(): PrinterObject[] {
   return [
     { id: "text-lane", type: "text", x: 0.06, y: 0.05, w: 0.4, h: 0.06, visible: true, z: 3, text: "Lane 1", fontSize: 19, align: "left" },
     { id: "text-tagline", type: "text", x: 0.15, y: 0.88, w: 0.7, h: 0.08, visible: true, z: 4, text: "Tap your card or pay at the reader to begin", fontSize: 18, align: "center" },
@@ -125,8 +125,8 @@ function seededText(): KioskObject[] {
 }
 
 /** A fresh default layout (new object each call so callers can't mutate it). */
-export function defaultLayout(): KioskLayout {
-  const fixed: KioskObject[] = FIXED_TYPES.map((type, i) => ({
+export function defaultLayout(): PrinterLayout {
+  const fixed: PrinterObject[] = FIXED_TYPES.map((type, i) => ({
     id: type,
     type,
     ...FIXED_DEFAULTS[type],
@@ -142,9 +142,9 @@ export function defaultLayout(): KioskLayout {
   };
 }
 
-export const DEFAULT_KIOSK_LAYOUT: KioskLayout = defaultLayout();
+export const DEFAULT_PRINTER_LAYOUT: PrinterLayout = defaultLayout();
 
-const DEFAULT_FONT: Record<KioskObjectType, number> = {
+const DEFAULT_FONT: Record<PrinterObjectType, number> = {
   text: 24, logo: 24, clock: 24, wifi: 24,
   icon: 24, qr: 24, spinner: 24, countdown: 24, pairingCode: 24, steps: 24,
 };
@@ -157,7 +157,7 @@ function genIdSuffix(): string {
 }
 
 /** A fresh custom text object, centered, on top (`z`). */
-export function createTextObject(text: string, z: number): KioskObject {
+export function createTextObject(text: string, z: number): PrinterObject {
   return {
     id: `text-${genIdSuffix()}`,
     type: "text",
@@ -174,7 +174,7 @@ export function createTextObject(text: string, z: number): KioskObject {
 }
 
 /** A fresh custom icon object, centered, on top (`z`). */
-export function createIconObject(z: number): KioskObject {
+export function createIconObject(z: number): PrinterObject {
   return {
     id: `icon-${genIdSuffix()}`,
     type: "icon",
@@ -186,23 +186,23 @@ export function createIconObject(z: number): KioskObject {
 }
 
 // Internal helper: build an object with sane defaults.
-function obj(o: Partial<KioskObject> & Pick<KioskObject, "id" | "type" | "x" | "y" | "w" | "h" | "z">): KioskObject {
+function obj(o: Partial<PrinterObject> & Pick<PrinterObject, "id" | "type" | "x" | "y" | "w" | "h" | "z">): PrinterObject {
   return { visible: true, ...o };
 }
 
 /**
  * Default object layout for a screen, reproducing today's hard-coded templates so
  * a tenant who never edits a screen sees no visual change. Positions/sizes are
- * lifted from the per-screen JSX in kiosk-preview.tsx; tune to match pixel-for-pixel
+ * lifted from the per-screen JSX in printer-preview.tsx; tune to match pixel-for-pixel
  * against the live render during the Task 5 smoke check.
  */
-export function seededScreen(screen: KioskScreen): ScreenLayout {
+export function seededScreen(screen: PrinterScreen): ScreenLayout {
   switch (screen) {
     case "idle":
       // Reuse the v2 default objects verbatim (logo/clock/wifi + lane + tagline).
       return { objects: defaultLayout().objects };
     case "processing":
-      // From ProcessingScreen (kiosk-preview.tsx): spinner + caption text.
+      // From ProcessingScreen (printer-preview.tsx): spinner + caption text.
       return {
         objects: [
           obj({ id: "spinner", type: "spinner", x: 0.42, y: 0.34, w: 0.16, h: 0.16, z: 0 }),
@@ -211,7 +211,7 @@ export function seededScreen(screen: KioskScreen): ScreenLayout {
         ],
       };
     case "qr":
-      // From ReceiptScreen (kiosk-preview.tsx): logo + heading + qr + caption + countdown.
+      // From ReceiptScreen (printer-preview.tsx): logo + heading + qr + caption + countdown.
       return {
         objects: [
           obj({ id: "logo", type: "logo", x: 0.34, y: 0.06, w: 0.32, h: 0.12, z: 0 }),
@@ -222,7 +222,7 @@ export function seededScreen(screen: KioskScreen): ScreenLayout {
         ],
       };
     case "sent":
-      // From SentScreen (kiosk-preview.tsx): check icon (circle) + title/subtext/footer.
+      // From SentScreen (printer-preview.tsx): check icon (circle) + title/subtext/footer.
       return {
         objects: [
           obj({ id: "icon", type: "icon", x: 0.4, y: 0.22, w: 0.2, h: 0.2, z: 0, icon: { source: "preset", preset: "check", circle: true, tint: "accent" } }),
@@ -232,7 +232,7 @@ export function seededScreen(screen: KioskScreen): ScreenLayout {
         ],
       };
     case "error":
-      // From ErrorScreen (kiosk-preview.tsx): wifi-off icon + headline + subtext + pill.
+      // From ErrorScreen (printer-preview.tsx): wifi-off icon + headline + subtext + pill.
       return {
         objects: [
           obj({ id: "icon", type: "icon", x: 0.42, y: 0.22, w: 0.16, h: 0.16, z: 0, icon: { source: "preset", preset: "wifi-off", tint: "warn", circle: false } }),
@@ -242,7 +242,7 @@ export function seededScreen(screen: KioskScreen): ScreenLayout {
         ],
       };
     case "paused":
-      // From PausedScreen (kiosk-preview.tsx): dimmed logo + text.
+      // From PausedScreen (printer-preview.tsx): dimmed logo + text.
       return {
         objects: [
           obj({ id: "logo", type: "logo", x: 0.34, y: 0.22, w: 0.32, h: 0.16, z: 0 }),
@@ -251,7 +251,7 @@ export function seededScreen(screen: KioskScreen): ScreenLayout {
         ],
       };
     case "setup":
-      // From SetupScreen (kiosk-preview.tsx): logo + heading + steps + pairingCode + qr.
+      // From SetupScreen (printer-preview.tsx): logo + heading + steps + pairingCode + qr.
       return {
         objects: [
           obj({ id: "logo", type: "logo", x: 0.34, y: 0.05, w: 0.32, h: 0.1, z: 0 }),
@@ -266,14 +266,14 @@ export function seededScreen(screen: KioskScreen): ScreenLayout {
 }
 
 /** Display name for the object list / inspector. */
-export function objectLabel(o: KioskObject): string {
+export function objectLabel(o: PrinterObject): string {
   if (o.type !== "text") return TYPE_LABEL[o.type];
   const t = (o.text ?? "").trim();
   return t ? (t.length > 18 ? `${t.slice(0, 18)}…` : t) : "Text";
 }
 
 /** Clamp a box onto the canvas with a minimum size. */
-function sanitizeBox(o: Record<string, unknown>, d: Pick<KioskObject, "x" | "y" | "w" | "h">) {
+function sanitizeBox(o: Record<string, unknown>, d: Pick<PrinterObject, "x" | "y" | "w" | "h">) {
   const w = clamp(num(o.w, d.w), MIN_BOX, 1);
   const h = clamp(num(o.h, d.h), MIN_BOX, 1);
   const x = clamp(num(o.x, d.x), 0, 1 - w);
@@ -282,12 +282,12 @@ function sanitizeBox(o: Record<string, unknown>, d: Pick<KioskObject, "x" | "y" 
 }
 
 /**
- * Coerce arbitrary stored data into a valid v2 KioskLayout. Non-v2 input (incl.
+ * Coerce arbitrary stored data into a valid v2 PrinterLayout. Non-v2 input (incl.
  * legacy v1 sx/sy layouts) is reset to the default. Guarantees one of each fixed
  * widget, ≤ MAX_CUSTOM valid text objects, clamped boxes/fonts, a known timezone,
  * and wifi 0..4. Never throws.
  */
-export function normalizeKioskLayout(raw: unknown): KioskLayout {
+export function normalizePrinterLayout(raw: unknown): PrinterLayout {
   const r = raw as { version?: unknown; objects?: unknown; clockTimezone?: unknown; clock24h?: unknown; wifiLevel?: unknown } | null;
   if (!r || typeof r !== "object" || r.version !== 2 || !Array.isArray(r.objects)) {
     return defaultLayout();
@@ -295,7 +295,7 @@ export function normalizeKioskLayout(raw: unknown): KioskLayout {
   const list = r.objects as Record<string, unknown>[];
 
   // 1) Fixed widgets — one of each, in default z order.
-  const objects: KioskObject[] = FIXED_TYPES.map((type, i) => {
+  const objects: PrinterObject[] = FIXED_TYPES.map((type, i) => {
     const found = list.find((o) => o && o.type === type) ?? {};
     return {
       id: type,
@@ -339,11 +339,11 @@ export function normalizeKioskLayout(raw: unknown): KioskLayout {
   };
 }
 
-// ─── Task 2: v2→v3 migration + normalizeKioskConfig ──────────────────────────
+// ─── Task 2: v2→v3 migration + normalizePrinterConfig ──────────────────────────
 
 const ICON_TINTS = ["accent", "muted", "warn", "none"] as const satisfies readonly IconTint[];
 
-function sanitizeIcon(raw: unknown): KioskIcon {
+function sanitizeIcon(raw: unknown): PrinterIcon {
   const r = (raw ?? {}) as Record<string, unknown>;
   const source = r.source === "upload" ? "upload" : "preset";
   const tint = ICON_TINTS.includes(r.tint as IconTint) ? (r.tint as IconTint) : "accent";
@@ -358,7 +358,7 @@ function sanitizeIcon(raw: unknown): KioskIcon {
 }
 
 /** Default box for a widget singleton (used when a stored object is malformed). */
-const WIDGET_BOX: Record<WidgetType, Pick<KioskObject, "x" | "y" | "w" | "h">> = {
+const WIDGET_BOX: Record<WidgetType, Pick<PrinterObject, "x" | "y" | "w" | "h">> = {
   logo: { x: 0.34, y: 0.22, w: 0.32, h: 0.16 },
   clock: { x: 0.25, y: 0.52, w: 0.5, h: 0.18 },
   wifi: { x: 0.82, y: 0.04, w: 0.1, h: 0.06 },
@@ -369,8 +369,8 @@ const WIDGET_BOX: Record<WidgetType, Pick<KioskObject, "x" | "y" | "w" | "h">> =
   steps: { x: 0.18, y: 0.34, w: 0.64, h: 0.28 },
 };
 
-/** Coerce one stored object into a valid KioskObject of a known type, or null to drop it. */
-function sanitizeObject(raw: unknown, fallbackZ: number): KioskObject | null {
+/** Coerce one stored object into a valid PrinterObject of a known type, or null to drop it. */
+function sanitizeObject(raw: unknown, fallbackZ: number): PrinterObject | null {
   const o = (raw ?? {}) as Record<string, unknown>;
   const type = o.type;
   if (!(OBJECT_TYPES as readonly string[]).includes(type as string)) return null;
@@ -404,12 +404,12 @@ function sanitizeObject(raw: unknown, fallbackZ: number): KioskObject | null {
 }
 
 /** Normalize one screen's objects: ≥0 widget singletons (deduped) + capped addables. */
-function sanitizeScreen(raw: unknown, screen: KioskScreen): ScreenLayout {
+function sanitizeScreen(raw: unknown, screen: PrinterScreen): ScreenLayout {
   const r = (raw ?? {}) as { objects?: unknown };
   if (!Array.isArray(r.objects)) return seededScreen(screen);
   const list = r.objects as unknown[];
 
-  const out: KioskObject[] = [];
+  const out: PrinterObject[] = [];
   const seenWidget = new Set<string>();
   let addable = 0;
   let zNext = 0;
@@ -429,10 +429,10 @@ function sanitizeScreen(raw: unknown, screen: KioskScreen): ScreenLayout {
   return { objects: out.length ? out : seededScreen(screen).objects };
 }
 
-/** Migrate a v2 KioskLayout into a v3 config: idle = its objects, others seeded. */
-export function migrateV2ToConfig(layout: KioskLayout): KioskConfig {
-  const screens = {} as Record<KioskScreen, ScreenLayout>;
-  for (const s of KIOSK_SCREENS) {
+/** Migrate a v2 PrinterLayout into a v3 config: idle = its objects, others seeded. */
+export function migrateV2ToConfig(layout: PrinterLayout): PrinterConfig {
+  const screens = {} as Record<PrinterScreen, ScreenLayout>;
+  for (const s of PRINTER_SCREENS) {
     screens[s] = s === "idle" ? { objects: [...layout.objects] } : seededScreen(s);
   }
   return {
@@ -445,21 +445,21 @@ export function migrateV2ToConfig(layout: KioskLayout): KioskConfig {
 }
 
 /**
- * Coerce arbitrary stored data into a valid v3 KioskConfig. Accepts v3 directly,
+ * Coerce arbitrary stored data into a valid v3 PrinterConfig. Accepts v3 directly,
  * migrates v2, and resets anything else to the fully-seeded default. Never throws.
  */
-export function normalizeKioskConfig(raw: unknown): KioskConfig {
+export function normalizePrinterConfig(raw: unknown): PrinterConfig {
   const r = raw as { version?: unknown } | null;
 
   // v2 stored layout → migrate (run it through the v2 normalizer first for safety).
   if (r && typeof r === "object" && r.version === 2) {
-    return migrateV2ToConfig(normalizeKioskLayout(r));
+    return migrateV2ToConfig(normalizePrinterLayout(r));
   }
 
   // Default fully-seeded config (also the v1/garbage fallback).
-  const seededAll = (): KioskConfig => {
-    const screens = {} as Record<KioskScreen, ScreenLayout>;
-    for (const s of KIOSK_SCREENS) screens[s] = seededScreen(s);
+  const seededAll = (): PrinterConfig => {
+    const screens = {} as Record<PrinterScreen, ScreenLayout>;
+    for (const s of PRINTER_SCREENS) screens[s] = seededScreen(s);
     return { version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, screens };
   };
 
@@ -467,8 +467,8 @@ export function normalizeKioskConfig(raw: unknown): KioskConfig {
 
   const cfg = r as Record<string, unknown>;
   const rawScreens = (cfg.screens ?? {}) as Record<string, unknown>;
-  const screens = {} as Record<KioskScreen, ScreenLayout>;
-  for (const s of KIOSK_SCREENS) screens[s] = sanitizeScreen(rawScreens[s], s);
+  const screens = {} as Record<PrinterScreen, ScreenLayout>;
+  for (const s of PRINTER_SCREENS) screens[s] = sanitizeScreen(rawScreens[s], s);
 
   const tz = typeof cfg.clockTimezone === "string" && isValidTimezone(cfg.clockTimezone)
     ? cfg.clockTimezone

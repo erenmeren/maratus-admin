@@ -6,11 +6,11 @@ import * as React from "react";
 const cq = (px: number) => `${(px / 7.2).toFixed(2)}cqw`;
 
 /**
- * Live kiosk clock in a chosen timezone. Renders a stable "9:41" on first paint
+ * Live printer clock in a chosen timezone. Renders a stable "9:41" on first paint
  * (server + initial hydration) and switches to the real local time after mount,
  * so there's no hydration mismatch. Ticks every 20s.
  */
-export function KioskClock({
+export function PrinterClock({
   timezone,
   hour24 = false,
   size = 84,

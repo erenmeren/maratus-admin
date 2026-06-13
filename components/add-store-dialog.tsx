@@ -46,7 +46,7 @@ export function AddStoreDialog() {
     }
     setOpen(false);
     toast.success("Store added", {
-      description: `${fd.get("name")} is ready for kiosks.`,
+      description: `${fd.get("name")} is ready for printers.`,
     });
     router.refresh();
   }
@@ -64,7 +64,7 @@ export function AddStoreDialog() {
           <DialogHeader>
             <DialogTitle>Add store</DialogTitle>
             <DialogDescription>
-              Create a new branch. You can claim kiosks into it afterwards.
+              Create a new branch. You can claim printers into it afterwards.
             </DialogDescription>
           </DialogHeader>
 

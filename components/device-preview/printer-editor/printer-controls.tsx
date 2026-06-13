@@ -8,11 +8,11 @@ import {
   FONT_MAX,
   MAX_CUSTOM,
   MAX_TEXT_LEN,
-  type KioskObject,
+  type PrinterObject,
   type TextAlign,
-} from "@/lib/kiosk-layout";
-import { MIN_BOX } from "@/lib/kiosk-geometry";
-import type { KioskEditor } from "./use-kiosk-editor";
+} from "@/lib/printer-layout";
+import { MIN_BOX } from "@/lib/printer-geometry";
+import type { PrinterEditor } from "./use-printer-editor";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -25,13 +25,13 @@ import {
 } from "@/components/ui/select";
 import { TIMEZONES } from "@/lib/timezones";
 import { cn } from "@/lib/utils";
-import { KioskIconPicker } from "@/components/device-preview/kiosk-icon-picker";
+import { PrinterIconPicker } from "@/components/device-preview/printer-icon-picker";
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 const CANVAS_REF_PX = 720;
 
 /** Object list + a type-aware properties panel for the selected object. */
-export function KioskControls({ editor, onIconUpload }: { editor: KioskEditor; onIconUpload: (objectId: string, file: File) => void }) {
+export function PrinterControls({ editor, onIconUpload }: { editor: PrinterEditor; onIconUpload: (objectId: string, file: File) => void }) {
   const { ordered, disabled, selectedId, setSelectedId, selected, atCustomCap } = editor;
 
   return (
@@ -111,9 +111,9 @@ export function KioskControls({ editor, onIconUpload }: { editor: KioskEditor; o
 }
 
 /** Type-aware properties for the selected object. */
-function Properties({ object, editor, onIconUpload }: { object: KioskObject; editor: KioskEditor; onIconUpload: (objectId: string, file: File) => void }) {
+function Properties({ object, editor, onIconUpload }: { object: PrinterObject; editor: PrinterEditor; onIconUpload: (objectId: string, file: File) => void }) {
   const { disabled } = editor;
-  const set = (p: Partial<KioskObject>) => editor.patch(object.id, p);
+  const set = (p: Partial<PrinterObject>) => editor.patch(object.id, p);
 
   return (
     <div className="space-y-3 rounded-xl border p-3">
@@ -156,7 +156,7 @@ function Properties({ object, editor, onIconUpload }: { object: KioskObject; edi
       {object.type === "icon" && (
         <div className="space-y-1.5">
           <Label className="text-xs text-muted-foreground">Icon</Label>
-          <KioskIconPicker
+          <PrinterIconPicker
             icon={object.icon ?? { source: "preset", preset: "check", tint: "accent" }}
             disabled={disabled}
             onChange={(next) => set({ icon: next })}
@@ -171,7 +171,7 @@ function Properties({ object, editor, onIconUpload }: { object: KioskObject; edi
         <NumberField label="W" value={Math.round(object.w * CANVAS_REF_PX)} disabled={disabled} onChange={(v) => set({ w: clamp(v / CANVAS_REF_PX, MIN_BOX, 1 - object.x) })} />
         <NumberField label="H" value={Math.round(object.h * CANVAS_REF_PX)} disabled={disabled} onChange={(v) => set({ h: clamp(v / CANVAS_REF_PX, MIN_BOX, 1 - object.y) })} />
       </div>
-      <p className="text-[10px] text-muted-foreground">Pixels on the 720 × 720 kiosk canvas.</p>
+      <p className="text-[10px] text-muted-foreground">Pixels on the 720 × 720 printer canvas.</p>
 
       {object.type === "clock" && (
         <div className="grid gap-3 sm:grid-cols-2">

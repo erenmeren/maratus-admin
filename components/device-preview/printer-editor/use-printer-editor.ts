@@ -6,37 +6,37 @@ import {
   createIconObject,
   seededScreen,
   MAX_CUSTOM,
-  type KioskObject,
-  type KioskConfig,
-  type KioskScreen,
-} from "@/lib/kiosk-layout";
-import { resizeBox, snapMove, snapResize, clampToCanvas, type Box, type Handle, type Guides } from "@/lib/kiosk-geometry";
+  type PrinterObject,
+  type PrinterConfig,
+  type PrinterScreen,
+} from "@/lib/printer-layout";
+import { resizeBox, snapMove, snapResize, clampToCanvas, type Box, type Handle, type Guides } from "@/lib/printer-geometry";
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 const SNAP = 0.012; // snap threshold (fraction)
 const EMPTY_GUIDES: Guides = { vx: [], hy: [] };
 
-const toBox = (o: KioskObject): Box => ({ x: o.x, y: o.y, w: o.w, h: o.h });
+const toBox = (o: PrinterObject): Box => ({ x: o.x, y: o.y, w: o.w, h: o.h });
 
 type DragKind =
   | { type: "move"; offset: { x: number; y: number } }
   | { type: "resize"; handle: Handle; startBox: Box };
 
-/** Everything the kiosk canvas (KioskStage) and controls (KioskControls) share. */
-export interface KioskEditor {
-  config: KioskConfig;
-  screen: KioskScreen;
-  onChange: (c: KioskConfig) => void;
+/** Everything the printer canvas (PrinterStage) and controls (PrinterControls) share. */
+export interface PrinterEditor {
+  config: PrinterConfig;
+  screen: PrinterScreen;
+  onChange: (c: PrinterConfig) => void;
   disabled: boolean;
   canvasRef: React.RefObject<HTMLDivElement | null>;
   selectedId: string | null;
   setSelectedId: React.Dispatch<React.SetStateAction<string | null>>;
-  selected: KioskObject | null;
+  selected: PrinterObject | null;
   selBox: Box | null;
   guides: Guides;
-  ordered: KioskObject[];
+  ordered: PrinterObject[];
   atCustomCap: boolean;
-  patch: (id: string, p: Partial<KioskObject>) => void;
+  patch: (id: string, p: Partial<PrinterObject>) => void;
   startMove: (id: string, e: React.PointerEvent) => void;
   startResize: (handle: Handle, e: React.PointerEvent) => void;
   onPointerMove: (e: React.PointerEvent) => void;
@@ -44,7 +44,7 @@ export interface KioskEditor {
   onCanvasPointerDown: () => void;
   addText: () => void;
   addIcon: () => void;
-  setShared: (p: Partial<Pick<KioskConfig, "clockTimezone" | "clock24h" | "wifiLevel">>) => void;
+  setShared: (p: Partial<Pick<PrinterConfig, "clockTimezone" | "clock24h" | "wifiLevel">>) => void;
   removeObject: (id: string) => void;
   bringToFront: (id: string) => void;
   resetLayout: () => void;
@@ -53,17 +53,17 @@ export interface KioskEditor {
   isDragging: () => boolean;
 }
 
-export function useKioskEditor({
+export function usePrinterEditor({
   config,
   screen,
   onChange,
   disabled = false,
 }: {
-  config: KioskConfig;
-  screen: KioskScreen;
-  onChange: (c: KioskConfig) => void;
+  config: PrinterConfig;
+  screen: PrinterScreen;
+  onChange: (c: PrinterConfig) => void;
   disabled?: boolean;
-}): KioskEditor {
+}): PrinterEditor {
   const canvasRef = React.useRef<HTMLDivElement>(null);
   const drag = React.useRef<DragKind | null>(null);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
@@ -72,7 +72,7 @@ export function useKioskEditor({
   const objects = config.screens[screen].objects;
 
   // Replace the whole active screen's object list, preserving other screens + shared config.
-  const setObjects = (next: KioskObject[]) =>
+  const setObjects = (next: PrinterObject[]) =>
     onChange({ ...config, screens: { ...config.screens, [screen]: { objects: next } } });
 
   const selected = objects.find((o) => o.id === selectedId) ?? null;
@@ -80,7 +80,7 @@ export function useKioskEditor({
   const addableCount = objects.filter((o) => o.type === "text" || o.type === "icon").length;
   const atCustomCap = addableCount >= MAX_CUSTOM;
 
-  function patch(id: string, p: Partial<KioskObject>) {
+  function patch(id: string, p: Partial<PrinterObject>) {
     setObjects(objects.map((o) => (o.id === id ? { ...o, ...p } : o)));
   }
 
@@ -161,7 +161,7 @@ export function useKioskEditor({
     setSelectedId(newIcon.id);
   }
 
-  const setShared = (p: Partial<Pick<KioskConfig, "clockTimezone" | "clock24h" | "wifiLevel">>) =>
+  const setShared = (p: Partial<Pick<PrinterConfig, "clockTimezone" | "clock24h" | "wifiLevel">>) =>
     onChange({ ...config, ...p });
 
   function removeObject(id: string) {

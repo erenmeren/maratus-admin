@@ -1,4 +1,4 @@
-// Decorative QR-like matrix for the kiosk mockup. Not a real scannable code —
+// Decorative QR-like matrix for the printer mockup. Not a real scannable code —
 // it just reads as a QR on the preview. Deterministic from `seed`.
 
 function matrix(size: number, seed: number): boolean[][] {

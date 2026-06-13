@@ -17,11 +17,11 @@ export default async function BrandingPage() {
     <>
       <PageHeader
         title="Branding"
-        description="Customize how your kiosks look to customers. Changes preview live."
+        description="Customize how your printers look to customers. Changes preview live."
       />
       <BrandingEditor
         initialColor={branding.brandColor}
-        initialConfig={branding.kioskConfig}
+        initialConfig={branding.printerConfig}
         initialBg={branding.brandBg}
         initialFg={branding.brandFg}
         initialMuted={branding.brandMuted}

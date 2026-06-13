@@ -85,16 +85,16 @@ export function ClaimDeviceDialog({ storeId }: { storeId: string }) {
       <DialogTrigger asChild>
         <Button size="sm">
           <Plus className="size-4" />
-          Claim kiosk
+          Claim printer
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         {!issued ? (
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle>Claim a kiosk</DialogTitle>
+              <DialogTitle>Claim a printer</DialogTitle>
               <DialogDescription>
-                Enter the pairing code shown on the kiosk screen to bind it to
+                Enter the pairing code shown on the printer screen to bind it to
                 this store.
               </DialogDescription>
             </DialogHeader>
@@ -130,7 +130,7 @@ export function ClaimDeviceDialog({ storeId }: { storeId: string }) {
                 ) : (
                   <KeyRound className="size-4" />
                 )}
-                {loading ? "Claiming…" : "Claim kiosk"}
+                {loading ? "Claiming…" : "Claim printer"}
               </Button>
             </DialogFooter>
           </form>

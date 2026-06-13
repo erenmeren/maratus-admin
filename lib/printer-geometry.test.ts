@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resizeBox, snapMove, snapResize, clampToCanvas, MIN_BOX, type Box } from "./kiosk-geometry";
+import { resizeBox, snapMove, snapResize, clampToCanvas, MIN_BOX, type Box } from "./printer-geometry";
 
 const box: Box = { x: 0.4, y: 0.45, w: 0.2, h: 0.1 }; // edges L0.4 R0.6 T0.45 B0.55
 

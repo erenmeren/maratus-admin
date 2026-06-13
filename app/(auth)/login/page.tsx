@@ -66,7 +66,7 @@ function LoginForm() {
                 Welcome back
               </h1>
               <p className="text-sm text-muted-foreground">
-                Sign in to manage your kiosks, stores, and paperless receipts.
+                Sign in to manage your printers, stores, and paperless receipts.
               </p>
             </div>
 
@@ -212,14 +212,14 @@ function LoginForm() {
               Replace the paper receipt with a single scan.
             </h2>
             <p className="max-w-md text-primary-foreground/80">
-              Ditto kiosks turn every checkout into a QR code. Customers scan,
+              Ditto printers turn every checkout into a QR code. Customers scan,
               download, and walk away — no thermal paper, no waste.
             </p>
             <div className="grid grid-cols-3 gap-4 pt-2">
               {[
                 { k: "1.2M", v: "receipts digitized" },
                 { k: "3.8t", v: "paper saved" },
-                { k: "240+", v: "kiosks online" },
+                { k: "240+", v: "printers online" },
               ].map((s) => (
                 <div key={s.v}>
                   <p className="font-display text-2xl font-bold">{s.k}</p>

@@ -106,7 +106,7 @@ export function ProvisionDeviceDialog({
             <DialogHeader>
               <DialogTitle>Add device</DialogTitle>
               <DialogDescription>
-                Provision a new kiosk for {customerName}. You&apos;ll get a
+                Provision a new printer for {customerName}. You&apos;ll get a
                 pairing code to enter on the device.
               </DialogDescription>
             </DialogHeader>
@@ -118,7 +118,7 @@ export function ProvisionDeviceDialog({
                   id="device-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Kiosk 1"
+                  placeholder="e.g. Printer 1"
                 />
               </div>
               <div className="space-y-2">
@@ -168,7 +168,7 @@ export function ProvisionDeviceDialog({
                 Device provisioned
               </DialogTitle>
               <DialogDescription>
-                Enter this pairing code on the kiosk to bind it, then it issues
+                Enter this pairing code on the printer to bind it, then it issues
                 its device key.
               </DialogDescription>
             </DialogHeader>

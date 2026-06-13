@@ -1,39 +1,39 @@
 import { describe, it, expect } from "vitest";
 import {
-  normalizeKioskLayout,
+  normalizePrinterLayout,
   createTextObject,
   objectLabel,
   defaultLayout,
-  DEFAULT_KIOSK_LAYOUT,
+  DEFAULT_PRINTER_LAYOUT,
   FIXED_TYPES,
   FONT_MIN,
   FONT_MAX,
   MAX_CUSTOM,
-} from "./kiosk-layout";
+} from "./printer-layout";
 
-describe("normalizeKioskLayout", () => {
+describe("normalizePrinterLayout", () => {
   it("returns the default layout for null/garbage/v1", () => {
-    expect(normalizeKioskLayout(null)).toEqual(DEFAULT_KIOSK_LAYOUT);
-    expect(normalizeKioskLayout("nope")).toEqual(DEFAULT_KIOSK_LAYOUT);
-    expect(normalizeKioskLayout({})).toEqual(DEFAULT_KIOSK_LAYOUT);
+    expect(normalizePrinterLayout(null)).toEqual(DEFAULT_PRINTER_LAYOUT);
+    expect(normalizePrinterLayout("nope")).toEqual(DEFAULT_PRINTER_LAYOUT);
+    expect(normalizePrinterLayout({})).toEqual(DEFAULT_PRINTER_LAYOUT);
     // a v1 layout (elements + sx/sy, no version:2) → reset to default
-    expect(normalizeKioskLayout({ elements: [{ id: "logo", x: 0.5, y: 0.4, sx: 1, sy: 1 }] })).toEqual(DEFAULT_KIOSK_LAYOUT);
+    expect(normalizePrinterLayout({ elements: [{ id: "logo", x: 0.5, y: 0.4, sx: 1, sy: 1 }] })).toEqual(DEFAULT_PRINTER_LAYOUT);
   });
 
   it("keeps a valid v2 layout and round-trips it", () => {
     const l = defaultLayout();
-    expect(normalizeKioskLayout(l)).toEqual(l);
+    expect(normalizePrinterLayout(l)).toEqual(l);
   });
 
   it("ensures exactly one of each fixed widget", () => {
-    const l = normalizeKioskLayout({ version: 2, objects: [{ type: "logo", x: 0.1, y: 0.1, w: 0.2, h: 0.2 }] });
+    const l = normalizePrinterLayout({ version: 2, objects: [{ type: "logo", x: 0.1, y: 0.1, w: 0.2, h: 0.2 }] });
     for (const t of FIXED_TYPES) {
       expect(l.objects.filter((o) => o.type === t)).toHaveLength(1);
     }
   });
 
   it("clamps box coords, sizes, and font", () => {
-    const l = normalizeKioskLayout({
+    const l = normalizePrinterLayout({
       version: 2,
       objects: [{ type: "text", text: "Hi", x: -1, y: 9, w: 0, h: 5, fontSize: 9999 }],
     });
@@ -51,18 +51,18 @@ describe("normalizeKioskLayout", () => {
       { type: "bogus", x: 0.1, y: 0.1, w: 0.1, h: 0.1 }, // unknown → dropped
       ...Array.from({ length: 30 }, (_, i) => ({ type: "text", text: `t${i}` })),
     ];
-    const l = normalizeKioskLayout({ version: 2, objects: objs });
+    const l = normalizePrinterLayout({ version: 2, objects: objs });
     expect(l.objects.filter((o) => o.type === "text")).toHaveLength(MAX_CUSTOM);
   });
 
   it("trims long text to 80 chars", () => {
-    const l = normalizeKioskLayout({ version: 2, objects: [{ type: "text", text: "x".repeat(200) }] });
+    const l = normalizePrinterLayout({ version: 2, objects: [{ type: "text", text: "x".repeat(200) }] });
     expect(l.objects.find((o) => o.type === "text")!.text!.length).toBe(80);
   });
 
   it("validates timezone and clamps wifi", () => {
-    expect(normalizeKioskLayout({ version: 2, objects: [], clockTimezone: "Mars/Phobos" }).clockTimezone).toBe("UTC");
-    expect(normalizeKioskLayout({ version: 2, objects: [], wifiLevel: 9 }).wifiLevel).toBe(4);
+    expect(normalizePrinterLayout({ version: 2, objects: [], clockTimezone: "Mars/Phobos" }).clockTimezone).toBe("UTC");
+    expect(normalizePrinterLayout({ version: 2, objects: [], wifiLevel: 9 }).wifiLevel).toBe(4);
   });
 });
 
@@ -87,16 +87,16 @@ describe("objectLabel", () => {
 // ─── Task 1: v3 types, seededScreen, createIconObject ────────────────────────
 
 import {
-  KIOSK_SCREENS,
+  PRINTER_SCREENS,
   ICON_PRESETS,
   DEFAULT_ICON_PRESET,
   seededScreen,
   createIconObject,
-  type KioskObject,
-} from "./kiosk-layout";
+  type PrinterObject,
+} from "./printer-layout";
 
 // A box is valid if it sits on the canvas and has positive size.
-function boxesValid(objects: KioskObject[]): boolean {
+function boxesValid(objects: PrinterObject[]): boolean {
   return objects.every(
     (o) =>
       o.x >= 0 && o.y >= 0 && o.w > 0 && o.h > 0 &&
@@ -107,7 +107,7 @@ function boxesValid(objects: KioskObject[]): boolean {
 
 describe("seededScreen", () => {
   it("produces a non-empty, on-canvas layout for every screen", () => {
-    for (const screen of KIOSK_SCREENS) {
+    for (const screen of PRINTER_SCREENS) {
       const { objects } = seededScreen(screen);
       expect(objects.length).toBeGreaterThan(0);
       expect(boxesValid(objects)).toBe(true);
@@ -153,12 +153,12 @@ describe("allowlist", () => {
   });
 });
 
-// ─── Task 2: v2→v3 migration + normalizeKioskConfig ──────────────────────────
+// ─── Task 2: v2→v3 migration + normalizePrinterConfig ──────────────────────────
 
 import {
   migrateV2ToConfig,
-  normalizeKioskConfig,
-} from "./kiosk-layout";
+  normalizePrinterConfig,
+} from "./printer-layout";
 
 describe("migrateV2ToConfig", () => {
   it("puts the v2 idle objects into screens.idle and seeds the other 6", () => {
@@ -168,28 +168,28 @@ describe("migrateV2ToConfig", () => {
     expect(cfg.clockTimezone).toBe(v2.clockTimezone);
     expect(cfg.wifiLevel).toBe(v2.wifiLevel);
     expect(cfg.screens.idle.objects.length).toBe(v2.objects.length);
-    for (const s of KIOSK_SCREENS) {
+    for (const s of PRINTER_SCREENS) {
       expect(cfg.screens[s].objects.length).toBeGreaterThan(0);
     }
   });
 });
 
-describe("normalizeKioskConfig", () => {
+describe("normalizePrinterConfig", () => {
   it("returns a fully-seeded default for garbage input", () => {
-    const cfg = normalizeKioskConfig(null);
+    const cfg = normalizePrinterConfig(null);
     expect(cfg.version).toBe(3);
-    for (const s of KIOSK_SCREENS) expect(cfg.screens[s].objects.length).toBeGreaterThan(0);
+    for (const s of PRINTER_SCREENS) expect(cfg.screens[s].objects.length).toBeGreaterThan(0);
   });
 
   it("migrates a stored v2 layout (version: 2)", () => {
     const v2 = defaultLayout();
-    const cfg = normalizeKioskConfig(v2);
+    const cfg = normalizePrinterConfig(v2);
     expect(cfg.version).toBe(3);
     expect(cfg.screens.idle.objects.some((o) => o.type === "text")).toBe(true);
   });
 
   it("fills a missing screen from its seed", () => {
-    const cfg = normalizeKioskConfig({
+    const cfg = normalizePrinterConfig({
       version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
       screens: { idle: { objects: [] } }, // others absent
     });
@@ -197,7 +197,7 @@ describe("normalizeKioskConfig", () => {
   });
 
   it("drops an unknown icon preset to the default and keeps the object", () => {
-    const cfg = normalizeKioskConfig({
+    const cfg = normalizePrinterConfig({
       version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
       screens: { idle: { objects: [
         { id: "i1", type: "icon", x: 0.4, y: 0.4, w: 0.2, h: 0.2, visible: true, z: 0,
@@ -212,7 +212,7 @@ describe("normalizeKioskConfig", () => {
     const many = Array.from({ length: MAX_CUSTOM + 10 }, (_, i) => ({
       id: `t${i}`, type: "text", x: 0.1, y: 0.1, w: 0.3, h: 0.1, visible: true, z: i, text: `t${i}`,
     }));
-    const cfg = normalizeKioskConfig({
+    const cfg = normalizePrinterConfig({
       version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
       screens: { idle: { objects: many } },
     });
@@ -221,7 +221,7 @@ describe("normalizeKioskConfig", () => {
   });
 
   it("clamps wifiLevel and out-of-range geometry", () => {
-    const cfg = normalizeKioskConfig({
+    const cfg = normalizePrinterConfig({
       version: 3, clockTimezone: "Nowhere/Nope", clock24h: "yes", wifiLevel: 99,
       screens: { idle: { objects: [
         { id: "t", type: "text", x: 5, y: -3, w: 9, h: 9, visible: true, z: 0, text: "x" },
@@ -236,7 +236,7 @@ describe("normalizeKioskConfig", () => {
   });
 
   it("deduplicates widget singletons, keeping only the first", () => {
-    const cfg = normalizeKioskConfig({
+    const cfg = normalizePrinterConfig({
       version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
       screens: { idle: { objects: [
         { id: "q1", type: "qr", x: 0.3, y: 0.3, w: 0.3, h: 0.3, visible: true, z: 0 },
@@ -249,8 +249,8 @@ describe("normalizeKioskConfig", () => {
   it("drops signedUrl from upload icons — it is never persisted", () => {
     // Simulate what getTenantBranding sends to the client: an upload icon that has
     // both the canonical R2 key in `url` and an ephemeral presigned URL in `signedUrl`.
-    // normalizeKioskConfig must strip `signedUrl` so it never round-trips back on save.
-    const cfg = normalizeKioskConfig({
+    // normalizePrinterConfig must strip `signedUrl` so it never round-trips back on save.
+    const cfg = normalizePrinterConfig({
       version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
       screens: {
         idle: {

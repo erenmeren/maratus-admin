@@ -47,3 +47,6 @@ next-env.d.ts
 
 # gstack tooling artifacts
 .gstack/
+
+# Better Auth parity-check output (regenerate with `npm run auth:generate`)
+lib/db/auth-schema.generated.ts

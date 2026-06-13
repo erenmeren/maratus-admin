@@ -12,9 +12,9 @@ import { db } from "@/lib/db";
 import { tenantSettings } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
 import { isValidHex } from "@/lib/color";
-import { normalizeKioskLayout, type KioskLayout } from "@/lib/kiosk-layout";
+import { normalizeKioskConfig, KIOSK_SCREENS, type KioskConfig } from "@/lib/kiosk-layout";
 import { id } from "@/lib/ids";
-import { deleteObject, logoStorageKey, putObject } from "@/lib/storage";
+import { deleteObject, iconStorageKey, logoStorageKey, putObject } from "@/lib/storage";
 import { recordAudit, AUDIT } from "@/lib/audit";
 
 export interface SaveBrandingResult {
@@ -52,16 +52,60 @@ export async function saveBranding(
   const brandFg = token("brandFg");
   const brandMuted = token("brandMuted");
 
-  // Kiosk idle-screen layout (JSON). Normalized so bad input can't be stored.
-  let kioskLayout: KioskLayout | undefined;
-  const layoutRaw = String(formData.get("kioskLayout") ?? "").trim();
-  if (layoutRaw) {
+  // v3 per-screen kiosk config (JSON). Normalized so bad input can't be stored.
+  let kioskConfig: KioskConfig | undefined;
+  const screensRaw = String(formData.get("kioskScreens") ?? "").trim();
+  if (screensRaw) {
     try {
-      kioskLayout = normalizeKioskLayout(JSON.parse(layoutRaw));
+      kioskConfig = normalizeKioskConfig(JSON.parse(screensRaw));
     } catch {
-      kioskLayout = undefined; // ignore malformed JSON; leave layout unchanged
+      kioskConfig = undefined; // ignore malformed JSON; leave config unchanged
     }
   }
+
+  // Process newly-uploaded icon files. The client sets icon.url = "pending:<objectId>"
+  // and sends the file under "icon:<objectId>". Rewrite urls to the stored R2 key.
+  if (kioskConfig !== undefined) {
+    for (const screen of KIOSK_SCREENS) {
+      for (const o of kioskConfig.screens[screen].objects) {
+        if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url?.startsWith("pending:")) {
+          const objectId = o.icon.url.slice("pending:".length);
+          const file = formData.get(`icon:${objectId}`);
+          if (file instanceof File && file.size > 0) {
+            if (!file.type.startsWith("image/")) {
+              return { ok: false, error: "Icon must be an image file." };
+            }
+            if (file.size > MAX_LOGO_BYTES) {
+              return { ok: false, error: "Icon must be under 2 MB." };
+            }
+            const key = iconStorageKey(organizationId, id("icon"));
+            const bytes = Buffer.from(await file.arrayBuffer());
+            try {
+              await putObject(key, bytes, file.type);
+              o.icon = { ...o.icon, url: key };
+            } catch (err) {
+              console.error("Icon upload failed", err);
+              return { ok: false, error: "Icon upload failed. Try again." };
+            }
+          } else {
+            // No file provided for this pending marker — fall back to preset.
+            o.icon = { source: "preset", tint: o.icon.tint, circle: o.icon.circle };
+          }
+        }
+      }
+    }
+  }
+
+  // Derive a v2 kioskLayout from the idle screen for rollback safety.
+  const kioskLayout = kioskConfig
+    ? {
+        version: 2 as const,
+        clockTimezone: kioskConfig.clockTimezone,
+        clock24h: kioskConfig.clock24h,
+        wifiLevel: kioskConfig.wifiLevel,
+        objects: kioskConfig.screens.idle.objects,
+      }
+    : undefined;
 
   const staffPinRaw = String(formData.get("staffPin") ?? "").trim();
   const staffPin = staffPinRaw.replace(/\D/g, "").slice(0, 6);
@@ -92,16 +136,34 @@ export async function saveBranding(
     logoUrlUpdate = null;
   }
 
-  // If the logo is changing (replace or remove), capture the previous object
-  // key first so we can delete it after the DB write succeeds.
+  // Capture current state for cleanup (logo key and previous icon keys).
   let previousLogoKey: string | null = null;
-  if (logoUrlUpdate !== undefined) {
+  const previousIconKeys = new Set<string>();
+  if (logoUrlUpdate !== undefined || kioskConfig !== undefined) {
     const [existing] = await db
-      .select({ logoUrl: tenantSettings.logoUrl })
+      .select({
+        logoUrl: tenantSettings.logoUrl,
+        kioskScreens: tenantSettings.kioskScreens,
+        kioskLayout: tenantSettings.kioskLayout,
+      })
       .from(tenantSettings)
       .where(eq(tenantSettings.organizationId, organizationId))
       .limit(1);
-    previousLogoKey = existing?.logoUrl ?? null;
+
+    if (logoUrlUpdate !== undefined) {
+      previousLogoKey = existing?.logoUrl ?? null;
+    }
+
+    if (kioskConfig !== undefined && existing) {
+      const prevConfig = normalizeKioskConfig(existing.kioskScreens ?? existing.kioskLayout);
+      for (const screen of KIOSK_SCREENS) {
+        for (const o of prevConfig.screens[screen].objects) {
+          if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) {
+            previousIconKeys.add(o.icon.url);
+          }
+        }
+      }
+    }
   }
 
   // --- Upsert tenant_settings --------------------------------------------
@@ -115,7 +177,8 @@ export async function saveBranding(
       brandFg,
       brandMuted,
       staffPin,
-      ...(kioskLayout !== undefined ? { kioskLayout } : {}),
+      // Write both v3 (kioskScreens) and derived v2 (kioskLayout) for rollback safety.
+      ...(kioskConfig !== undefined ? { kioskScreens: kioskConfig, kioskLayout } : {}),
       ...(logoUrlUpdate !== undefined ? { logoUrl: logoUrlUpdate } : {}),
     })
     .onConflictDoUpdate({
@@ -127,7 +190,7 @@ export async function saveBranding(
         brandMuted,
         staffPin,
         updatedAt: now,
-        ...(kioskLayout !== undefined ? { kioskLayout } : {}),
+        ...(kioskConfig !== undefined ? { kioskScreens: kioskConfig, kioskLayout } : {}),
         ...(logoUrlUpdate !== undefined ? { logoUrl: logoUrlUpdate } : {}),
       },
     });
@@ -139,6 +202,21 @@ export async function saveBranding(
     previousLogoKey !== logoUrlUpdate // not the same object
   ) {
     await deleteObject(previousLogoKey);
+  }
+
+  // --- Clean up orphaned icon objects (best-effort) ----------------------
+  // Keys that were in the previous config but are absent from the new one.
+  if (kioskConfig !== undefined) {
+    const newIconKeys = new Set<string>();
+    for (const screen of KIOSK_SCREENS) {
+      for (const o of kioskConfig.screens[screen].objects) {
+        if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) {
+          newIconKeys.add(o.icon.url);
+        }
+      }
+    }
+    const orphaned = [...previousIconKeys].filter((k) => !newIconKeys.has(k));
+    await Promise.all(orphaned.map((k) => deleteObject(k)));
   }
 
   await recordAudit({

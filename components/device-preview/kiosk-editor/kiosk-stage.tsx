@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 /** The editable kiosk canvas: object boxes, alignment guides, and the
  *  selection/resize overlay. Driven entirely by a useKioskEditor instance. */
 export function KioskStage({ editor, brand }: { editor: KioskEditor; brand: KioskBrand }) {
-  const { layout, disabled, canvasRef, ordered, guides, selBox, selectedId } = editor;
+  const { config, disabled, canvasRef, ordered, guides, selBox, selectedId } = editor;
 
   // Clear drag/selection when the canvas unmounts (e.g. switching preview screens).
   const endInteraction = editor.endInteraction;
@@ -36,7 +36,7 @@ export function KioskStage({ editor, brand }: { editor: KioskEditor; brand: Kios
       onPointerLeave={editor.onPointerUp}
       onPointerDown={editor.onCanvasPointerDown}
       className="@container relative aspect-square w-full touch-none overflow-hidden rounded-[4cqw] shadow-2xl ring-1 ring-black/10 select-none"
-      style={{ ...kioskRootStyle(brand), background: "var(--k-bg)", color: "var(--k-fg)" }}
+      style={{ ...kioskRootStyle(brand), background: editor.screen === "error" ? "#f7f1e8" : "var(--k-bg)", color: "var(--k-fg)" }}
     >
       {ordered
         .filter((o) => o.visible)
@@ -65,7 +65,7 @@ export function KioskStage({ editor, brand }: { editor: KioskEditor; brand: Kios
                   onCancel={() => setEditingId(null)}
                 />
               ) : (
-                <ObjectVisual object={o} brand={brand} layout={layout} />
+                <ObjectVisual object={o} brand={brand} config={config} />
               )}
             </div>
           );

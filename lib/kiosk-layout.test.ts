@@ -83,3 +83,71 @@ describe("objectLabel", () => {
     expect(objectLabel(createTextObject("A very long custom label here", 0))).toContain("A very long");
   });
 });
+
+// ─── Task 1: v3 types, seededScreen, createIconObject ────────────────────────
+
+import {
+  KIOSK_SCREENS,
+  ICON_PRESETS,
+  DEFAULT_ICON_PRESET,
+  seededScreen,
+  createIconObject,
+  type KioskObject,
+} from "./kiosk-layout";
+
+// A box is valid if it sits on the canvas and meets the min size.
+function boxesValid(objects: KioskObject[]): boolean {
+  return objects.every(
+    (o) =>
+      o.x >= 0 && o.y >= 0 && o.w > 0 && o.h > 0 &&
+      o.x + o.w <= 1.0001 && o.y + o.h <= 1.0001 &&
+      typeof o.z === "number" && typeof o.visible === "boolean",
+  );
+}
+
+describe("seededScreen", () => {
+  it("produces a non-empty, on-canvas layout for every screen", () => {
+    for (const screen of KIOSK_SCREENS) {
+      const { objects } = seededScreen(screen);
+      expect(objects.length).toBeGreaterThan(0);
+      expect(boxesValid(objects)).toBe(true);
+      // ids are unique within a screen
+      expect(new Set(objects.map((o) => o.id)).size).toBe(objects.length);
+    }
+  });
+
+  it("seeds the sent screen with an accent circle check icon", () => {
+    const sent = seededScreen("sent").objects.find((o) => o.type === "icon");
+    expect(sent).toBeDefined();
+    expect(sent!.icon).toMatchObject({ source: "preset", preset: "check", circle: true, tint: "accent" });
+  });
+
+  it("seeds the error screen with a warn wifi-off icon", () => {
+    const err = seededScreen("error").objects.find((o) => o.type === "icon");
+    expect(err!.icon).toMatchObject({ source: "preset", preset: "wifi-off", tint: "warn" });
+  });
+
+  it("seeds idle with the existing logo/clock/wifi widgets and two text objects", () => {
+    const idle = seededScreen("idle").objects;
+    expect(idle.some((o) => o.type === "logo")).toBe(true);
+    expect(idle.some((o) => o.type === "clock")).toBe(true);
+    expect(idle.some((o) => o.type === "wifi")).toBe(true);
+    expect(idle.filter((o) => o.type === "text").length).toBe(2);
+  });
+});
+
+describe("createIconObject", () => {
+  it("creates a centered preset icon on top", () => {
+    const o = createIconObject(5);
+    expect(o.type).toBe("icon");
+    expect(o.z).toBe(5);
+    expect(o.icon).toMatchObject({ source: "preset", preset: DEFAULT_ICON_PRESET, tint: "accent" });
+    expect(o.id.startsWith("icon-")).toBe(true);
+  });
+});
+
+describe("allowlist", () => {
+  it("DEFAULT_ICON_PRESET is in ICON_PRESETS", () => {
+    expect((ICON_PRESETS as readonly string[]).includes(DEFAULT_ICON_PRESET)).toBe(true);
+  });
+});

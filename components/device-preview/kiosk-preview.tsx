@@ -53,7 +53,7 @@ export interface KioskBrand {
 }
 
 /** 720px design reference → container-query width units (100cqw = the square). */
-const cq = (px: number) => `${(px / 7.2).toFixed(2)}cqw`;
+export const cq = (px: number) => `${(px / 7.2).toFixed(2)}cqw`;
 
 /** CSS vars + font for the kiosk canvas. Shared by the preview and the studio. */
 export function kioskRootStyle(brand: KioskBrand): React.CSSProperties {

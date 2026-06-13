@@ -36,7 +36,7 @@ export function KioskStage({ editor, brand }: { editor: KioskEditor; brand: Kios
       onPointerLeave={editor.onPointerUp}
       onPointerDown={editor.onCanvasPointerDown}
       className="@container relative aspect-square w-full touch-none overflow-hidden rounded-[4cqw] shadow-2xl ring-1 ring-black/10 select-none"
-      style={{ ...kioskRootStyle(brand), background: "var(--k-bg)", color: "var(--k-fg)" }}
+      style={{ ...kioskRootStyle(brand), background: editor.screen === "error" ? "#f7f1e8" : "var(--k-bg)", color: "var(--k-fg)" }}
     >
       {ordered
         .filter((o) => o.visible)

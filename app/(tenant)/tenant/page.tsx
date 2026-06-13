@@ -55,7 +55,7 @@ export default async function TenantDashboardPage() {
         <KpiCard
           label="Active devices"
           value={`${dash.activeDevices}/${dash.totalDevices}`}
-          hint="kiosks online now"
+          hint="printers online now"
           icon={Cpu}
         />
       </div>
@@ -97,7 +97,7 @@ export default async function TenantDashboardPage() {
               <div className="min-w-0">
                 <p className="truncate font-medium">{s.name}</p>
                 <p className="truncate text-xs text-muted-foreground">
-                  {s.deviceCount} kiosks · {s.onlineCount} online
+                  {s.deviceCount} printers · {s.onlineCount} online
                 </p>
               </div>
               <div className="flex flex-col items-end gap-1.5">

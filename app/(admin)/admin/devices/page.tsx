@@ -15,7 +15,7 @@ export default async function FleetPage() {
     <>
       <PageHeader
         title="Device Fleet"
-        description="Every kiosk across every customer, in one place."
+        description="Every printer across every customer, in one place."
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

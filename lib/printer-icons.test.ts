@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { ICON_PRESETS, DEFAULT_ICON_PRESET } from "./kiosk-layout";
-import { resolveIconComponent, ICON_COMPONENTS } from "./kiosk-icons";
+import { ICON_PRESETS, DEFAULT_ICON_PRESET } from "./printer-layout";
+import { resolveIconComponent, ICON_COMPONENTS } from "./printer-icons";
 
-describe("kiosk-icons", () => {
+describe("printer-icons", () => {
   it("maps every preset to a renderable component", () => {
     for (const name of ICON_PRESETS) {
       const comp = ICON_COMPONENTS[name];

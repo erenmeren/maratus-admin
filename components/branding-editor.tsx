@@ -19,14 +19,14 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  KioskPreview,
-  type KioskScreen,
-  type KioskBrand,
-} from "@/components/device-preview/kiosk-preview";
-import { useKioskEditor } from "@/components/device-preview/kiosk-editor/use-kiosk-editor";
-import { KioskStage } from "@/components/device-preview/kiosk-editor/kiosk-stage";
-import { KioskControls } from "@/components/device-preview/kiosk-editor/kiosk-controls";
-import { type KioskConfig } from "@/lib/kiosk-layout";
+  PrinterPreview,
+  type PrinterScreen,
+  type PrinterBrand,
+} from "@/components/device-preview/printer-preview";
+import { usePrinterEditor } from "@/components/device-preview/printer-editor/use-printer-editor";
+import { PrinterStage } from "@/components/device-preview/printer-editor/printer-stage";
+import { PrinterControls } from "@/components/device-preview/printer-editor/printer-controls";
+import { type PrinterConfig } from "@/lib/printer-layout";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -59,7 +59,7 @@ import { cn } from "@/lib/utils";
 
 const PRESETS = ["#B4541F", "#3F9D4E", "#1F5C8B", "#E5484D", "#7C5CFC", "#0F766E", "#111827"];
 
-const SCREENS: { value: KioskScreen; label: string }[] = [
+const SCREENS: { value: PrinterScreen; label: string }[] = [
   { value: "idle", label: "Idle / ready" },
   { value: "processing", label: "Processing" },
   { value: "qr", label: "Receipt ready" },
@@ -69,7 +69,7 @@ const SCREENS: { value: KioskScreen; label: string }[] = [
   { value: "setup", label: "Setup / pairing" },
 ];
 
-function screenSectionTitle(screen: KioskScreen): string {
+function screenSectionTitle(screen: PrinterScreen): string {
   const label = SCREENS.find((s) => s.value === screen)?.label ?? "Screen";
   return screen === "idle" ? "Idle layout" : `${label} content`;
 }
@@ -87,7 +87,7 @@ export function BrandingEditor({
   canEdit,
 }: {
   initialColor: string;
-  initialConfig: KioskConfig;
+  initialConfig: PrinterConfig;
   initialBg: string;
   initialFg: string;
   initialMuted: string;
@@ -103,21 +103,21 @@ export function BrandingEditor({
   const [bg, setBg] = React.useState(initialBg);
   const [fg, setFg] = React.useState(initialFg);
   const [muted, setMuted] = React.useState(initialMuted);
-  const [config, setConfig] = React.useState<KioskConfig>(initialConfig);
+  const [config, setConfig] = React.useState<PrinterConfig>(initialConfig);
   const [logoText, setLogoText] = React.useState(initialLogoText);
   const [logoPreview, setLogoPreview] = React.useState<string | null>(initialLogoUrl);
   const [logoFile, setLogoFile] = React.useState<File | null>(null);
   const [logoCleared, setLogoCleared] = React.useState(false);
   const [pin, setPin] = React.useState(initialStaffPin);
   const [showPin, setShowPin] = React.useState(false);
-  const [screen, setScreen] = React.useState<KioskScreen>("idle");
+  const [screen, setScreen] = React.useState<PrinterScreen>("idle");
   const [zoom, setZoom] = React.useState(80);
   const screenIndex = SCREENS.findIndex((s) => s.value === screen);
   const slidePx = zoomToPx(zoom);
   const [saving, setSaving] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
-  const editor = useKioskEditor({
+  const editor = usePrinterEditor({
     config,
     screen,
     onChange: setConfig,
@@ -203,7 +203,7 @@ export function BrandingEditor({
     fd.set("brandBg", bg);
     fd.set("brandFg", fg);
     fd.set("brandMuted", muted);
-    fd.set("kioskScreens", JSON.stringify(config));
+    fd.set("printerScreens", JSON.stringify(config));
     for (const [objectId, file] of Object.entries(iconFiles)) fd.set(`icon:${objectId}`, file);
     fd.set("staffPin", pin);
     if (logoFile) fd.set("logo", logoFile);
@@ -216,7 +216,7 @@ export function BrandingEditor({
       toast.error("Couldn't save branding", { description: res.error });
       return;
     }
-    toast.success("Branding saved", { description: "Your kiosks will update on next sync." });
+    toast.success("Branding saved", { description: "Your printers will update on next sync." });
     setLogoFile(null);
     setLogoCleared(false);
     setIconFiles({});
@@ -224,7 +224,7 @@ export function BrandingEditor({
   }
 
   const disabled = !canEdit || saving;
-  const kioskBrand: KioskBrand = {
+  const printerBrand: PrinterBrand = {
     brandColor: color,
     brandBg: bg,
     brandFg: fg,
@@ -333,7 +333,7 @@ export function BrandingEditor({
                 <SectionHead icon={LayoutGrid} title={screenSectionTitle(screen)} />
               </AccordionTrigger>
               <AccordionContent className="space-y-4">
-                <KioskControls editor={editor} onIconUpload={onIconUpload} />
+                <PrinterControls editor={editor} onIconUpload={onIconUpload} />
               </AccordionContent>
             </AccordionItem>
 
@@ -376,9 +376,9 @@ export function BrandingEditor({
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <div className="space-y-1">
                 <CardTitle className="text-base">Live preview</CardTitle>
-                <CardDescription>720 × 720 kiosk display</CardDescription>
+                <CardDescription>720 × 720 printer display</CardDescription>
               </div>
-              <Select value={screen} onValueChange={(v) => setScreen(v as KioskScreen)}>
+              <Select value={screen} onValueChange={(v) => setScreen(v as PrinterScreen)}>
                 <SelectTrigger className="w-[150px]" aria-label="Preview screen"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {SCREENS.map((s) => (<SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>))}
@@ -425,9 +425,9 @@ export function BrandingEditor({
                 ariaLabels={SCREENS.map((s) => s.label)}
                 renderSlide={(i) =>
                   SCREENS[i].value === screen ? (
-                    <KioskStage editor={editor} brand={kioskBrand} />
+                    <PrinterStage editor={editor} brand={printerBrand} />
                   ) : (
-                    <KioskPreview brand={kioskBrand} config={config} screen={SCREENS[i].value} />
+                    <PrinterPreview brand={printerBrand} config={config} screen={SCREENS[i].value} />
                   )
                 }
               />

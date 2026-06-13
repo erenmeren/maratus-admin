@@ -12,7 +12,7 @@ import { db } from "@/lib/db";
 import { tenantSettings } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
 import { isValidHex } from "@/lib/color";
-import { normalizeKioskConfig, KIOSK_SCREENS, type KioskConfig } from "@/lib/kiosk-layout";
+import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "@/lib/printer-layout";
 import { id } from "@/lib/ids";
 import { deleteObject, iconStorageKey, logoStorageKey, putObject } from "@/lib/storage";
 import { recordAudit, AUDIT } from "@/lib/audit";
@@ -42,7 +42,7 @@ export async function saveBranding(
   }
   const brandColor = rawColor.startsWith("#") ? rawColor : `#${rawColor}`;
 
-  // Optional kiosk theme tokens. Empty or invalid → null (derive from accent).
+  // Optional printer theme tokens. Empty or invalid → null (derive from accent).
   const token = (key: string): string | null => {
     const v = String(formData.get(key) ?? "").trim();
     if (!v || !isValidHex(v)) return null;
@@ -52,22 +52,22 @@ export async function saveBranding(
   const brandFg = token("brandFg");
   const brandMuted = token("brandMuted");
 
-  // v3 per-screen kiosk config (JSON). Normalized so bad input can't be stored.
-  let kioskConfig: KioskConfig | undefined;
-  const screensRaw = String(formData.get("kioskScreens") ?? "").trim();
+  // v3 per-screen printer config (JSON). Normalized so bad input can't be stored.
+  let printerConfig: PrinterConfig | undefined;
+  const screensRaw = String(formData.get("printerScreens") ?? "").trim();
   if (screensRaw) {
     try {
-      kioskConfig = normalizeKioskConfig(JSON.parse(screensRaw));
+      printerConfig = normalizePrinterConfig(JSON.parse(screensRaw));
     } catch {
-      kioskConfig = undefined; // ignore malformed JSON; leave config unchanged
+      printerConfig = undefined; // ignore malformed JSON; leave config unchanged
     }
   }
 
   // Process newly-uploaded icon files. The client sets icon.url = "pending:<objectId>"
   // and sends the file under "icon:<objectId>". Rewrite urls to the stored R2 key.
-  if (kioskConfig !== undefined) {
-    for (const screen of KIOSK_SCREENS) {
-      for (const o of kioskConfig.screens[screen].objects) {
+  if (printerConfig !== undefined) {
+    for (const screen of PRINTER_SCREENS) {
+      for (const o of printerConfig.screens[screen].objects) {
         if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url?.startsWith("pending:")) {
           const objectId = o.icon.url.slice("pending:".length);
           const file = formData.get(`icon:${objectId}`);
@@ -96,14 +96,14 @@ export async function saveBranding(
     }
   }
 
-  // Derive a v2 kioskLayout from the idle screen for rollback safety.
-  const kioskLayout = kioskConfig
+  // Derive a v2 printerLayout from the idle screen for rollback safety.
+  const printerLayout = printerConfig
     ? {
         version: 2 as const,
-        clockTimezone: kioskConfig.clockTimezone,
-        clock24h: kioskConfig.clock24h,
-        wifiLevel: kioskConfig.wifiLevel,
-        objects: kioskConfig.screens.idle.objects,
+        clockTimezone: printerConfig.clockTimezone,
+        clock24h: printerConfig.clock24h,
+        wifiLevel: printerConfig.wifiLevel,
+        objects: printerConfig.screens.idle.objects,
       }
     : undefined;
 
@@ -139,12 +139,12 @@ export async function saveBranding(
   // Capture current state for cleanup (logo key and previous icon keys).
   let previousLogoKey: string | null = null;
   const previousIconKeys = new Set<string>();
-  if (logoUrlUpdate !== undefined || kioskConfig !== undefined) {
+  if (logoUrlUpdate !== undefined || printerConfig !== undefined) {
     const [existing] = await db
       .select({
         logoUrl: tenantSettings.logoUrl,
-        kioskScreens: tenantSettings.kioskScreens,
-        kioskLayout: tenantSettings.kioskLayout,
+        printerScreens: tenantSettings.printerScreens,
+        printerLayout: tenantSettings.printerLayout,
       })
       .from(tenantSettings)
       .where(eq(tenantSettings.organizationId, organizationId))
@@ -154,9 +154,9 @@ export async function saveBranding(
       previousLogoKey = existing?.logoUrl ?? null;
     }
 
-    if (kioskConfig !== undefined && existing) {
-      const prevConfig = normalizeKioskConfig(existing.kioskScreens ?? existing.kioskLayout);
-      for (const screen of KIOSK_SCREENS) {
+    if (printerConfig !== undefined && existing) {
+      const prevConfig = normalizePrinterConfig(existing.printerScreens ?? existing.printerLayout);
+      for (const screen of PRINTER_SCREENS) {
         for (const o of prevConfig.screens[screen].objects) {
           if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) {
             previousIconKeys.add(o.icon.url);
@@ -177,8 +177,8 @@ export async function saveBranding(
       brandFg,
       brandMuted,
       staffPin,
-      // Write both v3 (kioskScreens) and derived v2 (kioskLayout) for rollback safety.
-      ...(kioskConfig !== undefined ? { kioskScreens: kioskConfig, kioskLayout } : {}),
+      // Write both v3 (printerScreens) and derived v2 (printerLayout) for rollback safety.
+      ...(printerConfig !== undefined ? { printerScreens: printerConfig, printerLayout } : {}),
       ...(logoUrlUpdate !== undefined ? { logoUrl: logoUrlUpdate } : {}),
     })
     .onConflictDoUpdate({
@@ -190,7 +190,7 @@ export async function saveBranding(
         brandMuted,
         staffPin,
         updatedAt: now,
-        ...(kioskConfig !== undefined ? { kioskScreens: kioskConfig, kioskLayout } : {}),
+        ...(printerConfig !== undefined ? { printerScreens: printerConfig, printerLayout } : {}),
         ...(logoUrlUpdate !== undefined ? { logoUrl: logoUrlUpdate } : {}),
       },
     });
@@ -206,10 +206,10 @@ export async function saveBranding(
 
   // --- Clean up orphaned icon objects (best-effort) ----------------------
   // Keys that were in the previous config but are absent from the new one.
-  if (kioskConfig !== undefined) {
+  if (printerConfig !== undefined) {
     const newIconKeys = new Set<string>();
-    for (const screen of KIOSK_SCREENS) {
-      for (const o of kioskConfig.screens[screen].objects) {
+    for (const screen of PRINTER_SCREENS) {
+      for (const o of printerConfig.screens[screen].objects) {
         if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) {
           newIconKeys.add(o.icon.url);
         }

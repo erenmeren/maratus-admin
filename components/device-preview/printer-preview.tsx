@@ -3,20 +3,20 @@
 import * as React from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { FauxQR } from "./qr-code";
-import { KioskClock } from "./kiosk-clock";
+import { PrinterClock } from "./printer-clock";
 import { resolveBrandTokens, withAlpha } from "@/lib/color";
 import {
-  type KioskConfig,
-  type KioskObject,
-  type KioskScreen,
-} from "@/lib/kiosk-layout";
-import { resolveIconComponent } from "@/lib/kiosk-icons";
+  type PrinterConfig,
+  type PrinterObject,
+  type PrinterScreen,
+} from "@/lib/printer-layout";
+import { resolveIconComponent } from "@/lib/printer-icons";
 import { cn } from "@/lib/utils";
 
-// Re-export KioskScreen so existing callers of `import { KioskScreen } from ".../kiosk-preview"` keep working.
-export type { KioskScreen } from "@/lib/kiosk-layout";
+// Re-export PrinterScreen so existing callers of `import { PrinterScreen } from ".../printer-preview"` keep working.
+export type { PrinterScreen } from "@/lib/printer-layout";
 
-// Plus Jakarta Sans — the kiosk design's signature face (rounded, premium, calm).
+// Plus Jakarta Sans — the printer design's signature face (rounded, premium, calm).
 // Scoped to the preview via a CSS variable; the app chrome keeps its own fonts.
 const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
@@ -24,7 +24,7 @@ const jakarta = Plus_Jakarta_Sans({
   display: "swap",
 });
 
-export interface KioskBrand {
+export interface PrinterBrand {
   /** Accent = the tenant's brand color. */
   brandColor: string;
   /** Optional theme tokens — derived from the accent when omitted. */
@@ -47,8 +47,8 @@ export interface KioskBrand {
 /** 720px design reference → container-query width units (100cqw = the square). */
 export const cq = (px: number) => `${(px / 7.2).toFixed(2)}cqw`;
 
-/** CSS vars + font for the kiosk canvas. Shared by the preview and the studio. */
-export function kioskRootStyle(brand: KioskBrand): React.CSSProperties {
+/** CSS vars + font for the printer canvas. Shared by the preview and the studio. */
+export function printerRootStyle(brand: PrinterBrand): React.CSSProperties {
   const t = resolveBrandTokens(brand.brandColor, {
     bg: brand.brandBg,
     fg: brand.brandFg,
@@ -68,20 +68,20 @@ export function kioskRootStyle(brand: KioskBrand): React.CSSProperties {
 }
 
 /**
- * 720×720 kiosk mockup, container-query sized (cqw) so it scales to any width
+ * 720×720 printer mockup, container-query sized (cqw) so it scales to any width
  * while staying square. Renders the visible objects of the given screen sorted by
  * z-index, each absolutely positioned inside the square canvas. Reused on the
  * Branding live preview and device dialogs.
  */
-export function KioskPreview({
+export function PrinterPreview({
   brand,
   config,
   screen,
   className,
 }: {
-  brand: KioskBrand;
-  config: KioskConfig;
-  screen: KioskScreen;
+  brand: PrinterBrand;
+  config: PrinterConfig;
+  screen: PrinterScreen;
   className?: string;
 }) {
   const objects = [...config.screens[screen].objects]
@@ -94,7 +94,7 @@ export function KioskPreview({
         className,
       )}
       style={{
-        ...kioskRootStyle(brand),
+        ...printerRootStyle(brand),
         background: screen === "error" ? "#f7f1e8" : "var(--k-bg)",
         color: "var(--k-fg)",
       }}
@@ -125,7 +125,7 @@ function Logo({
   stacked = false,
   mono = false,
 }: {
-  brand: KioskBrand;
+  brand: PrinterBrand;
   size: number; // mark size in design px
   stacked?: boolean;
   mono?: boolean;
@@ -184,7 +184,7 @@ function Logo({
 }
 
 /**
- * Renders one kiosk object filling its absolutely-positioned box. Text wraps
+ * Renders one printer object filling its absolutely-positioned box. Text wraps
  * inside the box at its own font size; logo/clock/wifi/icon size deterministically
  * from the box (no transform scale, no DOM measurement). Shared by the read-only
  * preview and the editor stage.
@@ -194,9 +194,9 @@ export function ObjectVisual({
   brand,
   config,
 }: {
-  object: KioskObject;
-  brand: KioskBrand;
-  config: KioskConfig;
+  object: PrinterObject;
+  brand: PrinterBrand;
+  config: PrinterConfig;
 }) {
   switch (object.type) {
     case "text":
@@ -226,7 +226,7 @@ export function ObjectVisual({
 
 /* ── Per-object renderers ────────────────────────────────────────────── */
 
-function TextObject({ object }: { object: KioskObject }) {
+function TextObject({ object }: { object: PrinterObject }) {
   const align = object.align ?? "center";
   const justify = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
   return (
@@ -252,7 +252,7 @@ function TextObject({ object }: { object: KioskObject }) {
   );
 }
 
-function LogoObject({ object, brand }: { object: KioskObject; brand: KioskBrand }) {
+function LogoObject({ object, brand }: { object: PrinterObject; brand: PrinterBrand }) {
   if (brand.logoUrl) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
@@ -274,19 +274,19 @@ function ClockObject({
   timezone,
   clock24h,
 }: {
-  object: KioskObject;
+  object: PrinterObject;
   timezone: string;
   clock24h: boolean;
 }) {
   const timeFont = object.h * 720 * 0.5; // time font ~ half the box height
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-      <KioskClock timezone={timezone} hour24={clock24h} size={timeFont} />
+      <PrinterClock timezone={timezone} hour24={clock24h} size={timeFont} />
     </div>
   );
 }
 
-function WifiObject({ object, level }: { object: KioskObject; level: number }) {
+function WifiObject({ object, level }: { object: PrinterObject; level: number }) {
   const base = Math.min(object.w, object.h) * 720; // fit size in design px
   const bars = [0.45, 0.65, 0.85, 1];
   return (
@@ -314,7 +314,7 @@ function WifiObject({ object, level }: { object: KioskObject; level: number }) {
  * Renders a curated lucide preset or an uploaded R2 image (presigned by the
  * data layer) with optional tint and circular background.
  */
-function IconObject({ object, brand: _brand }: { object: KioskObject; brand: KioskBrand }) {
+function IconObject({ object, brand: _brand }: { object: PrinterObject; brand: PrinterBrand }) {
   const ic = object.icon ?? { source: "preset" as const };
   const tintVar =
     ic.tint === "muted" ? "var(--k-muted)" :
@@ -349,7 +349,7 @@ function IconObject({ object, brand: _brand }: { object: KioskObject; brand: Kio
  * QrObject — lifted from ReceiptScreen's QR card and the SetupScreen's compact
  * QR. Renders a faux QR inside a white card at size-full.
  */
-function QrObject({ object }: { object: KioskObject }) {
+function QrObject({ object }: { object: PrinterObject }) {
   const compact = object.w < 0.25;
   return (
     <div
@@ -379,7 +379,7 @@ function QrObject({ object }: { object: KioskObject }) {
  * SpinnerObject — lifted from ProcessingScreen. A spinning ring that fills its
  * object box; the border thickness is fixed in cqw so it scales with the canvas.
  */
-function SpinnerObject({ object: _object }: { object: KioskObject }) {
+function SpinnerObject({ object: _object }: { object: PrinterObject }) {
   return (
     <div
       className="animate-spin rounded-full size-full"
@@ -393,10 +393,10 @@ function SpinnerObject({ object: _object }: { object: KioskObject }) {
 
 /**
  * CountdownObject — lifted from ReceiptScreen's "Code expires" progress bar.
- * Preview values (remain/progress) are fixed for the mockup; the live kiosk
+ * Preview values (remain/progress) are fixed for the mockup; the live printer
  * app substitutes real values via its own render path.
  */
-function CountdownObject({ object: _object, brand: _brand }: { object: KioskObject; brand: KioskBrand }) {
+function CountdownObject({ object: _object, brand: _brand }: { object: PrinterObject; brand: PrinterBrand }) {
   const remain = "0:48";
   const progress = 0.34;
   return (
@@ -432,7 +432,7 @@ function CountdownObject({ object: _object, brand: _brand }: { object: KioskObje
  * PairingCodeObject — lifted from SetupScreen's pairing-code label + large
  * monospaced code. Reads `brand.pairingCode` for the preview value.
  */
-function PairingCodeObject({ object: _object, brand }: { object: KioskObject; brand: KioskBrand }) {
+function PairingCodeObject({ object: _object, brand }: { object: PrinterObject; brand: PrinterBrand }) {
   const code = brand.pairingCode ?? "K7P-4QX";
   return (
     <div className="flex size-full flex-col justify-center">
@@ -465,9 +465,9 @@ function PairingCodeObject({ object: _object, brand }: { object: KioskObject; br
 
 /**
  * StepsObject — lifted from SetupScreen's numbered steps list. The step copy is
- * fixed for the mockup (the live kiosk renders the same static instructions).
+ * fixed for the mockup (the live printer renders the same static instructions).
  */
-function StepsObject({ object: _object }: { object: KioskObject }) {
+function StepsObject({ object: _object }: { object: PrinterObject }) {
   const steps = [
     "Open your store admin dashboard",
     "Go to Devices → Add device",

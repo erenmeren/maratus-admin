@@ -5,7 +5,7 @@ import {
   AlertTriangle, WifiOff, Sparkles, PartyPopper, BadgeCheck, Coffee,
   type LucideIcon,
 } from "lucide-react";
-import { ICON_PRESETS, DEFAULT_ICON_PRESET, type IconPreset } from "./kiosk-layout";
+import { ICON_PRESETS, DEFAULT_ICON_PRESET, type IconPreset } from "./printer-layout";
 
 export const ICON_COMPONENTS: Record<IconPreset, LucideIcon> = {
   "check": Check,

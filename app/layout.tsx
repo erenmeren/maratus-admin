@@ -22,7 +22,7 @@ const mono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Ditto — Digital Receipts Admin",
   description:
-    "Ditto admin console: manage kiosks, stores, and the paperless receipt fleet.",
+    "Ditto admin console: manage printers, stores, and the paperless receipt fleet.",
 };
 
 export default function RootLayout({

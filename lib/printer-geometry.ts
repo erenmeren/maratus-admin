@@ -1,4 +1,4 @@
-// Pure resize + snap geometry for the kiosk editor. Operates on a top-left box in
+// Pure resize + snap geometry for the printer editor. Operates on a top-left box in
 // canvas fractions (0..1); no React/DOM so it is unit-testable.
 
 export interface Box {

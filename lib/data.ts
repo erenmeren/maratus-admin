@@ -46,7 +46,7 @@ import { computeAlerts, STALE_MINUTES, STUCK_PENDING_MINUTES, INACTIVE_DAYS, typ
 import { type ReceiptFilters, PAGE_SIZE } from "./receipts-search";
 import { presignedGetUrl } from "./storage";
 import { resolveBrandTokens } from "./color";
-import { normalizeKioskConfig, KIOSK_SCREENS, type KioskConfig } from "./kiosk-layout";
+import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "./printer-layout";
 import type {
   Device,
   DeviceRow,
@@ -762,12 +762,12 @@ export async function tenantNameOf(organizationId: string): Promise<string> {
 
 export interface TenantBranding {
   brandColor: string;
-  /** Kiosk theme tokens (bg/fg/muted resolved with defaults when unset). */
+  /** Printer theme tokens (bg/fg/muted resolved with defaults when unset). */
   brandBg: string;
   brandFg: string;
   brandMuted: string;
-  /** Normalized v3 kiosk config (uploaded icon keys are presigned for display). */
-  kioskConfig: KioskConfig;
+  /** Normalized v3 printer config (uploaded icon keys are presigned for display). */
+  printerConfig: PrinterConfig;
   staffPin: string;
   /** Presigned, ready-to-render image URL (null if no logo uploaded). */
   logoUrl: string | null;
@@ -790,19 +790,19 @@ export async function getTenantBranding(
     logoUrl = await presignedGetUrl(s.logoUrl);
   }
 
-  // Prefer v3 kioskScreens; fall back to migrating the legacy kioskLayout.
-  const config = normalizeKioskConfig(s?.kioskScreens ?? s?.kioskLayout);
+  // Prefer v3 printerScreens; fall back to migrating the legacy printerLayout.
+  const config = normalizePrinterConfig(s?.printerScreens ?? s?.printerLayout);
 
   // Presign every uploaded icon key across all screens (collect → presign → map back).
   const iconKeys = new Set<string>();
-  for (const screen of KIOSK_SCREENS) {
+  for (const screen of PRINTER_SCREENS) {
     for (const o of config.screens[screen].objects) {
       if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) iconKeys.add(o.icon.url);
     }
   }
   const signed = new Map<string, string>();
   await Promise.all([...iconKeys].map(async (k) => signed.set(k, await presignedGetUrl(k))));
-  for (const screen of KIOSK_SCREENS) {
+  for (const screen of PRINTER_SCREENS) {
     for (const o of config.screens[screen].objects) {
       if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) {
         o.icon = { ...o.icon, signedUrl: signed.get(o.icon.url) ?? undefined };
@@ -821,7 +821,7 @@ export async function getTenantBranding(
     brandBg: tokens.bg,
     brandFg: tokens.fg,
     brandMuted: tokens.muted,
-    kioskConfig: config,
+    printerConfig: config,
     staffPin: s?.staffPin ?? "",
     logoUrl,
     hasLogo: !!s?.logoUrl,

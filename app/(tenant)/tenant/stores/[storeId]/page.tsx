@@ -56,7 +56,7 @@ export default async function StoreDetailPage({
     : store.devices.some((d) => d.status === "paused")
       ? "paused"
       : "offline";
-  const avgPerKiosk = store.devices.length
+  const avgPerPrinter = store.devices.length
     ? Math.round(receiptsMonth / store.devices.length)
     : 0;
 
@@ -91,7 +91,7 @@ export default async function StoreDetailPage({
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          label="Kiosks"
+          label="Printers"
           value={`${online}/${store.devices.length}`}
           hint="online"
           icon={Cpu}
@@ -107,8 +107,8 @@ export default async function StoreDetailPage({
           icon={ReceiptText}
         />
         <KpiCard
-          label="Avg / kiosk"
-          value={formatNumber(avgPerKiosk)}
+          label="Avg / printer"
+          value={formatNumber(avgPerPrinter)}
           hint="receipts this month"
         />
       </div>
@@ -169,7 +169,7 @@ export default async function StoreDetailPage({
 
       <div>
         <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
-          Kiosks in this store
+          Printers in this store
         </h2>
         {store.devices.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -183,10 +183,10 @@ export default async function StoreDetailPage({
               <span className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <Cpu className="size-6" />
               </span>
-              <p className="text-sm font-medium">No kiosks here yet</p>
+              <p className="text-sm font-medium">No printers here yet</p>
               {canClaim && (
                 <p className="max-w-xs text-xs text-muted-foreground">
-                  Claim a kiosk with its pairing code to start issuing digital
+                  Claim a printer with its pairing code to start issuing digital
                   receipts at this store.
                 </p>
               )}
@@ -201,11 +201,11 @@ export default async function StoreDetailPage({
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Router className="size-4 text-muted-foreground" />
-              Unclaimed kiosks
+              Unclaimed printers
             </CardTitle>
             <CardDescription>
               {unclaimed.length} device{unclaimed.length > 1 ? "s" : ""} waiting
-              to be provisioned. Use a pairing code with “Claim kiosk” above.
+              to be provisioned. Use a pairing code with “Claim printer” above.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2 sm:grid-cols-2">

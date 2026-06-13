@@ -252,7 +252,7 @@ export async function provisionDevice(
     id: deviceId,
     organizationId,
     storeId: storeId ?? null,
-    name: name.trim() || "New Kiosk",
+    name: name.trim() || "New Printer",
     status: "offline",
     connectionType: "wifi",
     firmwareVersion: "2.4.1",
@@ -267,7 +267,7 @@ export async function provisionDevice(
     actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
     action: AUDIT.deviceProvisioned,
     target: { type: "device", id: deviceId },
-    metadata: { name: name.trim() || "New Kiosk" },
+    metadata: { name: name.trim() || "New Printer" },
   });
 
   revalidatePath(`/admin/customers/${organizationId}`);

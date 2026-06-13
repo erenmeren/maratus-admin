@@ -3,7 +3,7 @@ import { Check, Download, Leaf, ReceiptText, SearchX } from "lucide-react";
 import { DittoWordmark } from "@/components/brand";
 import { getReceiptByToken } from "@/lib/receipts";
 
-// Public receipt page — what a customer sees after scanning the kiosk QR.
+// Public receipt page — what a customer sees after scanning the printer QR.
 // No auth: the token IS the capability (long + unguessable). Viewing a ready
 // receipt flips it to "downloaded" (the "receipt sent ✓" signal).
 export default async function ReceiptPage({

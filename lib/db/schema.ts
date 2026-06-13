@@ -167,18 +167,22 @@ export const tenantSettings = pgTable("tenant_settings", {
   // Price Ditto charges per digital receipt, in whole cents (avoids float drift).
   perPrintPriceCents: integer("per_print_price_cents").default(4).notNull(),
   brandColor: text("brand_color").default("#10A765").notNull(),
-  // Optional kiosk theme tokens (null → derived from brandColor). The kiosk
+  // Optional printer theme tokens (null → derived from brandColor). The printer
   // preview lets a tenant tune background / foreground / muted separately.
   brandBg: text("brand_bg"),
   brandFg: text("brand_fg"),
   brandMuted: text("brand_muted"),
-  // Modular kiosk idle-screen layout (element positions/sizes/visibility +
-  // clock timezone). Shape is lib/kiosk-layout.ts KioskLayout; null → default.
-  kioskLayout: jsonb("kiosk_layout"),
-  // v3 per-screen config (KioskConfig). Supersedes kioskLayout; kioskLayout is
-  // retained for one release for rollback safety. null → normalizeKioskConfig
-  // migrates from kioskLayout on read (Task 10).
-  kioskScreens: jsonb("kiosk_screens"),
+  // Modular printer idle-screen layout (element positions/sizes/visibility +
+  // clock timezone). Shape is lib/printer-layout.ts PrinterLayout; null → default.
+  // NOTE: physical column kept as "kiosk_layout" — the device was renamed
+  // kiosk→printer in code/UI, but the DB column is left as-is to avoid a
+  // data migration on a column that holds live tenant config. Do not "fix".
+  printerLayout: jsonb("kiosk_layout"),
+  // v3 per-screen config (PrinterConfig). Supersedes printerLayout; printerLayout is
+  // retained for one release for rollback safety. null → normalizePrinterConfig
+  // migrates from printerLayout on read (Task 10). Physical column kept as
+  // "kiosk_screens" (see note above).
+  printerScreens: jsonb("kiosk_screens"),
   logoUrl: text("logo_url"),
   staffPin: text("staff_pin"),
   stripeCustomerId: text("stripe_customer_id"),

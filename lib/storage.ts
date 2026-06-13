@@ -102,7 +102,7 @@ export function logoStorageKey(
   return `logos/${organizationId}/${assetId}`;
 }
 
-/** Object key convention for a tenant's uploaded kiosk icon. */
+/** Object key convention for a tenant's uploaded printer icon. */
 export function iconStorageKey(
   organizationId: string,
   assetId: string,

@@ -151,7 +151,7 @@ export function SignupForm() {
               Every checkout, one scan away from paperless.
             </h2>
             <p className="max-w-md text-primary-foreground/80">
-              Set up your stores, pair your kiosks, and start issuing digital
+              Set up your stores, pair your printers, and start issuing digital
               receipts your customers can scan and keep.
             </p>
             <div className="grid grid-cols-3 gap-4 pt-2">

@@ -393,6 +393,47 @@ export const invoice = pgTable(
   ],
 );
 
+export const usageEvent = pgTable(
+  "usage_event",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    // One usage event per receipt — the unique index below makes recording
+    // idempotent (insert ... on conflict do nothing) so a receipt can never be
+    // metered twice nor silently un-billed.
+    receiptId: text("receipt_id")
+      .notNull()
+      .references(() => receipt.id, { onDelete: "cascade" }),
+    stripeCustomerId: text("stripe_customer_id"),
+    status: text("status", { enum: ["pending", "reported", "skipped"] })
+      .default("pending")
+      .notNull(),
+    attempts: integer("attempts").default(0).notNull(),
+    createdAt: timestamp("created_at")
+      .$defaultFn(() => new Date())
+      .notNull(),
+    reportedAt: timestamp("reported_at"),
+  },
+  (t) => [
+    uniqueIndex("usage_event_receipt_id_idx").on(t.receiptId),
+    index("usage_event_status_created_idx").on(t.status, t.createdAt),
+  ],
+);
+
+// Cross-instance fixed-window rate limiter backing store. One row per limiter
+// key (e.g. a device key hash or API key hash). `windowStart` is the floored
+// start of the current fixed window; `count` is the number of hits seen in it.
+// The increment-or-reset is done atomically in a single UPSERT — see
+// lib/rate-limit.ts. Serverless instances all share this table, so the limit is
+// actually enforced (an in-memory Map only throttled a single warm instance).
+export const rateLimit = pgTable("rate_limit", {
+  key: text("key").primaryKey(),
+  windowStart: timestamp("window_start").notNull(),
+  count: integer("count").default(0).notNull(),
+});
+
 export const auditLog = pgTable(
   "audit_log",
   {
@@ -454,6 +495,8 @@ export const schema = {
   webhookDelivery,
   receipt,
   invoice,
+  usageEvent,
+  rateLimit,
   auditLog,
   alert,
 };

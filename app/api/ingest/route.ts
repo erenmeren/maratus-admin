@@ -16,9 +16,8 @@ import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { device as deviceTable, receipt as receiptTable, tenantSettings } from "@/lib/db/schema";
-import { stripe } from "@/lib/stripe";
-import { reportReceiptUsage } from "@/lib/billing/stripe-billing";
+import { device as deviceTable, receipt as receiptTable, tenantSettings, usageEvent as usageEventTable } from "@/lib/db/schema";
+import { recordUsageEvent, reportUsageEvent } from "@/lib/billing/usage-metering";
 import { isSuspended } from "@/lib/billing/billing-status";
 import { id, receiptToken } from "@/lib/ids";
 import { authenticateDevice } from "@/lib/device-auth";
@@ -59,7 +58,7 @@ export async function POST(req: Request) {
 
   // Throttle per device: 30 receipts / minute is generous for a kiosk.
   // deviceKeyHash is non-null here: authenticateDevice only matches on a hash.
-  const rl = checkRateLimit(device.deviceKeyHash!, { limit: 30, windowMs: 60_000 });
+  const rl = await checkRateLimit(device.deviceKeyHash!, { limit: 30, windowMs: 60_000 });
   if (!rl.allowed) {
     return NextResponse.json(
       { error: "Rate limit exceeded" },
@@ -153,20 +152,29 @@ export async function POST(req: Request) {
     .set({ lastSeenAt: now, status: "online", ...(version ? { firmwareVersion: version } : {}) })
     .where(eq(deviceTable.id, device.id));
 
-  // Report metered usage to Stripe (best-effort: never fail ingestion on this).
-  if (stripe) {
-    const [settings] = await db
-      .select({ customerId: tenantSettings.stripeCustomerId })
-      .from(tenantSettings)
-      .where(eq(tenantSettings.organizationId, device.organizationId))
+  // Durable metered usage. Write a usage_event ledger row for this receipt (the
+  // ledger is the durability guarantee), then best-effort report it to Stripe
+  // off the critical path. A dropped meter event stays "pending" and is retried
+  // by /api/cron/usage — it can never silently un-bill the receipt.
+  const [settings] = await db
+    .select({ customerId: tenantSettings.stripeCustomerId })
+    .from(tenantSettings)
+    .where(eq(tenantSettings.organizationId, device.organizationId))
+    .limit(1);
+  after(async () => {
+    const usageEventId = await recordUsageEvent({
+      organizationId: device.organizationId,
+      receiptId,
+      stripeCustomerId: settings?.customerId ?? null,
+    });
+    if (!usageEventId) return;
+    const [row] = await db
+      .select()
+      .from(usageEventTable)
+      .where(eq(usageEventTable.id, usageEventId))
       .limit(1);
-    if (settings?.customerId) {
-      reportReceiptUsage(settings.customerId).catch((e) => {
-        console.error("[ingest] meter event failed", e);
-        reportError(e, { path: "ingest.meter-event", extra: { orgId: device.organizationId } });
-      });
-    }
-  }
+    if (row) await reportUsageEvent(row);
+  });
 
   // --- 4. Respond with the token + public short URL ----------------------
   const baseUrl = getEnv().BETTER_AUTH_URL;

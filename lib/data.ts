@@ -33,13 +33,12 @@ import { effectiveDeviceStatus } from "./device-status";
 import { computeEcoSavings } from "./eco";
 import {
   bucketsToSeries,
-  countByDayKey,
-  countByMonthKey,
   dayKeys,
   monthKeys,
   computeTrend,
   buildHeatmap,
   toComparisonRows,
+  type BucketCount,
   type StoreAnalytics,
   type StoreComparisonRow,
 } from "./analytics";
@@ -62,21 +61,24 @@ import type {
 import type { ApiReceiptRow } from "@/lib/api/serialize";
 
 // ============================================================================
-// Internal: load an org's raw rows once, then build view-models from the bundle
+// Internal: load an org's bounded metadata + SQL-aggregated receipt rollups,
+// then build view-models from the bundle. The unbounded per-receipt rows are
+// NEVER pulled into app memory — only GROUP BY aggregates (per-device today/
+// month counts, and per-day/per-month series buckets). A super-admin page is
+// therefore O(devices + buckets) per org, not O(all receipts on the platform).
 // ============================================================================
-
-type ReceiptLite = {
-  deviceId: string;
-  storeId: string | null;
-  createdAt: Date;
-};
 
 interface OrgBundle {
   org: typeof orgTable.$inferSelect;
   settings: typeof settingsTable.$inferSelect | undefined;
   stores: (typeof storeTable.$inferSelect)[];
   devices: (typeof deviceTable.$inferSelect)[];
-  receipts: ReceiptLite[];
+  /** receipts-per-device, today / this-month (UTC), from SQL GROUP BY. */
+  todayByDevice: Map<string, number>;
+  monthByDevice: Map<string, number>;
+  /** day-key ("YYYY-MM-DD", last 30d) / month-key ("YYYY-MM", last 9mo) counts. */
+  dailyBuckets: BucketCount[];
+  monthlyBuckets: BucketCount[];
   contact: { name: string; email: string; phone: string };
 }
 
@@ -88,7 +90,42 @@ async function loadOrg(organizationId: string): Promise<OrgBundle | null> {
     .limit(1);
   if (!org) return null;
 
-  const [settings, stores, devices, receipts, ownerRows] = await Promise.all([
+  // UTC boundaries. today/month reuse the exact startOfToday/startOfMonth
+  // definitions; since30/since9mo are the lower bounds of the 30-day / 9-month
+  // key windows (dayKeys/monthKeys) so the series GROUP BY scans only the window.
+  const now = new Date();
+  const todayStartStr = new Date(startOfToday()).toISOString();
+  const monthStartStr = new Date(startOfMonth()).toISOString();
+  const since30Str = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29),
+  ).toISOString();
+  const since9moStr = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 8, 1),
+  ).toISOString();
+
+  // created_at is `timestamp` (no tz) storing UTC wall-clock. Comparing it to an
+  // ISO string cast to ::timestamp is a pure wall-clock (UTC) comparison with no
+  // server-timezone coercion — byte-for-byte equivalent to the old in-memory
+  // `createdAt.getTime() >= startOf*()` epoch test, and the same cast the cursor
+  // pagination relies on. date_trunc likewise buckets the stored UTC wall-clock,
+  // matching the JS `toISOString()`/`getUTC*` bucketing it replaces.
+  const dayExpr = sql<string>`to_char(date_trunc('day', ${receiptTable.createdAt}), 'YYYY-MM-DD')`;
+  const monthExpr = sql<string>`to_char(date_trunc('month', ${receiptTable.createdAt}), 'YYYY-MM')`;
+  const orgScoped = (sinceStr: string) =>
+    and(
+      eq(receiptTable.organizationId, organizationId),
+      sql`${receiptTable.createdAt} >= ${sinceStr}::timestamp`,
+    );
+
+  const [
+    settings,
+    stores,
+    devices,
+    deviceCountRows,
+    dailyBuckets,
+    monthlyBuckets,
+    ownerRows,
+  ] = await Promise.all([
     db
       .select()
       .from(settingsTable)
@@ -97,20 +134,46 @@ async function loadOrg(organizationId: string): Promise<OrgBundle | null> {
       .then((r) => r[0]),
     db.select().from(storeTable).where(eq(storeTable.organizationId, organizationId)),
     db.select().from(deviceTable).where(eq(deviceTable.organizationId, organizationId)),
+    // Per-device today + this-month counts in one grouped pass. The query is
+    // lower-bounded at month-start; today ⊆ month, so the today FILTER is a
+    // strict subset and `count(*)` is exactly the month count for each device.
     db
       .select({
         deviceId: receiptTable.deviceId,
-        storeId: receiptTable.storeId,
-        createdAt: receiptTable.createdAt,
+        today: sql<number>`count(*) FILTER (WHERE ${receiptTable.createdAt} >= ${todayStartStr}::timestamp)`.mapWith(
+          Number,
+        ),
+        month: sql<number>`count(*)`.mapWith(Number),
       })
       .from(receiptTable)
-      .where(eq(receiptTable.organizationId, organizationId)),
+      .where(orgScoped(monthStartStr))
+      .groupBy(receiptTable.deviceId),
+    db
+      .select({ bucket: dayExpr, count: count() })
+      .from(receiptTable)
+      .where(orgScoped(since30Str))
+      .groupBy(dayExpr),
+    db
+      .select({ bucket: monthExpr, count: count() })
+      .from(receiptTable)
+      .where(orgScoped(since9moStr))
+      .groupBy(monthExpr),
     db
       .select({ name: userTable.name, email: userTable.email, role: memberTable.role })
       .from(memberTable)
       .innerJoin(userTable, eq(memberTable.userId, userTable.id))
       .where(eq(memberTable.organizationId, organizationId)),
   ]);
+
+  // Mirror the old per-receipt loop: a device appears in monthByDevice when it
+  // has ≥1 receipt this month, in todayByDevice when it has ≥1 today; absent
+  // devices read back as 0 via `?? 0` in mapDevice. (count(*) here is ≥1.)
+  const todayByDevice = new Map<string, number>();
+  const monthByDevice = new Map<string, number>();
+  for (const r of deviceCountRows) {
+    monthByDevice.set(r.deviceId, r.month);
+    if (r.today) todayByDevice.set(r.deviceId, r.today);
+  }
 
   const owner =
     ownerRows.find((m) => m.role === "owner") ?? ownerRows[0] ?? null;
@@ -120,7 +183,10 @@ async function loadOrg(organizationId: string): Promise<OrgBundle | null> {
     settings,
     stores,
     devices,
-    receipts,
+    todayByDevice,
+    monthByDevice,
+    dailyBuckets,
+    monthlyBuckets,
     contact: {
       name: owner?.name ?? org.name,
       email: owner?.email ?? "",
@@ -149,20 +215,6 @@ function startOfMonth(): number {
   return Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), 1);
 }
 
-/** receipts-per-device for today and this month. */
-function deviceCounts(receipts: ReceiptLite[]) {
-  const today = startOfToday();
-  const month = startOfMonth();
-  const todayBy = new Map<string, number>();
-  const monthBy = new Map<string, number>();
-  for (const r of receipts) {
-    const t = r.createdAt.getTime();
-    if (t >= month) monthBy.set(r.deviceId, (monthBy.get(r.deviceId) ?? 0) + 1);
-    if (t >= today) todayBy.set(r.deviceId, (todayBy.get(r.deviceId) ?? 0) + 1);
-  }
-  return { todayBy, monthBy };
-}
-
 function dollars(cents: number): number {
   return Math.round(cents) / 100;
 }
@@ -175,7 +227,8 @@ function mapTenantStatus(s: string | undefined): TenantStatus {
 // ---- bundle → view models ---------------------------------------------------
 
 function buildTenant(b: OrgBundle): Tenant {
-  const { todayBy, monthBy } = deviceCounts(b.receipts);
+  const todayBy = b.todayByDevice;
+  const monthBy = b.monthByDevice;
   const price = dollars(b.settings?.perPrintPriceCents ?? 4);
 
   const stores: Store[] = b.stores.map((s) => ({
@@ -250,19 +303,20 @@ function summarize(b: OrgBundle): TenantSummary {
   };
 }
 
-// ---- time series from real receipts ----------------------------------------
-// Both reuse the pure UTC bucketing primitives shared with the per-store
-// analytics (countBy*Key + day/monthKeys + bucketsToSeries) so org-wide and
-// per-store series can never drift apart.
+// ---- time series from SQL-aggregated receipt buckets ------------------------
+// The bundle already holds GROUP BY counts keyed "YYYY-MM-DD" / "YYYY-MM" (UTC,
+// via date_trunc). bucketsToSeries joins them onto the ordered day/month keys —
+// the same join the per-store analytics (getStoreAnalytics/getStoresAnalytics)
+// use, so org-wide and per-store series can never drift apart. Buckets outside
+// the key window are simply not joined (identical to the old all-receipts path,
+// which bucketed everything then dropped out-of-window keys).
 
 function dailySeries(b: OrgBundle, price: number): TimePoint[] {
-  const dates = b.receipts.map((r) => r.createdAt);
-  return bucketsToSeries(countByDayKey(dates), dayKeys(new Date(), 30), price);
+  return bucketsToSeries(b.dailyBuckets, dayKeys(new Date(), 30), price);
 }
 
 function monthlySeries(b: OrgBundle, price: number): TimePoint[] {
-  const dates = b.receipts.map((r) => r.createdAt);
-  return bucketsToSeries(countByMonthKey(dates), monthKeys(new Date(), 9), price);
+  return bucketsToSeries(b.monthlyBuckets, monthKeys(new Date(), 9), price);
 }
 
 function sumSeries(all: TimePoint[][]): TimePoint[] {

@@ -44,3 +44,6 @@ next-env.d.ts
 # local screenshots
 .playwright-mcp/
 *.local.png
+
+# gstack tooling artifacts
+.gstack/

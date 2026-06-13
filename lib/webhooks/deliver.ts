@@ -8,7 +8,7 @@ import { webhookEndpoint as epTable, webhookDelivery as delTable } from "@/lib/d
 import { id } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { signPayload } from "./sign";
-import { isAllowedWebhookUrl } from "./url-guard";
+import { assertAllowedWebhookUrl } from "./url-guard";
 import { nextBackoff } from "./retry";
 import { buildEvent, type WebhookEventType } from "./events";
 import type { ApiReceiptRow } from "@/lib/api/serialize";
@@ -34,7 +34,8 @@ export async function attemptDelivery(
   const body = JSON.stringify(delivery.payload);
 
   // Re-check the URL each attempt (DNS may have changed since creation).
-  const guard = isAllowedWebhookUrl(endpoint.url);
+  // Async: also resolves the hostname and blocks private/loopback/link-local IPs.
+  const guard = await assertAllowedWebhookUrl(endpoint.url);
   if (!guard.ok) {
     await db.update(delTable).set({ status: "failed", attempts, responseStatus: null, lastAttemptAt: now, nextRetryAt: null }).where(eq(delTable.id, delivery.id));
     return { ok: false, responseStatus: null };

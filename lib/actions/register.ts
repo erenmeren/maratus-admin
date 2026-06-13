@@ -12,7 +12,7 @@
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
-import { db } from "@/lib/db";
+import { db, dbTx } from "@/lib/db";
 import { member, organization, tenantSettings, user } from "@/lib/db/schema";
 import { id } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
@@ -68,9 +68,47 @@ export async function registerCompany(
     };
   }
 
+  // signUpEmail and createOrganization are separate Better-Auth API calls and
+  // cannot share a DB transaction with our own writes. So we make this safe two
+  // ways: (a) compensating cleanup if any step fails AFTER Better-Auth created
+  // the user and/or org, and (b) a real transaction wrapping OUR writes (steps
+  // 3 + 4) so they commit together or not at all. The net effect is that a
+  // mid-flow failure leaves no orphans, and re-submitting the same email after
+  // a cleanup can succeed.
+  let createdUserId: string | null = null;
+  let createdOrgId: string | null = null;
+
+  // Best-effort rollback: delete the org first (cascades member +
+  // tenant_settings), then the user (cascades account/session). Each delete is
+  // isolated so one failure doesn't block the other; failures are logged, not
+  // thrown, since this already runs on an error path.
+  const rollback = async () => {
+    if (createdOrgId) {
+      try {
+        await db.delete(organization).where(eq(organization.id, createdOrgId));
+      } catch (cleanupErr) {
+        console.error(
+          `[registerCompany] cleanup: failed to delete org ${createdOrgId}`,
+          cleanupErr,
+        );
+      }
+    }
+    if (createdUserId) {
+      try {
+        await db.delete(user).where(eq(user.id, createdUserId));
+      } catch (cleanupErr) {
+        console.error(
+          `[registerCompany] cleanup: failed to delete user ${createdUserId}`,
+          cleanupErr,
+        );
+      }
+    }
+  };
+
   // 1. Create the user. NOTE: with requireEmailVerification on, sign-up skips
   // auto-sign-in (no session yet) and sign-in stays blocked until verified. How
-  // we finish depends on the email-verification gate — see step 5.
+  // we finish depends on the email-verification gate — see step 5. A failure
+  // here created nothing, so no cleanup is needed.
   try {
     await auth.api.signUpEmail({
       body: { name, email, password },
@@ -92,59 +130,72 @@ export async function registerCompany(
     .limit(1);
   if (!created) return { ok: false, error: "Could not load the new account." };
   const userId = created.id;
+  createdUserId = userId;
 
-  // 2. Create the organization with a unique slug.
-  let slug = slugify(companyName);
-  const slugTaken = await db
-    .select({ slug: organization.slug })
-    .from(organization)
-    .where(eq(organization.slug, slug))
-    .limit(1);
-  if (slugTaken.length > 0) slug = `${slug}-${id("x").slice(2, 6).toLowerCase()}`;
-
+  // Everything past this point can leave orphans on failure (a user with no org,
+  // or an org with no settings), so it runs under compensating cleanup.
   let orgId: string;
   try {
+    // 2. Create the organization with a unique slug (Better-Auth API call).
+    let slug = slugify(companyName);
+    const slugTaken = await db
+      .select({ slug: organization.slug })
+      .from(organization)
+      .where(eq(organization.slug, slug))
+      .limit(1);
+    if (slugTaken.length > 0) {
+      slug = `${slug}-${id("x").slice(2, 6).toLowerCase()}`;
+    }
+
     const org = await auth.api.createOrganization({
       body: { name: companyName, slug, userId },
       headers: await headers(),
     });
     if (!org) throw new Error("Organization not created.");
     orgId = org.id;
+    createdOrgId = orgId;
+
+    // 3 + 4: our own writes, committed atomically via the websocket-backed
+    // transactional client (neon-http can't do interactive transactions).
+    await dbTx.transaction(async (tx) => {
+      // 3. Ensure the owner membership exists (createOrganization usually adds it).
+      const existingMember = await tx
+        .select({ id: member.id })
+        .from(member)
+        .where(eq(member.organizationId, orgId))
+        .limit(1);
+      if (existingMember.length === 0) {
+        await tx.insert(member).values({
+          id: id("mem"),
+          organizationId: orgId,
+          userId,
+          role: "owner",
+          createdAt: new Date(),
+        });
+      }
+
+      // 4. Seed tenant settings (default per-print price + brand).
+      await tx
+        .insert(tenantSettings)
+        .values({ organizationId: orgId, status: "active" })
+        .onConflictDoNothing();
+    });
+
+    await recordAudit({
+      organizationId: orgId,
+      actor: { type: "user", id: userId, label: email },
+      action: AUDIT.orgCreated,
+      metadata: { name: companyName },
+    });
   } catch (err) {
+    // Roll back the Better-Auth-created user/org (and anything that cascades)
+    // so the caller can safely retry with the same email.
+    await rollback();
     return {
       ok: false,
       error: err instanceof Error ? err.message : "Could not create company.",
     };
   }
-
-  // 3. Ensure the owner membership exists (createOrganization usually adds it).
-  const existingMember = await db
-    .select({ id: member.id })
-    .from(member)
-    .where(eq(member.organizationId, orgId))
-    .limit(1);
-  if (existingMember.length === 0) {
-    await db.insert(member).values({
-      id: id("mem"),
-      organizationId: orgId,
-      userId,
-      role: "owner",
-      createdAt: new Date(),
-    });
-  }
-
-  // 4. Seed tenant settings (default per-print price + brand).
-  await db
-    .insert(tenantSettings)
-    .values({ organizationId: orgId, status: "active" })
-    .onConflictDoNothing();
-
-  await recordAudit({
-    organizationId: orgId,
-    actor: { type: "user", id: userId, label: email },
-    action: AUDIT.orgCreated,
-    metadata: { name: companyName },
-  });
 
   // 5. Finish based on whether real email verification is active.
   if (emailVerificationEnabled(getEnv().RESEND_API_KEY)) {

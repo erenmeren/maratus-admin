@@ -26,7 +26,7 @@ import {
 import { useKioskEditor } from "@/components/device-preview/kiosk-editor/use-kiosk-editor";
 import { KioskStage } from "@/components/device-preview/kiosk-editor/kiosk-stage";
 import { KioskControls } from "@/components/device-preview/kiosk-editor/kiosk-controls";
-import { type KioskLayout } from "@/lib/kiosk-layout";
+import { type KioskConfig } from "@/lib/kiosk-layout";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -76,7 +76,7 @@ function screenSectionTitle(screen: KioskScreen): string {
 
 export function BrandingEditor({
   initialColor,
-  initialLayout,
+  initialConfig,
   initialBg,
   initialFg,
   initialMuted,
@@ -87,7 +87,7 @@ export function BrandingEditor({
   canEdit,
 }: {
   initialColor: string;
-  initialLayout: KioskLayout;
+  initialConfig: KioskConfig;
   initialBg: string;
   initialFg: string;
   initialMuted: string;
@@ -103,7 +103,7 @@ export function BrandingEditor({
   const [bg, setBg] = React.useState(initialBg);
   const [fg, setFg] = React.useState(initialFg);
   const [muted, setMuted] = React.useState(initialMuted);
-  const [layout, setLayout] = React.useState<KioskLayout>(initialLayout);
+  const [config, setConfig] = React.useState<KioskConfig>(initialConfig);
   const [logoText, setLogoText] = React.useState(initialLogoText);
   const [logoPreview, setLogoPreview] = React.useState<string | null>(initialLogoUrl);
   const [logoFile, setLogoFile] = React.useState<File | null>(null);
@@ -118,17 +118,32 @@ export function BrandingEditor({
   const fileRef = React.useRef<HTMLInputElement>(null);
 
   const editor = useKioskEditor({
-    layout,
-    onChange: setLayout,
+    config,
+    screen,
+    onChange: setConfig,
     disabled: !canEdit,
   });
+
+  const [iconFiles, setIconFiles] = React.useState<Record<string, File>>({});
+  const onIconUpload = (objectId: string, file: File) => {
+    if (!file.type.startsWith("image/")) { toast.error("Icon must be an image."); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error("Icon must be under 2 MB."); return; }
+    setIconFiles((m) => ({ ...m, [objectId]: file }));
+    const cur = editor.config.screens[screen].objects.find((o) => o.id === objectId)?.icon ?? { source: "preset" as const };
+    editor.patch(objectId, { icon: { ...cur, source: "upload", url: `pending:${objectId}`, signedUrl: URL.createObjectURL(file) } });
+  };
+
+  // After router.refresh() re-fetches getTenantBranding, adopt the server truth
+  // (real R2 keys + presigned signedUrl), replacing pending blob URLs and clearing dirty.
+  React.useEffect(() => { setConfig(initialConfig); setIconFiles({}); }, [initialConfig]);
 
   const dirty =
     color !== initialColor ||
     bg !== initialBg ||
     fg !== initialFg ||
     muted !== initialMuted ||
-    JSON.stringify(layout) !== JSON.stringify(initialLayout) ||
+    JSON.stringify(config) !== JSON.stringify(initialConfig) ||
+    Object.keys(iconFiles).length > 0 ||
     pin !== initialStaffPin ||
     logoFile !== null ||
     logoCleared;
@@ -167,7 +182,8 @@ export function BrandingEditor({
     setBg(initialBg);
     setFg(initialFg);
     setMuted(initialMuted);
-    setLayout(initialLayout);
+    setConfig(initialConfig);
+    setIconFiles({});
     setLogoText(initialLogoText);
     setLogoPreview(initialLogoUrl);
     setLogoFile(null);
@@ -187,7 +203,8 @@ export function BrandingEditor({
     fd.set("brandBg", bg);
     fd.set("brandFg", fg);
     fd.set("brandMuted", muted);
-    fd.set("kioskLayout", JSON.stringify(layout));
+    fd.set("kioskScreens", JSON.stringify(config));
+    for (const [objectId, file] of Object.entries(iconFiles)) fd.set(`icon:${objectId}`, file);
     fd.set("staffPin", pin);
     if (logoFile) fd.set("logo", logoFile);
     fd.set("removeLogo", logoCleared ? "true" : "false");
@@ -202,6 +219,7 @@ export function BrandingEditor({
     toast.success("Branding saved", { description: "Your kiosks will update on next sync." });
     setLogoFile(null);
     setLogoCleared(false);
+    setIconFiles({});
     router.refresh();
   }
 
@@ -315,17 +333,7 @@ export function BrandingEditor({
                 <SectionHead icon={LayoutGrid} title={screenSectionTitle(screen)} />
               </AccordionTrigger>
               <AccordionContent className="space-y-4">
-                {screen === "idle" ? (
-                  <KioskControls editor={editor} />
-                ) : (
-                  <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-center text-sm text-muted-foreground">
-                    Switch the preview to{" "}
-                    <button type="button" onClick={() => setScreen("idle")} className="font-medium text-foreground underline underline-offset-2">
-                      Idle / ready
-                    </button>{" "}
-                    to edit the layout. Per-screen editing arrives in the next update.
-                  </div>
-                )}
+                <KioskControls editor={editor} onIconUpload={onIconUpload} />
               </AccordionContent>
             </AccordionItem>
 
@@ -416,10 +424,10 @@ export function BrandingEditor({
                 isDragging={editor.isDragging}
                 ariaLabels={SCREENS.map((s) => s.label)}
                 renderSlide={(i) =>
-                  SCREENS[i].value === "idle" ? (
+                  SCREENS[i].value === screen ? (
                     <KioskStage editor={editor} brand={kioskBrand} />
                   ) : (
-                    <KioskPreview brand={kioskBrand} layout={layout} screen={SCREENS[i].value} />
+                    <KioskPreview brand={kioskBrand} config={config} screen={SCREENS[i].value} />
                   )
                 }
               />

@@ -21,7 +21,7 @@ export default async function BrandingPage() {
       />
       <BrandingEditor
         initialColor={branding.brandColor}
-        initialLayout={branding.kioskLayout}
+        initialConfig={branding.kioskConfig}
         initialBg={branding.brandBg}
         initialFg={branding.brandFg}
         initialMuted={branding.brandMuted}

@@ -25,12 +25,13 @@ import {
 } from "@/components/ui/select";
 import { TIMEZONES } from "@/lib/timezones";
 import { cn } from "@/lib/utils";
+import { KioskIconPicker } from "@/components/device-preview/kiosk-icon-picker";
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 const CANVAS_REF_PX = 720;
 
 /** Object list + a type-aware properties panel for the selected object. */
-export function KioskControls({ editor }: { editor: KioskEditor }) {
+export function KioskControls({ editor, onIconUpload }: { editor: KioskEditor; onIconUpload: (objectId: string, file: File) => void }) {
   const { ordered, disabled, selectedId, setSelectedId, selected, atCustomCap } = editor;
 
   return (
@@ -38,15 +39,26 @@ export function KioskControls({ editor }: { editor: KioskEditor }) {
       <div className="space-y-2 rounded-xl border p-3">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium">Objects</span>
-          <button
-            type="button"
-            disabled={disabled || atCustomCap}
-            onClick={editor.addText}
-            title={atCustomCap ? `Limit of ${MAX_CUSTOM} text objects reached` : undefined}
-            className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
-          >
-            <Plus className="size-3.5" /> Add text
-          </button>
+          <div className="flex gap-1">
+            <button
+              type="button"
+              disabled={disabled || atCustomCap}
+              onClick={editor.addText}
+              title={atCustomCap ? `Limit of ${MAX_CUSTOM} custom objects reached` : undefined}
+              className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
+            >
+              <Plus className="size-3.5" /> Add text
+            </button>
+            <button
+              type="button"
+              disabled={disabled || atCustomCap}
+              onClick={editor.addIcon}
+              title={atCustomCap ? `Limit of ${MAX_CUSTOM} custom objects reached` : undefined}
+              className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
+            >
+              <Plus className="size-3.5" /> Add icon
+            </button>
+          </div>
         </div>
         {ordered.map((o) => {
           const active = selectedId === o.id;
@@ -68,7 +80,7 @@ export function KioskControls({ editor }: { editor: KioskEditor }) {
               <span className={cn("flex-1 text-sm font-medium", !o.visible && "text-muted-foreground line-through")}>
                 {objectLabel(o)}
               </span>
-              {o.type === "text" && (
+              {(o.type === "text" || o.type === "icon") && (
                 <button
                   type="button"
                   disabled={disabled}
@@ -84,7 +96,7 @@ export function KioskControls({ editor }: { editor: KioskEditor }) {
         })}
       </div>
 
-      {selected && <Properties key={selected.id} object={selected} editor={editor} />}
+      {selected && <Properties key={selected.id} object={selected} editor={editor} onIconUpload={onIconUpload} />}
 
       <button
         type="button"
@@ -99,8 +111,8 @@ export function KioskControls({ editor }: { editor: KioskEditor }) {
 }
 
 /** Type-aware properties for the selected object. */
-function Properties({ object, editor }: { object: KioskObject; editor: KioskEditor }) {
-  const { disabled, layout, onChange } = editor;
+function Properties({ object, editor, onIconUpload }: { object: KioskObject; editor: KioskEditor; onIconUpload: (objectId: string, file: File) => void }) {
+  const { disabled } = editor;
   const set = (p: Partial<KioskObject>) => editor.patch(object.id, p);
 
   return (
@@ -141,6 +153,18 @@ function Properties({ object, editor }: { object: KioskObject; editor: KioskEdit
         </>
       )}
 
+      {object.type === "icon" && (
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Icon</Label>
+          <KioskIconPicker
+            icon={object.icon ?? { source: "preset", preset: "check", tint: "accent" }}
+            disabled={disabled}
+            onChange={(next) => set({ icon: next })}
+            onUpload={(file) => onIconUpload(object.id, file)}
+          />
+        </div>
+      )}
+
       <div className="grid grid-cols-4 gap-2">
         <NumberField label="X" value={Math.round(object.x * CANVAS_REF_PX)} disabled={disabled} onChange={(v) => set({ x: clamp(v / CANVAS_REF_PX, 0, 1 - object.w) })} />
         <NumberField label="Y" value={Math.round(object.y * CANVAS_REF_PX)} disabled={disabled} onChange={(v) => set({ y: clamp(v / CANVAS_REF_PX, 0, 1 - object.h) })} />
@@ -153,7 +177,7 @@ function Properties({ object, editor }: { object: KioskObject; editor: KioskEdit
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Timezone</Label>
-            <Select value={layout.clockTimezone} onValueChange={(v) => onChange({ ...layout, clockTimezone: v })} disabled={disabled}>
+            <Select value={editor.config.clockTimezone} onValueChange={(v) => editor.setShared({ clockTimezone: v })} disabled={disabled}>
               <SelectTrigger className="h-8 w-full"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {TIMEZONES.map((tz) => (<SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>))}
@@ -162,7 +186,7 @@ function Properties({ object, editor }: { object: KioskObject; editor: KioskEdit
           </div>
           <div className="flex items-center justify-between">
             <Label htmlFor="clock-24h" className="text-xs text-muted-foreground">24-hour</Label>
-            <Switch id="clock-24h" checked={layout.clock24h} onCheckedChange={(v) => onChange({ ...layout, clock24h: v })} disabled={disabled} />
+            <Switch id="clock-24h" checked={editor.config.clock24h} onCheckedChange={(v) => editor.setShared({ clock24h: v })} disabled={disabled} />
           </div>
         </div>
       )}
@@ -176,8 +200,8 @@ function Properties({ object, editor }: { object: KioskObject; editor: KioskEdit
                 key={lvl}
                 type="button"
                 disabled={disabled}
-                onClick={() => onChange({ ...layout, wifiLevel: lvl })}
-                className={cn("h-8 flex-1 rounded-md border text-xs font-medium transition-colors disabled:opacity-50", layout.wifiLevel === lvl ? "border-foreground bg-foreground text-background" : "hover:bg-accent")}
+                onClick={() => editor.setShared({ wifiLevel: lvl })}
+                className={cn("h-8 flex-1 rounded-md border text-xs font-medium transition-colors disabled:opacity-50", editor.config.wifiLevel === lvl ? "border-foreground bg-foreground text-background" : "hover:bg-accent")}
               >
                 {lvl}
               </button>

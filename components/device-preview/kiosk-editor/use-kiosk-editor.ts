@@ -156,7 +156,9 @@ export function useKioskEditor({
   function addIcon() {
     if (disabled || atCustomCap) return;
     const z = objects.reduce((m, o) => Math.max(m, o.z), 0) + 1;
-    setObjects([...objects, createIconObject(z)]);
+    const newIcon = createIconObject(z);
+    setObjects([...objects, newIcon]);
+    setSelectedId(newIcon.id);
   }
 
   const setShared = (p: Partial<Pick<KioskConfig, "clockTimezone" | "clock24h" | "wifiLevel">>) =>

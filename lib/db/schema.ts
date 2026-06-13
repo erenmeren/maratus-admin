@@ -175,6 +175,10 @@ export const tenantSettings = pgTable("tenant_settings", {
   // Modular kiosk idle-screen layout (element positions/sizes/visibility +
   // clock timezone). Shape is lib/kiosk-layout.ts KioskLayout; null → default.
   kioskLayout: jsonb("kiosk_layout"),
+  // v3 per-screen config (KioskConfig). Supersedes kioskLayout; kioskLayout is
+  // retained for one release for rollback safety. null → normalizeKioskConfig
+  // migrates from kioskLayout on read (Task 10).
+  kioskScreens: jsonb("kiosk_screens"),
   logoUrl: text("logo_url"),
   staffPin: text("staff_pin"),
   stripeCustomerId: text("stripe_customer_id"),

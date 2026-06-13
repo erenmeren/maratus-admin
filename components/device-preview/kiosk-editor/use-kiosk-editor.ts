@@ -3,10 +3,12 @@
 import * as React from "react";
 import {
   createTextObject,
-  defaultLayout,
+  createIconObject,
+  seededScreen,
   MAX_CUSTOM,
   type KioskObject,
-  type KioskLayout,
+  type KioskConfig,
+  type KioskScreen,
 } from "@/lib/kiosk-layout";
 import { resizeBox, snapMove, snapResize, clampToCanvas, type Box, type Handle, type Guides } from "@/lib/kiosk-geometry";
 
@@ -22,8 +24,9 @@ type DragKind =
 
 /** Everything the kiosk canvas (KioskStage) and controls (KioskControls) share. */
 export interface KioskEditor {
-  layout: KioskLayout;
-  onChange: (l: KioskLayout) => void;
+  config: KioskConfig;
+  screen: KioskScreen;
+  onChange: (c: KioskConfig) => void;
   disabled: boolean;
   canvasRef: React.RefObject<HTMLDivElement | null>;
   selectedId: string | null;
@@ -40,6 +43,8 @@ export interface KioskEditor {
   onPointerUp: (e: React.PointerEvent) => void;
   onCanvasPointerDown: () => void;
   addText: () => void;
+  addIcon: () => void;
+  setShared: (p: Partial<Pick<KioskConfig, "clockTimezone" | "clock24h" | "wifiLevel">>) => void;
   removeObject: (id: string) => void;
   bringToFront: (id: string) => void;
   resetLayout: () => void;
@@ -49,12 +54,14 @@ export interface KioskEditor {
 }
 
 export function useKioskEditor({
-  layout,
+  config,
+  screen,
   onChange,
   disabled = false,
 }: {
-  layout: KioskLayout;
-  onChange: (l: KioskLayout) => void;
+  config: KioskConfig;
+  screen: KioskScreen;
+  onChange: (c: KioskConfig) => void;
   disabled?: boolean;
 }): KioskEditor {
   const canvasRef = React.useRef<HTMLDivElement>(null);
@@ -62,13 +69,19 @@ export function useKioskEditor({
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [guides, setGuides] = React.useState<Guides>(EMPTY_GUIDES);
 
-  const selected = layout.objects.find((o) => o.id === selectedId) ?? null;
+  const objects = config.screens[screen].objects;
+
+  // Replace the whole active screen's object list, preserving other screens + shared config.
+  const setObjects = (next: KioskObject[]) =>
+    onChange({ ...config, screens: { ...config.screens, [screen]: { objects: next } } });
+
+  const selected = objects.find((o) => o.id === selectedId) ?? null;
   const selBox = selected && selected.visible ? toBox(selected) : null;
-  const customCount = layout.objects.filter((o) => o.type === "text").length;
-  const atCustomCap = customCount >= MAX_CUSTOM;
+  const addableCount = objects.filter((o) => o.type === "text" || o.type === "icon").length;
+  const atCustomCap = addableCount >= MAX_CUSTOM;
 
   function patch(id: string, p: Partial<KioskObject>) {
-    onChange({ ...layout, objects: layout.objects.map((o) => (o.id === id ? { ...o, ...p } : o)) });
+    setObjects(objects.map((o) => (o.id === id ? { ...o, ...p } : o)));
   }
 
   function pointerFrac(e: React.PointerEvent): { x: number; y: number } {
@@ -79,7 +92,7 @@ export function useKioskEditor({
   }
 
   function others(excludeId: string): Box[] {
-    return layout.objects.filter((o) => o.id !== excludeId && o.visible).map(toBox);
+    return objects.filter((o) => o.id !== excludeId && o.visible).map(toBox);
   }
 
   function startMove(id: string, e: React.PointerEvent) {
@@ -87,7 +100,7 @@ export function useKioskEditor({
     e.stopPropagation();
     e.preventDefault();
     setSelectedId(id);
-    const obj = layout.objects.find((o) => o.id === id);
+    const obj = objects.find((o) => o.id === id);
     const p = pointerFrac(e);
     drag.current = { type: "move", offset: obj ? { x: p.x - obj.x, y: p.y - obj.y } : { x: 0, y: 0 } };
     canvasRef.current?.setPointerCapture(e.pointerId);
@@ -134,25 +147,36 @@ export function useKioskEditor({
 
   function addText() {
     if (disabled || atCustomCap) return;
-    const maxZ = layout.objects.reduce((m, o) => Math.max(m, o.z), 0);
+    const maxZ = objects.reduce((m, o) => Math.max(m, o.z), 0);
     const o = createTextObject("New text", maxZ + 1);
-    onChange({ ...layout, objects: [...layout.objects, o] });
+    setObjects([...objects, o]);
     setSelectedId(o.id);
   }
 
+  function addIcon() {
+    if (disabled || atCustomCap) return;
+    const z = objects.reduce((m, o) => Math.max(m, o.z), 0) + 1;
+    setObjects([...objects, createIconObject(z)]);
+  }
+
+  const setShared = (p: Partial<Pick<KioskConfig, "clockTimezone" | "clock24h" | "wifiLevel">>) =>
+    onChange({ ...config, ...p });
+
   function removeObject(id: string) {
-    onChange({ ...layout, objects: layout.objects.filter((o) => o.id !== id) });
+    setObjects(objects.filter((o) => o.id !== id));
     if (selectedId === id) setSelectedId(null);
   }
 
   function bringToFront(id: string) {
-    const maxZ = layout.objects.reduce((m, o) => Math.max(m, o.z), 0);
+    const maxZ = objects.reduce((m, o) => Math.max(m, o.z), 0);
     patch(id, { z: maxZ + 1 });
   }
 
   function resetLayout() {
-    onChange(defaultLayout());
-    setSelectedId(null);
+    if (!disabled) {
+      setObjects(seededScreen(screen).objects);
+      setSelectedId(null);
+    }
   }
 
   /** Clear transient interaction state when the canvas unmounts. */
@@ -164,10 +188,11 @@ export function useKioskEditor({
 
   const isDragging = () => drag.current !== null;
 
-  const ordered = [...layout.objects].sort((a, b) => a.z - b.z);
+  const ordered = [...objects].sort((a, b) => a.z - b.z);
 
   return {
-    layout,
+    config,
+    screen,
     onChange,
     disabled,
     canvasRef,
@@ -185,6 +210,8 @@ export function useKioskEditor({
     onPointerUp,
     onCanvasPointerDown,
     addText,
+    addIcon,
+    setShared,
     removeObject,
     bringToFront,
     resetLayout,

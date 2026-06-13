@@ -36,6 +36,9 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
+    // Demo/seed accounts use a short password (123456); Better Auth's default
+    // minimum is 8, which would reject them on a fresh `npm run db:seed`.
+    minPasswordLength: 6,
   },
   emailVerification: {
     sendOnSignUp: true,

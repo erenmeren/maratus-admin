@@ -44,6 +44,8 @@ export interface KioskEditor {
   bringToFront: (id: string) => void;
   resetLayout: () => void;
   endInteraction: () => void;
+  /** True while an object move/resize drag is in progress. */
+  isDragging: () => boolean;
 }
 
 export function useKioskEditor({
@@ -160,6 +162,8 @@ export function useKioskEditor({
     setSelectedId(null);
   }
 
+  const isDragging = () => drag.current !== null;
+
   const ordered = [...layout.objects].sort((a, b) => a.z - b.z);
 
   return {
@@ -185,5 +189,6 @@ export function useKioskEditor({
     bringToFront,
     resetLayout,
     endInteraction,
+    isDragging,
   };
 }

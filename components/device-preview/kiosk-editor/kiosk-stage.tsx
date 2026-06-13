@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 /** The editable kiosk canvas: object boxes, alignment guides, and the
  *  selection/resize overlay. Driven entirely by a useKioskEditor instance. */
 export function KioskStage({ editor, brand }: { editor: KioskEditor; brand: KioskBrand }) {
-  const { layout, disabled, canvasRef, ordered, guides, selBox, selectedId } = editor;
+  const { config, disabled, canvasRef, ordered, guides, selBox, selectedId } = editor;
 
   // Clear drag/selection when the canvas unmounts (e.g. switching preview screens).
   const endInteraction = editor.endInteraction;
@@ -65,7 +65,7 @@ export function KioskStage({ editor, brand }: { editor: KioskEditor; brand: Kios
                   onCancel={() => setEditingId(null)}
                 />
               ) : (
-                <ObjectVisual object={o} brand={brand} layout={layout} />
+                <ObjectVisual object={o} brand={brand} config={config} />
               )}
             </div>
           );

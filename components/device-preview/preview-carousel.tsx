@@ -29,6 +29,11 @@ export function PreviewCarousel({
   function onPointerDown(e: React.PointerEvent) {
     // Don't start a swipe if an object drag is underway, or on a secondary button.
     if (isDragging?.() || e.button !== 0) return;
+    // Actual-size mode: when the canvas is wider than the frame it scrolls — let the
+    // browser own the drag (scroll) instead of hijacking it for a screen swipe.
+    // Screen-switching still works via the arrows / dots / dropdown.
+    const fw = frameRef.current?.clientWidth ?? 0;
+    if (fw > 0 && slideWidthPx > fw) return;
     drag.current = { startX: e.clientX, active: true };
     setDragDx(0);
   }
@@ -70,14 +75,14 @@ export function PreviewCarousel({
           >
             {Array.from({ length: count }, (_, i) => (
               <div key={i} className="w-full shrink-0 px-1">
-                {/* Square preview: cap width by the zoom px, the panel width (100%),
-                    AND the viewport height (minus room for surrounding chrome) so the
-                    square never overflows a short window — fits any screen. */}
-                <div
-                  className="mx-auto"
-                  style={{ width: `min(${slideWidthPx}px, 100%, calc(100svh - 22rem))` }}
-                >
-                  {renderSlide(i)}
+                {/* Render the printer at TRUE device pixels (slideWidthPx; 720 at 100%).
+                    The box is bounded to the viewport height and scrolls when the canvas
+                    is larger than the pane, so a real 1:1 720px view is reachable without
+                    overflowing the screen. When it fits, mx-auto just centers it. */}
+                <div className="overflow-auto" style={{ maxHeight: "calc(100svh - 22rem)" }}>
+                  <div className="mx-auto" style={{ width: slideWidthPx }}>
+                    {renderSlide(i)}
+                  </div>
                 </div>
               </div>
             ))}

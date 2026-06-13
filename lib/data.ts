@@ -46,7 +46,7 @@ import { computeAlerts, STALE_MINUTES, STUCK_PENDING_MINUTES, INACTIVE_DAYS, typ
 import { type ReceiptFilters, PAGE_SIZE } from "./receipts-search";
 import { presignedGetUrl } from "./storage";
 import { resolveBrandTokens } from "./color";
-import { normalizeKioskLayout, type KioskLayout } from "./kiosk-layout";
+import { normalizeKioskConfig, KIOSK_SCREENS, type KioskConfig } from "./kiosk-layout";
 import type {
   Device,
   DeviceRow,
@@ -766,8 +766,8 @@ export interface TenantBranding {
   brandBg: string;
   brandFg: string;
   brandMuted: string;
-  /** Modular kiosk idle-screen layout (normalized; defaults applied). */
-  kioskLayout: KioskLayout;
+  /** Normalized v3 kiosk config (uploaded icon keys are presigned for display). */
+  kioskConfig: KioskConfig;
   staffPin: string;
   /** Presigned, ready-to-render image URL (null if no logo uploaded). */
   logoUrl: string | null;
@@ -790,6 +790,26 @@ export async function getTenantBranding(
     logoUrl = await presignedGetUrl(s.logoUrl);
   }
 
+  // Prefer v3 kioskScreens; fall back to migrating the legacy kioskLayout.
+  const config = normalizeKioskConfig(s?.kioskScreens ?? s?.kioskLayout);
+
+  // Presign every uploaded icon key across all screens (collect → presign → map back).
+  const iconKeys = new Set<string>();
+  for (const screen of KIOSK_SCREENS) {
+    for (const o of config.screens[screen].objects) {
+      if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) iconKeys.add(o.icon.url);
+    }
+  }
+  const signed = new Map<string, string>();
+  await Promise.all([...iconKeys].map(async (k) => signed.set(k, await presignedGetUrl(k))));
+  for (const screen of KIOSK_SCREENS) {
+    for (const o of config.screens[screen].objects) {
+      if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) {
+        o.icon = { ...o.icon, url: signed.get(o.icon.url) ?? o.icon.url };
+      }
+    }
+  }
+
   const brandColor = s?.brandColor ?? "#10A765";
   const tokens = resolveBrandTokens(brandColor, {
     bg: s?.brandBg,
@@ -801,7 +821,7 @@ export async function getTenantBranding(
     brandBg: tokens.bg,
     brandFg: tokens.fg,
     brandMuted: tokens.muted,
-    kioskLayout: normalizeKioskLayout(s?.kioskLayout),
+    kioskConfig: config,
     staffPin: s?.staffPin ?? "",
     logoUrl,
     hasLogo: !!s?.logoUrl,

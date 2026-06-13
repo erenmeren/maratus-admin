@@ -18,7 +18,6 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { UserMenu } from "@/components/user-menu";
@@ -28,7 +27,6 @@ import {
 } from "@/components/workspace-switcher";
 import type { OrgRef } from "@/lib/session";
 import { ADMIN_NAV, TENANT_NAV } from "@/lib/nav";
-import { cn } from "@/lib/utils";
 
 function isActive(pathname: string, href: string) {
   if (href === "/admin" || href === "/tenant") return pathname === href;
@@ -60,6 +58,16 @@ export function AppShell({
   // Nav lives inside the client boundary so we never pass icon components
   // (functions) across the server→client edge.
   const nav = workspace === "admin" ? ADMIN_NAV : TENANT_NAV;
+  // The active top-level section drives the header breadcrumb (wayfinding).
+  const activeItem = nav.find((item) => isActive(pathname, item.href)) ?? null;
+  // The user's role in the active realm, for the account-menu caption.
+  const orgRole = organizations.find((o) => o.id === activeOrganizationId)?.role;
+  const roleLabel =
+    workspace === "admin"
+      ? "Super Admin"
+      : orgRole
+        ? orgRole.charAt(0).toUpperCase() + orgRole.slice(1)
+        : "Workspace";
 
   return (
     <TooltipProvider>
@@ -110,23 +118,47 @@ export function AppShell({
         </Sidebar>
 
         <SidebarInset>
-          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur-sm">
-            <SidebarTrigger className="-ml-1" />
-            <Separator orientation="vertical" className="mr-1 !h-5" />
+          <header className="edge-perforation relative sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 bg-gradient-to-b from-background/92 to-background/65 px-3 backdrop-blur-md sm:px-4">
+            {/* Emerald hairline — the top edge of the "receipt slip". */}
             <span
-              className={cn(
-                "rounded-md px-2 py-0.5 text-xs font-semibold",
-                workspace === "admin"
-                  ? "bg-foreground/10 text-foreground"
-                  : "bg-primary/12 text-primary",
-              )}
-            >
-              {topBarLabel}
-            </span>
-            <div className="ml-auto flex items-center gap-1">
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/45 to-transparent"
+            />
+
+            <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground" />
+
+            {/* Wayfinding: where you are, set in the brand display face. */}
+            {activeItem ? (
+              <div
+                key={pathname}
+                className="flex min-w-0 items-center gap-2.5 duration-300 animate-in fade-in-50 slide-in-from-left-1"
+              >
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-inset ring-primary/15">
+                  <activeItem.icon className="size-4" />
+                </span>
+                <div className="flex min-w-0 items-baseline gap-1.5">
+                  <span className="hidden text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/80 sm:inline">
+                    {workspace === "admin" ? "Platform" : "Workspace"}
+                  </span>
+                  <span className="hidden text-muted-foreground/30 sm:inline">/</span>
+                  <span className="truncate font-display text-sm font-semibold tracking-tight">
+                    {activeItem.label}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <span className="font-display text-sm font-semibold tracking-tight">
+                {topBarLabel}
+              </span>
+            )}
+
+            <div className="ml-auto flex items-center gap-1.5">
               <ThemeToggle />
-              <Separator orientation="vertical" className="mx-1 !h-5" />
-              <UserMenu name={user.name} email={user.email} />
+              <UserMenu
+                name={user.name}
+                email={user.email}
+                subtitle={roleLabel}
+              />
             </div>
           </header>
           <main className="flex-1 p-4 sm:p-6 lg:p-8">

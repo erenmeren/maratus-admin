@@ -175,4 +175,24 @@
     background-image: radial-gradient(currentColor 0.5px, transparent 0.5px);
     background-size: 16px 16px;
   }
+
+  /* Receipt "tear edge" — a perforated hairline beneath the app header.
+     The brand motif: the top bar reads as a digital receipt slip. */
+  .edge-perforation {
+    position: relative;
+  }
+  .edge-perforation::after {
+    content: "";
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 2px;
+    background-image: radial-gradient(
+      circle at center,
+      var(--border) 0 1.1px,
+      transparent 1.5px
+    );
+    background-size: 7px 2px;
+    background-repeat: repeat-x;
+  }
 }

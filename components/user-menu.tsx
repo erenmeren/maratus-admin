@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { LogOut, Settings, UserRound } from "lucide-react";
+import { ChevronsUpDown, LogOut, Settings, UserRound } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,9 +16,12 @@ import {
 export function UserMenu({
   name = "Eren Altan",
   email = "erenaltan@gmail.com",
+  subtitle = "Account",
 }: {
   name?: string;
   email?: string;
+  /** Short role caption shown under the name (e.g. "Owner", "Super Admin"). */
+  subtitle?: string;
 }) {
   const router = useRouter();
   const initials = name
@@ -32,23 +35,40 @@ export function UserMenu({
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="h-9 gap-2 px-1.5 pr-2.5"
+          className="h-10 gap-2 rounded-xl px-1.5 pr-2 hover:bg-muted/70"
           aria-label="Account menu"
         >
-          <Avatar className="size-7">
-            <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">
+          <span className="relative">
+            <Avatar className="size-7 ring-2 ring-primary/25">
+              <AvatarFallback className="bg-primary/15 text-[11px] font-bold text-primary">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            {/* Live-session dot — a small "you're online" tell. */}
+            <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-background bg-status-online" />
+          </span>
+          <span className="hidden flex-col items-start leading-tight sm:flex">
+            <span className="text-xs font-semibold">{name}</span>
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              {subtitle}
+            </span>
+          </span>
+          <ChevronsUpDown className="hidden size-3.5 text-muted-foreground/60 sm:block" />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-60">
+        <DropdownMenuLabel className="flex items-center gap-2.5 p-2">
+          <Avatar className="size-9 ring-2 ring-primary/20">
+            <AvatarFallback className="bg-primary/15 text-xs font-bold text-primary">
               {initials}
             </AvatarFallback>
           </Avatar>
-          <span className="hidden text-sm font-medium sm:inline">{name}</span>
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56">
-        <DropdownMenuLabel className="flex flex-col">
-          <span className="text-sm font-medium">{name}</span>
-          <span className="text-xs font-normal text-muted-foreground">
-            {email}
-          </span>
+          <div className="flex min-w-0 flex-col">
+            <span className="truncate text-sm font-semibold">{name}</span>
+            <span className="truncate text-xs font-normal text-muted-foreground">
+              {email}
+            </span>
+          </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuItem>

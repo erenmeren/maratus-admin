@@ -28,13 +28,13 @@ import { generateDeviceKey, id, pairingCode, receiptToken } from "../ids";
 const PLATFORM_ADMIN = {
   name: "Ditto Staff",
   email: "admin@ditto.app",
-  password: "password123",
+  password: "123456",
 };
 
 const OWNER = {
   name: "Dana Okafor",
   email: "dana@roastwell.co",
-  password: "password123",
+  password: "123456",
 };
 
 const ORG = { name: "Roastwell Coffee", slug: "roastwell" };

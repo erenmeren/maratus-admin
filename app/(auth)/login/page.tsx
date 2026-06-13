@@ -25,7 +25,7 @@ function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
   const [email, setEmail] = React.useState("dana@roastwell.co");
-  const [password, setPassword] = React.useState("password123");
+  const [password, setPassword] = React.useState("123456");
   const [loading, setLoading] = React.useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -151,7 +151,7 @@ function LoginForm() {
                 type="button"
                 onClick={() => {
                   setEmail("dana@roastwell.co");
-                  setPassword("password123");
+                  setPassword("123456");
                 }}
                 className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent"
               >
@@ -164,7 +164,7 @@ function LoginForm() {
                 type="button"
                 onClick={() => {
                   setEmail("admin@ditto.app");
-                  setPassword("password123");
+                  setPassword("123456");
                 }}
                 className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent"
               >
@@ -174,7 +174,7 @@ function LoginForm() {
                 </span>
               </button>
               <p className="px-2 text-[11px] text-muted-foreground">
-                Password for both: <span className="font-mono">password123</span>
+                Password for both: <span className="font-mono">123456</span>
               </p>
             </div>
 

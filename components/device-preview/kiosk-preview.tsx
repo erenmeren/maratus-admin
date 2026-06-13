@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { FauxQR } from "./qr-code";
@@ -316,7 +318,7 @@ function IconObject({ object, brand: _brand }: { object: KioskObject; brand: Kio
   const ic = object.icon ?? { source: "preset" as const };
   const tintVar =
     ic.tint === "muted" ? "var(--k-muted)" :
-    ic.tint === "warn" ? "#E5484D" :
+    ic.tint === "warn" ? "#b9772a" :
     ic.tint === "none" ? "var(--k-fg)" :
     "var(--k-accent)";
   const Inner = () =>
@@ -331,7 +333,7 @@ function IconObject({ object, brand: _brand }: { object: KioskObject; brand: Kio
     );
   if (ic.circle) {
     return (
-      <div className="flex size-full items-center justify-center rounded-full p-[18%]" style={{ background: tintVar }}>
+      <div className="flex size-full items-center justify-center rounded-full p-[18%]" style={{ background: tintVar, boxShadow: "0 22px 50px -14px var(--k-accent-soft)" }}>
         <Inner />
       </div>
     );
@@ -347,16 +349,26 @@ function IconObject({ object, brand: _brand }: { object: KioskObject; brand: Kio
  * QrObject — lifted from ReceiptScreen's QR card and the SetupScreen's compact
  * QR. Renders a faux QR inside a white card at size-full.
  */
-function QrObject({ object: _object }: { object: KioskObject }) {
+function QrObject({ object }: { object: KioskObject }) {
+  const compact = object.w < 0.25;
   return (
     <div
       className="flex size-full items-center justify-center"
-      style={{
-        background: "#fff",
-        borderRadius: cq(32),
-        padding: cq(20),
-        boxShadow: "0 24px 60px -18px rgba(15,20,40,0.30), 0 2px 8px rgba(15,20,40,0.06)",
-      }}
+      style={
+        compact
+          ? {
+              background: "#fff",
+              borderRadius: cq(14),
+              padding: cq(10),
+              border: "1px solid var(--k-hairline)",
+            }
+          : {
+              background: "#fff",
+              borderRadius: cq(32),
+              padding: cq(20),
+              boxShadow: "0 24px 60px -18px rgba(15,20,40,0.30), 0 2px 8px rgba(15,20,40,0.06)",
+            }
+      }
     >
       <FauxQR seed={11} style={{ width: "100%", height: "100%", color: "#0b0b0c", display: "block" }} />
     </div>

@@ -52,7 +52,7 @@ import {
 } from "@/components/ui/accordion";
 import { Slider } from "@/components/ui/slider";
 import { PreviewCarousel } from "@/components/device-preview/preview-carousel";
-import { clampZoom, zoomToPx, ZOOM_MIN, ZOOM_MAX, ZOOM_STEP } from "@/lib/branding-shell";
+import { clampZoom, zoomToPx, ZOOM_MIN, ZOOM_MAX, ZOOM_STEP, ZOOM_DEFAULT } from "@/lib/branding-shell";
 import { saveBranding } from "@/app/(tenant)/tenant/branding/actions";
 import { isValidHex } from "@/lib/color";
 import { cn } from "@/lib/utils";
@@ -111,7 +111,7 @@ export function BrandingEditor({
   const [pin, setPin] = React.useState(initialStaffPin);
   const [showPin, setShowPin] = React.useState(false);
   const [screen, setScreen] = React.useState<PrinterScreen>("idle");
-  const [zoom, setZoom] = React.useState(80);
+  const [zoom, setZoom] = React.useState(ZOOM_DEFAULT);
   const screenIndex = SCREENS.findIndex((s) => s.value === screen);
   const slidePx = zoomToPx(zoom);
   const [saving, setSaving] = React.useState(false);
@@ -376,7 +376,7 @@ export function BrandingEditor({
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <div className="space-y-1">
                 <CardTitle className="text-base">Live preview</CardTitle>
-                <CardDescription>720 × 720 printer display</CardDescription>
+                <CardDescription>720 × 720 device-native · 100% = full resolution</CardDescription>
               </div>
               <Select value={screen} onValueChange={(v) => setScreen(v as PrinterScreen)}>
                 <SelectTrigger className="w-[150px]" aria-label="Preview screen"><SelectValue /></SelectTrigger>

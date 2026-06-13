@@ -3,10 +3,16 @@
 export const ZOOM_MIN = 50;
 export const ZOOM_MAX = 125;
 export const ZOOM_STEP = 5;
-export const ZOOM_DEFAULT = 80;
+export const ZOOM_DEFAULT = 100;
 
-/** Reference width (px) of the preview canvas at 100% zoom. */
-export const PREVIEW_BASE_PX = 600;
+/**
+ * Preview canvas width (px) at 100% zoom = the printer's NATIVE resolution.
+ * The device (Waveshare ESP32-P4-WIFI6-Touch-LCD-4B) is a 720×720 square panel,
+ * so 100% renders 1 preview px per device px (true device pixels). The editor's
+ * viewport cap may scale this down to fit a short window, but the zoom % stays
+ * anchored to the real device resolution.
+ */
+export const PREVIEW_BASE_PX = 720;
 
 /** Clamp a zoom percentage to [MIN, MAX], snapped to the nearest step. */
 export function clampZoom(pct: number): number {

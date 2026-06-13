@@ -229,8 +229,20 @@ describe("normalizeKioskConfig", () => {
     });
     expect(cfg.wifiLevel).toBe(4);
     expect(cfg.clockTimezone).toBe("UTC"); // invalid tz → UTC
+    expect(cfg.clock24h).toBe(false);
     const t = cfg.screens.idle.objects.find((o) => o.id === "t")!;
     expect(t.x).toBeGreaterThanOrEqual(0);
     expect(t.x + t.w).toBeLessThanOrEqual(1.0001);
+  });
+
+  it("deduplicates widget singletons, keeping only the first", () => {
+    const cfg = normalizeKioskConfig({
+      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
+      screens: { idle: { objects: [
+        { id: "q1", type: "qr", x: 0.3, y: 0.3, w: 0.3, h: 0.3, visible: true, z: 0 },
+        { id: "q2", type: "qr", x: 0.1, y: 0.1, w: 0.3, h: 0.3, visible: true, z: 1 },
+      ] } },
+    });
+    expect(cfg.screens.idle.objects.filter((o) => o.type === "qr")).toHaveLength(1);
   });
 });

@@ -339,7 +339,7 @@ export function normalizeKioskLayout(raw: unknown): KioskLayout {
 
 // ─── Task 2: v2→v3 migration + normalizeKioskConfig ──────────────────────────
 
-const ICON_TINTS: IconTint[] = ["accent", "muted", "warn", "none"];
+const ICON_TINTS = ["accent", "muted", "warn", "none"] as const satisfies readonly IconTint[];
 
 function sanitizeIcon(raw: unknown): KioskIcon {
   const r = (raw ?? {}) as Record<string, unknown>;
@@ -431,7 +431,7 @@ function sanitizeScreen(raw: unknown, screen: KioskScreen): ScreenLayout {
 export function migrateV2ToConfig(layout: KioskLayout): KioskConfig {
   const screens = {} as Record<KioskScreen, ScreenLayout>;
   for (const s of KIOSK_SCREENS) {
-    screens[s] = s === "idle" ? { objects: layout.objects } : seededScreen(s);
+    screens[s] = s === "idle" ? { objects: [...layout.objects] } : seededScreen(s);
   }
   return {
     version: 3,

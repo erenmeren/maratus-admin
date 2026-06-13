@@ -336,3 +336,146 @@ export function normalizeKioskLayout(raw: unknown): KioskLayout {
     objects,
   };
 }
+
+// ─── Task 2: v2→v3 migration + normalizeKioskConfig ──────────────────────────
+
+const ICON_TINTS: IconTint[] = ["accent", "muted", "warn", "none"];
+
+function sanitizeIcon(raw: unknown): KioskIcon {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const source = r.source === "upload" ? "upload" : "preset";
+  const tint = ICON_TINTS.includes(r.tint as IconTint) ? (r.tint as IconTint) : "accent";
+  const circle = typeof r.circle === "boolean" ? r.circle : false;
+  if (source === "upload" && typeof r.url === "string" && r.url) {
+    return { source: "upload", url: r.url, tint, circle };
+  }
+  const preset = (ICON_PRESETS as readonly string[]).includes(r.preset as string)
+    ? (r.preset as IconPreset)
+    : DEFAULT_ICON_PRESET;
+  return { source: "preset", preset, tint, circle };
+}
+
+/** Default box for a widget singleton (used when a stored object is malformed). */
+const WIDGET_BOX: Record<WidgetType, Pick<KioskObject, "x" | "y" | "w" | "h">> = {
+  logo: { x: 0.34, y: 0.22, w: 0.32, h: 0.16 },
+  clock: { x: 0.25, y: 0.52, w: 0.5, h: 0.18 },
+  wifi: { x: 0.82, y: 0.04, w: 0.1, h: 0.06 },
+  qr: { x: 0.32, y: 0.3, w: 0.36, h: 0.36 },
+  spinner: { x: 0.42, y: 0.34, w: 0.16, h: 0.16 },
+  countdown: { x: 0.3, y: 0.8, w: 0.4, h: 0.1 },
+  pairingCode: { x: 0.25, y: 0.66, w: 0.3, h: 0.12 },
+  steps: { x: 0.18, y: 0.34, w: 0.64, h: 0.28 },
+};
+
+/** Coerce one stored object into a valid KioskObject of a known type, or null to drop it. */
+function sanitizeObject(raw: unknown, fallbackZ: number): KioskObject | null {
+  const o = (raw ?? {}) as Record<string, unknown>;
+  const type = o.type;
+  if (!(OBJECT_TYPES as readonly string[]).includes(type as string)) return null;
+  const z = typeof o.z === "number" && Number.isFinite(o.z) ? o.z : fallbackZ;
+  const visible = typeof o.visible === "boolean" ? o.visible : true;
+  const id = typeof o.id === "string" && o.id ? o.id : `${String(type)}-${fallbackZ}`;
+
+  if (type === "text") {
+    if (typeof o.text !== "string" || o.text.trim() === "") return null;
+    return {
+      id, type: "text", z, visible,
+      ...sanitizeBox(o, { x: 0.35, y: 0.45, w: 0.3, h: 0.1 }),
+      text: o.text.slice(0, MAX_TEXT_LEN),
+      fontSize: clamp(num(o.fontSize, DEFAULT_FONT.text), FONT_MIN, FONT_MAX),
+      align: ALIGNS.includes(o.align as TextAlign) ? (o.align as TextAlign) : "center",
+    };
+  }
+  if (type === "icon") {
+    return {
+      id, type: "icon", z, visible,
+      ...sanitizeBox(o, { x: 0.4, y: 0.4, w: 0.2, h: 0.2 }),
+      icon: sanitizeIcon(o.icon),
+    };
+  }
+  // widget singleton
+  const wt = type as WidgetType;
+  return {
+    id, type: wt, z, visible,
+    ...sanitizeBox(o, WIDGET_BOX[wt]),
+  };
+}
+
+/** Normalize one screen's objects: ≥0 widget singletons (deduped) + capped addables. */
+function sanitizeScreen(raw: unknown, screen: KioskScreen): ScreenLayout {
+  const r = (raw ?? {}) as { objects?: unknown };
+  if (!Array.isArray(r.objects)) return seededScreen(screen);
+  const list = r.objects as unknown[];
+
+  const out: KioskObject[] = [];
+  const seenWidget = new Set<string>();
+  let addable = 0;
+  let zNext = 0;
+  for (const item of list) {
+    const o = sanitizeObject(item, zNext++);
+    if (!o) continue;
+    if (o.type === "text" || o.type === "icon") {
+      if (addable >= MAX_CUSTOM) continue;
+      addable++;
+    } else {
+      if (seenWidget.has(o.type)) continue; // one of each widget per screen
+      seenWidget.add(o.type);
+    }
+    out.push(o);
+  }
+  // If a screen was emptied to nothing, fall back to its seed so it isn't blank.
+  return { objects: out.length ? out : seededScreen(screen).objects };
+}
+
+/** Migrate a v2 KioskLayout into a v3 config: idle = its objects, others seeded. */
+export function migrateV2ToConfig(layout: KioskLayout): KioskConfig {
+  const screens = {} as Record<KioskScreen, ScreenLayout>;
+  for (const s of KIOSK_SCREENS) {
+    screens[s] = s === "idle" ? { objects: layout.objects } : seededScreen(s);
+  }
+  return {
+    version: 3,
+    clockTimezone: layout.clockTimezone,
+    clock24h: layout.clock24h,
+    wifiLevel: layout.wifiLevel,
+    screens,
+  };
+}
+
+/**
+ * Coerce arbitrary stored data into a valid v3 KioskConfig. Accepts v3 directly,
+ * migrates v2, and resets anything else to the fully-seeded default. Never throws.
+ */
+export function normalizeKioskConfig(raw: unknown): KioskConfig {
+  const r = raw as { version?: unknown } | null;
+
+  // v2 stored layout → migrate (run it through the v2 normalizer first for safety).
+  if (r && typeof r === "object" && r.version === 2) {
+    return migrateV2ToConfig(normalizeKioskLayout(r));
+  }
+
+  // Default fully-seeded config (also the v1/garbage fallback).
+  const seededAll = (): KioskConfig => {
+    const screens = {} as Record<KioskScreen, ScreenLayout>;
+    for (const s of KIOSK_SCREENS) screens[s] = seededScreen(s);
+    return { version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, screens };
+  };
+
+  if (!r || typeof r !== "object" || r.version !== 3) return seededAll();
+
+  const cfg = r as Record<string, unknown>;
+  const rawScreens = (cfg.screens ?? {}) as Record<string, unknown>;
+  const screens = {} as Record<KioskScreen, ScreenLayout>;
+  for (const s of KIOSK_SCREENS) screens[s] = sanitizeScreen(rawScreens[s], s);
+
+  const tz = typeof cfg.clockTimezone === "string" && isValidTimezone(cfg.clockTimezone)
+    ? cfg.clockTimezone
+    : "UTC";
+  return {
+    version: 3,
+    clockTimezone: tz,
+    clock24h: typeof cfg.clock24h === "boolean" ? cfg.clock24h : false,
+    wifiLevel: clamp(Math.round(num(cfg.wifiLevel, 3)), 0, 4),
+    screens,
+  };
+}

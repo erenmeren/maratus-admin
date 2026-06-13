@@ -152,3 +152,85 @@ describe("allowlist", () => {
     expect((ICON_PRESETS as readonly string[]).includes(DEFAULT_ICON_PRESET)).toBe(true);
   });
 });
+
+// ─── Task 2: v2→v3 migration + normalizeKioskConfig ──────────────────────────
+
+import {
+  migrateV2ToConfig,
+  normalizeKioskConfig,
+} from "./kiosk-layout";
+
+describe("migrateV2ToConfig", () => {
+  it("puts the v2 idle objects into screens.idle and seeds the other 6", () => {
+    const v2 = defaultLayout();
+    const cfg = migrateV2ToConfig(v2);
+    expect(cfg.version).toBe(3);
+    expect(cfg.clockTimezone).toBe(v2.clockTimezone);
+    expect(cfg.wifiLevel).toBe(v2.wifiLevel);
+    expect(cfg.screens.idle.objects.length).toBe(v2.objects.length);
+    for (const s of KIOSK_SCREENS) {
+      expect(cfg.screens[s].objects.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("normalizeKioskConfig", () => {
+  it("returns a fully-seeded default for garbage input", () => {
+    const cfg = normalizeKioskConfig(null);
+    expect(cfg.version).toBe(3);
+    for (const s of KIOSK_SCREENS) expect(cfg.screens[s].objects.length).toBeGreaterThan(0);
+  });
+
+  it("migrates a stored v2 layout (version: 2)", () => {
+    const v2 = defaultLayout();
+    const cfg = normalizeKioskConfig(v2);
+    expect(cfg.version).toBe(3);
+    expect(cfg.screens.idle.objects.some((o) => o.type === "text")).toBe(true);
+  });
+
+  it("fills a missing screen from its seed", () => {
+    const cfg = normalizeKioskConfig({
+      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
+      screens: { idle: { objects: [] } }, // others absent
+    });
+    expect(cfg.screens.sent.objects.length).toBeGreaterThan(0);
+  });
+
+  it("drops an unknown icon preset to the default and keeps the object", () => {
+    const cfg = normalizeKioskConfig({
+      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
+      screens: { idle: { objects: [
+        { id: "i1", type: "icon", x: 0.4, y: 0.4, w: 0.2, h: 0.2, visible: true, z: 0,
+          icon: { source: "preset", preset: "definitely-not-a-real-icon" } },
+      ] } },
+    });
+    const icon = cfg.screens.idle.objects.find((o) => o.type === "icon");
+    expect(icon!.icon!.preset).toBe("check");
+  });
+
+  it("caps addable (text+icon) objects per screen at MAX_CUSTOM", () => {
+    const many = Array.from({ length: MAX_CUSTOM + 10 }, (_, i) => ({
+      id: `t${i}`, type: "text", x: 0.1, y: 0.1, w: 0.3, h: 0.1, visible: true, z: i, text: `t${i}`,
+    }));
+    const cfg = normalizeKioskConfig({
+      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
+      screens: { idle: { objects: many } },
+    });
+    const addable = cfg.screens.idle.objects.filter((o) => o.type === "text" || o.type === "icon");
+    expect(addable.length).toBeLessThanOrEqual(MAX_CUSTOM);
+  });
+
+  it("clamps wifiLevel and out-of-range geometry", () => {
+    const cfg = normalizeKioskConfig({
+      version: 3, clockTimezone: "Nowhere/Nope", clock24h: "yes", wifiLevel: 99,
+      screens: { idle: { objects: [
+        { id: "t", type: "text", x: 5, y: -3, w: 9, h: 9, visible: true, z: 0, text: "x" },
+      ] } },
+    });
+    expect(cfg.wifiLevel).toBe(4);
+    expect(cfg.clockTimezone).toBe("UTC"); // invalid tz → UTC
+    const t = cfg.screens.idle.objects.find((o) => o.id === "t")!;
+    expect(t.x).toBeGreaterThanOrEqual(0);
+    expect(t.x + t.w).toBeLessThanOrEqual(1.0001);
+  });
+});

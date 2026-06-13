@@ -70,7 +70,13 @@ export function PreviewCarousel({
           >
             {Array.from({ length: count }, (_, i) => (
               <div key={i} className="w-full shrink-0 px-1">
-                <div className="mx-auto" style={{ width: slideWidthPx, maxWidth: "100%" }}>
+                {/* Square preview: cap width by the zoom px, the panel width (100%),
+                    AND the viewport height (minus room for surrounding chrome) so the
+                    square never overflows a short window — fits any screen. */}
+                <div
+                  className="mx-auto"
+                  style={{ width: `min(${slideWidthPx}px, 100%, calc(100svh - 22rem))` }}
+                >
                   {renderSlide(i)}
                 </div>
               </div>

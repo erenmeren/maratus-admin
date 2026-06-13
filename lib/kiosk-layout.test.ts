@@ -95,7 +95,7 @@ import {
   type KioskObject,
 } from "./kiosk-layout";
 
-// A box is valid if it sits on the canvas and meets the min size.
+// A box is valid if it sits on the canvas and has positive size.
 function boxesValid(objects: KioskObject[]): boolean {
   return objects.every(
     (o) =>
@@ -143,6 +143,7 @@ describe("createIconObject", () => {
     expect(o.z).toBe(5);
     expect(o.icon).toMatchObject({ source: "preset", preset: DEFAULT_ICON_PRESET, tint: "accent" });
     expect(o.id.startsWith("icon-")).toBe(true);
+    expect(createIconObject(5).id).not.toBe(o.id);
   });
 });
 

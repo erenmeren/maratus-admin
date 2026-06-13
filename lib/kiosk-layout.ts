@@ -27,6 +27,7 @@ export type WidgetType = (typeof WIDGET_TYPES)[number];
 
 // v3 user-addable/duplicable types.
 export const ADDABLE_TYPES = ["text", "icon"] as const;
+export type AddableType = (typeof ADDABLE_TYPES)[number];
 
 export const TYPE_LABEL: Record<KioskObjectType, string> = {
   text: "Text",
@@ -146,13 +147,17 @@ const DEFAULT_FONT: Record<KioskObjectType, number> = {
   icon: 24, qr: 24, spinner: 24, countdown: 24, pairingCode: 24, steps: 24,
 };
 
-/** A fresh custom text object, centered, on top (`z`). */
-export function createTextObject(text: string, z: number): KioskObject {
-  const rand = typeof crypto !== "undefined" && crypto.randomUUID
+/** Short random suffix for generated object ids. */
+function genIdSuffix(): string {
+  return typeof crypto !== "undefined" && crypto.randomUUID
     ? crypto.randomUUID().slice(0, 8)
     : Math.floor(Math.random() * 1e9).toString(36);
+}
+
+/** A fresh custom text object, centered, on top (`z`). */
+export function createTextObject(text: string, z: number): KioskObject {
   return {
-    id: `text-${rand}`,
+    id: `text-${genIdSuffix()}`,
     type: "text",
     x: 0.35,
     y: 0.45,
@@ -168,11 +173,8 @@ export function createTextObject(text: string, z: number): KioskObject {
 
 /** A fresh custom icon object, centered, on top (`z`). */
 export function createIconObject(z: number): KioskObject {
-  const rand = typeof crypto !== "undefined" && crypto.randomUUID
-    ? crypto.randomUUID().slice(0, 8)
-    : Math.floor(Math.random() * 1e9).toString(36);
   return {
-    id: `icon-${rand}`,
+    id: `icon-${genIdSuffix()}`,
     type: "icon",
     x: 0.4, y: 0.4, w: 0.2, h: 0.2,
     visible: true,

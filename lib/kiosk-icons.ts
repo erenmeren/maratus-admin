@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Check, CheckCircle2, Heart, Star, Gift, Mail, ThumbsUp, Smile, Clock, Bell,
   AlertTriangle, WifiOff, Sparkles, PartyPopper, BadgeCheck, Coffee,

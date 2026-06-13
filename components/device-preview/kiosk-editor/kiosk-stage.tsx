@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { ObjectVisual, kioskRootStyle, type KioskBrand } from "../kiosk-preview";
+import { ObjectVisual, kioskRootStyle, cq, type KioskBrand } from "../kiosk-preview";
+import { MAX_TEXT_LEN } from "@/lib/kiosk-layout";
 import { HANDLES, type Box, type Handle } from "@/lib/kiosk-geometry";
 import type { KioskEditor } from "./use-kiosk-editor";
 import { cn } from "@/lib/utils";
@@ -18,6 +19,15 @@ export function KioskStage({ editor, brand }: { editor: KioskEditor; brand: Kios
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const [editingId, setEditingId] = React.useState<string | null>(null);
+
+  // Stop editing whenever the canvas unmounts (screen switch) or edit target hides.
+  React.useEffect(() => {
+    if (editingId && !ordered.some((o) => o.id === editingId && o.visible)) {
+      setEditingId(null);
+    }
+  }, [editingId, ordered]);
+
   return (
     <div
       ref={canvasRef}
@@ -30,16 +40,36 @@ export function KioskStage({ editor, brand }: { editor: KioskEditor; brand: Kios
     >
       {ordered
         .filter((o) => o.visible)
-        .map((o) => (
-          <div
-            key={o.id}
-            onPointerDown={(ev) => editor.startMove(o.id, ev)}
-            className={cn("absolute", !disabled && "cursor-grab active:cursor-grabbing")}
-            style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, width: `${o.w * 100}%`, height: `${o.h * 100}%`, zIndex: o.z }}
-          >
-            <ObjectVisual object={o} brand={brand} layout={layout} />
-          </div>
-        ))}
+        .map((o) => {
+          const editing = editingId === o.id && o.type === "text";
+          return (
+            <div
+              key={o.id}
+              onPointerDown={(ev) => {
+                if (editing) return; // let the textarea own the pointer
+                editor.startMove(o.id, ev);
+              }}
+              onDoubleClick={() => {
+                if (!disabled && o.type === "text") setEditingId(o.id);
+              }}
+              className={cn("absolute", !disabled && "cursor-grab active:cursor-grabbing")}
+              style={{ left: `${o.x * 100}%`, top: `${o.y * 100}%`, width: `${o.w * 100}%`, height: `${o.h * 100}%`, zIndex: editing ? 9998 : o.z }}
+            >
+              {editing ? (
+                <InlineTextEditor
+                  object={o}
+                  onCommit={(text) => {
+                    editor.patch(o.id, { text });
+                    setEditingId(null);
+                  }}
+                  onCancel={() => setEditingId(null)}
+                />
+              ) : (
+                <ObjectVisual object={o} brand={brand} layout={layout} />
+              )}
+            </div>
+          );
+        })}
 
       {/* alignment guides */}
       {guides.vx.map((x, i) => (
@@ -96,6 +126,53 @@ function ResizeHandleDot({ handle, onDown }: { handle: Handle; onDown: (e: React
       className={cn("pointer-events-auto absolute size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow", HANDLE_POS[handle])}
       style={{ cursor: HANDLE_CURSOR[handle], background: "var(--k-accent)" }}
       aria-label={`Resize ${handle}`}
+    />
+  );
+}
+
+/** Inline editor shown over a text object on double-click. */
+function InlineTextEditor({
+  object,
+  onCommit,
+  onCancel,
+}: {
+  object: { text?: string; fontSize?: number; align?: "left" | "center" | "right" };
+  onCommit: (text: string) => void;
+  onCancel: () => void;
+}) {
+  const ref = React.useRef<HTMLTextAreaElement>(null);
+  const [val, setVal] = React.useState(object.text ?? "");
+
+  React.useEffect(() => {
+    ref.current?.focus();
+    ref.current?.select();
+  }, []);
+
+  return (
+    <textarea
+      ref={ref}
+      value={val}
+      maxLength={MAX_TEXT_LEN}
+      onChange={(e) => setVal(e.target.value)}
+      onPointerDown={(e) => e.stopPropagation()}
+      onBlur={() => onCommit(val)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          onCommit(val);
+        } else if (e.key === "Escape") {
+          e.preventDefault();
+          onCancel();
+        }
+      }}
+      className="size-full resize-none rounded-[1cqw] bg-[var(--k-bg)]/90 text-[var(--k-fg)] outline-none ring-2 ring-[var(--k-accent)]"
+      style={{
+        fontSize: cq(object.fontSize ?? 24),
+        textAlign: object.align ?? "center",
+        fontWeight: 600,
+        lineHeight: 1.1,
+        padding: 0,
+      }}
     />
   );
 }

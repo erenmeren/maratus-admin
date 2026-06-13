@@ -9,7 +9,9 @@ import {
   LayoutGrid,
   Loader2,
   Lock,
+  Minus,
   Palette,
+  Plus,
   RotateCcw,
   Save,
   ShieldCheck,
@@ -42,6 +44,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
+import { Slider } from "@/components/ui/slider";
+import { PreviewCarousel } from "@/components/device-preview/preview-carousel";
+import { clampZoom, zoomToPx, ZOOM_MIN, ZOOM_MAX, ZOOM_STEP } from "@/lib/branding-shell";
 import { saveBranding } from "@/app/(tenant)/tenant/branding/actions";
 import { isValidHex } from "@/lib/color";
 import { cn } from "@/lib/utils";
@@ -57,6 +68,11 @@ const SCREENS: { value: KioskScreen; label: string }[] = [
   { value: "paused", label: "Paused" },
   { value: "setup", label: "Setup / pairing" },
 ];
+
+function screenSectionTitle(screen: KioskScreen): string {
+  const label = SCREENS.find((s) => s.value === screen)?.label ?? "Screen";
+  return screen === "idle" ? "Idle layout" : `${label} content`;
+}
 
 export function BrandingEditor({
   initialColor,
@@ -95,6 +111,9 @@ export function BrandingEditor({
   const [pin, setPin] = React.useState(initialStaffPin);
   const [showPin, setShowPin] = React.useState(false);
   const [screen, setScreen] = React.useState<KioskScreen>("idle");
+  const [zoom, setZoom] = React.useState(80);
+  const screenIndex = SCREENS.findIndex((s) => s.value === screen);
+  const slidePx = zoomToPx(zoom);
   const [saving, setSaving] = React.useState(false);
   const fileRef = React.useRef<HTMLInputElement>(null);
 
@@ -208,9 +227,14 @@ export function BrandingEditor({
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:items-start">
         {/* LEFT — grouped controls */}
-        <div className="space-y-6">
-          <Section icon={Palette} title="Brand" description="Your logo and colors, shown to customers on the kiosk.">
-            {logoPreview ? (
+        <Card className="self-start">
+          <Accordion type="single" collapsible defaultValue="screen" className="px-4">
+            <AccordionItem value="brand">
+              <AccordionTrigger>
+                <SectionHead icon={Palette} title="Brand" />
+              </AccordionTrigger>
+              <AccordionContent className="space-y-4">
+                {logoPreview ? (
               <div className="flex items-center gap-3 rounded-xl border bg-muted/30 p-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={logoPreview} alt="Logo preview" className="size-12 rounded-lg object-contain" />
@@ -283,24 +307,34 @@ export function BrandingEditor({
               <ColorField label="Text" value={fg} onChange={setFg} disabled={disabled} />
               <ColorField label="Muted text" value={muted} onChange={setMuted} disabled={disabled} />
             </div>
-          </Section>
+              </AccordionContent>
+            </AccordionItem>
 
-          <Section icon={LayoutGrid} title="Idle layout" description="Arrange what customers see on the idle screen.">
-            {screen === "idle" ? (
-              <KioskControls editor={editor} />
-            ) : (
-              <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-center text-sm text-muted-foreground">
-                Switch the preview to{" "}
-                <button type="button" onClick={() => setScreen("idle")} className="font-medium text-foreground underline underline-offset-2">
-                  Idle / ready
-                </button>{" "}
-                to edit the layout.
-              </div>
-            )}
-          </Section>
+            <AccordionItem value="screen">
+              <AccordionTrigger>
+                <SectionHead icon={LayoutGrid} title={screenSectionTitle(screen)} />
+              </AccordionTrigger>
+              <AccordionContent className="space-y-4">
+                {screen === "idle" ? (
+                  <KioskControls editor={editor} />
+                ) : (
+                  <div className="rounded-lg border border-dashed bg-muted/30 p-4 text-center text-sm text-muted-foreground">
+                    Switch the preview to{" "}
+                    <button type="button" onClick={() => setScreen("idle")} className="font-medium text-foreground underline underline-offset-2">
+                      Idle / ready
+                    </button>{" "}
+                    to edit the layout. Per-screen editing arrives in the next update.
+                  </div>
+                )}
+              </AccordionContent>
+            </AccordionItem>
 
-          <Section icon={ShieldCheck} title="Security" description="Unlocks on-device settings at the kiosk.">
-            <div className="space-y-2">
+            <AccordionItem value="security">
+              <AccordionTrigger>
+                <SectionHead icon={ShieldCheck} title="Security" />
+              </AccordionTrigger>
+              <AccordionContent className="space-y-4">
+                <div className="space-y-2">
               <Label htmlFor="staffPin">Staff PIN</Label>
               <div className="relative">
                 <Input
@@ -323,8 +357,10 @@ export function BrandingEditor({
                 </button>
               </div>
             </div>
-          </Section>
-        </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </Card>
 
         {/* RIGHT — stage */}
         <div className="lg:sticky lg:top-24 lg:self-start">
@@ -335,24 +371,63 @@ export function BrandingEditor({
                 <CardDescription>720 × 720 kiosk display</CardDescription>
               </div>
               <Select value={screen} onValueChange={(v) => setScreen(v as KioskScreen)}>
-                <SelectTrigger className="w-[170px]" aria-label="Preview screen"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="w-[150px]" aria-label="Preview screen"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {SCREENS.map((s) => (<SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>))}
                 </SelectContent>
               </Select>
             </CardHeader>
-            <CardContent>
-              <div className="mx-auto w-full max-w-[600px]">
-                {screen === "idle" ? (
-                  <KioskStage editor={editor} brand={kioskBrand} />
-                ) : (
-                  <KioskPreview brand={kioskBrand} layout={layout} screen={screen} />
-                )}
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-medium text-muted-foreground">Zoom</span>
+                <button
+                  type="button"
+                  onClick={() => setZoom((z) => clampZoom(z - ZOOM_STEP))}
+                  aria-label="Zoom out"
+                  className="flex size-6 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <Minus className="size-3.5" />
+                </button>
+                <Slider
+                  value={[zoom]}
+                  min={ZOOM_MIN}
+                  max={ZOOM_MAX}
+                  step={ZOOM_STEP}
+                  onValueChange={(v) => setZoom(clampZoom(v[0]))}
+                  aria-label="Preview zoom"
+                  className="flex-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => setZoom((z) => clampZoom(z + ZOOM_STEP))}
+                  aria-label="Zoom in"
+                  className="flex size-6 items-center justify-center rounded-md border text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  <Plus className="size-3.5" />
+                </button>
+                <span className="w-10 text-right font-mono text-xs tabular-nums text-muted-foreground">{zoom}%</span>
               </div>
-              <p className="mt-4 text-center text-xs text-muted-foreground">
+
+              <PreviewCarousel
+                count={SCREENS.length}
+                index={screenIndex < 0 ? 0 : screenIndex}
+                onIndexChange={(i) => setScreen(SCREENS[i].value)}
+                slideWidthPx={slidePx}
+                isDragging={editor.isDragging}
+                ariaLabels={SCREENS.map((s) => s.label)}
+                renderSlide={(i) =>
+                  SCREENS[i].value === "idle" ? (
+                    <KioskStage editor={editor} brand={kioskBrand} />
+                  ) : (
+                    <KioskPreview brand={kioskBrand} layout={layout} screen={SCREENS[i].value} />
+                  )
+                }
+              />
+
+              <p className="text-center text-xs text-muted-foreground">
                 {screen === "idle"
-                  ? "Drag to arrange the idle screen. Other screens preview your theme."
-                  : "The QR code shown is illustrative. Real kiosks render a scannable receipt code."}
+                  ? "Drag to arrange the idle screen — double-click any text to edit it. Swipe or use the arrows to switch screens."
+                  : "Swipe or use the arrows to switch screens. The QR shown is illustrative."}
               </p>
             </CardContent>
           </Card>
@@ -379,33 +454,21 @@ export function BrandingEditor({
   );
 }
 
-/** A titled section group with an icon header. */
-function Section({
+/** Icon + title shown inside an accordion trigger. */
+function SectionHead({
   icon: Icon,
   title,
-  description,
-  children,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
-  description: string;
-  children: React.ReactNode;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2.5">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-            <Icon className="size-4" />
-          </span>
-          <div className="space-y-0.5">
-            <CardTitle className="text-base">{title}</CardTitle>
-            <CardDescription>{description}</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">{children}</CardContent>
-    </Card>
+    <span className="flex items-center gap-2.5">
+      <span className="flex size-8 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+        <Icon className="size-4" />
+      </span>
+      <span className="text-base font-semibold">{title}</span>
+    </span>
   );
 }
 

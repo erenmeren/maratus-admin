@@ -229,8 +229,14 @@ export async function saveBranding(
   revalidatePath("/tenant/branding");
   revalidatePath("/tenant");
 
-  // Nudge this org's devices to re-pull their display config.
-  await enqueueConfigChangedForOrg(organizationId, ctx.user.id);
+  // Nudge this org's devices to re-pull their display config. Best-effort: a
+  // failed enqueue must not fail a save that already committed — devices also
+  // reconcile via their next poll / ETag check.
+  try {
+    await enqueueConfigChangedForOrg(organizationId, ctx.user.id);
+  } catch (err) {
+    console.error("config-changed enqueue failed (devices reconcile on next poll)", err);
+  }
 
   return { ok: true };
 }

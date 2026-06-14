@@ -35,7 +35,7 @@ export function PrinterStage({ editor, brand }: { editor: PrinterEditor; brand: 
       onPointerUp={editor.onPointerUp}
       onPointerLeave={editor.onPointerUp}
       onPointerDown={editor.onCanvasPointerDown}
-      className="@container relative aspect-square w-full touch-none overflow-hidden rounded-[4cqw] shadow-2xl ring-1 ring-black/10 select-none"
+      className="@container relative aspect-square w-full touch-none overflow-hidden shadow-2xl ring-1 ring-black/10 select-none"
       style={{ ...printerRootStyle(brand), background: editor.screen === "error" ? "#f7f1e8" : "var(--k-bg)", color: "var(--k-fg)" }}
     >
       {ordered

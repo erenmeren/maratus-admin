@@ -9,6 +9,7 @@ import {
   LayoutGrid,
   Loader2,
   Lock,
+  Maximize2,
   Minus,
   Palette,
   Plus,
@@ -51,6 +52,7 @@ import {
   AccordionContent,
 } from "@/components/ui/accordion";
 import { Slider } from "@/components/ui/slider";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { PreviewCarousel } from "@/components/device-preview/preview-carousel";
 import { clampZoom, zoomToPx, ZOOM_MIN, ZOOM_MAX, ZOOM_STEP, ZOOM_DEFAULT } from "@/lib/branding-shell";
 import { saveBranding } from "@/app/(tenant)/tenant/branding/actions";
@@ -112,6 +114,7 @@ export function BrandingEditor({
   const [showPin, setShowPin] = React.useState(false);
   const [screen, setScreen] = React.useState<PrinterScreen>("idle");
   const [zoom, setZoom] = React.useState(ZOOM_DEFAULT);
+  const [previewOpen, setPreviewOpen] = React.useState(false);
   const screenIndex = SCREENS.findIndex((s) => s.value === screen);
   const slidePx = zoomToPx(zoom);
   const [saving, setSaving] = React.useState(false);
@@ -378,12 +381,17 @@ export function BrandingEditor({
                 <CardTitle className="text-base">Live preview</CardTitle>
                 <CardDescription>4″ printer · 720 × 720 · 100% ≈ actual size</CardDescription>
               </div>
-              <Select value={screen} onValueChange={(v) => setScreen(v as PrinterScreen)}>
-                <SelectTrigger className="w-[150px]" aria-label="Preview screen"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {SCREENS.map((s) => (<SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" size="sm" onClick={() => setPreviewOpen(true)}>
+                  <Maximize2 className="size-4" /> Preview
+                </Button>
+                <Select value={screen} onValueChange={(v) => setScreen(v as PrinterScreen)}>
+                  <SelectTrigger className="w-[150px]" aria-label="Preview screen"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {SCREENS.map((s) => (<SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>))}
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center gap-3">
@@ -458,6 +466,18 @@ export function BrandingEditor({
             </Button>
           </div>
         </div>
+
+      {/* FULL-SCREEN PREVIEW — the current screen, clean (no editor chrome), large */}
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="sm:max-w-[min(92vw,92vh)]">
+          <DialogTitle className="text-base">
+            Preview — {SCREENS.find((s) => s.value === screen)?.label ?? "Screen"}
+          </DialogTitle>
+          <div className="mx-auto" style={{ width: "min(86vw, 86vh)" }}>
+            <PrinterPreview brand={printerBrand} config={config} screen={screen} />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

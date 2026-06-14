@@ -127,12 +127,12 @@ describe("seededScreen", () => {
     expect(err!.icon).toMatchObject({ source: "preset", preset: "wifi-off", tint: "warn" });
   });
 
-  it("seeds idle with the existing logo/clock/wifi widgets and two text objects", () => {
+  it("seeds idle with logo/clock/wifi and no placeholder text labels", () => {
     const idle = seededScreen("idle").objects;
     expect(idle.some((o) => o.type === "logo")).toBe(true);
     expect(idle.some((o) => o.type === "clock")).toBe(true);
     expect(idle.some((o) => o.type === "wifi")).toBe(true);
-    expect(idle.filter((o) => o.type === "text").length).toBe(2);
+    expect(idle.filter((o) => o.type === "text").length).toBe(0);
   });
 });
 
@@ -185,7 +185,9 @@ describe("normalizePrinterConfig", () => {
     const v2 = defaultLayout();
     const cfg = normalizePrinterConfig(v2);
     expect(cfg.version).toBe(3);
-    expect(cfg.screens.idle.objects.some((o) => o.type === "text")).toBe(true);
+    expect(cfg.screens.idle.objects.some((o) => o.type === "logo")).toBe(true);
+    expect(cfg.screens.idle.objects.some((o) => o.type === "clock")).toBe(true);
+    expect(cfg.screens.idle.objects.some((o) => o.type === "wifi")).toBe(true);
   });
 
   it("fills a missing screen from its seed", () => {

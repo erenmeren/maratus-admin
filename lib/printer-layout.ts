@@ -116,14 +116,6 @@ const FIXED_DEFAULTS: Record<FixedType, Pick<PrinterObject, "x" | "y" | "w" | "h
   clock: { x: 0.25, y: 0.52, w: 0.5, h: 0.18 },
 };
 
-/** Two seeded text objects (the old lane + tagline lines), now editable. */
-function seededText(): PrinterObject[] {
-  return [
-    { id: "text-lane", type: "text", x: 0.06, y: 0.05, w: 0.4, h: 0.06, visible: true, z: 3, text: "Lane 1", fontSize: 19, align: "left" },
-    { id: "text-tagline", type: "text", x: 0.15, y: 0.88, w: 0.7, h: 0.08, visible: true, z: 4, text: "Tap your card or pay at the reader to begin", fontSize: 18, align: "center" },
-  ];
-}
-
 /** A fresh default layout (new object each call so callers can't mutate it). */
 export function defaultLayout(): PrinterLayout {
   const fixed: PrinterObject[] = FIXED_TYPES.map((type, i) => ({
@@ -138,7 +130,7 @@ export function defaultLayout(): PrinterLayout {
     clockTimezone: "UTC",
     clock24h: false,
     wifiLevel: 3,
-    objects: [...fixed, ...seededText()],
+    objects: [...fixed],
   };
 }
 

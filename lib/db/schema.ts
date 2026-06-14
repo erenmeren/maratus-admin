@@ -341,9 +341,16 @@ export const receipt = pgTable(
     organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
-    deviceId: text("device_id")
-      .notNull()
-      .references(() => device.id, { onDelete: "cascade" }),
+    // Nullable: device-ingested receipts set this; cloud-ingested receipts (source="cloud") leave it null.
+    deviceId: text("device_id").references(() => device.id, {
+      onDelete: "cascade",
+    }),
+    // Ingestion source. "device" = rendered + uploaded by a printer; "cloud" = created via partner API.
+    source: text("source", { enum: ["device", "cloud"] })
+      .default("device")
+      .notNull(),
+    // Technical render metadata ONLY (no parsed receipt semantics). Shape: ReceiptMetadata in lib/ingest-metadata.ts.
+    metadata: jsonb("metadata"),
     storeId: text("store_id").references(() => store.id, {
       onDelete: "set null",
     }),

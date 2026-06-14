@@ -171,6 +171,9 @@ async function loadOrg(organizationId: string): Promise<OrgBundle | null> {
   const todayByDevice = new Map<string, number>();
   const monthByDevice = new Map<string, number>();
   for (const r of deviceCountRows) {
+    // deviceId is nullable (cloud-ingested receipts have no device); those rows
+    // don't belong to any device bucket, so skip them.
+    if (!r.deviceId) continue;
     monthByDevice.set(r.deviceId, r.month);
     if (r.today) todayByDevice.set(r.deviceId, r.today);
   }

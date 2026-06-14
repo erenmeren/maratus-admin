@@ -61,6 +61,11 @@ export interface PrinterIcon {
   circle?: boolean;
 }
 
+export interface PrinterClockOptions {
+  showDate?: boolean;    // default true — the whole date line
+  showWeekday?: boolean; // default true — the day name within the date
+}
+
 export type TextAlign = "left" | "center" | "right";
 
 export interface PrinterObject {
@@ -76,6 +81,7 @@ export interface PrinterObject {
   fontSize?: number; // px on the 720 reference
   align?: TextAlign;
   icon?: PrinterIcon; // icon objects
+  clock?: PrinterClockOptions; // clock objects
 }
 
 export interface PrinterLayout {
@@ -116,14 +122,6 @@ const FIXED_DEFAULTS: Record<FixedType, Pick<PrinterObject, "x" | "y" | "w" | "h
   clock: { x: 0.25, y: 0.52, w: 0.5, h: 0.18 },
 };
 
-/** Two seeded text objects (the old lane + tagline lines), now editable. */
-function seededText(): PrinterObject[] {
-  return [
-    { id: "text-lane", type: "text", x: 0.06, y: 0.05, w: 0.4, h: 0.06, visible: true, z: 3, text: "Lane 1", fontSize: 19, align: "left" },
-    { id: "text-tagline", type: "text", x: 0.15, y: 0.88, w: 0.7, h: 0.08, visible: true, z: 4, text: "Tap your card or pay at the reader to begin", fontSize: 18, align: "center" },
-  ];
-}
-
 /** A fresh default layout (new object each call so callers can't mutate it). */
 export function defaultLayout(): PrinterLayout {
   const fixed: PrinterObject[] = FIXED_TYPES.map((type, i) => ({
@@ -138,7 +136,7 @@ export function defaultLayout(): PrinterLayout {
     clockTimezone: "UTC",
     clock24h: false,
     wifiLevel: 3,
-    objects: [...fixed, ...seededText()],
+    objects: [...fixed],
   };
 }
 
@@ -182,6 +180,15 @@ export function createIconObject(z: number): PrinterObject {
     visible: true,
     z,
     icon: { source: "preset", preset: DEFAULT_ICON_PRESET, tint: "accent", circle: false },
+  };
+}
+
+/** Boxes + clock settings for a tidy top status row: logo (left) · clock (center, compact) · wifi (right). */
+export function topBarArrangement(): Record<"logo" | "clock" | "wifi", Partial<PrinterObject>> {
+  return {
+    logo: { x: 0.04, y: 0.04, w: 0.3, h: 0.1 },
+    clock: { x: 0.4, y: 0.045, w: 0.2, h: 0.09, align: "center", clock: { showDate: false, showWeekday: true } },
+    wifi: { x: 0.86, y: 0.05, w: 0.1, h: 0.06 },
   };
 }
 
@@ -357,6 +364,14 @@ function sanitizeIcon(raw: unknown): PrinterIcon {
   return { source: "preset", preset, tint, circle };
 }
 
+function sanitizeClock(raw: unknown): PrinterClockOptions {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  return {
+    showDate: typeof r.showDate === "boolean" ? r.showDate : true,
+    showWeekday: typeof r.showWeekday === "boolean" ? r.showWeekday : true,
+  };
+}
+
 /** Default box for a widget singleton (used when a stored object is malformed). */
 const WIDGET_BOX: Record<WidgetType, Pick<PrinterObject, "x" | "y" | "w" | "h">> = {
   logo: { x: 0.34, y: 0.22, w: 0.32, h: 0.16 },
@@ -393,6 +408,14 @@ function sanitizeObject(raw: unknown, fallbackZ: number): PrinterObject | null {
       id, type: "icon", z, visible,
       ...sanitizeBox(o, { x: 0.4, y: 0.4, w: 0.2, h: 0.2 }),
       icon: sanitizeIcon(o.icon),
+    };
+  }
+  if (type === "clock") {
+    return {
+      id, type: "clock", z, visible,
+      ...sanitizeBox(o, WIDGET_BOX.clock),
+      align: ALIGNS.includes(o.align as TextAlign) ? (o.align as TextAlign) : "center",
+      clock: sanitizeClock(o.clock),
     };
   }
   // widget singleton

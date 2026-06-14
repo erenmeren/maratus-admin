@@ -14,10 +14,16 @@ export function PrinterClock({
   timezone,
   hour24 = false,
   size = 84,
+  showDate = true,
+  showWeekday = true,
+  align = "center",
 }: {
   timezone: string;
   hour24?: boolean;
   size?: number;
+  showDate?: boolean;
+  showWeekday?: boolean;
+  align?: "left" | "center" | "right";
 }) {
   const [now, setNow] = React.useState<Date | null>(null);
   React.useEffect(() => {
@@ -37,7 +43,7 @@ export function PrinterClock({
         timeZone: timezone,
       });
       date = now.toLocaleDateString([], {
-        weekday: "long",
+        ...(showWeekday ? { weekday: "long" as const } : {}),
         month: "long",
         day: "numeric",
         timeZone: timezone,
@@ -48,7 +54,7 @@ export function PrinterClock({
   }
 
   return (
-    <div style={{ textAlign: "center" }} suppressHydrationWarning>
+    <div style={{ textAlign: align }} suppressHydrationWarning>
       <div
         style={{
           fontSize: cq(size),
@@ -61,7 +67,7 @@ export function PrinterClock({
       >
         {time}
       </div>
-      {date && (
+      {showDate && date && (
         <div style={{ fontSize: cq(size * 0.26), fontWeight: 500, color: "var(--k-muted)", marginTop: cq(size * 0.14) }}>
           {date}
         </div>

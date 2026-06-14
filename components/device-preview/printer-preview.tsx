@@ -279,9 +279,18 @@ function ClockObject({
   clock24h: boolean;
 }) {
   const timeFont = object.h * 720 * 0.5; // time font ~ half the box height
+  const align = object.align ?? "center";
+  const justify = align === "left" ? "flex-start" : align === "right" ? "flex-end" : "center";
   return (
-    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-      <PrinterClock timezone={timezone} hour24={clock24h} size={timeFont} />
+    <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: justify, overflow: "hidden" }}>
+      <PrinterClock
+        timezone={timezone}
+        hour24={clock24h}
+        size={timeFont}
+        showDate={object.clock?.showDate ?? true}
+        showWeekday={object.clock?.showWeekday ?? true}
+        align={align}
+      />
     </div>
   );
 }

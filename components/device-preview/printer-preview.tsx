@@ -90,7 +90,7 @@ export function PrinterPreview({
   return (
     <div
       className={cn(
-        "@container relative aspect-square w-full overflow-hidden rounded-[4cqw] shadow-2xl ring-1 ring-black/10 select-none",
+        "@container relative aspect-square w-full overflow-hidden shadow-2xl ring-1 ring-black/10 select-none",
         className,
       )}
       style={{

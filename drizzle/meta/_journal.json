@@ -127,6 +127,13 @@
       "when": 1781368914644,
       "tag": "0017_bent_leopardon",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1781437498918,
+      "tag": "0018_wide_doomsday",
+      "breakpoints": true
     }
   ]
 }

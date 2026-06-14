@@ -8,7 +8,7 @@ export interface ApiReceiptRow {
   token: string;
   status: ReceiptStatus;
   storeId: string | null;
-  deviceId: string;
+  deviceId: string | null;
   byteSize: number;
   createdAt: Date;
 }
@@ -30,7 +30,7 @@ export interface ApiReceiptDetail {
   token: string;
   status: ReceiptStatus;
   storeId: string | null;
-  deviceId: string;
+  deviceId: string | null;
   byteSize: number;
   createdAt: string; // ISO
   downloadedAt: string | null;

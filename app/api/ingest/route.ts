@@ -26,6 +26,7 @@ import { deliverEvent } from "@/lib/webhooks/deliver";
 import { getEnv } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateReceiptPayload } from "@/lib/ingest-validation";
+import { parseReceiptMetadata, type ReceiptMetadata } from "@/lib/ingest-metadata";
 import { reportError } from "@/lib/observability";
 
 export const runtime = "nodejs";
@@ -70,6 +71,7 @@ export async function POST(req: Request) {
   let bytes: Buffer;
   let mimeType = "image/png";
   let bodyDeviceId: string | undefined;
+  let metadata: ReceiptMetadata | null = null;
 
   const contentType = req.headers.get("content-type") ?? "";
   try {
@@ -77,6 +79,10 @@ export async function POST(req: Request) {
       const form = await req.formData();
       const file = form.get("file");
       bodyDeviceId = (form.get("deviceId") as string | null) ?? undefined;
+      const metaRaw = form.get("metadata");
+      if (typeof metaRaw === "string" && metaRaw) {
+        try { metadata = parseReceiptMetadata(JSON.parse(metaRaw)); } catch { metadata = null; }
+      }
       if (!(file instanceof File)) return bad(400, "Missing file field");
       bytes = Buffer.from(await file.arrayBuffer());
       mimeType = file.type || mimeType;
@@ -85,6 +91,7 @@ export async function POST(req: Request) {
         image?: string;
         mimeType?: string;
         deviceId?: string;
+        metadata?: unknown;
       };
       if (!json.image) return bad(400, "Missing image field");
       // Accept raw base64 or a data: URL.
@@ -94,6 +101,7 @@ export async function POST(req: Request) {
       bytes = Buffer.from(base64, "base64");
       if (json.mimeType) mimeType = json.mimeType;
       bodyDeviceId = json.deviceId;
+      metadata = parseReceiptMetadata(json.metadata);
     }
   } catch {
     return bad(400, "Malformed request body");
@@ -129,6 +137,8 @@ export async function POST(req: Request) {
     mimeType,
     byteSize: bytes.byteLength,
     status: "ready",
+    source: "device",
+    metadata,
     createdAt: now,
   });
 

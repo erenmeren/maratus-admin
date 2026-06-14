@@ -16,6 +16,7 @@ import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "@/l
 import { id } from "@/lib/ids";
 import { deleteObject, iconStorageKey, logoStorageKey, putObject } from "@/lib/storage";
 import { recordAudit, AUDIT } from "@/lib/audit";
+import { enqueueConfigChangedForOrg } from "@/lib/data";
 
 export interface SaveBrandingResult {
   ok: boolean;
@@ -227,5 +228,15 @@ export async function saveBranding(
 
   revalidatePath("/tenant/branding");
   revalidatePath("/tenant");
+
+  // Nudge this org's devices to re-pull their display config. Best-effort: a
+  // failed enqueue must not fail a save that already committed — devices also
+  // reconcile via their next poll / ETag check.
+  try {
+    await enqueueConfigChangedForOrg(organizationId, ctx.user.id);
+  } catch (err) {
+    console.error("config-changed enqueue failed (devices reconcile on next poll)", err);
+  }
+
   return { ok: true };
 }

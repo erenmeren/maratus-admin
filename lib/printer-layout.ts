@@ -183,6 +183,15 @@ export function createIconObject(z: number): PrinterObject {
   };
 }
 
+/** Boxes + clock settings for a tidy top status row: logo (left) · clock (center, compact) · wifi (right). */
+export function topBarArrangement(): Record<"logo" | "clock" | "wifi", Partial<PrinterObject>> {
+  return {
+    logo: { x: 0.04, y: 0.04, w: 0.3, h: 0.1 },
+    clock: { x: 0.4, y: 0.045, w: 0.2, h: 0.09, align: "center", clock: { showDate: false, showWeekday: true } },
+    wifi: { x: 0.86, y: 0.05, w: 0.1, h: 0.06 },
+  };
+}
+
 // Internal helper: build an object with sane defaults.
 function obj(o: Partial<PrinterObject> & Pick<PrinterObject, "id" | "type" | "x" | "y" | "w" | "h" | "z">): PrinterObject {
   return { visible: true, ...o };

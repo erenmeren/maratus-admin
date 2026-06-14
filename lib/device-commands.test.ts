@@ -9,4 +9,7 @@ describe("isValidCommandType", () => {
     expect(isValidCommandType("shutdown")).toBe(false);
     expect(isValidCommandType("")).toBe(false);
   });
+  it("accepts config-changed", () => {
+    expect(isValidCommandType("config-changed")).toBe(true);
+  });
 });

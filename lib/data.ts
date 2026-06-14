@@ -12,6 +12,7 @@
 
 import { and, count, desc, eq, gte, isNotNull, lt, lte, max, ne, sql } from "drizzle-orm";
 import { db } from "./db";
+import { id as genId } from "@/lib/ids";
 import {
   alert as alertTable,
   apiKey as apiKeyTable,
@@ -908,6 +909,31 @@ export async function getDeviceConfig(
       config,
     },
   };
+}
+
+/**
+ * Enqueue a config-changed command for EVERY device in an org so they re-pull
+ * GET /api/device/config promptly after a branding change. No-op if the org has
+ * no devices.
+ */
+export async function enqueueConfigChangedForOrg(
+  organizationId: string,
+  createdByUserId: string | null,
+): Promise<void> {
+  const devices = await db
+    .select({ id: deviceTable.id })
+    .from(deviceTable)
+    .where(eq(deviceTable.organizationId, organizationId));
+  if (devices.length === 0) return;
+  await db.insert(deviceCommand).values(
+    devices.map((d) => ({
+      id: genId("cmd"),
+      deviceId: d.id,
+      organizationId,
+      type: "config-changed" as const,
+      createdByUserId: createdByUserId ?? undefined,
+    })),
+  );
 }
 
 // Device provisioning helpers live in lib/receipts.ts (claimDevice,

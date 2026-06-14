@@ -47,6 +47,7 @@ import { type ReceiptFilters, PAGE_SIZE } from "./receipts-search";
 import { presignedGetUrl } from "./storage";
 import { resolveBrandTokens } from "./color";
 import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "./printer-layout";
+import { computeConfigVersion, etagMatches } from "@/lib/device-config";
 import type {
   Device,
   DeviceRow,
@@ -828,6 +829,84 @@ export async function getTenantBranding(
     staffPin: s?.staffPin ?? "",
     logoUrl,
     hasLogo: !!s?.logoUrl,
+  };
+}
+
+/** Payload served to a device over GET /api/device/config (icons + logo presigned). */
+export interface DeviceConfigPayload {
+  version: string;
+  brandColor: string;
+  brandBg: string;
+  brandFg: string;
+  brandMuted: string;
+  logoUrl: string | null; // presigned, short-lived
+  config: PrinterConfig; // uploaded icon keys presigned for rendering
+}
+
+/**
+ * Resolve a device's display config + a stable version/ETag. Computes the version
+ * from STORED inputs first so an If-None-Match hit can short-circuit (304) BEFORE
+ * doing any presigning work.
+ */
+export async function getDeviceConfig(
+  organizationId: string,
+  ifNoneMatch?: string | null,
+): Promise<{ version: string; notModified: boolean; payload: DeviceConfigPayload | null }> {
+  const [s] = await db
+    .select()
+    .from(settingsTable)
+    .where(eq(settingsTable.organizationId, organizationId))
+    .limit(1);
+
+  const version = computeConfigVersion({
+    printerScreens: s?.printerScreens ?? null,
+    printerLayout: s?.printerLayout ?? null,
+    logoUrl: s?.logoUrl ?? null,
+    brandColor: s?.brandColor ?? null,
+    brandBg: s?.brandBg ?? null,
+    brandFg: s?.brandFg ?? null,
+    brandMuted: s?.brandMuted ?? null,
+  });
+
+  if (etagMatches(ifNoneMatch, version)) {
+    return { version, notModified: true, payload: null };
+  }
+
+  const config = normalizePrinterConfig(s?.printerScreens ?? s?.printerLayout);
+
+  // Presign uploaded icon keys across all screens (collect → presign → map back).
+  const iconKeys = new Set<string>();
+  for (const screen of PRINTER_SCREENS) {
+    for (const o of config.screens[screen].objects) {
+      if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) iconKeys.add(o.icon.url);
+    }
+  }
+  const signed = new Map<string, string>();
+  await Promise.all([...iconKeys].map(async (k) => signed.set(k, await presignedGetUrl(k))));
+  for (const screen of PRINTER_SCREENS) {
+    for (const o of config.screens[screen].objects) {
+      if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) {
+        o.icon = { ...o.icon, signedUrl: signed.get(o.icon.url) ?? undefined };
+      }
+    }
+  }
+
+  const logoUrl = s?.logoUrl ? await presignedGetUrl(s.logoUrl) : null;
+  const brandColor = s?.brandColor ?? "#10A765";
+  const tokens = resolveBrandTokens(brandColor, { bg: s?.brandBg, fg: s?.brandFg, muted: s?.brandMuted });
+
+  return {
+    version,
+    notModified: false,
+    payload: {
+      version,
+      brandColor,
+      brandBg: tokens.bg,
+      brandFg: tokens.fg,
+      brandMuted: tokens.muted,
+      logoUrl,
+      config,
+    },
   };
 }
 

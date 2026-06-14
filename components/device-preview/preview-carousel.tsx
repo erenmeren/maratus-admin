@@ -75,11 +75,11 @@ export function PreviewCarousel({
           >
             {Array.from({ length: count }, (_, i) => (
               <div key={i} className="w-full shrink-0 px-1">
-                {/* Render the printer at TRUE device pixels (slideWidthPx; 720 at 100%).
-                    The box is bounded to the viewport height and scrolls when the canvas
-                    is larger than the pane, so a real 1:1 720px view is reachable without
-                    overflowing the screen. When it fits, mx-auto just centers it. */}
-                <div className="overflow-auto" style={{ maxHeight: "calc(100svh - 22rem)" }}>
+                {/* Render the printer at its physical size (slideWidthPx). The `p-6`
+                    gives the square's ring/shadow room so the top/bottom edges aren't
+                    clipped against the scroll box. The box is viewport-bounded and only
+                    scrolls when zoomed large; mx-auto centers it when it fits. */}
+                <div className="overflow-auto p-6" style={{ maxHeight: "calc(100svh - 16rem)" }}>
                   <div className="mx-auto" style={{ width: slideWidthPx }}>
                     {renderSlide(i)}
                   </div>

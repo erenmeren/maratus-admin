@@ -160,6 +160,33 @@ import {
   normalizePrinterConfig,
 } from "./printer-layout";
 
+describe("clock options", () => {
+  const cfg = (clockObj: Record<string, unknown>) => ({
+    version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
+    screens: { idle: { objects: [clockObj] } },
+  });
+  const idleClock = (raw: unknown) =>
+    normalizePrinterConfig(raw).screens.idle.objects.find((o) => o.type === "clock")!;
+
+  it("defaults clock options to shown + center align", () => {
+    const c = idleClock(cfg({ id: "clock", type: "clock", x: 0.25, y: 0.5, w: 0.5, h: 0.18, visible: true, z: 0 }));
+    expect(c.clock).toEqual({ showDate: true, showWeekday: true });
+    expect(c.align).toBe("center");
+  });
+
+  it("preserves explicit clock options + align", () => {
+    const c = idleClock(cfg({ id: "clock", type: "clock", x: 0.25, y: 0.5, w: 0.5, h: 0.18, visible: true, z: 0, align: "left", clock: { showDate: false, showWeekday: false } }));
+    expect(c.clock).toEqual({ showDate: false, showWeekday: false });
+    expect(c.align).toBe("left");
+  });
+
+  it("coerces a garbage clock field to defaults", () => {
+    const c = idleClock(cfg({ id: "clock", type: "clock", x: 0.25, y: 0.5, w: 0.5, h: 0.18, visible: true, z: 0, clock: "nope", align: 99 }));
+    expect(c.clock).toEqual({ showDate: true, showWeekday: true });
+    expect(c.align).toBe("center");
+  });
+});
+
 describe("migrateV2ToConfig", () => {
   it("puts the v2 idle objects into screens.idle and seeds the other 6", () => {
     const v2 = defaultLayout();

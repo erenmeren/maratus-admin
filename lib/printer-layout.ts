@@ -61,6 +61,11 @@ export interface PrinterIcon {
   circle?: boolean;
 }
 
+export interface PrinterClockOptions {
+  showDate?: boolean;    // default true — the whole date line
+  showWeekday?: boolean; // default true — the day name within the date
+}
+
 export type TextAlign = "left" | "center" | "right";
 
 export interface PrinterObject {
@@ -76,6 +81,7 @@ export interface PrinterObject {
   fontSize?: number; // px on the 720 reference
   align?: TextAlign;
   icon?: PrinterIcon; // icon objects
+  clock?: PrinterClockOptions; // clock objects
 }
 
 export interface PrinterLayout {
@@ -349,6 +355,14 @@ function sanitizeIcon(raw: unknown): PrinterIcon {
   return { source: "preset", preset, tint, circle };
 }
 
+function sanitizeClock(raw: unknown): PrinterClockOptions {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  return {
+    showDate: typeof r.showDate === "boolean" ? r.showDate : true,
+    showWeekday: typeof r.showWeekday === "boolean" ? r.showWeekday : true,
+  };
+}
+
 /** Default box for a widget singleton (used when a stored object is malformed). */
 const WIDGET_BOX: Record<WidgetType, Pick<PrinterObject, "x" | "y" | "w" | "h">> = {
   logo: { x: 0.34, y: 0.22, w: 0.32, h: 0.16 },
@@ -385,6 +399,14 @@ function sanitizeObject(raw: unknown, fallbackZ: number): PrinterObject | null {
       id, type: "icon", z, visible,
       ...sanitizeBox(o, { x: 0.4, y: 0.4, w: 0.2, h: 0.2 }),
       icon: sanitizeIcon(o.icon),
+    };
+  }
+  if (type === "clock") {
+    return {
+      id, type: "clock", z, visible,
+      ...sanitizeBox(o, WIDGET_BOX.clock),
+      align: ALIGNS.includes(o.align as TextAlign) ? (o.align as TextAlign) : "center",
+      clock: sanitizeClock(o.clock),
     };
   }
   // widget singleton

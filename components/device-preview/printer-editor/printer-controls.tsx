@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AlignCenter, AlignLeft, AlignRight, Eye, EyeOff, Plus, RotateCcw, Trash2, Wifi } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Eye, EyeOff, PanelTop, Plus, RotateCcw, Trash2, Wifi } from "lucide-react";
 import {
   objectLabel,
   FONT_MIN,
@@ -96,6 +96,15 @@ export function PrinterControls({ editor, onIconUpload }: { editor: PrinterEdito
         })}
       </div>
 
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={editor.insertTopBar}
+        className="flex w-full items-center justify-center gap-2 rounded-lg border py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+      >
+        <PanelTop className="size-4" /> Insert top bar
+      </button>
+
       {selected && <Properties key={selected.id} object={selected} editor={editor} onIconUpload={onIconUpload} />}
 
       <button
@@ -174,21 +183,58 @@ function Properties({ object, editor, onIconUpload }: { object: PrinterObject; e
       <p className="text-[10px] text-muted-foreground">Pixels on the 720 × 720 printer canvas.</p>
 
       {object.type === "clock" && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Timezone</Label>
-            <Select value={editor.config.clockTimezone} onValueChange={(v) => editor.setShared({ clockTimezone: v })} disabled={disabled}>
-              <SelectTrigger className="h-8 w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {TIMEZONES.map((tz) => (<SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>))}
-              </SelectContent>
-            </Select>
+        <>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Timezone</Label>
+              <Select value={editor.config.clockTimezone} onValueChange={(v) => editor.setShared({ clockTimezone: v })} disabled={disabled}>
+                <SelectTrigger className="h-8 w-full"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TIMEZONES.map((tz) => (<SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center justify-between">
+              <Label htmlFor="clock-24h" className="text-xs text-muted-foreground">24-hour</Label>
+              <Switch id="clock-24h" checked={editor.config.clock24h} onCheckedChange={(v) => editor.setShared({ clock24h: v })} disabled={disabled} />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] text-muted-foreground">Align</Label>
+            <div className="flex gap-1">
+              {([["left", AlignLeft], ["center", AlignCenter], ["right", AlignRight]] as [TextAlign, typeof AlignLeft][]).map(([a, Icon]) => (
+                <button
+                  key={a}
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => set({ align: a })}
+                  aria-label={`Align ${a}`}
+                  className={cn("flex h-8 flex-1 items-center justify-center rounded-md border transition-colors disabled:opacity-50", (object.align ?? "center") === a ? "border-foreground bg-foreground text-background" : "hover:bg-accent")}
+                >
+                  <Icon className="size-4" />
+                </button>
+              ))}
+            </div>
           </div>
           <div className="flex items-center justify-between">
-            <Label htmlFor="clock-24h" className="text-xs text-muted-foreground">24-hour</Label>
-            <Switch id="clock-24h" checked={editor.config.clock24h} onCheckedChange={(v) => editor.setShared({ clock24h: v })} disabled={disabled} />
+            <Label htmlFor="clock-show-date" className="text-xs text-muted-foreground">Show date</Label>
+            <Switch
+              id="clock-show-date"
+              checked={object.clock?.showDate ?? true}
+              onCheckedChange={(v) => set({ clock: { ...(object.clock ?? {}), showDate: v } })}
+              disabled={disabled}
+            />
           </div>
-        </div>
+          <div className="flex items-center justify-between">
+            <Label htmlFor="clock-show-weekday" className="text-xs text-muted-foreground">Show weekday</Label>
+            <Switch
+              id="clock-show-weekday"
+              checked={object.clock?.showWeekday ?? true}
+              onCheckedChange={(v) => set({ clock: { ...(object.clock ?? {}), showWeekday: v } })}
+              disabled={disabled || !(object.clock?.showDate ?? true)}
+            />
+          </div>
+        </>
       )}
 
       {object.type === "wifi" && (

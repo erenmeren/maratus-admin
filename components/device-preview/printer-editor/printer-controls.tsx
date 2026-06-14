@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AlignCenter, AlignLeft, AlignRight, Eye, EyeOff, PanelTop, Plus, RotateCcw, Trash2, Wifi } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Eye, EyeOff, Plus, RotateCcw, Trash2, Wifi } from "lucide-react";
 import {
   objectLabel,
   FONT_MIN,
@@ -95,15 +95,6 @@ export function PrinterControls({ editor, onIconUpload }: { editor: PrinterEdito
           );
         })}
       </div>
-
-      <button
-        type="button"
-        disabled={disabled}
-        onClick={editor.insertTopBar}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
-      >
-        <PanelTop className="size-4" /> Insert top bar
-      </button>
 
       {selected && <Properties key={selected.id} object={selected} editor={editor} onIconUpload={onIconUpload} />}
 

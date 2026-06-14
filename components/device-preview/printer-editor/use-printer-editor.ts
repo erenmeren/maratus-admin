@@ -5,7 +5,6 @@ import {
   createTextObject,
   createIconObject,
   seededScreen,
-  topBarArrangement,
   MAX_CUSTOM,
   type PrinterObject,
   type PrinterConfig,
@@ -49,7 +48,6 @@ export interface PrinterEditor {
   removeObject: (id: string) => void;
   bringToFront: (id: string) => void;
   resetLayout: () => void;
-  insertTopBar: () => void;
   endInteraction: () => void;
   /** True while an object move/resize drag is in progress. */
   isDragging: () => boolean;
@@ -183,24 +181,6 @@ export function usePrinterEditor({
     }
   }
 
-  /** Snap logo/clock/wifi into a tidy top row on the active screen (creating any that are absent). */
-  function insertTopBar() {
-    if (disabled) return;
-    const preset = topBarArrangement();
-    const next = [...objects];
-    let z = next.reduce((m, o) => Math.max(m, o.z), 0);
-    (["logo", "clock", "wifi"] as const).forEach((type) => {
-      z += 1;
-      const patch = preset[type];
-      const idx = next.findIndex((o) => o.type === type);
-      if (idx >= 0) {
-        next[idx] = { ...next[idx], ...patch, visible: true, z };
-      } else {
-        next.push({ id: type, type, x: 0.04, y: 0.04, w: 0.1, h: 0.1, visible: true, z, ...patch } as PrinterObject);
-      }
-    });
-    setObjects(next);
-  }
 
   /** Clear transient interaction state when the canvas unmounts. */
   function endInteraction() {
@@ -238,7 +218,6 @@ export function usePrinterEditor({
     removeObject,
     bringToFront,
     resetLayout,
-    insertTopBar,
     endInteraction,
     isDragging,
   };

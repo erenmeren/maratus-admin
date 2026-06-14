@@ -160,25 +160,6 @@ import {
   normalizePrinterConfig,
 } from "./printer-layout";
 
-import { topBarArrangement } from "./printer-layout";
-
-describe("topBarArrangement", () => {
-  it("returns on-canvas boxes for logo (left), clock (center, compact), wifi (right)", () => {
-    const bar = topBarArrangement();
-    for (const key of ["logo", "clock", "wifi"] as const) {
-      const b = bar[key];
-      expect(b.x! >= 0 && b.y! >= 0).toBe(true);
-      expect(b.x! + b.w! <= 1.0001 && b.y! + b.h! <= 1.0001).toBe(true);
-    }
-    // logo left of wifi; clock between them
-    expect(bar.logo.x! < bar.clock.x!).toBe(true);
-    expect(bar.clock.x! < bar.wifi.x!).toBe(true);
-    // clock is compact (date hidden) in the bar
-    expect(bar.clock.clock).toEqual({ showDate: false, showWeekday: true });
-    expect(bar.clock.align).toBe("center");
-  });
-});
-
 describe("clock options", () => {
   const cfg = (clockObj: Record<string, unknown>) => ({
     version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,

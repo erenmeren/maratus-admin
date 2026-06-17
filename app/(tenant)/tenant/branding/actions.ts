@@ -80,10 +80,15 @@ export async function saveBranding(
             if (file.size > MAX_LOGO_BYTES) {
               return { ok: false, error: "Icon must be under 2 MB." };
             }
-            const key = iconStorageKey(organizationId, id("icon"));
-            const bytes = Buffer.from(await file.arrayBuffer());
+            let bytes: Buffer;
             try {
-              await putObject(key, bytes, file.type);
+              bytes = await normalizeUploadImage(Buffer.from(await file.arrayBuffer()));
+            } catch {
+              return { ok: false, error: "Couldn't process that icon — try a PNG or JPEG." };
+            }
+            const key = iconStorageKey(organizationId, id("icon"));
+            try {
+              await putObject(key, bytes, "image/png");
               o.icon = { ...o.icon, url: key };
             } catch (err) {
               console.error("Icon upload failed", err);

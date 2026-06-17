@@ -15,6 +15,7 @@ import { isValidHex } from "@/lib/color";
 import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "@/lib/printer-layout";
 import { id } from "@/lib/ids";
 import { deleteObject, iconStorageKey, logoStorageKey, putObject } from "@/lib/storage";
+import { normalizeUploadImage } from "@/lib/image";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { enqueueConfigChangedForOrg } from "@/lib/data";
 
@@ -124,10 +125,15 @@ export async function saveBranding(
     if (logo.size > MAX_LOGO_BYTES) {
       return { ok: false, error: "Logo must be under 2 MB." };
     }
-    const key = logoStorageKey(organizationId, id("logo"));
-    const bytes = Buffer.from(await logo.arrayBuffer());
+    let bytes: Buffer;
     try {
-      await putObject(key, bytes, logo.type);
+      bytes = await normalizeUploadImage(Buffer.from(await logo.arrayBuffer()));
+    } catch {
+      return { ok: false, error: "Couldn't process that image — try a PNG or JPEG." };
+    }
+    const key = logoStorageKey(organizationId, id("logo"));
+    try {
+      await putObject(key, bytes, "image/png");
     } catch (err) {
       console.error("Logo upload failed", err);
       return { ok: false, error: "Logo upload failed. Try again." };

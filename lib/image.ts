@@ -6,6 +6,13 @@ import sharp from "sharp";
  *  comfortably within the board's PSRAM and ample for the ~524px logo box. */
 export const MAX_IMAGE_DIM = 512;
 
+/** Reject inputs whose declared pixel count exceeds this, as cheap protection
+ *  against decompression bombs (a 2MB PNG can declare ~268MP). 100MP comfortably
+ *  admits realistic large uploads — e.g. a 6000×6000 logo (36MP), which we then
+ *  downscale — while rejecting pathological dimensions. sharp checks this against
+ *  the header before allocating the bitmap. */
+const MAX_INPUT_PIXELS = 100 * 1024 * 1024;
+
 /**
  * Decode any supported image (PNG/JPEG/WebP/SVG), fit it within
  * MAX_IMAGE_DIM x MAX_IMAGE_DIM preserving aspect ratio, never upscale, and
@@ -13,7 +20,7 @@ export const MAX_IMAGE_DIM = 512;
  * it. Throws if the bytes cannot be decoded as an image.
  */
 export async function normalizeUploadImage(bytes: Buffer): Promise<Buffer> {
-  const probe = sharp(bytes);
+  const probe = sharp(bytes, { limitInputPixels: MAX_INPUT_PIXELS });
   const meta = await probe.metadata();
 
   // SVG is vector: resizing after a default-density rasterization blurs. Render
@@ -22,7 +29,7 @@ export async function normalizeUploadImage(bytes: Buffer): Promise<Buffer> {
   if (meta.format === "svg") {
     const longSide = Math.max(meta.width ?? MAX_IMAGE_DIM, meta.height ?? MAX_IMAGE_DIM);
     const density = Math.min(2400, Math.max(72, Math.round((72 * MAX_IMAGE_DIM) / longSide)));
-    pipeline = sharp(bytes, { density });
+    pipeline = sharp(bytes, { density, limitInputPixels: MAX_INPUT_PIXELS });
   }
 
   return pipeline

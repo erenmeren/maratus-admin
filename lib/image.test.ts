@@ -51,6 +51,17 @@ describe("normalizeUploadImage", () => {
     expect(w).toBe(512); // 800x400 -> 512x256
   });
 
+  it("upscales a small SVG via density to fill the cap", async () => {
+    const svg = Buffer.from(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="50"><rect width="100" height="50" fill="red"/></svg>`,
+    );
+    const out = await normalizeUploadImage(svg);
+    expect(out.subarray(0, 8).equals(PNG_MAGIC)).toBe(true);
+    const { w, h } = pngDims(out);
+    expect(w).toBe(512);
+    expect(h).toBe(256);
+  });
+
   it("throws on undecodable input", async () => {
     await expect(normalizeUploadImage(Buffer.from("not an image at all"))).rejects.toThrow();
   });

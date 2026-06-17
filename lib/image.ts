@@ -28,5 +28,5 @@ export async function normalizeUploadImage(bytes: Buffer): Promise<Buffer> {
   return pipeline
     .resize(MAX_IMAGE_DIM, MAX_IMAGE_DIM, { fit: "inside", withoutEnlargement: true })
     .png()
-    .toBuffer() as Promise<Buffer>;
+    .toBuffer();
 }

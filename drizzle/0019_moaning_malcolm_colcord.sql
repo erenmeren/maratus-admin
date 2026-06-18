@@ -1,0 +1,1 @@
+ALTER TABLE "device" ADD COLUMN "pending_device_key" text;

@@ -246,6 +246,23 @@ function Properties({ object, editor, onIconUpload }: { object: PrinterObject; e
           </div>
         </div>
       )}
+      <div className="space-y-1">
+        <Label htmlFor="qr-timeout" className="text-xs text-muted-foreground">Receipt timeout (seconds)</Label>
+        <Input
+          id="qr-timeout"
+          type="number"
+          min={15}
+          max={180}
+          step={5}
+          value={editor.config.qrTimeoutSeconds}
+          disabled={disabled}
+          onChange={(e) => {
+            const n = Math.round(Number(e.target.value));
+            if (Number.isFinite(n)) editor.setShared({ qrTimeoutSeconds: Math.min(180, Math.max(15, n)) });
+          }}
+          className="h-8 w-full"
+        />
+      </div>
     </div>
   );
 }

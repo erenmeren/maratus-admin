@@ -44,7 +44,7 @@ export interface PrinterEditor {
   onCanvasPointerDown: () => void;
   addText: () => void;
   addIcon: () => void;
-  setShared: (p: Partial<Pick<PrinterConfig, "clockTimezone" | "clock24h" | "wifiLevel">>) => void;
+  setShared: (p: Partial<Pick<PrinterConfig, "clockTimezone" | "clock24h" | "wifiLevel" | "qrTimeoutSeconds">>) => void;
   removeObject: (id: string) => void;
   bringToFront: (id: string) => void;
   resetLayout: () => void;
@@ -161,7 +161,7 @@ export function usePrinterEditor({
     setSelectedId(newIcon.id);
   }
 
-  const setShared = (p: Partial<Pick<PrinterConfig, "clockTimezone" | "clock24h" | "wifiLevel">>) =>
+  const setShared = (p: Partial<Pick<PrinterConfig, "clockTimezone" | "clock24h" | "wifiLevel" | "qrTimeoutSeconds">>) =>
     onChange({ ...config, ...p });
 
   function removeObject(id: string) {

@@ -101,6 +101,7 @@ export interface PrinterConfig {
   clockTimezone: string;
   clock24h: boolean;
   wifiLevel: number; // 0..4
+  qrTimeoutSeconds: number; // receipt/QR screen display timeout, 15..180
   screens: Record<PrinterScreen, ScreenLayout>;
 }
 
@@ -454,6 +455,7 @@ export function migrateV2ToConfig(layout: PrinterLayout): PrinterConfig {
     clockTimezone: layout.clockTimezone,
     clock24h: layout.clock24h,
     wifiLevel: layout.wifiLevel,
+    qrTimeoutSeconds: 60,
     screens,
   };
 }
@@ -474,7 +476,7 @@ export function normalizePrinterConfig(raw: unknown): PrinterConfig {
   const seededAll = (): PrinterConfig => {
     const screens = {} as Record<PrinterScreen, ScreenLayout>;
     for (const s of PRINTER_SCREENS) screens[s] = seededScreen(s);
-    return { version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, screens };
+    return { version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60, screens };
   };
 
   if (!r || typeof r !== "object" || r.version !== 3) return seededAll();
@@ -492,6 +494,7 @@ export function normalizePrinterConfig(raw: unknown): PrinterConfig {
     clockTimezone: tz,
     clock24h: typeof cfg.clock24h === "boolean" ? cfg.clock24h : false,
     wifiLevel: clamp(Math.round(num(cfg.wifiLevel, 3)), 0, 4),
+    qrTimeoutSeconds: clamp(Math.round(num(cfg.qrTimeoutSeconds, 60)), 15, 180),
     screens,
   };
 }

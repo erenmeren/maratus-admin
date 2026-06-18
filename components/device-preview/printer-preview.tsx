@@ -214,7 +214,7 @@ export function ObjectVisual({
     case "spinner":
       return <SpinnerObject object={object} />;
     case "countdown":
-      return <CountdownObject object={object} brand={brand} />;
+      return <CountdownObject object={object} brand={brand} seconds={config.qrTimeoutSeconds} />;
     case "pairingCode":
       return <PairingCodeObject object={object} brand={brand} />;
     case "steps":
@@ -405,9 +405,11 @@ function SpinnerObject({ object: _object }: { object: PrinterObject }) {
  * Preview values (remain/progress) are fixed for the mockup; the live printer
  * app substitutes real values via its own render path.
  */
-function CountdownObject({ object: _object, brand: _brand }: { object: PrinterObject; brand: PrinterBrand }) {
-  const remain = "0:48";
-  const progress = 0.34;
+function CountdownObject({ object: _object, brand: _brand, seconds }: { object: PrinterObject; brand: PrinterBrand; seconds: number }) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  const remain = `${m}:${String(s).padStart(2, "0")}`;
+  const progress = 0; // editor preview is static — show the full duration
   return (
     <div className="flex size-full flex-col justify-center">
       <div

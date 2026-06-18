@@ -160,6 +160,28 @@ import {
   normalizePrinterConfig,
 } from "./printer-layout";
 
+describe("qrTimeoutSeconds", () => {
+  it("defaults to 60 when absent", () => {
+    const c = normalizePrinterConfig({ version: 3, screens: {} });
+    expect(c.qrTimeoutSeconds).toBe(60);
+  });
+  it("passes a valid value through", () => {
+    const c = normalizePrinterConfig({ version: 3, screens: {}, qrTimeoutSeconds: 90 });
+    expect(c.qrTimeoutSeconds).toBe(90);
+  });
+  it("clamps: below min → 15, above max → 180", () => {
+    expect(normalizePrinterConfig({ version: 3, screens: {}, qrTimeoutSeconds: 5 }).qrTimeoutSeconds).toBe(15);
+    expect(normalizePrinterConfig({ version: 3, screens: {}, qrTimeoutSeconds: 999 }).qrTimeoutSeconds).toBe(180);
+  });
+  it("rounds non-integers", () => {
+    expect(normalizePrinterConfig({ version: 3, screens: {}, qrTimeoutSeconds: 42.7 }).qrTimeoutSeconds).toBe(43);
+  });
+  it("defaults to 60 when migrating a v2 layout", () => {
+    const c = normalizePrinterConfig({ version: 2, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, objects: [] });
+    expect(c.qrTimeoutSeconds).toBe(60);
+  });
+});
+
 describe("clock options", () => {
   const cfg = (clockObj: Record<string, unknown>) => ({
     version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,

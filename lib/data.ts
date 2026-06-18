@@ -47,6 +47,7 @@ import { computeAlerts, STALE_MINUTES, STUCK_PENDING_MINUTES, INACTIVE_DAYS, typ
 import { type ReceiptFilters, PAGE_SIZE } from "./receipts-search";
 import { presignedGetUrl } from "./storage";
 import { resolveBrandTokens } from "./color";
+import { ianaToPosix } from "./posix-tz";
 import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "./printer-layout";
 import { computeConfigVersion, etagMatches } from "@/lib/device-config";
 import type {
@@ -891,6 +892,11 @@ export async function getDeviceConfig(
       }
     }
   }
+
+  // The device's libc needs a POSIX TZ string (not the stored IANA name) to apply
+  // DST. Convert here; the editor keeps storing IANA. computeConfigVersion (above)
+  // is keyed on the stored IANA value, so the ETag stays stable.
+  config.clockTimezone = ianaToPosix(config.clockTimezone);
 
   const logoUrl = s?.logoUrl ? await presignedGetUrl(s.logoUrl) : null;
   const brandColor = s?.brandColor ?? "#10A765";

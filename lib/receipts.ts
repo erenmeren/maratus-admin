@@ -126,7 +126,10 @@ export async function claimDevice(
     if (store.organizationId !== existing.organizationId) {
       throw new Error("Store belongs to a different organization");
     }
-    await db
+    // Guard against a concurrent double-claim: only bind while still unclaimed,
+    // so a racing second claim updates 0 rows rather than silently overwriting
+    // the first claim's key.
+    const bound = await db
       .update(deviceTable)
       .set({
         storeId,
@@ -136,7 +139,9 @@ export async function claimDevice(
         status: "offline",
         // pairingCode intentionally KEPT so the device can still poll by code.
       })
-      .where(eq(deviceTable.id, existing.id));
+      .where(and(eq(deviceTable.id, existing.id), isNull(deviceTable.claimedAt)))
+      .returning({ id: deviceTable.id });
+    if (bound.length === 0) throw new Error("Device already claimed");
     return { deviceId: existing.id, deviceName: existing.name, deviceKey: key };
   }
 
@@ -158,9 +163,13 @@ export async function claimDevice(
       claimedAt: new Date(),
       createdAt: new Date(),
     });
-  } catch {
-    // unique(pairingCode) violation → two devices generated the same code.
-    throw new Error("Pairing code already in use");
+  } catch (err) {
+    // unique(pairingCode) violation (Postgres 23505) → two devices generated the
+    // same code. Re-throw anything else so genuine faults aren't mislabelled.
+    if (err && typeof err === "object" && "code" in err && err.code === "23505") {
+      throw new Error("Pairing code already in use");
+    }
+    throw err;
   }
   return { deviceId, deviceName: name, deviceKey: key };
 }

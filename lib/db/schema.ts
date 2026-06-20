@@ -243,6 +243,9 @@ export const device = pgTable(
     pairingCode: text("pairing_code").unique(),
     // SHA-256 hash of the device's bearer key (raw key shown once at claim).
     deviceKeyHash: text("device_key_hash"),
+    // Raw device key held ONLY between claim and the device's first claim-poll fetch;
+    // nulled on delivery (we otherwise store only deviceKeyHash). M6a provisioning.
+    pendingDeviceKey: text("pending_device_key"),
     claimedAt: timestamp("claimed_at"),
     createdAt: timestamp("created_at")
       .$defaultFn(() => new Date())

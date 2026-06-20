@@ -144,41 +144,50 @@ export function ClaimDeviceDialog({ storeId }: { storeId: string }) {
                 {issued.deviceName} claimed
               </DialogTitle>
               <DialogDescription>
-                Save this device key now — it’s shown only once and can’t be
-                retrieved later.
+                It will activate automatically within a few seconds — watch the
+                printer screen return to the home screen.
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-3 py-4">
-              <div className="flex items-start gap-2 rounded-lg border border-status-paused/30 bg-status-paused/10 p-3 text-xs text-status-paused">
-                <TriangleAlert className="mt-0.5 size-4 shrink-0" />
-                <span>
-                  Store it in the device’s configuration now. For security, Ditto
-                  only keeps a hashed copy.
-                </span>
-              </div>
+              <details className="group rounded-lg border bg-muted/40 text-sm">
+                <summary className="flex cursor-pointer items-center gap-2 px-3 py-2 text-xs font-medium text-muted-foreground select-none [&::-webkit-details-marker]:hidden">
+                  <KeyRound className="size-3.5" />
+                  Manual setup (advanced)
+                </summary>
+                <div className="space-y-3 border-t px-3 py-3">
+                  <div className="flex items-start gap-2 rounded-lg border border-status-paused/30 bg-status-paused/10 p-3 text-xs text-status-paused">
+                    <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+                    <span>
+                      Only needed if the device doesn’t activate on its own. This
+                      key is shown once and can’t be retrieved later — for
+                      security, Ditto only keeps a hashed copy.
+                    </span>
+                  </div>
 
-              <div className="space-y-2">
-                <Label>Device key</Label>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 truncate rounded-md border bg-muted px-3 py-2 font-mono text-xs">
-                    {issued.deviceKey}
-                  </code>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="icon"
-                    onClick={copyKey}
-                    aria-label="Copy device key"
-                  >
-                    {copied ? (
-                      <Check className={cn("size-4 text-status-online")} />
-                    ) : (
-                      <Copy className="size-4" />
-                    )}
-                  </Button>
+                  <div className="space-y-2">
+                    <Label>Device key</Label>
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 truncate rounded-md border bg-muted px-3 py-2 font-mono text-xs">
+                        {issued.deviceKey}
+                      </code>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={copyKey}
+                        aria-label="Copy device key"
+                      >
+                        {copied ? (
+                          <Check className={cn("size-4 text-status-online")} />
+                        ) : (
+                          <Copy className="size-4" />
+                        )}
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-              </div>
+              </details>
             </div>
 
             <DialogFooter>

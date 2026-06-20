@@ -12,6 +12,7 @@ import {
   ReceiptText,
   KeyRound,
   Webhook,
+  HardDriveDownload,
 } from "lucide-react";
 
 export interface NavItem {
@@ -25,6 +26,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Customers", href: "/admin/customers", icon: Users },
   { label: "Device Fleet", href: "/admin/devices", icon: Cpu },
   { label: "Health", href: "/admin/health", icon: Activity },
+  { label: "Firmware", href: "/admin/firmware", icon: HardDriveDownload },
   { label: "Receipts", href: "/admin/receipts", icon: ReceiptText },
   { label: "Billing & Revenue", href: "/admin/billing", icon: Wallet },
 ];

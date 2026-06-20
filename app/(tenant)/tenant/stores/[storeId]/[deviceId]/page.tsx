@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { desc } from "drizzle-orm";
 import {
   ArrowLeft,
   Cable,
@@ -21,6 +22,8 @@ import {
 } from "@/components/ui/card";
 import { CommandBar } from "@/components/devices/command-bar";
 import { getDevice, getDeviceCommands } from "@/lib/data";
+import { db } from "@/lib/db";
+import { firmwareRelease } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
 import { formatNumber, timeAgo } from "@/lib/format";
 
@@ -37,6 +40,13 @@ export default async function DeviceDetailPage({
   const { device, store } = result;
   const commands = await getDeviceCommands(device.id);
 
+  const [latestFw] = await db
+    .select({ version: firmwareRelease.version })
+    .from(firmwareRelease)
+    .orderBy(desc(firmwareRelease.createdAt))
+    .limit(1);
+  const updateAvailable = !!latestFw && latestFw.version !== device.firmwareVersion;
+
   const specs: { icon: typeof Cpu; label: string; value: string; mono?: boolean }[] = [
     { icon: HardDrive, label: "Device ID", value: device.id, mono: true },
     { icon: Globe, label: "IP address", value: device.ipAddress, mono: true },
@@ -45,7 +55,12 @@ export default async function DeviceDetailPage({
       label: "Connection",
       value: device.connectionType === "wifi" ? "Wi-Fi" : "Ethernet",
     },
-    { icon: Cpu, label: "Firmware", value: `v${device.firmwareVersion}`, mono: true },
+    {
+      icon: Cpu,
+      label: "Firmware",
+      value: `v${device.firmwareVersion}${updateAvailable ? ` → v${latestFw!.version} available` : ""}`,
+      mono: true,
+    },
   ];
 
   return (

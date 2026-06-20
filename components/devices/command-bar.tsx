@@ -8,6 +8,7 @@ const ACTIONS: { type: string; label: string }[] = [
   { type: "reboot", label: "Reboot" },
   { type: "refresh", label: "Refresh config" },
   { type: "identify", label: "Identify" },
+  { type: "firmware-update", label: "Update firmware" },
 ];
 
 export function CommandBar({ deviceId }: { deviceId: string }) {

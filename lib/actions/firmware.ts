@@ -41,15 +41,25 @@ export async function publishFirmware(formData: FormData): Promise<Result> {
   const key = firmwareStorageKey(version);
   await putObject(key, bytes, "application/octet-stream");
 
-  await db.insert(firmwareRelease).values({
-    id: id("fwr"),
-    version,
-    r2Key: key,
-    sha256,
-    sizeBytes: bytes.length,
-    createdByUserId: ctx.user.id,
-    createdAt: new Date(),
-  });
+  try {
+    await db.insert(firmwareRelease).values({
+      id: id("fwr"),
+      version,
+      r2Key: key,
+      sha256,
+      sizeBytes: bytes.length,
+      createdByUserId: ctx.user.id,
+      createdAt: new Date(),
+    });
+  } catch (err) {
+    // The dup pre-check above is TOCTOU; the unique(version) constraint is the real
+    // guard. Map a concurrent/re-submitted same-version (Postgres 23505) to a friendly
+    // message instead of an unhandled 500 (matches register.ts / members.ts).
+    if ((err as { code?: string })?.code === "23505") {
+      return { ok: false, error: `Version ${version} is already published.` };
+    }
+    throw err;
+  }
 
   revalidatePath("/admin/firmware");
   return { ok: true, version };

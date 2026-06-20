@@ -109,3 +109,10 @@ export function iconStorageKey(
 ): string {
   return `branding/${organizationId}/icons/${assetId}`;
 }
+
+// ---- Firmware OTA -----------------------------------------------------------
+
+/** R2 key for a published firmware binary. */
+export function firmwareStorageKey(version: string): string {
+  return `firmware/${version}/ditto-firmware.bin`;
+}

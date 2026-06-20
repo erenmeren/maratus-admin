@@ -12,4 +12,7 @@ describe("isValidCommandType", () => {
   it("accepts config-changed", () => {
     expect(isValidCommandType("config-changed")).toBe(true);
   });
+  it("accepts firmware-update (M6b)", () => {
+    expect(isValidCommandType("firmware-update")).toBe(true);
+  });
 });

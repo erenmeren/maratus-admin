@@ -267,7 +267,7 @@ export const deviceCommand = pgTable(
     id: text("id").primaryKey(),
     deviceId: text("device_id").notNull().references(() => device.id, { onDelete: "cascade" }),
     organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
-    type: text("type", { enum: ["reboot", "refresh", "identify", "config-changed"] }).notNull(),
+    type: text("type", { enum: ["reboot", "refresh", "identify", "config-changed", "firmware-update"] }).notNull(),
     status: text("status", { enum: ["pending", "delivered", "acked", "failed"] }).default("pending").notNull(),
     result: text("result"),
     createdByUserId: text("created_by_user_id"),

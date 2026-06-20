@@ -278,6 +278,17 @@ export const deviceCommand = pgTable(
   (t) => [index("device_command_device_status_idx").on(t.deviceId, t.status)],
 );
 
+// Published firmware builds for OTA. "Latest" = newest createdAt. M6b.
+export const firmwareRelease = pgTable("firmware_release", {
+  id: text("id").primaryKey(),
+  version: text("version").notNull().unique(),
+  r2Key: text("r2_key").notNull(),
+  sha256: text("sha256").notNull(),
+  sizeBytes: integer("size_bytes").notNull(),
+  createdByUserId: text("created_by_user_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const apiKey = pgTable(
   "api_key",
   {

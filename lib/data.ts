@@ -50,6 +50,7 @@ import { resolveBrandTokens } from "./color";
 import { ianaToPosix } from "./posix-tz";
 import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "./printer-layout";
 import { computeConfigVersion, etagMatches } from "@/lib/device-config";
+import { normalizeDeviceSettings } from "@/lib/device-settings";
 import type {
   Device,
   DeviceRow,
@@ -799,6 +800,10 @@ export async function getTenantBranding(
   // Prefer v3 printerScreens; fall back to migrating the legacy printerLayout.
   const config = normalizePrinterConfig(s?.printerScreens ?? s?.printerLayout);
 
+  // QR duration is owned by the Device Settings page (qrVisibleSeconds column).
+  // Overlay it so the Branding preview's countdown reflects the canonical value.
+  config.qrTimeoutSeconds = normalizeDeviceSettings({ qrVisibleSeconds: s?.qrVisibleSeconds }).qrVisibleSeconds;
+
   // Presign every uploaded icon key across all screens (collect → presign → map back).
   const iconKeys = new Set<string>();
   for (const screen of PRINTER_SCREENS) {
@@ -834,6 +839,39 @@ export async function getTenantBranding(
   };
 }
 
+export interface TenantDeviceSettings {
+  qrVisibleSeconds: number;
+  screenBrightness: number;
+  screenSleepEnabled: boolean;
+  screenSleepTimeoutSeconds: number;
+  hasPassword: boolean;
+}
+
+/** View model for the tenant Device Settings page. Never exposes the PIN hash. */
+export async function getTenantDeviceSettings(
+  organizationId: string,
+): Promise<TenantDeviceSettings> {
+  const [s] = await db
+    .select({
+      qrVisibleSeconds: settingsTable.qrVisibleSeconds,
+      screenBrightness: settingsTable.screenBrightness,
+      screenSleepEnabled: settingsTable.screenSleepEnabled,
+      screenSleepTimeoutSeconds: settingsTable.screenSleepTimeoutSeconds,
+      deviceSettingsPasswordHash: settingsTable.deviceSettingsPasswordHash,
+    })
+    .from(settingsTable)
+    .where(eq(settingsTable.organizationId, organizationId))
+    .limit(1);
+
+  const ds = normalizeDeviceSettings({
+    qrVisibleSeconds: s?.qrVisibleSeconds,
+    screenBrightness: s?.screenBrightness,
+    screenSleepEnabled: s?.screenSleepEnabled,
+    screenSleepTimeoutSeconds: s?.screenSleepTimeoutSeconds,
+  });
+  return { ...ds, hasPassword: !!s?.deviceSettingsPasswordHash };
+}
+
 /** Payload served to a device over GET /api/device/config (icons + logo presigned). */
 export interface DeviceConfigPayload {
   version: string;
@@ -843,6 +881,12 @@ export interface DeviceConfigPayload {
   brandMuted: string;
   logoUrl: string | null; // presigned, short-lived
   config: PrinterConfig; // uploaded icon keys presigned for rendering
+  device: {
+    brightness: number; // 10..100
+    sleep: { enabled: boolean; timeoutSeconds: number };
+    settingsPasswordHash: string | null;
+    settingsPasswordSalt: string | null;
+  };
 }
 
 /**
@@ -860,6 +904,13 @@ export async function getDeviceConfig(
     .where(eq(settingsTable.organizationId, organizationId))
     .limit(1);
 
+  const ds = normalizeDeviceSettings({
+    qrVisibleSeconds: s?.qrVisibleSeconds,
+    screenBrightness: s?.screenBrightness,
+    screenSleepEnabled: s?.screenSleepEnabled,
+    screenSleepTimeoutSeconds: s?.screenSleepTimeoutSeconds,
+  });
+
   const version = computeConfigVersion({
     printerScreens: s?.printerScreens ?? null,
     printerLayout: s?.printerLayout ?? null,
@@ -868,6 +919,11 @@ export async function getDeviceConfig(
     brandBg: s?.brandBg ?? null,
     brandFg: s?.brandFg ?? null,
     brandMuted: s?.brandMuted ?? null,
+    qrVisibleSeconds: ds.qrVisibleSeconds,
+    screenBrightness: ds.screenBrightness,
+    screenSleepEnabled: ds.screenSleepEnabled,
+    screenSleepTimeoutSeconds: ds.screenSleepTimeoutSeconds,
+    settingsPasswordHash: s?.deviceSettingsPasswordHash ?? null,
   });
 
   if (etagMatches(ifNoneMatch, version)) {
@@ -898,6 +954,9 @@ export async function getDeviceConfig(
   // is keyed on the stored IANA value, so the ETag stays stable.
   config.clockTimezone = ianaToPosix(config.clockTimezone);
 
+  // QR duration's source of truth is now the qrVisibleSeconds column; overlay it.
+  config.qrTimeoutSeconds = ds.qrVisibleSeconds;
+
   const logoUrl = s?.logoUrl ? await presignedGetUrl(s.logoUrl) : null;
   const brandColor = s?.brandColor ?? "#10A765";
   const tokens = resolveBrandTokens(brandColor, { bg: s?.brandBg, fg: s?.brandFg, muted: s?.brandMuted });
@@ -913,6 +972,12 @@ export async function getDeviceConfig(
       brandMuted: tokens.muted,
       logoUrl,
       config,
+      device: {
+        brightness: ds.screenBrightness,
+        sleep: { enabled: ds.screenSleepEnabled, timeoutSeconds: ds.screenSleepTimeoutSeconds },
+        settingsPasswordHash: s?.deviceSettingsPasswordHash ?? null,
+        settingsPasswordSalt: s?.deviceSettingsPasswordSalt ?? null,
+      },
     },
   };
 }

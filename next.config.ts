@@ -16,6 +16,16 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/tenant/branding": ["./node_modules/@img/*linux-x64*/**/*"],
   },
+  experimental: {
+    // Firmware .bin uploads go through the publishFirmware server action as
+    // multipart FormData. Server Actions default to a 1MB request-body cap;
+    // real firmware images are ~1.6MB (OTA app partitions are 2MB), so the
+    // upload 400s before the action runs. Raise the cap above the partition
+    // size. Safe here: publishFirmware is platform-admin-only.
+    serverActions: {
+      bodySizeLimit: "8mb",
+    },
+  },
 };
 
 export default nextConfig;

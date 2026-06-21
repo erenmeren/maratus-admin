@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { firmwareRelease } from "@/lib/db/schema";
 import { requirePlatformAdmin } from "@/lib/session";
 import { id } from "@/lib/ids";
-import { firmwareStorageKey, putObject } from "@/lib/storage";
+import { deleteObject, firmwareStorageKey, putObject } from "@/lib/storage";
 
 type Result = { ok: true; version: string } | { ok: false; error: string };
 
@@ -63,4 +63,23 @@ export async function publishFirmware(formData: FormData): Promise<Result> {
 
   revalidatePath("/admin/firmware");
   return { ok: true, version };
+}
+
+export async function deleteFirmwareRelease(id: string): Promise<Result> {
+  await requirePlatformAdmin();
+
+  const [row] = await db
+    .select({ r2Key: firmwareRelease.r2Key, version: firmwareRelease.version })
+    .from(firmwareRelease)
+    .where(eq(firmwareRelease.id, id))
+    .limit(1);
+  if (!row) return { ok: false, error: "Release not found." };
+
+  // Drop the binary first (best-effort: deleteObject never throws), then the row.
+  // An orphaned R2 object is harmless; a row pointing at a missing object is not.
+  await deleteObject(row.r2Key);
+  await db.delete(firmwareRelease).where(eq(firmwareRelease.id, id));
+
+  revalidatePath("/admin/firmware");
+  return { ok: true, version: row.version };
 }

@@ -39,6 +39,7 @@ export const AUDIT = {
   webhookEndpointDeleted: "webhook_endpoint.deleted",
   webhookEndpointDisabled: "webhook_endpoint.disabled",
   brandingUpdated: "branding.updated",
+  deviceSettingsUpdated: "device_settings.updated",
   memberInvited: "member.invited",
   memberAdded: "member.added",
   memberRemoved: "member.removed",

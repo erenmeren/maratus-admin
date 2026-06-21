@@ -14,6 +14,11 @@ export interface ConfigVersionInput {
   brandBg: string | null;
   brandFg: string | null;
   brandMuted: string | null;
+  qrVisibleSeconds: number;
+  screenBrightness: number;
+  screenSleepEnabled: boolean;
+  screenSleepTimeoutSeconds: number;
+  settingsPasswordHash: string | null;
 }
 
 export function computeConfigVersion(input: ConfigVersionInput): string {
@@ -25,6 +30,11 @@ export function computeConfigVersion(input: ConfigVersionInput): string {
     input.brandBg ?? null,
     input.brandFg ?? null,
     input.brandMuted ?? null,
+    input.qrVisibleSeconds,
+    input.screenBrightness,
+    input.screenSleepEnabled,
+    input.screenSleepTimeoutSeconds,
+    input.settingsPasswordHash ?? null,
   ]);
   return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
 }

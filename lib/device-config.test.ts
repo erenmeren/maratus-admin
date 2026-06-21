@@ -10,6 +10,11 @@ const base: ConfigVersionInput = {
   brandBg: null,
   brandFg: null,
   brandMuted: null,
+  qrVisibleSeconds: 60,
+  screenBrightness: 100,
+  screenSleepEnabled: false,
+  screenSleepTimeoutSeconds: 300,
+  settingsPasswordHash: null,
 };
 
 describe("computeConfigVersion", () => {
@@ -25,6 +30,17 @@ describe("computeConfigVersion", () => {
     expect(computeConfigVersion({ ...base, brandColor: "#000000" })).not.toBe(v);
     expect(computeConfigVersion({ ...base, logoUrl: null })).not.toBe(v);
     expect(computeConfigVersion({ ...base, printerScreens: { version: 3, foo: "baz" } })).not.toBe(v);
+  });
+});
+
+describe("computeConfigVersion — device settings", () => {
+  it("changes when any device setting changes", () => {
+    const v = computeConfigVersion(base);
+    expect(computeConfigVersion({ ...base, qrVisibleSeconds: 90 })).not.toBe(v);
+    expect(computeConfigVersion({ ...base, screenBrightness: 50 })).not.toBe(v);
+    expect(computeConfigVersion({ ...base, screenSleepEnabled: true })).not.toBe(v);
+    expect(computeConfigVersion({ ...base, screenSleepTimeoutSeconds: 600 })).not.toBe(v);
+    expect(computeConfigVersion({ ...base, settingsPasswordHash: "abc" })).not.toBe(v);
   });
 });
 

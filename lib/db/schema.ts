@@ -185,6 +185,19 @@ export const tenantSettings = pgTable("tenant_settings", {
   printerScreens: jsonb("kiosk_screens"),
   logoUrl: text("logo_url"),
   staffPin: text("staff_pin"),
+  // --- Org-wide device policy settings (Device Settings page) -------------
+  // QR visible duration. Source of truth for what was PrinterConfig.qrTimeoutSeconds;
+  // overlaid back onto config.qrTimeoutSeconds at delivery (device contract unchanged).
+  qrVisibleSeconds: integer("qr_visible_seconds").default(60).notNull(),
+  // LCD backlight 10..100 (clamped so the screen can never go fully dark).
+  screenBrightness: integer("screen_brightness").default(100).notNull(),
+  // Screen sleep (display off, CPU keeps polling). false = stay awake.
+  screenSleepEnabled: boolean("screen_sleep_enabled").default(false).notNull(),
+  // Inactivity timeout before screen sleep, seconds (30..3600). Ignored when sleep off.
+  screenSleepTimeoutSeconds: integer("screen_sleep_timeout_seconds").default(300).notNull(),
+  // On-device Settings PIN: sha256(salt + pin). Device validates locally. null = ungated.
+  deviceSettingsPasswordHash: text("device_settings_password_hash"),
+  deviceSettingsPasswordSalt: text("device_settings_password_salt"),
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   subscriptionStatus: text("subscription_status"),

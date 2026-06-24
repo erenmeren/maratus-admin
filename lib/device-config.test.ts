@@ -5,7 +5,7 @@ import { computeConfigVersion, etagMatches, type ConfigVersionInput } from "./de
 const base: ConfigVersionInput = {
   printerScreens: { version: 3, foo: "bar" },
   printerLayout: null,
-  logoUrl: "receipts/org/logo.png",
+  organizationName: "Acme",
   brandColor: "#10A765",
   brandBg: null,
   brandFg: null,
@@ -28,8 +28,19 @@ describe("computeConfigVersion", () => {
   it("changes when any renderable input changes", () => {
     const v = computeConfigVersion(base);
     expect(computeConfigVersion({ ...base, brandColor: "#000000" })).not.toBe(v);
-    expect(computeConfigVersion({ ...base, logoUrl: null })).not.toBe(v);
+    expect(computeConfigVersion({ ...base, organizationName: "Other" })).not.toBe(v);
     expect(computeConfigVersion({ ...base, printerScreens: { version: 3, foo: "baz" } })).not.toBe(v);
+  });
+
+  it("organization name participates in the version (logoUrl no longer does)", () => {
+    const base2 = {
+      printerScreens: null, printerLayout: null, brandColor: null, brandBg: null,
+      brandFg: null, brandMuted: null, qrVisibleSeconds: 60, screenBrightness: 100,
+      screenSleepEnabled: false, screenSleepTimeoutSeconds: 300, settingsPasswordHash: null,
+    };
+    const a = computeConfigVersion({ ...base2, organizationName: "Acme" });
+    const b = computeConfigVersion({ ...base2, organizationName: "Beta" });
+    expect(a).not.toBe(b);
   });
 });
 

@@ -773,13 +773,9 @@ export interface TenantBranding {
   brandBg: string;
   brandFg: string;
   brandMuted: string;
-  /** Normalized v3 printer config (uploaded icon keys are presigned for display). */
+  /** Normalized v3 printer config (uploaded icon + image keys are presigned for display). */
   printerConfig: PrinterConfig;
   staffPin: string;
-  /** Presigned, ready-to-render image URL (null if no logo uploaded). */
-  logoUrl: string | null;
-  /** Whether a logo object exists in storage (drives the "remove" affordance). */
-  hasLogo: boolean;
 }
 
 export async function getTenantBranding(
@@ -791,12 +787,6 @@ export async function getTenantBranding(
     .where(eq(settingsTable.organizationId, organizationId))
     .limit(1);
 
-  let logoUrl: string | null = null;
-  if (s?.logoUrl) {
-    // tenant_settings.logoUrl stores the R2 object key; presign for display.
-    logoUrl = await presignedGetUrl(s.logoUrl);
-  }
-
   // Prefer v3 printerScreens; fall back to migrating the legacy printerLayout.
   const config = normalizePrinterConfig(s?.printerScreens ?? s?.printerLayout);
 
@@ -804,19 +794,23 @@ export async function getTenantBranding(
   // Overlay it so the Branding preview's countdown reflects the canonical value.
   config.qrTimeoutSeconds = normalizeDeviceSettings({ qrVisibleSeconds: s?.qrVisibleSeconds }).qrVisibleSeconds;
 
-  // Presign every uploaded icon key across all screens (collect → presign → map back).
-  const iconKeys = new Set<string>();
+  // Presign every uploaded icon + image key across all screens (collect → presign → map back).
+  const assetKeys = new Set<string>();
   for (const screen of PRINTER_SCREENS) {
     for (const o of config.screens[screen].objects) {
-      if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) iconKeys.add(o.icon.url);
+      if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) assetKeys.add(o.icon.url);
+      if (o.type === "image" && o.image?.url) assetKeys.add(o.image.url);
     }
   }
   const signed = new Map<string, string>();
-  await Promise.all([...iconKeys].map(async (k) => signed.set(k, await presignedGetUrl(k))));
+  await Promise.all([...assetKeys].map(async (k) => signed.set(k, await presignedGetUrl(k))));
   for (const screen of PRINTER_SCREENS) {
     for (const o of config.screens[screen].objects) {
       if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) {
         o.icon = { ...o.icon, signedUrl: signed.get(o.icon.url) ?? undefined };
+      }
+      if (o.type === "image" && o.image?.url) {
+        o.image = { ...o.image, signedUrl: signed.get(o.image.url) ?? undefined };
       }
     }
   }
@@ -834,8 +828,6 @@ export async function getTenantBranding(
     brandMuted: tokens.muted,
     printerConfig: config,
     staffPin: s?.staffPin ?? "",
-    logoUrl,
-    hasLogo: !!s?.logoUrl,
   };
 }
 
@@ -872,15 +864,15 @@ export async function getTenantDeviceSettings(
   return { ...ds, hasPassword: !!s?.deviceSettingsPasswordHash };
 }
 
-/** Payload served to a device over GET /api/device/config (icons + logo presigned). */
+/** Payload served to a device over GET /api/device/config (icons + images presigned). */
 export interface DeviceConfigPayload {
   version: string;
   brandColor: string;
   brandBg: string;
   brandFg: string;
   brandMuted: string;
-  logoUrl: string | null; // presigned, short-lived
-  config: PrinterConfig; // uploaded icon keys presigned for rendering
+  wordmark: string; // brand wordmark text (= organization name) for the logo widget
+  config: PrinterConfig; // uploaded icon + image keys presigned for rendering
   device: {
     brightness: number; // 10..100
     sleep: { enabled: boolean; timeoutSeconds: number };
@@ -904,6 +896,13 @@ export async function getDeviceConfig(
     .where(eq(settingsTable.organizationId, organizationId))
     .limit(1);
 
+  const [org] = await db
+    .select({ name: orgTable.name })
+    .from(orgTable)
+    .where(eq(orgTable.id, organizationId))
+    .limit(1);
+  const organizationName = org?.name ?? "";
+
   const ds = normalizeDeviceSettings({
     qrVisibleSeconds: s?.qrVisibleSeconds,
     screenBrightness: s?.screenBrightness,
@@ -914,7 +913,7 @@ export async function getDeviceConfig(
   const version = computeConfigVersion({
     printerScreens: s?.printerScreens ?? null,
     printerLayout: s?.printerLayout ?? null,
-    logoUrl: s?.logoUrl ?? null,
+    organizationName,
     brandColor: s?.brandColor ?? null,
     brandBg: s?.brandBg ?? null,
     brandFg: s?.brandFg ?? null,
@@ -932,19 +931,23 @@ export async function getDeviceConfig(
 
   const config = normalizePrinterConfig(s?.printerScreens ?? s?.printerLayout);
 
-  // Presign uploaded icon keys across all screens (collect → presign → map back).
-  const iconKeys = new Set<string>();
+  // Presign uploaded icon + image keys across all screens (collect → presign → map back).
+  const assetKeys = new Set<string>();
   for (const screen of PRINTER_SCREENS) {
     for (const o of config.screens[screen].objects) {
-      if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) iconKeys.add(o.icon.url);
+      if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) assetKeys.add(o.icon.url);
+      if (o.type === "image" && o.image?.url) assetKeys.add(o.image.url);
     }
   }
   const signed = new Map<string, string>();
-  await Promise.all([...iconKeys].map(async (k) => signed.set(k, await presignedGetUrl(k))));
+  await Promise.all([...assetKeys].map(async (k) => signed.set(k, await presignedGetUrl(k))));
   for (const screen of PRINTER_SCREENS) {
     for (const o of config.screens[screen].objects) {
       if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) {
         o.icon = { ...o.icon, signedUrl: signed.get(o.icon.url) ?? undefined };
+      }
+      if (o.type === "image" && o.image?.url) {
+        o.image = { ...o.image, signedUrl: signed.get(o.image.url) ?? undefined };
       }
     }
   }
@@ -957,7 +960,6 @@ export async function getDeviceConfig(
   // QR duration's source of truth is now the qrVisibleSeconds column; overlay it.
   config.qrTimeoutSeconds = ds.qrVisibleSeconds;
 
-  const logoUrl = s?.logoUrl ? await presignedGetUrl(s.logoUrl) : null;
   const brandColor = s?.brandColor ?? "#10A765";
   const tokens = resolveBrandTokens(brandColor, { bg: s?.brandBg, fg: s?.brandFg, muted: s?.brandMuted });
 
@@ -970,7 +972,7 @@ export async function getDeviceConfig(
       brandBg: tokens.bg,
       brandFg: tokens.fg,
       brandMuted: tokens.muted,
-      logoUrl,
+      wordmark: organizationName,
       config,
       device: {
         brightness: ds.screenBrightness,

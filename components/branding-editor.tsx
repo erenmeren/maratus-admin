@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   Eye,
   EyeOff,
-  ImageUp,
   LayoutGrid,
   Loader2,
   Lock,
@@ -16,7 +15,6 @@ import {
   RotateCcw,
   Save,
   ShieldCheck,
-  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -83,7 +81,6 @@ export function BrandingEditor({
   initialFg,
   initialMuted,
   initialLogoText,
-  initialLogoUrl,
   initialStaffPin,
   storeName,
   canEdit,
@@ -94,7 +91,6 @@ export function BrandingEditor({
   initialFg: string;
   initialMuted: string;
   initialLogoText: string;
-  initialLogoUrl: string | null;
   initialStaffPin: string;
   storeName: string;
   canEdit: boolean;
@@ -107,9 +103,6 @@ export function BrandingEditor({
   const [muted, setMuted] = React.useState(initialMuted);
   const [config, setConfig] = React.useState<PrinterConfig>(initialConfig);
   const [logoText, setLogoText] = React.useState(initialLogoText);
-  const [logoPreview, setLogoPreview] = React.useState<string | null>(initialLogoUrl);
-  const [logoFile, setLogoFile] = React.useState<File | null>(null);
-  const [logoCleared, setLogoCleared] = React.useState(false);
   const [pin, setPin] = React.useState(initialStaffPin);
   const [showPin, setShowPin] = React.useState(false);
   const [screen, setScreen] = React.useState<PrinterScreen>("idle");
@@ -118,7 +111,6 @@ export function BrandingEditor({
   const screenIndex = SCREENS.findIndex((s) => s.value === screen);
   const slidePx = zoomToPx(zoom);
   const [saving, setSaving] = React.useState(false);
-  const fileRef = React.useRef<HTMLInputElement>(null);
 
   const editor = usePrinterEditor({
     config,
@@ -136,9 +128,17 @@ export function BrandingEditor({
     editor.patch(objectId, { icon: { ...cur, source: "upload", url: `pending:${objectId}`, signedUrl: URL.createObjectURL(file) } });
   };
 
+  const [imageFiles, setImageFiles] = React.useState<Record<string, File>>({});
+  const onImageUpload = (objectId: string, file: File) => {
+    if (!file.type.startsWith("image/")) { toast.error("Image must be an image."); return; }
+    if (file.size > 2 * 1024 * 1024) { toast.error("Image must be under 2 MB."); return; }
+    setImageFiles((m) => ({ ...m, [objectId]: file }));
+    editor.patch(objectId, { image: { url: `pending:${objectId}`, signedUrl: URL.createObjectURL(file) } });
+  };
+
   // After router.refresh() re-fetches getTenantBranding, adopt the server truth
   // (real R2 keys + presigned signedUrl), replacing pending blob URLs and clearing dirty.
-  React.useEffect(() => { setConfig(initialConfig); setIconFiles({}); }, [initialConfig]);
+  React.useEffect(() => { setConfig(initialConfig); setIconFiles({}); setImageFiles({}); }, [initialConfig]);
 
   const dirty =
     color !== initialColor ||
@@ -147,36 +147,12 @@ export function BrandingEditor({
     muted !== initialMuted ||
     JSON.stringify(config) !== JSON.stringify(initialConfig) ||
     Object.keys(iconFiles).length > 0 ||
-    pin !== initialStaffPin ||
-    logoFile !== null ||
-    logoCleared;
+    Object.keys(imageFiles).length > 0 ||
+    pin !== initialStaffPin;
 
   function commitHex(v: string) {
     setHexInput(v);
     if (isValidHex(v)) setColor(v.startsWith("#") ? v : `#${v}`);
-  }
-
-  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      toast.error("Logo must be an image file.");
-      return;
-    }
-    if (file.size > 2 * 1024 * 1024) {
-      toast.error("Logo must be under 2 MB.");
-      return;
-    }
-    setLogoFile(file);
-    setLogoCleared(false);
-    setLogoPreview(URL.createObjectURL(file));
-  }
-
-  function removeLogo() {
-    setLogoFile(null);
-    setLogoPreview(null);
-    setLogoCleared(true);
-    if (fileRef.current) fileRef.current.value = "";
   }
 
   function reset() {
@@ -187,12 +163,9 @@ export function BrandingEditor({
     setMuted(initialMuted);
     setConfig(initialConfig);
     setIconFiles({});
+    setImageFiles({});
     setLogoText(initialLogoText);
-    setLogoPreview(initialLogoUrl);
-    setLogoFile(null);
-    setLogoCleared(false);
     setPin(initialStaffPin);
-    if (fileRef.current) fileRef.current.value = "";
   }
 
   async function save() {
@@ -208,9 +181,8 @@ export function BrandingEditor({
     fd.set("brandMuted", muted);
     fd.set("printerScreens", JSON.stringify(config));
     for (const [objectId, file] of Object.entries(iconFiles)) fd.set(`icon:${objectId}`, file);
+    for (const [objectId, file] of Object.entries(imageFiles)) fd.set(`image:${objectId}`, file);
     fd.set("staffPin", pin);
-    if (logoFile) fd.set("logo", logoFile);
-    fd.set("removeLogo", logoCleared ? "true" : "false");
 
     const res = await saveBranding(fd);
     setSaving(false);
@@ -220,9 +192,8 @@ export function BrandingEditor({
       return;
     }
     toast.success("Branding saved", { description: "Your printers will update on next sync." });
-    setLogoFile(null);
-    setLogoCleared(false);
     setIconFiles({});
+    setImageFiles({});
     router.refresh();
   }
 
@@ -233,7 +204,6 @@ export function BrandingEditor({
     brandFg: fg,
     brandMuted: muted,
     logoText,
-    logoUrl: logoPreview,
     storeName,
   };
 
@@ -255,33 +225,6 @@ export function BrandingEditor({
                 <SectionHead icon={Palette} title="Brand" />
               </AccordionTrigger>
               <AccordionContent className="space-y-4">
-                {logoPreview ? (
-              <div className="flex items-center gap-3 rounded-xl border bg-muted/30 p-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={logoPreview} alt="Logo preview" className="size-12 rounded-lg object-contain" />
-                <div className="flex flex-1 gap-2">
-                  <Button type="button" variant="outline" size="sm" disabled={disabled} onClick={() => fileRef.current?.click()}>
-                    <ImageUp className="size-4" /> Replace
-                  </Button>
-                  <Button type="button" variant="ghost" size="sm" disabled={disabled} onClick={removeLogo}>
-                    <X className="size-4" /> Remove
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={() => fileRef.current?.click()}
-                className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/30 px-4 py-8 text-center transition-colors hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                <span className="flex size-10 items-center justify-center rounded-lg bg-background text-muted-foreground"><ImageUp className="size-5" /></span>
-                <span className="text-sm font-medium">Click to upload a logo</span>
-                <span className="text-xs text-muted-foreground">PNG or SVG, transparent background recommended</span>
-              </button>
-            )}
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onFile} disabled={disabled} />
-
             <div className="space-y-2">
               <Label htmlFor="logoText">Logo text (preview fallback)</Label>
               <Input id="logoText" value={logoText} onChange={(e) => setLogoText(e.target.value)} placeholder="Your brand" disabled={disabled} />
@@ -336,7 +279,7 @@ export function BrandingEditor({
                 <SectionHead icon={LayoutGrid} title={screenSectionTitle(screen)} />
               </AccordionTrigger>
               <AccordionContent className="space-y-4">
-                <PrinterControls editor={editor} onIconUpload={onIconUpload} />
+                <PrinterControls editor={editor} onIconUpload={onIconUpload} onImageUpload={onImageUpload} />
               </AccordionContent>
             </AccordionItem>
 

@@ -31,7 +31,7 @@ const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n
 const CANVAS_REF_PX = 720;
 
 /** Object list + a type-aware properties panel for the selected object. */
-export function PrinterControls({ editor, onIconUpload }: { editor: PrinterEditor; onIconUpload: (objectId: string, file: File) => void }) {
+export function PrinterControls({ editor, onIconUpload, onImageUpload }: { editor: PrinterEditor; onIconUpload: (objectId: string, file: File) => void; onImageUpload: (objectId: string, file: File) => void }) {
   const { ordered, disabled, selectedId, setSelectedId, selected, atCustomCap } = editor;
 
   return (
@@ -58,6 +58,15 @@ export function PrinterControls({ editor, onIconUpload }: { editor: PrinterEdito
             >
               <Plus className="size-3.5" /> Add icon
             </button>
+            <button
+              type="button"
+              disabled={disabled || atCustomCap}
+              onClick={editor.addImage}
+              title={atCustomCap ? `Limit of ${MAX_CUSTOM} custom objects reached` : undefined}
+              className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
+            >
+              <Plus className="size-3.5" /> Add image
+            </button>
           </div>
         </div>
         {ordered.map((o) => {
@@ -80,7 +89,7 @@ export function PrinterControls({ editor, onIconUpload }: { editor: PrinterEdito
               <span className={cn("flex-1 text-sm font-medium", !o.visible && "text-muted-foreground line-through")}>
                 {objectLabel(o)}
               </span>
-              {(o.type === "text" || o.type === "icon") && (
+              {(o.type === "text" || o.type === "icon" || o.type === "image") && (
                 <button
                   type="button"
                   disabled={disabled}
@@ -96,7 +105,7 @@ export function PrinterControls({ editor, onIconUpload }: { editor: PrinterEdito
         })}
       </div>
 
-      {selected && <Properties key={selected.id} object={selected} editor={editor} onIconUpload={onIconUpload} />}
+      {selected && <Properties key={selected.id} object={selected} editor={editor} onIconUpload={onIconUpload} onImageUpload={onImageUpload} />}
 
       <button
         type="button"
@@ -111,7 +120,7 @@ export function PrinterControls({ editor, onIconUpload }: { editor: PrinterEdito
 }
 
 /** Type-aware properties for the selected object. */
-function Properties({ object, editor, onIconUpload }: { object: PrinterObject; editor: PrinterEditor; onIconUpload: (objectId: string, file: File) => void }) {
+function Properties({ object, editor, onIconUpload, onImageUpload }: { object: PrinterObject; editor: PrinterEditor; onIconUpload: (objectId: string, file: File) => void; onImageUpload: (objectId: string, file: File) => void }) {
   const { disabled } = editor;
   const set = (p: Partial<PrinterObject>) => editor.patch(object.id, p);
 
@@ -161,6 +170,17 @@ function Properties({ object, editor, onIconUpload }: { object: PrinterObject; e
             disabled={disabled}
             onChange={(next) => set({ icon: next })}
             onUpload={(file) => onIconUpload(object.id, file)}
+          />
+        </div>
+      )}
+
+      {object.type === "image" && (
+        <div className="space-y-1.5">
+          <Label className="text-xs text-muted-foreground">Image</Label>
+          <ImageUploadField
+            url={object.image?.signedUrl ?? object.image?.url ?? null}
+            disabled={disabled}
+            onUpload={(file) => onImageUpload(object.id, file)}
           />
         </div>
       )}
@@ -294,6 +314,33 @@ function NumberField({
         onKeyDown={(e) => { if (e.key === "Enter") { commit(); (e.currentTarget as HTMLInputElement).blur(); } }}
         className="h-8 px-2 font-mono text-xs tabular-nums"
       />
+    </div>
+  );
+}
+
+function ImageUploadField({ url, disabled, onUpload }: { url: string | null; disabled?: boolean; onUpload: (file: File) => void }) {
+  const fileRef = React.useRef<HTMLInputElement>(null);
+  return (
+    <div className="space-y-2">
+      {url && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt="" className="h-16 w-full rounded-md border object-contain" />
+      )}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f) onUpload(f); }}
+      />
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => fileRef.current?.click()}
+        className="w-full rounded-md border px-2 py-1.5 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
+      >
+        {url ? "Replace image" : "Upload image (≤ 2 MB)"}
+      </button>
     </div>
   );
 }

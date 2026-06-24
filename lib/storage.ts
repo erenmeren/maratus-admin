@@ -110,6 +110,14 @@ export function iconStorageKey(
   return `branding/${organizationId}/icons/${assetId}`;
 }
 
+/** Object key convention for a tenant's uploaded printer image. */
+export function imageStorageKey(
+  organizationId: string,
+  assetId: string,
+): string {
+  return `branding/${organizationId}/images/${assetId}`;
+}
+
 // ---- Firmware OTA -----------------------------------------------------------
 
 /** R2 key for a published firmware binary. */

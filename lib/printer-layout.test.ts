@@ -328,3 +328,42 @@ describe("normalizePrinterConfig", () => {
     expect(icon!.icon!.signedUrl).toBeUndefined();
   });
 });
+
+// ─── image objects ────────────────────────────────────────────────────────────
+
+import { createImageObject } from "./printer-layout";
+
+describe("image objects", () => {
+  it("createImageObject makes an empty-upload image object", () => {
+    const o = createImageObject(5);
+    expect(o.type).toBe("image");
+    expect(o.z).toBe(5);
+    expect(o.image).toEqual({});
+  });
+
+  it("normalize preserves an image url and drops its signedUrl", () => {
+    const cfg = normalizePrinterConfig({
+      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60,
+      screens: { idle: { objects: [
+        { id: "img-1", type: "image", x: 0.3, y: 0.3, w: 0.3, h: 0.3, visible: true, z: 0,
+          image: { url: "branding/o/images/x", signedUrl: "https://r2/x?sig=abc" } },
+      ] } },
+    });
+    const img = cfg.screens.idle.objects.find((o) => o.type === "image");
+    expect(img).toBeDefined();
+    expect(img!.image!.url).toBe("branding/o/images/x");
+    expect(img!.image!.signedUrl).toBeUndefined();
+  });
+
+  it("counts image objects against the MAX_CUSTOM cap", () => {
+    const objects = Array.from({ length: 25 }, (_, i) => ({
+      id: `img-${i}`, type: "image", x: 0.1, y: 0.1, w: 0.2, h: 0.2, visible: true, z: i,
+      image: { url: `branding/o/images/${i}` },
+    }));
+    const cfg = normalizePrinterConfig({
+      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60,
+      screens: { idle: { objects } },
+    });
+    expect(cfg.screens.idle.objects.filter((o) => o.type === "image").length).toBe(20);
+  });
+});

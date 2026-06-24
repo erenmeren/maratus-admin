@@ -12,7 +12,7 @@ export type PrinterScreen = (typeof PRINTER_SCREENS)[number];
 
 export const OBJECT_TYPES = [
   "text", "logo", "clock", "wifi",
-  "icon",
+  "icon", "image",
   "qr", "spinner", "countdown", "pairingCode", "steps",
 ] as const;
 export type PrinterObjectType = (typeof OBJECT_TYPES)[number];
@@ -26,7 +26,7 @@ export const WIDGET_TYPES = ["logo", "clock", "wifi", "qr", "spinner", "countdow
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
 // v3 user-addable/duplicable types.
-export const ADDABLE_TYPES = ["text", "icon"] as const;
+export const ADDABLE_TYPES = ["text", "icon", "image"] as const;
 export type AddableType = (typeof ADDABLE_TYPES)[number];
 
 export const TYPE_LABEL: Record<PrinterObjectType, string> = {
@@ -35,6 +35,7 @@ export const TYPE_LABEL: Record<PrinterObjectType, string> = {
   clock: "Clock",
   wifi: "Wi-Fi signal",
   icon: "Icon",
+  image: "Image",
   qr: "QR code",
   spinner: "Spinner",
   countdown: "Countdown",
@@ -61,6 +62,12 @@ export interface PrinterIcon {
   circle?: boolean;
 }
 
+export interface PrinterImage {
+  url?: string;
+  /** Display-only presigned URL; NEVER persisted (normalize drops it). */
+  signedUrl?: string;
+}
+
 export interface PrinterClockOptions {
   showDate?: boolean;    // default true — the whole date line
   showWeekday?: boolean; // default true — the day name within the date
@@ -81,6 +88,7 @@ export interface PrinterObject {
   fontSize?: number; // px on the 720 reference
   align?: TextAlign;
   icon?: PrinterIcon; // icon objects
+  image?: PrinterImage; // image objects
   clock?: PrinterClockOptions; // clock objects
 }
 
@@ -145,7 +153,7 @@ export const DEFAULT_PRINTER_LAYOUT: PrinterLayout = defaultLayout();
 
 const DEFAULT_FONT: Record<PrinterObjectType, number> = {
   text: 24, logo: 24, clock: 24, wifi: 24,
-  icon: 24, qr: 24, spinner: 24, countdown: 24, pairingCode: 24, steps: 24,
+  icon: 24, image: 24, qr: 24, spinner: 24, countdown: 24, pairingCode: 24, steps: 24,
 };
 
 /** Short random suffix for generated object ids. */
@@ -181,6 +189,18 @@ export function createIconObject(z: number): PrinterObject {
     visible: true,
     z,
     icon: { source: "preset", preset: DEFAULT_ICON_PRESET, tint: "accent", circle: false },
+  };
+}
+
+/** A fresh custom image object, centered, on top (`z`). Empty until a file is uploaded. */
+export function createImageObject(z: number): PrinterObject {
+  return {
+    id: `image-${genIdSuffix()}`,
+    type: "image",
+    x: 0.35, y: 0.35, w: 0.3, h: 0.3,
+    visible: true,
+    z,
+    image: {},
   };
 }
 
@@ -356,6 +376,12 @@ function sanitizeIcon(raw: unknown): PrinterIcon {
   return { source: "preset", preset, tint, circle };
 }
 
+function sanitizeImage(raw: unknown): PrinterImage {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  // Keep only the canonical R2 key; drop signedUrl (display-only) and anything else.
+  return typeof r.url === "string" && r.url ? { url: r.url } : {};
+}
+
 function sanitizeClock(raw: unknown): PrinterClockOptions {
   const r = (raw ?? {}) as Record<string, unknown>;
   return {
@@ -402,6 +428,13 @@ function sanitizeObject(raw: unknown, fallbackZ: number): PrinterObject | null {
       icon: sanitizeIcon(o.icon),
     };
   }
+  if (type === "image") {
+    return {
+      id, type: "image", z, visible,
+      ...sanitizeBox(o, { x: 0.35, y: 0.35, w: 0.3, h: 0.3 }),
+      image: sanitizeImage(o.image),
+    };
+  }
   if (type === "clock") {
     return {
       id, type: "clock", z, visible,
@@ -431,7 +464,7 @@ function sanitizeScreen(raw: unknown, screen: PrinterScreen): ScreenLayout {
   for (const item of list) {
     const o = sanitizeObject(item, zNext++);
     if (!o) continue;
-    if (o.type === "text" || o.type === "icon") {
+    if (o.type === "text" || o.type === "icon" || o.type === "image") {
       if (addable >= MAX_CUSTOM) continue;
       addable++;
     } else {

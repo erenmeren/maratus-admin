@@ -1,10 +1,10 @@
 "use server";
 
 // Server action: persist tenant branding to tenant_settings.
-// Only org owners/admins may edit. A new logo is uploaded to R2 (private) and
-// its object key stored in tenant_settings.logoUrl; the public-facing image is
-// served later via a short-lived presigned URL. When a logo is replaced or
-// removed, the previous R2 object is deleted so no orphans accumulate.
+// Only org owners/admins may edit. Uploaded images (layout image objects) are
+// stored in R2 (private) under branding/{org}/images/{id}; their keys are
+// persisted inside the printerScreens JSON. When images are replaced or removed,
+// the previous R2 objects are deleted so no orphans accumulate.
 
 import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
@@ -14,7 +14,7 @@ import { requireTenant } from "@/lib/session";
 import { isValidHex } from "@/lib/color";
 import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "@/lib/printer-layout";
 import { id } from "@/lib/ids";
-import { deleteObject, iconStorageKey, logoStorageKey, putObject } from "@/lib/storage";
+import { deleteObject, iconStorageKey, imageStorageKey, putObject } from "@/lib/storage";
 import { normalizeUploadImage } from "@/lib/image";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { enqueueConfigChangedForOrg } from "@/lib/data";
@@ -103,6 +103,45 @@ export async function saveBranding(
     }
   }
 
+  // Process newly-uploaded image files. The client sets image.url = "pending:<objectId>"
+  // and sends the file under "image:<objectId>". Rewrite urls to the stored R2 key.
+  if (printerConfig !== undefined) {
+    for (const screen of PRINTER_SCREENS) {
+      for (const o of printerConfig.screens[screen].objects) {
+        if (o.type === "image" && o.image?.url?.startsWith("pending:")) {
+          const objectId = o.image.url.slice("pending:".length);
+          const file = formData.get(`image:${objectId}`);
+          if (file instanceof File && file.size > 0) {
+            if (!file.type.startsWith("image/")) {
+              return { ok: false, error: "Image must be an image file." };
+            }
+            if (file.size > MAX_LOGO_BYTES) {
+              return { ok: false, error: "Image must be under 2 MB." };
+            }
+            let bytes: Buffer;
+            try {
+              bytes = await normalizeUploadImage(Buffer.from(await file.arrayBuffer()));
+            } catch {
+              return { ok: false, error: "Couldn't process that image — try a PNG or JPEG." };
+            }
+            const key = imageStorageKey(organizationId, id("image"));
+            try {
+              await putObject(key, bytes, "image/png");
+              o.image = { url: key };
+            } catch (err) {
+              console.error("Image upload failed", err);
+              return { ok: false, error: "Image upload failed. Try again." };
+            }
+          } else {
+            // No file for this pending marker — drop the (empty) image object so no
+            // dangling "pending:" url is persisted.
+            o.image = {};
+          }
+        }
+      }
+    }
+  }
+
   // Derive a v2 printerLayout from the idle screen for rollback safety.
   const printerLayout = printerConfig
     ? {
@@ -117,44 +156,12 @@ export async function saveBranding(
   const staffPinRaw = String(formData.get("staffPin") ?? "").trim();
   const staffPin = staffPinRaw.replace(/\D/g, "").slice(0, 6);
 
-  // --- Logo: upload new, clear, or leave unchanged -----------------------
-  // undefined = no change to logoUrl; null = clear it; string = new key.
-  let logoUrlUpdate: string | null | undefined = undefined;
-  const logo = formData.get("logo");
-  const removeLogo = formData.get("removeLogo") === "true";
-
-  if (logo instanceof File && logo.size > 0) {
-    if (!logo.type.startsWith("image/")) {
-      return { ok: false, error: "Logo must be an image file." };
-    }
-    if (logo.size > MAX_LOGO_BYTES) {
-      return { ok: false, error: "Logo must be under 2 MB." };
-    }
-    let bytes: Buffer;
-    try {
-      bytes = await normalizeUploadImage(Buffer.from(await logo.arrayBuffer()));
-    } catch {
-      return { ok: false, error: "Couldn't process that image — try a PNG or JPEG." };
-    }
-    const key = logoStorageKey(organizationId, id("logo"));
-    try {
-      await putObject(key, bytes, "image/png");
-    } catch (err) {
-      console.error("Logo upload failed", err);
-      return { ok: false, error: "Logo upload failed. Try again." };
-    }
-    logoUrlUpdate = key;
-  } else if (removeLogo) {
-    logoUrlUpdate = null;
-  }
-
-  // Capture current state for cleanup (logo key and previous icon keys).
-  let previousLogoKey: string | null = null;
+  // Capture current state for cleanup (previous icon keys and image keys).
   const previousIconKeys = new Set<string>();
-  if (logoUrlUpdate !== undefined || printerConfig !== undefined) {
+  const previousImageKeys = new Set<string>();
+  if (printerConfig !== undefined) {
     const [existing] = await db
       .select({
-        logoUrl: tenantSettings.logoUrl,
         printerScreens: tenantSettings.printerScreens,
         printerLayout: tenantSettings.printerLayout,
       })
@@ -162,16 +169,15 @@ export async function saveBranding(
       .where(eq(tenantSettings.organizationId, organizationId))
       .limit(1);
 
-    if (logoUrlUpdate !== undefined) {
-      previousLogoKey = existing?.logoUrl ?? null;
-    }
-
     if (printerConfig !== undefined && existing) {
       const prevConfig = normalizePrinterConfig(existing.printerScreens ?? existing.printerLayout);
       for (const screen of PRINTER_SCREENS) {
         for (const o of prevConfig.screens[screen].objects) {
           if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) {
             previousIconKeys.add(o.icon.url);
+          }
+          if (o.type === "image" && o.image?.url) {
+            previousImageKeys.add(o.image.url);
           }
         }
       }
@@ -191,7 +197,6 @@ export async function saveBranding(
       staffPin,
       // Write both v3 (printerScreens) and derived v2 (printerLayout) for rollback safety.
       ...(printerConfig !== undefined ? { printerScreens: printerConfig, printerLayout } : {}),
-      ...(logoUrlUpdate !== undefined ? { logoUrl: logoUrlUpdate } : {}),
     })
     .onConflictDoUpdate({
       target: tenantSettings.organizationId,
@@ -203,18 +208,8 @@ export async function saveBranding(
         staffPin,
         updatedAt: now,
         ...(printerConfig !== undefined ? { printerScreens: printerConfig, printerLayout } : {}),
-        ...(logoUrlUpdate !== undefined ? { logoUrl: logoUrlUpdate } : {}),
       },
     });
-
-  // --- Clean up the orphaned old logo object (best-effort) ---------------
-  // Only after the DB no longer references it, and only if it actually changed.
-  if (
-    previousLogoKey &&
-    previousLogoKey !== logoUrlUpdate // not the same object
-  ) {
-    await deleteObject(previousLogoKey);
-  }
 
   // --- Clean up orphaned icon objects (best-effort) ----------------------
   // Keys that were in the previous config but are absent from the new one.
@@ -228,6 +223,19 @@ export async function saveBranding(
       }
     }
     const orphaned = [...previousIconKeys].filter((k) => !newIconKeys.has(k));
+    await Promise.all(orphaned.map((k) => deleteObject(k)));
+  }
+
+  // --- Clean up orphaned image objects (best-effort) ---------------------
+  // Keys that were in the previous config but are absent from the new one.
+  if (printerConfig !== undefined) {
+    const newImageKeys = new Set<string>();
+    for (const screen of PRINTER_SCREENS) {
+      for (const o of printerConfig.screens[screen].objects) {
+        if (o.type === "image" && o.image?.url) newImageKeys.add(o.image.url);
+      }
+    }
+    const orphaned = [...previousImageKeys].filter((k) => !newImageKeys.has(k));
     await Promise.all(orphaned.map((k) => deleteObject(k)));
   }
 

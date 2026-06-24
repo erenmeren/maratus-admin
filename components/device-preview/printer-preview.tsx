@@ -34,7 +34,6 @@ export interface PrinterBrand {
   /** Logo glyph style when no uploaded logo is present. */
   mark?: "diamond" | "bean";
   logoText: string;
-  logoUrl?: string | null;
   storeName: string;
   /** Lane/register label shown on the idle screen (e.g. "Lane 3"). */
   lane?: string;
@@ -118,70 +117,6 @@ export function PrinterPreview({
   );
 }
 
-/* ── Logo: uploaded image, or a brand mark + wordmark ───────────────── */
-function Logo({
-  brand,
-  size,
-  stacked = false,
-  mono = false,
-}: {
-  brand: PrinterBrand;
-  size: number; // mark size in design px
-  stacked?: boolean;
-  mono?: boolean;
-}) {
-  if (brand.logoUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={brand.logoUrl}
-        alt={brand.logoText}
-        style={{ height: cq(size), maxWidth: "70%", objectFit: "contain" }}
-      />
-    );
-  }
-  const markColor = mono ? "var(--k-fg)" : "var(--k-accent)";
-  const mark =
-    brand.mark === "bean" ? (
-      <svg viewBox="0 0 48 48" fill="none" style={{ width: cq(size), height: cq(size) }} aria-hidden>
-        <circle cx="24" cy="24" r="22" fill={markColor} />
-        <path d="M16 31c0-10 6-16 16-16-1 10-6 16-16 16Z" fill="#fff" opacity="0.92" />
-        <path d="M17 30c5-1 11-7 13-13" stroke={markColor} strokeWidth="2.4" strokeLinecap="round" />
-      </svg>
-    ) : (
-      <svg viewBox="0 0 48 48" fill="none" style={{ width: cq(size), height: cq(size) }} aria-hidden>
-        <rect x="6" y="6" width="36" height="36" rx="11" fill={markColor} />
-        <path d="M24 15l9 9-9 9-9-9 9-9Z" fill="#fff" opacity="0.92" />
-      </svg>
-    );
-  const word = (
-    <span
-      style={{
-        fontSize: cq(size * (stacked ? 0.62 : 0.52)),
-        fontWeight: 800,
-        letterSpacing: "-0.02em",
-        color: "var(--k-fg)",
-        lineHeight: 1,
-        textAlign: "center",
-      }}
-    >
-      {brand.logoText}
-    </span>
-  );
-  return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: stacked ? "column" : "row",
-        alignItems: "center",
-        gap: cq(stacked ? 18 : size * 0.34),
-      }}
-    >
-      {mark}
-      {word}
-    </div>
-  );
-}
 
 /**
  * Renders one printer object filling its absolutely-positioned box. Text wraps
@@ -209,6 +144,8 @@ export function ObjectVisual({
       return <WifiObject object={object} level={config.wifiLevel} />;
     case "icon":
       return <IconObject object={object} brand={brand} />;
+    case "image":
+      return <ImageObject object={object} />;
     case "qr":
       return <QrObject object={object} />;
     case "spinner":
@@ -253,18 +190,12 @@ function TextObject({ object }: { object: PrinterObject }) {
 }
 
 function LogoObject({ object, brand }: { object: PrinterObject; brand: PrinterBrand }) {
-  if (brand.logoUrl) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={brand.logoUrl} alt={brand.logoText} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
-    );
-  }
-  // Height-driven so the stacked mark + wordmark fits the box; overflow clipped
-  // so an undersized box never lets the logo overlap neighbouring objects.
-  const size = object.h * 720 * 0.55;
+  const size = object.h * 720 * 0.42;
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-      <Logo brand={brand} size={size} stacked />
+      <span style={{ fontSize: cq(size), fontWeight: 700, color: "var(--k-fg)", textAlign: "center", lineHeight: 1.1, overflowWrap: "anywhere" }}>
+        {brand.logoText}
+      </span>
     </div>
   );
 }
@@ -351,6 +282,17 @@ function IconObject({ object, brand: _brand }: { object: PrinterObject; brand: P
     <div className="flex size-full items-center justify-center" style={{ color: tintVar }}>
       <Inner />
     </div>
+  );
+}
+
+function ImageObject({ object }: { object: PrinterObject }) {
+  const src = object.image?.signedUrl ?? object.image?.url ?? null;
+  if (!src) {
+    return <div style={{ width: "100%", height: "100%", border: "1px dashed var(--k-muted)", borderRadius: 8 }} />;
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "contain" }} />
   );
 }
 

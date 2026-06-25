@@ -367,3 +367,33 @@ describe("image objects", () => {
     expect(cfg.screens.idle.objects.filter((o) => o.type === "image").length).toBe(20);
   });
 });
+
+// ─── Task 1: Brand name widget (relabel logo + factory) ─────────────────────────
+
+import { createBrandNameObject, TYPE_LABEL } from "./printer-layout";
+
+describe("brand-name (logo) widget", () => {
+  it("createBrandNameObject returns a logo object with the default box", () => {
+    const o = createBrandNameObject(7);
+    expect(o.type).toBe("logo");
+    expect(o.id).toBe("logo");
+    expect(o.visible).toBe(true);
+    expect(o.z).toBe(7);
+    expect({ x: o.x, y: o.y, w: o.w, h: o.h }).toEqual({ x: 0.25, y: 0.32, w: 0.5, h: 0.16 });
+  });
+
+  it("is labelled 'Brand name'", () => {
+    expect(TYPE_LABEL.logo).toBe("Brand name");
+  });
+
+  it("normalize keeps at most one logo widget per screen", () => {
+    const cfg = normalizePrinterConfig({
+      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60,
+      screens: { idle: { objects: [
+        { id: "logo", type: "logo", x: 0.25, y: 0.32, w: 0.5, h: 0.16, visible: true, z: 0 },
+        { id: "logo2", type: "logo", x: 0.1, y: 0.1, w: 0.2, h: 0.1, visible: true, z: 1 },
+      ] } },
+    });
+    expect(cfg.screens.idle.objects.filter((o) => o.type === "logo").length).toBe(1);
+  });
+});

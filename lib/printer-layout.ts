@@ -31,7 +31,7 @@ export type AddableType = (typeof ADDABLE_TYPES)[number];
 
 export const TYPE_LABEL: Record<PrinterObjectType, string> = {
   text: "Text",
-  logo: "Logo",
+  logo: "Brand name",
   clock: "Clock",
   wifi: "Wi-Fi signal",
   icon: "Icon",
@@ -201,6 +201,17 @@ export function createImageObject(z: number): PrinterObject {
     visible: true,
     z,
     image: {},
+  };
+}
+
+/** A fresh brand-name (logo) widget that renders the org wordmark. Singleton per screen. */
+export function createBrandNameObject(z: number): PrinterObject {
+  return {
+    id: "logo",
+    type: "logo",
+    x: 0.25, y: 0.32, w: 0.5, h: 0.16,
+    visible: true,
+    z,
   };
 }
 

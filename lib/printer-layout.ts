@@ -21,7 +21,8 @@ export type PrinterObjectType = (typeof OBJECT_TYPES)[number];
 export const FIXED_TYPES = ["logo", "clock", "wifi"] as const;
 export type FixedType = (typeof FIXED_TYPES)[number];
 
-// v3 singleton widgets: ≤1 per screen; hideable; not deletable; not user-addable.
+// v3 singleton widgets: ≤1 per screen; hideable. Not user-addable/deletable —
+// EXCEPT `logo` (the brand-name wordmark), which the editor lets you add + delete.
 export const WIDGET_TYPES = ["logo", "clock", "wifi", "qr", "spinner", "countdown", "pairingCode", "steps"] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 

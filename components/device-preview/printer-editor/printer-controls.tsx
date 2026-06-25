@@ -67,6 +67,16 @@ export function PrinterControls({ editor, onIconUpload, onImageUpload }: { edito
             >
               <Plus className="size-3.5" /> Add image
             </button>
+            {!editor.hasBrandName && (
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={editor.addBrandName}
+                className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
+              >
+                <Plus className="size-3.5" /> Add brand name
+              </button>
+            )}
           </div>
         </div>
         {ordered.map((o) => {
@@ -89,7 +99,7 @@ export function PrinterControls({ editor, onIconUpload, onImageUpload }: { edito
               <span className={cn("flex-1 text-sm font-medium", !o.visible && "text-muted-foreground line-through")}>
                 {objectLabel(o)}
               </span>
-              {(o.type === "text" || o.type === "icon" || o.type === "image") && (
+              {(o.type === "text" || o.type === "icon" || o.type === "image" || o.type === "logo") && (
                 <button
                   type="button"
                   disabled={disabled}

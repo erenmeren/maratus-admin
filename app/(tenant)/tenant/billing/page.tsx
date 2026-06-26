@@ -2,10 +2,17 @@
 import { requireTenant } from "@/lib/session";
 import { getTenantBilling } from "@/lib/data";
 import { PaymentMethodForm } from "@/components/billing/payment-method-form";
+import { BuyCreditsSection } from "@/components/billing/buy-credits-form";
+import { creditPacks } from "@/lib/billing/credit-packs";
+import { getBalance } from "@/lib/credits";
 
 export default async function TenantBillingPage() {
   const { organizationId } = await requireTenant();
-  const billing = await getTenantBilling(organizationId);
+  const [billing, balance] = await Promise.all([
+    getTenantBilling(organizationId),
+    getBalance(organizationId),
+  ]);
+  const packs = creditPacks();
 
   return (
     <div className="flex flex-col gap-8 p-6">
@@ -27,6 +34,8 @@ export default async function TenantBillingPage() {
         ) : null}
         <PaymentMethodForm />
       </section>
+
+      <BuyCreditsSection packs={packs} availableCredits={balance.available} />
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-medium">Invoices</h2>

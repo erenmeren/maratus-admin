@@ -8,6 +8,7 @@ import { tenantSettings } from "@/lib/db/schema";
 import { getEnv } from "@/lib/env";
 import { eq } from "drizzle-orm";
 import { meterEventPayload } from "./billing-status";
+import { findPack } from "./credit-packs";
 
 export { statusForStripeInvoice, meterEventPayload } from "./billing-status";
 
@@ -57,6 +58,38 @@ export async function activateBilling(organizationId: string): Promise<{ clientS
 
   if (!session.client_secret) {
     throw new Error("No client secret returned for checkout session");
+  }
+  return { clientSecret: session.client_secret };
+}
+
+/**
+ * Create a one-time Checkout Session for a credit pack (`mode: "payment"`,
+ * `ui_mode: "elements"`). The webhook grants the credits after payment.
+ */
+export async function createCreditCheckout(
+  organizationId: string,
+  packId: string,
+): Promise<{ clientSecret: string }> {
+  const s = requireStripe();
+  const pack = findPack(packId);
+  if (!pack) throw new Error("Unknown credit pack");
+
+  const customerId = await ensureStripeCustomer(organizationId);
+  const session = await s.checkout.sessions.create({
+    mode: "payment",
+    ui_mode: "elements",
+    customer: customerId,
+    line_items: [{ price: pack.priceId, quantity: 1 }],
+    metadata: {
+      organizationId,
+      packId: pack.id,
+      credits: String(pack.credits),
+    },
+    return_url: `${getEnv().BETTER_AUTH_URL}/tenant/billing`,
+  });
+
+  if (!session.client_secret) {
+    throw new Error("No client secret for credit checkout");
   }
   return { clientSecret: session.client_secret };
 }

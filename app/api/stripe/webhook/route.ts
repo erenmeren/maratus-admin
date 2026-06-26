@@ -11,6 +11,7 @@ import { getEnv } from "@/lib/env";
 import { upsertInvoiceFromStripe } from "@/lib/billing/invoice-sync";
 import { isSuspended } from "@/lib/billing/billing-status";
 import { recordAudit, AUDIT } from "@/lib/audit";
+import { grantCredits } from "@/lib/credits";
 
 export const runtime = "nodejs";
 
@@ -103,6 +104,34 @@ export async function POST(req: Request) {
           .update(tenantSettings)
           .set({ cardBrand: pm.card.brand, cardLast4: pm.card.last4 })
           .where(eq(tenantSettings.stripeCustomerId, pm.customer));
+      }
+      break;
+    }
+    case "checkout.session.completed": {
+      const session = event.data.object as Stripe.Checkout.Session;
+      if (
+        session.mode === "payment" &&
+        session.payment_status === "paid" &&
+        session.metadata?.organizationId
+      ) {
+        const credits = Number(session.metadata.credits);
+        if (Number.isInteger(credits) && credits > 0) {
+          const res = await grantCredits({
+            organizationId: session.metadata.organizationId,
+            credits,
+            kind: "purchase",
+            idempotencyKey: session.id,
+            note: `stripe pack ${session.metadata.packId ?? ""}`,
+          });
+          if (res.applied) {
+            await recordAudit({
+              organizationId: session.metadata.organizationId,
+              actor: { type: "stripe" },
+              action: AUDIT.creditsPurchased,
+              metadata: { credits, sessionId: session.id },
+            });
+          }
+        }
       }
       break;
     }

@@ -61,17 +61,21 @@ export function BuyCreditsSection({ packs, availableCredits }: Props) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [activePack, setActivePack] = useState<string | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   if (!stripePromise || packs.length === 0) {
     return null;
   }
 
   async function buy(packId: string) {
+    setError(null);
     setLoading(packId);
     try {
       const { clientSecret } = await startCreditCheckout(packId);
       setActivePack(packId);
       setClientSecret(clientSecret);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not start checkout.");
     } finally {
       setLoading(null);
     }
@@ -111,17 +115,20 @@ export function BuyCreditsSection({ packs, availableCredits }: Props) {
           </Button>
         </div>
       ) : (
-        <div className="flex flex-wrap gap-2">
-          {packs.map((pack) => (
-            <Button
-              key={pack.id}
-              variant="outline"
-              disabled={loading !== null}
-              onClick={() => buy(pack.id)}
-            >
-              {loading === pack.id ? "Loading…" : `Buy ${pack.credits} credits`}
-            </Button>
-          ))}
+        <div className="flex flex-col gap-2">
+          <div className="flex flex-wrap gap-2">
+            {packs.map((pack) => (
+              <Button
+                key={pack.id}
+                variant="outline"
+                disabled={loading !== null}
+                onClick={() => buy(pack.id)}
+              >
+                {loading === pack.id ? "Loading…" : `Buy ${pack.credits} credits`}
+              </Button>
+            ))}
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
         </div>
       )}
     </section>

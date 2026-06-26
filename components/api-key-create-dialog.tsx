@@ -12,6 +12,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createApiKey } from "@/lib/actions/api-keys";
+import { API_SCOPES, DEFAULT_KEY_SCOPES } from "@/lib/api-scopes";
 
 export function ApiKeyCreateDialog() {
   const router = useRouter();
@@ -96,6 +97,16 @@ export function ApiKeyCreateDialog() {
                 <Label htmlFor="key-name">Name</Label>
                 <Input id="key-name" name="name" placeholder="e.g. Analytics export" required />
               </div>
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium">Permissions</legend>
+                {API_SCOPES.map((s) => (
+                  <label key={s} className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" name="scope" value={s} defaultChecked={DEFAULT_KEY_SCOPES.includes(s)} />
+                    <span className="font-mono">{s}</span>
+                  </label>
+                ))}
+                <p className="text-xs text-muted-foreground">devices:trigger lets this key trigger devices and spend credits.</p>
+              </fieldset>
             </div>
             <DialogFooter>
               <DialogClose asChild>

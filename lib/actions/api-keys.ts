@@ -7,6 +7,7 @@ import { apiKey as apiKeyTable } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
 import { id, generateApiKey } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
+import { sanitizeScopes, DEFAULT_KEY_SCOPES } from "@/lib/api-scopes";
 
 function canManage(role: string | undefined): boolean {
   return !!role && ["owner", "admin"].includes(role);
@@ -27,6 +28,9 @@ export async function createApiKey(formData: FormData): Promise<CreateApiKeyResu
   if (!name) return { ok: false, error: "Key name is required." };
   if (name.length > 100) return { ok: false, error: "Key name must be 100 characters or fewer." };
 
+  const chosen = sanitizeScopes(formData.getAll("scope"));
+  const scopes = chosen.length ? chosen : DEFAULT_KEY_SCOPES;
+
   const { key, hash, prefix } = generateApiKey();
   const keyId = id("ak");
   await db.insert(apiKeyTable).values({
@@ -35,6 +39,7 @@ export async function createApiKey(formData: FormData): Promise<CreateApiKeyResu
     name,
     keyHash: hash,
     prefix,
+    scopes,
     createdByUserId: ctx.user.id,
     createdAt: new Date(),
   });
@@ -44,7 +49,7 @@ export async function createApiKey(formData: FormData): Promise<CreateApiKeyResu
     actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
     action: AUDIT.apiKeyCreated,
     target: { type: "api_key", id: keyId },
-    metadata: { name, prefix },
+    metadata: { name, prefix, scopes },
   });
 
   revalidatePath("/tenant/api");

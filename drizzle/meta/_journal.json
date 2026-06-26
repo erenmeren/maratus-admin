@@ -155,6 +155,13 @@
       "when": 1782061932666,
       "tag": "0021_hard_boomerang",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1782495535008,
+      "tag": "0022_gray_gauntlet",
+      "breakpoints": true
     }
   ]
 }

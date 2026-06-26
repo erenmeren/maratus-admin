@@ -17,6 +17,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -280,9 +281,12 @@ export const deviceCommand = pgTable(
     id: text("id").primaryKey(),
     deviceId: text("device_id").notNull().references(() => device.id, { onDelete: "cascade" }),
     organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
-    type: text("type", { enum: ["reboot", "refresh", "identify", "config-changed", "firmware-update"] }).notNull(),
-    status: text("status", { enum: ["pending", "delivered", "acked", "failed"] }).default("pending").notNull(),
+    type: text("type", { enum: ["reboot", "refresh", "identify", "config-changed", "firmware-update", "trigger"] }).notNull(),
+    status: text("status", { enum: ["pending", "delivered", "acked", "failed", "expired"] }).default("pending").notNull(),
     result: text("result"),
+    action: text("action"),
+    payload: jsonb("payload"),
+    expiresAt: timestamp("expires_at"),
     createdByUserId: text("created_by_user_id"),
     createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
     deliveredAt: timestamp("delivered_at"),
@@ -314,11 +318,56 @@ export const apiKey = pgTable(
     createdByUserId: text("created_by_user_id"),
     createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
     revokedAt: timestamp("revoked_at"),
+    scopes: text("scopes").array().notNull().default(sql`'{}'::text[]`),
   },
   (t) => [
     uniqueIndex("api_key_hash_idx").on(t.keyHash),
     index("api_key_organization_id_idx").on(t.organizationId),
   ],
+);
+
+export const creditBalance = pgTable("credit_balance", {
+  organizationId: text("organization_id").primaryKey().references(() => organization.id, { onDelete: "cascade" }),
+  available: integer("available").notNull().default(0),
+  held: integer("held").notNull().default(0),
+  updatedAt: timestamp("updated_at").$defaultFn(() => new Date()).notNull(),
+});
+
+export const creditLedger = pgTable(
+  "credit_ledger",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    deviceId: text("device_id").references(() => device.id, { onDelete: "set null" }),
+    kind: text("kind", { enum: ["grant", "purchase", "hold", "settle", "release"] }).notNull(),
+    credits: integer("credits").notNull(),
+    action: text("action"),
+    commandId: text("command_id"),
+    idempotencyKey: text("idempotency_key"),
+    balanceAfterAvailable: integer("balance_after_available"),
+    note: text("note"),
+    createdByUserId: text("created_by_user_id"),
+    createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
+  },
+  (t) => [
+    index("credit_ledger_org_created_idx").on(t.organizationId, t.createdAt),
+    index("credit_ledger_device_created_idx").on(t.deviceId, t.createdAt),
+    index("credit_ledger_command_idx").on(t.commandId),
+    uniqueIndex("credit_ledger_kind_idem_idx").on(t.kind, t.idempotencyKey).where(sql`${t.idempotencyKey} is not null`),
+  ],
+);
+
+export const apiIdempotency = pgTable(
+  "api_idempotency",
+  {
+    key: text("key").notNull(),
+    organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    responseStatus: integer("response_status").notNull(),
+    responseBody: jsonb("response_body").notNull(),
+    commandId: text("command_id"),
+    createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.key, t.organizationId] })],
 );
 
 export const webhookEndpoint = pgTable(
@@ -533,6 +582,9 @@ export const schema = {
   device,
   deviceCommand,
   apiKey,
+  creditBalance,
+  creditLedger,
+  apiIdempotency,
   webhookEndpoint,
   webhookDelivery,
   receipt,

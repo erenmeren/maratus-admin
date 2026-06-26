@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/table";
 import { getCustomerDetail, getOrgAuditLog, getCreditLedger } from "@/lib/data";
 import { getBalance } from "@/lib/credits";
-import { grantCreditsAction } from "@/lib/actions/credits";
+import { GrantCreditsForm } from "@/components/grant-credits-form";
 import { formatCurrency, formatNumber, timeAgo } from "@/lib/format";
 
 export default async function CustomerDetailPage({
@@ -52,11 +52,6 @@ export default async function CustomerDetailPage({
     getBalance(tenantId),
     getCreditLedger(tenantId),
   ]);
-
-  async function handleGrantCredits(formData: FormData): Promise<void> {
-    "use server";
-    await grantCreditsAction(formData);
-  }
 
   const { tenant, summary, devices, monthly } = detail;
   const storeOptions = tenant.stores.map((s) => ({ id: s.id, name: s.name }));
@@ -174,52 +169,7 @@ export default async function CustomerDetailPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <form
-            action={handleGrantCredits}
-            className="flex flex-wrap items-end gap-3"
-          >
-            <input type="hidden" name="organizationId" value={tenantId} />
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="credits-amount"
-                className="text-xs font-medium text-muted-foreground"
-              >
-                Credits
-              </label>
-              <input
-                id="credits-amount"
-                name="credits"
-                type="number"
-                min={1}
-                max={1000000}
-                step={1}
-                required
-                placeholder="e.g. 100"
-                className="h-9 w-36 rounded-md border bg-background px-3 text-sm tabular-nums focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label
-                htmlFor="credits-note"
-                className="text-xs font-medium text-muted-foreground"
-              >
-                Note (optional)
-              </label>
-              <input
-                id="credits-note"
-                name="note"
-                type="text"
-                placeholder="e.g. promotional grant"
-                className="h-9 w-56 rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-            <button
-              type="submit"
-              className="h-9 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-            >
-              Grant credits
-            </button>
-          </form>
+          <GrantCreditsForm organizationId={tenantId} />
 
           {creditLedger.length > 0 && (
             <Table>

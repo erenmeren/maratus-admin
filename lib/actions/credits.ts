@@ -4,9 +4,12 @@ import { grantCredits } from "@/lib/credits";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 
+export type GrantState = { ok: boolean; error?: string };
+
 export async function grantCreditsAction(
+  _prev: GrantState,
   formData: FormData,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<GrantState> {
   const ctx = await requirePlatformAdmin();
   const orgId = String(formData.get("organizationId") ?? "");
   const credits = Number(formData.get("credits") ?? 0);

@@ -52,6 +52,7 @@ import { ianaToPosix } from "./posix-tz";
 import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "./printer-layout";
 import { computeConfigVersion, etagMatches } from "@/lib/device-config";
 import { normalizeDeviceSettings } from "@/lib/device-settings";
+import { rollupByDevice } from "@/lib/credit-usage";
 import type {
   Device,
   DeviceRow,
@@ -1735,4 +1736,32 @@ export async function getCreditLedger(organizationId: string, limit = 50) {
     .where(eq(creditLedgerTable.organizationId, organizationId))
     .orderBy(desc(creditLedgerTable.createdAt))
     .limit(limit);
+}
+
+/** Per-device realized credit spend for a tenant (settle rows >= since). */
+export async function getCreditUsageByDevice(organizationId: string, since: Date) {
+  const rows = await db
+    .select({ deviceId: creditLedgerTable.deviceId, credits: creditLedgerTable.credits })
+    .from(creditLedgerTable)
+    .where(
+      and(
+        eq(creditLedgerTable.organizationId, organizationId),
+        eq(creditLedgerTable.kind, "settle"),
+        gte(creditLedgerTable.createdAt, since),
+      ),
+    );
+  return rollupByDevice(rows);
+}
+
+/** Platform-admin: realized credit spend grouped by org for a period. */
+export async function getCreditUsageAllOrgs(since: Date) {
+  return db
+    .select({
+      organizationId: creditLedgerTable.organizationId,
+      credits: sql<number>`sum(${creditLedgerTable.credits})::int`,
+      count: sql<number>`count(*)::int`,
+    })
+    .from(creditLedgerTable)
+    .where(and(eq(creditLedgerTable.kind, "settle"), gte(creditLedgerTable.createdAt, since)))
+    .groupBy(creditLedgerTable.organizationId);
 }

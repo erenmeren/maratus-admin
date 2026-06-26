@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const now = new Date();
-  const expired = await db.select({ id: deviceCommand.id, organizationId: deviceCommand.organizationId, action: deviceCommand.action })
+  const expired = await db.select({ id: deviceCommand.id, organizationId: deviceCommand.organizationId, action: deviceCommand.action, deviceId: deviceCommand.deviceId })
     .from(deviceCommand)
     .where(and(eq(deviceCommand.type, "trigger"), inArray(deviceCommand.status, ["pending", "delivered"]), lt(deviceCommand.expiresAt, now)));
   let released = 0;
@@ -24,7 +24,7 @@ export async function GET(req: Request) {
       .where(and(eq(deviceCommand.id, c.id), inArray(deviceCommand.status, ["pending", "delivered"])))
       .returning({ id: deviceCommand.id });
     if (!won) continue; // lost the race to an ack
-    await releaseHold({ organizationId: c.organizationId, commandId: c.id, cost: creditCostForAction((c.action ?? "show_qr") as "show_qr") });
+    await releaseHold({ organizationId: c.organizationId, commandId: c.id, cost: creditCostForAction((c.action ?? "show_qr") as "show_qr"), deviceId: c.deviceId });
     released++;
   }
   const del = await db.delete(apiIdempotency).where(lt(apiIdempotency.createdAt, new Date(now.getTime() - 24 * 60 * 60 * 1000))).returning({ key: apiIdempotency.key });

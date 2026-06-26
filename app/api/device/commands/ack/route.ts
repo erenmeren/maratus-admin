@@ -28,11 +28,11 @@ export async function POST(req: Request) {
   const [cmd] = await db.update(deviceCommand)
     .set({ status: nextStatus, ackedAt: now, result: body.result ?? null })
     .where(and(eq(deviceCommand.id, body.commandId), eq(deviceCommand.deviceId, device.id), eq(deviceCommand.status, "delivered")))
-    .returning({ id: deviceCommand.id, type: deviceCommand.type, action: deviceCommand.action, organizationId: deviceCommand.organizationId });
+    .returning({ id: deviceCommand.id, type: deviceCommand.type, action: deviceCommand.action, organizationId: deviceCommand.organizationId, deviceId: deviceCommand.deviceId });
   if (cmd && cmd.type === "trigger") {
     const cost = creditCostForAction((cmd.action ?? "show_qr") as "show_qr");
-    if (body.ok) await settleHold({ organizationId: cmd.organizationId, commandId: cmd.id, cost });
-    else await releaseHold({ organizationId: cmd.organizationId, commandId: cmd.id, cost });
+    if (body.ok) await settleHold({ organizationId: cmd.organizationId, commandId: cmd.id, cost, deviceId: cmd.deviceId });
+    else await releaseHold({ organizationId: cmd.organizationId, commandId: cmd.id, cost, deviceId: cmd.deviceId });
   }
 
   return NextResponse.json({ ok: true });

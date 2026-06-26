@@ -44,26 +44,40 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
     return apiError("device_offline", "Device is offline or paused.", 409);
   }
 
-  // reserve
   const cost = creditCostForAction(v.action);
   const commandId = id("cmd");
-  const reserved = await reserveCredit({ organizationId: auth.organizationId, deviceId, action: v.action, commandId, cost });
-  if (!reserved.ok) return apiError("insufficient_credits", "Not enough credits.", 402);
+  const body = { id: commandId, status: "queued" as const };
 
-  // enqueue
+  // Claim the idempotency key BEFORE charging — the insert conflict is the concurrency gate.
+  const claim = await db.insert(apiIdempotency)
+    .values({ key: idemKey, organizationId: auth.organizationId, responseStatus: 202, responseBody: body, commandId })
+    .onConflictDoNothing()
+    .returning({ key: apiIdempotency.key });
+  if (claim.length === 0) {
+    // Another request (concurrent or prior) already claimed this key — replay its stored response.
+    const [existing] = await db.select().from(apiIdempotency)
+      .where(and(eq(apiIdempotency.key, idemKey), eq(apiIdempotency.organizationId, auth.organizationId))).limit(1);
+    if (existing) return apiJson(existing.responseBody, existing.responseStatus);
+    return apiError("conflict", "Concurrent request in progress.", 409);
+  }
+
+  // We own the claim. Reserve; on failure, release the claim so a retry can proceed.
+  const reserved = await reserveCredit({ organizationId: auth.organizationId, deviceId, action: v.action, commandId, cost });
+  if (!reserved.ok) {
+    await db.delete(apiIdempotency).where(and(eq(apiIdempotency.key, idemKey), eq(apiIdempotency.organizationId, auth.organizationId)));
+    return apiError("insufficient_credits", "Not enough credits.", 402);
+  }
+
   try {
     await db.insert(deviceCommand).values({
       id: commandId, deviceId, organizationId: auth.organizationId, type: "trigger",
       status: "pending", action: v.action, payload: v.payload, expiresAt: new Date(Date.now() + TTL_MS),
     });
   } catch {
-    await releaseHold({ organizationId: auth.organizationId, commandId, cost });
+    await releaseHold({ organizationId: auth.organizationId, commandId, cost, deviceId });
+    await db.delete(apiIdempotency).where(and(eq(apiIdempotency.key, idemKey), eq(apiIdempotency.organizationId, auth.organizationId)));
     return apiError("internal_error", "Could not enqueue the command.", 500);
   }
 
-  const body = { id: commandId, status: "queued" as const };
-  await db.insert(apiIdempotency).values({
-    key: idemKey, organizationId: auth.organizationId, responseStatus: 202, responseBody: body, commandId,
-  }).onConflictDoNothing();
   return apiJson(body, 202);
 }

@@ -89,7 +89,7 @@ export function ApiKeyCreateDialog() {
             <DialogHeader>
               <DialogTitle>Create API key</DialogTitle>
               <DialogDescription>
-                A read-only key scoped to this organization.
+                Create an API key scoped to this organization. Choose its permissions below.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">

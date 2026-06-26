@@ -82,6 +82,7 @@ export async function settleHold(a: {
   organizationId: string;
   commandId: string;
   cost: number;
+  deviceId?: string | null;
 }): Promise<void> {
   const [updated] = await db
     .update(creditBalance)
@@ -99,6 +100,7 @@ export async function settleHold(a: {
   if (!updated) return; // nothing held → already settled/released
   await ledger({
     organizationId: a.organizationId,
+    deviceId: a.deviceId ?? null,
     kind: "settle",
     credits: a.cost,
     commandId: a.commandId,
@@ -111,6 +113,7 @@ export async function releaseHold(a: {
   organizationId: string;
   commandId: string;
   cost: number;
+  deviceId?: string | null;
 }): Promise<void> {
   const [updated] = await db
     .update(creditBalance)
@@ -129,6 +132,7 @@ export async function releaseHold(a: {
   if (!updated) return;
   await ledger({
     organizationId: a.organizationId,
+    deviceId: a.deviceId ?? null,
     kind: "release",
     credits: a.cost,
     commandId: a.commandId,

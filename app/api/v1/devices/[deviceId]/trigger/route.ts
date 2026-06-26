@@ -6,6 +6,7 @@ import { apiError, apiJson } from "@/lib/api/respond";
 import { hasScope } from "@/lib/api-scopes";
 import { validateTriggerBody, creditCostForAction } from "@/lib/trigger-actions";
 import { reserveCredit, releaseHold } from "@/lib/credits";
+import { releaseExpiredHolds } from "@/lib/credit-holds";
 import { effectiveDeviceStatus } from "@/lib/device-status";
 import { id } from "@/lib/ids";
 
@@ -43,6 +44,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
   if (effectiveDeviceStatus(dev.status, dev.lastSeenAt, new Date()) !== "online") {
     return apiError("device_offline", "Device is offline or paused.", 409);
   }
+
+  // Lazily reconcile this org's expired (unacked) holds before checking the balance,
+  // so an active org never waits on the daily backstop cron to reclaim credits.
+  await releaseExpiredHolds({ organizationId: auth.organizationId });
 
   const cost = creditCostForAction(v.action);
   const commandId = id("cmd");

@@ -45,6 +45,7 @@ export const AUDIT = {
   memberRemoved: "member.removed",
   memberRoleChanged: "member.role_changed",
   invitationCanceled: "invitation.canceled",
+  creditsGranted: "credits.granted",
 } as const;
 
 export async function recordAudit(input: {

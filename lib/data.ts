@@ -19,6 +19,7 @@ import {
   webhookEndpoint as webhookEndpointTable,
   webhookDelivery as webhookDeliveryTable,
   auditLog as auditLogTable,
+  creditLedger as creditLedgerTable,
   device as deviceTable,
   deviceCommand,
   invitation as invitationTable,
@@ -1717,4 +1718,21 @@ export async function getApiUsage(organizationId: string): Promise<ApiUsageData>
     daily,
     monthly,
   };
+}
+
+export async function getCreditLedger(organizationId: string, limit = 50) {
+  return db
+    .select({
+      id: creditLedgerTable.id,
+      kind: creditLedgerTable.kind,
+      credits: creditLedgerTable.credits,
+      deviceId: creditLedgerTable.deviceId,
+      action: creditLedgerTable.action,
+      note: creditLedgerTable.note,
+      createdAt: creditLedgerTable.createdAt,
+    })
+    .from(creditLedgerTable)
+    .where(eq(creditLedgerTable.organizationId, organizationId))
+    .orderBy(desc(creditLedgerTable.createdAt))
+    .limit(limit);
 }

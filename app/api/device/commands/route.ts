@@ -28,7 +28,7 @@ export async function GET(req: Request) {
     .update(deviceCommand)
     .set({ status: "delivered", deliveredAt: now })
     .where(and(eq(deviceCommand.deviceId, device.id), eq(deviceCommand.status, "pending")))
-    .returning({ id: deviceCommand.id, type: deviceCommand.type });
+    .returning({ id: deviceCommand.id, type: deviceCommand.type, action: deviceCommand.action, payload: deviceCommand.payload });
 
   return NextResponse.json({ commands: delivered });
 }

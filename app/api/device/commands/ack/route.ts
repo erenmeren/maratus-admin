@@ -6,6 +6,8 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { deviceCommand } from "@/lib/db/schema";
 import { authenticateDevice } from "@/lib/device-auth";
+import { settleHold, releaseHold } from "@/lib/credits";
+import { creditCostForAction } from "@/lib/trigger-actions";
 
 export const runtime = "nodejs";
 
@@ -21,10 +23,17 @@ export async function POST(req: Request) {
   }
   if (!body.commandId) return NextResponse.json({ error: "Missing commandId" }, { status: 400 });
 
-  await db
-    .update(deviceCommand)
-    .set({ status: body.ok ? "acked" : "failed", ackedAt: new Date(), result: body.result ?? null })
-    .where(and(eq(deviceCommand.id, body.commandId), eq(deviceCommand.deviceId, device.id)));
+  const now = new Date();
+  const nextStatus = body.ok ? "acked" : "failed";
+  const [cmd] = await db.update(deviceCommand)
+    .set({ status: nextStatus, ackedAt: now, result: body.result ?? null })
+    .where(and(eq(deviceCommand.id, body.commandId), eq(deviceCommand.deviceId, device.id), eq(deviceCommand.status, "delivered")))
+    .returning({ id: deviceCommand.id, type: deviceCommand.type, action: deviceCommand.action, organizationId: deviceCommand.organizationId });
+  if (cmd && cmd.type === "trigger") {
+    const cost = creditCostForAction((cmd.action ?? "show_qr") as "show_qr");
+    if (body.ok) await settleHold({ organizationId: cmd.organizationId, commandId: cmd.id, cost });
+    else await releaseHold({ organizationId: cmd.organizationId, commandId: cmd.id, cost });
+  }
 
   return NextResponse.json({ ok: true });
 }

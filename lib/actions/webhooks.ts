@@ -129,7 +129,7 @@ export async function sendTestEvent(endpointId: string): Promise<TestEventResult
   const now = new Date();
   const testEvent = {
     id: `evt_test_${id("x").slice(2)}`,
-    type: "receipt.created",
+    type: "document.created",
     created: now.toISOString(),
     data: {
       id: "rcp_test", token: "test_token", status: "ready",
@@ -144,7 +144,7 @@ export async function sendTestEvent(endpointId: string): Promise<TestEventResult
       endpointId: endpoint.id,
       organizationId,
       eventId: testEvent.id,
-      eventType: "receipt.created",
+      eventType: "document.created",
       payload: testEvent,
       status: "pending",
       attempts: 0,

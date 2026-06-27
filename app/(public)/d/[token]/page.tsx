@@ -1,38 +1,38 @@
 import Link from "next/link";
-import { Check, Download, Leaf, ReceiptText, SearchX } from "lucide-react";
+import { Check, Download, Leaf, FileText, SearchX } from "lucide-react";
 import { DittoWordmark } from "@/components/brand";
-import { getReceiptByToken } from "@/lib/receipts";
+import { getDocumentByToken } from "@/lib/documents";
 
-// Public receipt page — what a customer sees after scanning the printer QR.
+// Public document page — what a customer sees after scanning the printer QR.
 // No auth: the token IS the capability (long + unguessable). Viewing a ready
-// receipt flips it to "downloaded" (the "receipt sent ✓" signal).
-export default async function ReceiptPage({
+// document flips it to "downloaded" (the "document sent ✓" signal).
+export default async function DocumentPage({
   params,
 }: {
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
-  const receipt = await getReceiptByToken(token);
+  const document = await getDocumentByToken(token);
 
-  if (!receipt) return <ReceiptNotFound />;
+  if (!document) return <DocumentNotFound />;
 
-  if (receipt.status === "pending" || !receipt.imageUrl) {
+  if (document.status === "pending" || !document.imageUrl) {
     return (
       <Shell>
         <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
           <span className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
-            <ReceiptText className="size-6" />
+            <FileText className="size-6" />
           </span>
           <h1 className="font-display text-lg font-bold">Almost ready</h1>
           <p className="max-w-xs text-sm text-muted-foreground">
-            Your receipt is still being prepared. Refresh in a moment.
+            Your document is still being prepared. Refresh in a moment.
           </p>
         </div>
       </Shell>
     );
   }
 
-  const dateStr = receipt.createdAt.toLocaleString("en-US", {
+  const dateStr = document.createdAt.toLocaleString("en-US", {
     dateStyle: "medium",
     timeStyle: "short",
   });
@@ -43,33 +43,33 @@ export default async function ReceiptPage({
         <span className="flex size-11 items-center justify-center rounded-full bg-status-online/15 text-status-online">
           <Check className="size-6" />
         </span>
-        <h1 className="font-display text-lg font-bold">Receipt ready</h1>
+        <h1 className="font-display text-lg font-bold">Document ready</h1>
         <p className="text-xs text-muted-foreground">
-          {receipt.organizationName}
-          {receipt.storeName ? ` · ${receipt.storeName}` : ""}
+          {document.organizationName}
+          {document.storeName ? ` · ${document.storeName}` : ""}
         </p>
         <p className="text-xs text-muted-foreground">{dateStr}</p>
       </div>
 
-      {/* Rendered receipt image from R2 (short-lived presigned URL) */}
+      {/* Rendered document image from R2 (short-lived presigned URL) */}
       <div className="bg-muted/30 p-4">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={receipt.imageUrl}
-          alt="Your receipt"
+          src={document.imageUrl}
+          alt="Your document"
           className="mx-auto w-full max-w-xs rounded-lg border bg-white shadow-sm"
         />
       </div>
 
       <div className="px-6 pb-6 pt-4">
         <a
-          href={receipt.imageUrl}
+          href={document.imageUrl}
           download
           target="_blank"
           rel="noopener noreferrer"
           className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
         >
-          <Download className="size-4" /> Download receipt
+          <Download className="size-4" /> Download document
         </a>
       </div>
     </Shell>
@@ -88,24 +88,24 @@ function Shell({ children }: { children: React.ReactNode }) {
         </div>
         <div className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
           <Leaf className="size-3.5 text-primary" />
-          A paperless receipt, powered by Ditto.
+          A paperless document, powered by Ditto.
         </div>
       </div>
     </div>
   );
 }
 
-function ReceiptNotFound() {
+function DocumentNotFound() {
   return (
     <Shell>
       <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
         <span className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
           <SearchX className="size-6" />
         </span>
-        <h1 className="font-display text-lg font-bold">Receipt not found</h1>
+        <h1 className="font-display text-lg font-bold">Document not found</h1>
         <p className="max-w-xs text-sm text-muted-foreground">
           This link is invalid or has expired. Ask the store to re-issue your
-          receipt.
+          document.
         </p>
         <Link
           href="/"

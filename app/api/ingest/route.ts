@@ -1,8 +1,8 @@
-// POST /api/ingest — device → Ditto receipt ingestion.
+// POST /api/ingest — device → Ditto document ingestion.
 //
 // Authenticated by a DEVICE KEY (Authorization: Bearer <deviceKey>), NOT a user
-// session. The device sends a rendered receipt image; we store it in R2, create
-// a receipt row with an unguessable token, and return the public short URL the
+// session. The device sends a rendered document image; we store it in R2, create
+// a document row with an unguessable token, and return the public short URL the
 // device turns into a QR code.
 //
 // Accepts either:
@@ -16,17 +16,17 @@ import { NextResponse } from "next/server";
 import { after } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { device as deviceTable, receipt as receiptTable, tenantSettings, usageEvent as usageEventTable } from "@/lib/db/schema";
+import { device as deviceTable, document as documentTable, tenantSettings, usageEvent as usageEventTable } from "@/lib/db/schema";
 import { recordUsageEvent, reportUsageEvent } from "@/lib/billing/usage-metering";
 import { isSuspended } from "@/lib/billing/billing-status";
-import { id, receiptToken } from "@/lib/ids";
+import { id, documentToken } from "@/lib/ids";
 import { authenticateDevice } from "@/lib/device-auth";
-import { putReceipt, receiptStorageKey } from "@/lib/storage";
+import { putDocument, documentStorageKey } from "@/lib/storage";
 import { deliverEvent } from "@/lib/webhooks/deliver";
 import { getEnv } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { validateReceiptPayload } from "@/lib/ingest-validation";
-import { parseReceiptMetadata, type ReceiptMetadata } from "@/lib/ingest-metadata";
+import { validateDocumentPayload } from "@/lib/ingest-validation";
+import { parseDocumentMetadata, type DocumentMetadata } from "@/lib/ingest-metadata";
 import { reportError } from "@/lib/observability";
 
 export const runtime = "nodejs";
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     reportError(err, { path: "ingest.suspension-check", extra: { orgId: device.organizationId, deviceId: device.id } });
   }
 
-  // Throttle per device: 30 receipts / minute is generous for a printer.
+  // Throttle per device: 30 documents / minute is generous for a printer.
   // deviceKeyHash is non-null here: authenticateDevice only matches on a hash.
   const rl = await checkRateLimit(device.deviceKeyHash!, { limit: 30, windowMs: 60_000 });
   if (!rl.allowed) {
@@ -67,11 +67,11 @@ export async function POST(req: Request) {
     );
   }
 
-  // --- 2. Read the rendered receipt payload ------------------------------
+  // --- 2. Read the rendered document payload ------------------------------
   let bytes: Buffer;
   let mimeType = "image/png";
   let bodyDeviceId: string | undefined;
-  let metadata: ReceiptMetadata | null = null;
+  let metadata: DocumentMetadata | null = null;
 
   const contentType = req.headers.get("content-type") ?? "";
   try {
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
       bodyDeviceId = (form.get("deviceId") as string | null) ?? undefined;
       const metaRaw = form.get("metadata");
       if (typeof metaRaw === "string" && metaRaw) {
-        try { metadata = parseReceiptMetadata(JSON.parse(metaRaw)); } catch { metadata = null; }
+        try { metadata = parseDocumentMetadata(JSON.parse(metaRaw)); } catch { metadata = null; }
       }
       if (!(file instanceof File)) return bad(400, "Missing file field");
       bytes = Buffer.from(await file.arrayBuffer());
@@ -101,7 +101,7 @@ export async function POST(req: Request) {
       bytes = Buffer.from(base64, "base64");
       if (json.mimeType) mimeType = json.mimeType;
       bodyDeviceId = json.deviceId;
-      metadata = parseReceiptMetadata(json.metadata);
+      metadata = parseDocumentMetadata(json.metadata);
     }
   } catch {
     return bad(400, "Malformed request body");
@@ -110,25 +110,25 @@ export async function POST(req: Request) {
   if (bodyDeviceId && bodyDeviceId !== device.id) {
     return bad(400, "deviceId does not match device key");
   }
-  const payloadCheck = validateReceiptPayload(bytes.byteLength, mimeType);
+  const payloadCheck = validateDocumentPayload(bytes.byteLength, mimeType);
   if (!payloadCheck.ok) return bad(payloadCheck.status, payloadCheck.error);
 
-  // --- 3. Store in R2 + create the receipt row ---------------------------
-  const receiptId = id("rcp");
-  const token = receiptToken();
-  const storageKey = receiptStorageKey(device.organizationId, receiptId);
+  // --- 3. Store in R2 + create the document row ---------------------------
+  const documentId = id("rcp");
+  const token = documentToken();
+  const storageKey = documentStorageKey(device.organizationId, documentId);
 
   try {
-    await putReceipt(storageKey, bytes, mimeType);
+    await putDocument(storageKey, bytes, mimeType);
   } catch (err) {
     console.error("R2 upload failed", err);
-    reportError(err, { path: "ingest.r2-upload", extra: { orgId: device.organizationId, deviceId: device.id, receiptId } });
+    reportError(err, { path: "ingest.r2-upload", extra: { orgId: device.organizationId, deviceId: device.id, documentId } });
     return bad(502, "Storage upload failed");
   }
 
   const now = new Date();
-  await db.insert(receiptTable).values({
-    id: receiptId,
+  await db.insert(documentTable).values({
+    id: documentId,
     organizationId: device.organizationId,
     deviceId: device.id,
     storeId: device.storeId,
@@ -142,10 +142,10 @@ export async function POST(req: Request) {
     createdAt: now,
   });
 
-  // Fire receipt.created to subscribed webhooks — non-blocking, never affects the response.
+  // Fire document.created to subscribed webhooks — non-blocking, never affects the response.
   after(() =>
-    deliverEvent(device.organizationId, "receipt.created", {
-      id: receiptId,
+    deliverEvent(device.organizationId, "document.created", {
+      id: documentId,
       token,
       status: "ready",
       storeId: device.storeId,
@@ -162,10 +162,10 @@ export async function POST(req: Request) {
     .set({ lastSeenAt: now, status: "online", ...(version ? { firmwareVersion: version } : {}) })
     .where(eq(deviceTable.id, device.id));
 
-  // Durable metered usage. Write a usage_event ledger row for this receipt (the
+  // Durable metered usage. Write a usage_event ledger row for this document (the
   // ledger is the durability guarantee), then best-effort report it to Stripe
   // off the critical path. A dropped meter event stays "pending" and is retried
-  // by /api/cron/usage — it can never silently un-bill the receipt.
+  // by /api/cron/usage — it can never silently un-bill the document.
   const [settings] = await db
     .select({ customerId: tenantSettings.stripeCustomerId })
     .from(tenantSettings)
@@ -174,7 +174,7 @@ export async function POST(req: Request) {
   after(async () => {
     const usageEventId = await recordUsageEvent({
       organizationId: device.organizationId,
-      receiptId,
+      documentId,
       stripeCustomerId: settings?.customerId ?? null,
     });
     if (!usageEventId) return;
@@ -189,7 +189,7 @@ export async function POST(req: Request) {
   // --- 4. Respond with the token + public short URL ----------------------
   const baseUrl = getEnv().BETTER_AUTH_URL;
   return NextResponse.json(
-    { token, url: `${baseUrl}/r/${token}` },
+    { token, url: `${baseUrl}/d/${token}` },
     { status: 201 },
   );
 }

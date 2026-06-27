@@ -12,9 +12,9 @@ describe("statusForStripeInvoice", () => {
 });
 
 describe("meterEventPayload", () => {
-  it("builds a single-unit receipt event", () => {
-    expect(meterEventPayload("cus_123", "receipts")).toEqual({
-      event_name: "receipts",
+  it("builds a single-unit document event", () => {
+    expect(meterEventPayload("cus_123", "documents")).toEqual({
+      event_name: "documents",
       payload: { stripe_customer_id: "cus_123", value: "1" },
     });
   });

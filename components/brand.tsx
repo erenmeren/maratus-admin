@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Ditto wordmark. The mark is a pair of overlapping receipt squares — a nod to
- * the "digital twin" of a paper receipt. Uses the app's emerald primary token.
+ * Ditto wordmark. The mark is a pair of overlapping document squares — a nod to
+ * the "digital twin" of a paper document. Uses the app's emerald primary token.
  */
 export function DittoMark({ className }: { className?: string }) {
   return (

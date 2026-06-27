@@ -20,7 +20,7 @@ describe("invoiceRowFromStripe", () => {
       hostedInvoiceUrl: "https://pay.stripe.test/in_123",
       amountDueCents: 1234,
       status: "sent", // open → sent
-      receiptCount: 42,
+      documentCount: 42,
     });
     expect(row.periodStart).toBeInstanceOf(Date);
     expect(row.periodEnd).toBeInstanceOf(Date);

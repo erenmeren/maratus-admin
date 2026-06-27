@@ -1,14 +1,14 @@
 import Link from "next/link";
-import type { ReceiptListRow } from "@/lib/data";
+import type { DocumentListRow } from "@/lib/data";
 
-export function ReceiptsTable({
+export function DocumentsTable({
   rows,
   page,
   pageCount,
   basePath,
   query,
 }: {
-  rows: ReceiptListRow[];
+  rows: DocumentListRow[];
   page: number;
   pageCount: number;
   basePath: string;
@@ -21,7 +21,7 @@ export function ReceiptsTable({
   }
 
   if (rows.length === 0) {
-    return <p className="text-sm text-muted-foreground">No receipts match these filters.</p>;
+    return <p className="text-sm text-muted-foreground">No documents match these filters.</p>;
   }
 
   return (

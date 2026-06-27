@@ -130,7 +130,7 @@ export function SignupForm() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground">
-          © 2026 Ditto · Digital receipts for a paperless checkout.
+          © 2026 Ditto · Digital documents for a paperless checkout.
         </p>
       </div>
 
@@ -152,13 +152,13 @@ export function SignupForm() {
             </h2>
             <p className="max-w-md text-primary-foreground/80">
               Set up your stores, pair your printers, and start issuing digital
-              receipts your customers can scan and keep.
+              documents your customers can scan and keep.
             </p>
             <div className="grid grid-cols-3 gap-4 pt-2">
               {[
                 { k: "1 min", v: "to set up" },
-                { k: "0", v: "paper receipts" },
-                { k: "∞", v: "receipts stored" },
+                { k: "0", v: "paper documents" },
+                { k: "∞", v: "documents stored" },
               ].map((s) => (
                 <div key={s.v}>
                   <p className="font-display text-2xl font-bold">{s.k}</p>

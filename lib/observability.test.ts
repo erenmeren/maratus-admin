@@ -41,14 +41,14 @@ describe("scrubSentryEvent", () => {
     });
   });
 
-  it("redacts a receipt token in the request url", () => {
-    const event = scrubSentryEvent({ request: { url: "https://app.ditto/r/abc123token?x=1" } });
-    expect(event.request?.url).toBe("https://app.ditto/r/[redacted]?x=1");
+  it("redacts a document token in the request url", () => {
+    const event = scrubSentryEvent({ request: { url: "https://app.ditto/d/abc123token?x=1" } });
+    expect(event.request?.url).toBe("https://app.ditto/d/[redacted]?x=1");
   });
 
-  it("redacts a receipt token in the transaction name", () => {
-    const event = scrubSentryEvent({ transaction: "GET /r/abc123token" });
-    expect(event.transaction).toBe("GET /r/[redacted]");
+  it("redacts a document token in the transaction name", () => {
+    const event = scrubSentryEvent({ transaction: "GET /d/abc123token" });
+    expect(event.transaction).toBe("GET /d/[redacted]");
   });
 
   it("is a no-op when there is no request or transaction", () => {

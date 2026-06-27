@@ -6,7 +6,7 @@ import {
   DollarSign,
   Mail,
   Phone,
-  ReceiptText,
+  FileText,
   Store,
   Tag,
 } from "lucide-react";
@@ -59,7 +59,7 @@ export default async function CustomerDetailPage({
   const byStore = tenant.stores
     .map((s) => ({
       label: s.name.replace(`${tenant.name} `, "").replace(`${tenant.logoText} — `, ""),
-      value: s.devices.reduce((a, d) => a + d.receiptsThisMonth, 0),
+      value: s.devices.reduce((a, d) => a + d.documentsThisMonth, 0),
     }))
     .sort((a, b) => b.value - a.value);
 
@@ -120,9 +120,9 @@ export default async function CustomerDetailPage({
         <KpiCard label="Stores" value={formatNumber(summary.storeCount)} icon={Store} />
         <KpiCard label="Devices" value={formatNumber(summary.deviceCount)} icon={Cpu} />
         <KpiCard
-          label="Receipts this month"
-          value={formatNumber(summary.receiptsThisMonth)}
-          icon={ReceiptText}
+          label="Documents this month"
+          value={formatNumber(summary.documentsThisMonth)}
+          icon={FileText}
         />
         <KpiCard
           label="Revenue this month"
@@ -144,7 +144,7 @@ export default async function CustomerDetailPage({
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Receipts by store</CardTitle>
+            <CardTitle>Documents by store</CardTitle>
             <CardDescription>This month, per branch</CardDescription>
           </CardHeader>
           <CardContent>
@@ -228,7 +228,7 @@ export default async function CustomerDetailPage({
                 <TableHead>Store</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last seen</TableHead>
-                <TableHead className="text-right">Receipts (mo.)</TableHead>
+                <TableHead className="text-right">Documents (mo.)</TableHead>
                 <TableHead className="w-10 pr-4" />
               </TableRow>
             </TableHeader>
@@ -247,7 +247,7 @@ export default async function CustomerDetailPage({
                     {timeAgo(d.lastSeen)}
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
-                    {formatNumber(d.receiptsThisMonth)}
+                    {formatNumber(d.documentsThisMonth)}
                   </TableCell>
                   <TableCell className="pr-4">
                     <DeviceRowActions deviceId={d.id} status={d.status} />

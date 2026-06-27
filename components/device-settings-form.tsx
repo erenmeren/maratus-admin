@@ -108,7 +108,7 @@ export function DeviceSettingsForm({
           disabled={disabled}
         />
         <p className="text-xs text-muted-foreground">
-          How long the receipt QR code stays on screen before the device returns to idle (15–180s).
+          How long the document QR code stays on screen before the device returns to idle (15–180s).
         </p>
       </Card>
 
@@ -135,7 +135,7 @@ export function DeviceSettingsForm({
             <Label>Screen sleep</Label>
             <p className="text-xs text-muted-foreground">
               Turn the display off after inactivity. The device stays online and wakes on touch
-              or when a new receipt prints.
+              or when a new document prints.
             </p>
           </div>
           <Switch checked={sleepEnabled} onCheckedChange={setSleepEnabled} disabled={disabled} />

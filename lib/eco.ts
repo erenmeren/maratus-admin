@@ -3,34 +3,34 @@
 // ⚠️ PLACEHOLDER CONSTANTS — these are rough, clearly-labeled estimates used
 // for the prototype. Replace with sourced figures before any public-facing use.
 
-/** Grams of thermal paper saved per receipt not printed. */
-export const PAPER_GRAMS_PER_RECEIPT = 3.2; // PLACEHOLDER
+/** Grams of thermal paper saved per document not printed. */
+export const PAPER_GRAMS_PER_DOCUMENT = 3.2; // PLACEHOLDER
 
-/** Liters of water saved per receipt (pulp + production water footprint). */
-export const WATER_LITERS_PER_RECEIPT = 0.012; // PLACEHOLDER
+/** Liters of water saved per document (pulp + production water footprint). */
+export const WATER_LITERS_PER_DOCUMENT = 0.012; // PLACEHOLDER
 
-/** Grams of CO2-equivalent saved per receipt (paper + thermal printing). */
-export const CO2_GRAMS_PER_RECEIPT = 4.6; // PLACEHOLDER
+/** Grams of CO2-equivalent saved per document (paper + thermal printing). */
+export const CO2_GRAMS_PER_DOCUMENT = 4.6; // PLACEHOLDER
 
 /** Grams of paper produced by one mature tree per year (for the "trees" stat). */
 export const PAPER_GRAMS_PER_TREE = 8500; // PLACEHOLDER
 
 export interface EcoSavings {
-  receipts: number;
+  documents: number;
   paperKg: number;
   waterLiters: number;
   co2Kg: number;
   trees: number;
 }
 
-/** Compute aggregate eco savings for a given number of receipts. */
-export function computeEcoSavings(receipts: number): EcoSavings {
-  const paperGrams = receipts * PAPER_GRAMS_PER_RECEIPT;
+/** Compute aggregate eco savings for a given number of documents. */
+export function computeEcoSavings(documents: number): EcoSavings {
+  const paperGrams = documents * PAPER_GRAMS_PER_DOCUMENT;
   return {
-    receipts,
+    documents,
     paperKg: paperGrams / 1000,
-    waterLiters: receipts * WATER_LITERS_PER_RECEIPT,
-    co2Kg: (receipts * CO2_GRAMS_PER_RECEIPT) / 1000,
+    waterLiters: documents * WATER_LITERS_PER_DOCUMENT,
+    co2Kg: (documents * CO2_GRAMS_PER_DOCUMENT) / 1000,
     trees: paperGrams / PAPER_GRAMS_PER_TREE,
   };
 }

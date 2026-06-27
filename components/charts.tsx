@@ -66,8 +66,8 @@ function ChartTooltip({
   );
 }
 
-/** Receipts over time — soft emerald area chart. */
-export function ReceiptsAreaChart({
+/** Documents over time — soft emerald area chart. */
+export function DocumentsAreaChart({
   data,
   height = 280,
 }: {
@@ -80,7 +80,7 @@ export function ReceiptsAreaChart({
     <ResponsiveContainer width="100%" height={height}>
       <AreaChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
         <defs>
-          <linearGradient id="fillReceipts" x1="0" y1="0" x2="0" y2="1">
+          <linearGradient id="fillDocuments" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.35} />
             <stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0} />
           </linearGradient>
@@ -89,15 +89,15 @@ export function ReceiptsAreaChart({
         <XAxis dataKey="label" {...AXIS} interval={interval} minTickGap={16} />
         <YAxis {...AXIS} width={40} tickFormatter={(v) => formatCompact(Number(v))} />
         <Tooltip
-          content={<ChartTooltip unit="receipts" />}
+          content={<ChartTooltip unit="documents" />}
           cursor={{ stroke: "var(--border)" }}
         />
         <Area
           type="monotone"
-          dataKey="receipts"
+          dataKey="documents"
           stroke="var(--chart-1)"
           strokeWidth={2}
-          fill="url(#fillReceipts)"
+          fill="url(#fillDocuments)"
           dot={false}
           activeDot={{ r: 4, strokeWidth: 0 }}
         />
@@ -221,7 +221,7 @@ export function BreakdownBarChart({
           tickFormatter={(v: string) => (v.length > 18 ? v.slice(0, 17) + "…" : v)}
         />
         <Tooltip
-          content={<ChartTooltip money={money} unit={money ? undefined : "receipts"} />}
+          content={<ChartTooltip money={money} unit={money ? undefined : "documents"} />}
           cursor={{ fill: "var(--accent)", opacity: 0.4 }}
         />
         <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={18}>
@@ -242,7 +242,7 @@ const COMPARE_COLORS = [
   "var(--chart-5)",
 ];
 
-/** Multi-line monthly receipts comparison — one line per store. */
+/** Multi-line monthly documents comparison — one line per store. */
 export function StoreCompareChart({
   data,
   height = 300,
@@ -260,10 +260,10 @@ export function StoreCompareChart({
       </div>
     );
   }
-  // Merge per-store series into rows keyed by month label: { label, [storeId]: receipts }.
+  // Merge per-store series into rows keyed by month label: { label, [storeId]: documents }.
   const rows = data[0].monthly.map((point, i) => {
     const row: Record<string, string | number> = { label: point.label };
-    for (const s of data) row[s.storeId] = s.monthly[i]?.receipts ?? 0;
+    for (const s of data) row[s.storeId] = s.monthly[i]?.documents ?? 0;
     return row;
   });
   return (
@@ -272,7 +272,7 @@ export function StoreCompareChart({
         <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
         <XAxis dataKey="label" {...AXIS} minTickGap={16} />
         <YAxis {...AXIS} width={40} />
-        <Tooltip content={<ChartTooltip unit="receipts" />} cursor={{ stroke: "var(--border)" }} />
+        <Tooltip content={<ChartTooltip unit="documents" />} cursor={{ stroke: "var(--border)" }} />
         {data.map((s, i) => (
           <Line
             key={s.storeId}

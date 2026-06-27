@@ -62,7 +62,7 @@ const PRESETS = ["#B4541F", "#3F9D4E", "#1F5C8B", "#E5484D", "#7C5CFC", "#0F766E
 const SCREENS: { value: PrinterScreen; label: string }[] = [
   { value: "idle", label: "Idle / ready" },
   { value: "processing", label: "Processing" },
-  { value: "qr", label: "Receipt ready" },
+  { value: "qr", label: "Document ready" },
   { value: "sent", label: "Sent ✓" },
   { value: "error", label: "Error / offline" },
   { value: "paused", label: "Paused" },

@@ -47,8 +47,8 @@ export function monthKeys(now: Date, n: number): BucketKey[] {
 export function bucketsToSeries(counts: BucketCount[], keys: BucketKey[], price: number): TimePoint[] {
   const byKey = new Map(counts.map((c) => [c.bucket, c.count]));
   return keys.map((k) => {
-    const receipts = byKey.get(k.key) ?? 0;
-    return { label: k.label, receipts, revenue: round2(receipts * price) };
+    const documents = byKey.get(k.key) ?? 0;
+    return { label: k.label, documents, revenue: round2(documents * price) };
   });
 }
 
@@ -67,7 +67,7 @@ export interface Peak {
   peakHourCount: number;
 }
 export interface Heatmap {
-  grid: number[][]; // [7][24] — grid[dow][hour] = receipt count (dow 0=Sun..6=Sat)
+  grid: number[][]; // [7][24] — grid[dow][hour] = document count (dow 0=Sun..6=Sat)
   max: number;      // largest single-cell count (0 when empty); drives intensity
   total: number;
   peak: Peak;       // busiest day + peak hour, derived from the grid
@@ -84,7 +84,7 @@ export interface StoreAnalytics {
 export interface StoreComparisonRow {
   storeId: string;
   storeName: string;
-  receiptsThisMonth: number;
+  documentsThisMonth: number;
   trend: Trend;
   revenueThisMonth: number;
   eco: EcoSavings;
@@ -113,7 +113,7 @@ export function hourLabel(hour: number): string {
     : `${start.base}${start.period}–${end.base}${end.period}`;
 }
 
-/** Returns the bucket with the most receipts; on a tie the first in input order wins. Empty/all-zero → null fields. */
+/** Returns the bucket with the most documents; on a tie the first in input order wins. Empty/all-zero → null fields. */
 export function pickPeakDow(rows: DowCount[]): { dow: number | null; count: number; label: string | null } {
   let best: DowCount | null = null;
   for (const r of rows) if (!best || r.count > best.count) best = r;
@@ -121,7 +121,7 @@ export function pickPeakDow(rows: DowCount[]): { dow: number | null; count: numb
   return { dow: best.dow, count: best.count, label: dowLabel(best.dow) };
 }
 
-/** Returns the bucket with the most receipts; on a tie the first in input order wins. Empty/all-zero → null fields. */
+/** Returns the bucket with the most documents; on a tie the first in input order wins. Empty/all-zero → null fields. */
 export function pickPeakHour(rows: HourCount[]): { hour: number | null; count: number; label: string | null } {
   let best: HourCount | null = null;
   for (const r of rows) if (!best || r.count > best.count) best = r;
@@ -173,12 +173,12 @@ export function toComparisonRows(
     .map((s) => ({
       storeId: s.storeId,
       storeName: s.storeName,
-      receiptsThisMonth: s.current,
+      documentsThisMonth: s.current,
       trend: computeTrend(s.current, s.previous),
       revenueThisMonth: round2(s.current * s.price),
       eco: computeEcoSavings(s.current),
     }))
-    .sort((a, b) => b.receiptsThisMonth - a.receiptsThisMonth);
+    .sort((a, b) => b.documentsThisMonth - a.documentsThisMonth);
 }
 
 /** Group dates into UTC day-key ("YYYY-MM-DD") counts. Pairs with dayKeys. */

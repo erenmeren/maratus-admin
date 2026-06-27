@@ -162,6 +162,13 @@
       "when": 1782495535008,
       "tag": "0022_gray_gauntlet",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1782584974919,
+      "tag": "0023_rename_receipt_to_document",
+      "breakpoints": true
     }
   ]
 }

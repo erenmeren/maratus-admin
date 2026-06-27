@@ -1,8 +1,8 @@
 // lib/ingest-metadata.ts
-// Pure: sanitize the OPTIONAL technical render metadata a device sends with a receipt.
-// Holds NO parsed receipt semantics (no totals, no line items) — only render facts.
+// Pure: sanitize the OPTIONAL technical render metadata a device sends with a document.
+// Holds NO parsed document semantics (no totals, no line items) — only render facts.
 
-export interface ReceiptMetadata {
+export interface DocumentMetadata {
   renderWidth?: number;
   renderHeight?: number;
   contentHash?: string;
@@ -24,10 +24,10 @@ function str(v: unknown, maxLen: number): string | undefined {
   return s.length > maxLen ? s.slice(0, maxLen) : s;
 }
 
-export function parseReceiptMetadata(raw: unknown): ReceiptMetadata | null {
+export function parseDocumentMetadata(raw: unknown): DocumentMetadata | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  const out: ReceiptMetadata = {};
+  const out: DocumentMetadata = {};
 
   const w = intIn(r.renderWidth, 1, 10000);
   if (w !== undefined) out.renderWidth = w;

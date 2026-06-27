@@ -95,7 +95,7 @@ export async function createCreditCheckout(
 }
 
 /** Fire one metered usage event for a customer. Caller handles errors. */
-export async function reportReceiptUsage(stripeCustomerId: string): Promise<void> {
+export async function reportDocumentUsage(stripeCustomerId: string): Promise<void> {
   const s = requireStripe();
   const { event_name, payload } = meterEventPayload(
     stripeCustomerId,

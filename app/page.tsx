@@ -14,11 +14,11 @@ export default async function Home() {
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 bg-background px-6 text-center">
       <div className="flex flex-col items-center gap-4">
         <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-          Paper receipts, gone.
+          Paper documents, gone.
         </h1>
         <p className="max-w-md text-lg text-muted-foreground">
           Ditto turns every checkout into a QR code your customers scan for an
-          instant digital receipt. Manage your stores, devices, and billing from
+          instant digital document. Manage your stores, devices, and billing from
           one console.
         </p>
       </div>

@@ -66,7 +66,7 @@ function LoginForm() {
                 Welcome back
               </h1>
               <p className="text-sm text-muted-foreground">
-                Sign in to manage your printers, stores, and paperless receipts.
+                Sign in to manage your printers, stores, and paperless documents.
               </p>
             </div>
 
@@ -191,7 +191,7 @@ function LoginForm() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground">
-          © 2026 Ditto · Digital receipts for a paperless checkout.
+          © 2026 Ditto · Digital documents for a paperless checkout.
         </p>
       </div>
 
@@ -209,7 +209,7 @@ function LoginForm() {
 
           <div className="space-y-6">
             <h2 className="font-display text-4xl font-bold leading-tight tracking-tight">
-              Replace the paper receipt with a single scan.
+              Replace the paper document with a single scan.
             </h2>
             <p className="max-w-md text-primary-foreground/80">
               Ditto printers turn every checkout into a QR code. Customers scan,
@@ -217,7 +217,7 @@ function LoginForm() {
             </p>
             <div className="grid grid-cols-3 gap-4 pt-2">
               {[
-                { k: "1.2M", v: "receipts digitized" },
+                { k: "1.2M", v: "documents digitized" },
                 { k: "3.8t", v: "paper saved" },
                 { k: "240+", v: "printers online" },
               ].map((s) => (

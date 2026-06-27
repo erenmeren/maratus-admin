@@ -111,7 +111,7 @@ export function AppShell({
           <SidebarFooter>
             <div className="rounded-lg border bg-sidebar-accent/40 p-3 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
               <p className="font-medium text-foreground">Paperless since 2024</p>
-              <p className="mt-0.5">Every QR scan is a receipt that never printed.</p>
+              <p className="mt-0.5">Every QR scan is a document that never printed.</p>
             </div>
           </SidebarFooter>
           <SidebarRail />
@@ -119,7 +119,7 @@ export function AppShell({
 
         <SidebarInset>
           <header className="edge-perforation relative sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 bg-gradient-to-b from-background/92 to-background/65 px-3 backdrop-blur-md sm:px-4">
-            {/* Emerald hairline — the top edge of the "receipt slip". */}
+            {/* Emerald hairline — the top edge of the "document slip". */}
             <span
               aria-hidden
               className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/45 to-transparent"

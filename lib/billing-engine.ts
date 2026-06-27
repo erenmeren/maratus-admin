@@ -6,7 +6,7 @@ import { db } from "./db";
 import {
   invoice as invoiceTable,
   organization as orgTable,
-  receipt as receiptTable,
+  document as documentTable,
   tenantSettings as settingsTable,
 } from "./db/schema";
 import { id } from "./ids";
@@ -19,7 +19,7 @@ export interface InvoiceRun {
 
 /**
  * Compute a draft invoice per organization for the month containing `now`,
- * from actual receipt counts × the tenant's per-print price. Idempotent:
+ * from actual document counts × the tenant's per-print price. Idempotent:
  * refreshes an existing draft for the period, never touches sent/paid invoices.
  */
 export async function runInvoiceGeneration(now: Date): Promise<InvoiceRun> {
@@ -52,16 +52,16 @@ export async function runInvoiceGeneration(now: Date): Promise<InvoiceRun> {
 
     const [{ count }] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(receiptTable)
+      .from(documentTable)
       .where(
         and(
-          eq(receiptTable.organizationId, org.id),
-          gte(receiptTable.createdAt, periodStart),
-          lte(receiptTable.createdAt, periodEnd),
+          eq(documentTable.organizationId, org.id),
+          gte(documentTable.createdAt, periodStart),
+          lte(documentTable.createdAt, periodEnd),
         ),
       );
-    const receiptCount = Number(count);
-    const amountDueCents = receiptCount * unitPriceCents;
+    const documentCount = Number(count);
+    const amountDueCents = documentCount * unitPriceCents;
 
     const existingRows = await db
       .select()
@@ -77,7 +77,7 @@ export async function runInvoiceGeneration(now: Date): Promise<InvoiceRun> {
       if (existing.status === "draft") {
         await db
           .update(invoiceTable)
-          .set({ receiptCount, unitPriceCents, amountDueCents })
+          .set({ documentCount, unitPriceCents, amountDueCents })
           .where(eq(invoiceTable.id, existing.id));
         updated++;
       }
@@ -87,7 +87,7 @@ export async function runInvoiceGeneration(now: Date): Promise<InvoiceRun> {
         organizationId: org.id,
         periodStart,
         periodEnd,
-        receiptCount,
+        documentCount,
         unitPriceCents,
         amountDueCents,
         status: "draft",

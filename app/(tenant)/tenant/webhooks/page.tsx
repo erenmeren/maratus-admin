@@ -19,7 +19,7 @@ export default async function WebhooksPage() {
 
   return (
     <>
-      <PageHeader title="Webhooks" description="Receive signed events when receipts are created or viewed.">
+      <PageHeader title="Webhooks" description="Receive signed events when documents are created or viewed.">
         {canManage && <WebhookCreateDialog />}
       </PageHeader>
 

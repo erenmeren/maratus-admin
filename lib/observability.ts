@@ -12,9 +12,9 @@ import * as Sentry from "@sentry/nextjs";
 
 const SENSITIVE_HEADERS = new Set(["authorization", "cookie"]);
 
-/** Replace a receipt token in any `/r/<token>` path with a redacted marker. */
-function redactReceiptToken(value: string): string {
-  return value.replace(/\/r\/[^/?#]+/g, "/r/[redacted]");
+/** Replace a document token in any `/d/<token>` path with a redacted marker. */
+function redactDocumentToken(value: string): string {
+  return value.replace(/\/d\/[^/?#]+/g, "/d/[redacted]");
 }
 
 interface ScrubbableEvent {
@@ -27,8 +27,8 @@ interface ScrubbableEvent {
 
 /**
  * Strip secrets the Sentry SDK auto-attaches before an event is sent: the device
- * bearer token (Authorization header) and the receipt-token capability (the
- * /r/<token> URL). The SDK's onRequestError capture includes raw request headers
+ * bearer token (Authorization header) and the document-token capability (the
+ * /d/<token> URL). The SDK's onRequestError capture includes raw request headers
  * and the resolved URL, so reportError discipline alone is not enough. Mutates a
  * structural subset of the event in place and returns it.
  */
@@ -39,9 +39,9 @@ export function scrubSentryEvent<T extends ScrubbableEvent>(event: T): T {
       if (SENSITIVE_HEADERS.has(key.toLowerCase())) headers[key] = "[redacted]";
     }
   }
-  if (event.request?.url) event.request.url = redactReceiptToken(event.request.url);
+  if (event.request?.url) event.request.url = redactDocumentToken(event.request.url);
   if (typeof event.transaction === "string") {
-    event.transaction = redactReceiptToken(event.transaction);
+    event.transaction = redactDocumentToken(event.transaction);
   }
   return event;
 }
@@ -51,7 +51,7 @@ export interface SentryInitOptions {
   environment: string;
   /** Errors only — no performance tracing (approach B). */
   tracesSampleRate: number;
-  /** Scrubs secrets the SDK auto-captures (auth/cookie headers, /r/<token> URL). */
+  /** Scrubs secrets the SDK auto-captures (auth/cookie headers, /d/<token> URL). */
   beforeSend: (event: Sentry.ErrorEvent) => Sentry.ErrorEvent;
 }
 
@@ -71,7 +71,7 @@ export function sentryInitOptions(input: {
 /**
  * Report a swallowed error to Sentry. No-ops automatically when Sentry was never
  * initialized (no DSN). Never include secrets in `extra` — no device keys, no
- * receipt tokens.
+ * document tokens.
  * @param context.path A short static label for the operation (e.g. "ingest.r2-upload"), never a request URL.
  */
 export function reportError(

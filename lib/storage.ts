@@ -2,7 +2,7 @@
 //
 // Objects are PRIVATE — the bucket is never public. Access is granted only via
 // short-lived presigned GET URLs minted on demand server-side. Used for both
-// rendered receipts and tenant logo assets.
+// rendered documents and tenant logo assets.
 
 import {
   DeleteObjectCommand,
@@ -76,20 +76,20 @@ export async function deleteObject(key: string): Promise<boolean> {
   }
 }
 
-// ---- Receipt-specific (Phase 3 ingest path) --------------------------------
+// ---- Document-specific (Phase 3 ingest path) --------------------------------
 
-/** Upload a rendered receipt to R2. Returns the storage key. */
-export const putReceipt = putObject;
+/** Upload a rendered document to R2. Returns the storage key. */
+export const putDocument = putObject;
 
-/** Mint a short-lived presigned GET URL for a private receipt object. */
-export const presignedReceiptUrl = presignedGetUrl;
+/** Mint a short-lived presigned GET URL for a private document object. */
+export const presignedDocumentUrl = presignedGetUrl;
 
-/** Object key convention for a receipt's rendered image. */
-export function receiptStorageKey(
+/** Object key convention for a document's rendered image. */
+export function documentStorageKey(
   organizationId: string,
-  receiptId: string,
+  documentId: string,
 ): string {
-  return `receipts/${organizationId}/${receiptId}`;
+  return `documents/${organizationId}/${documentId}`;
 }
 
 // ---- Tenant branding assets -------------------------------------------------

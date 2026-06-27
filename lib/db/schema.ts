@@ -4,7 +4,7 @@
 //   1. Better Auth tables (user, session, account, verification + organization
 //      plugin: organization, member, invitation). These match what Better Auth
 //      expects. Regenerate/verify with `npx @better-auth/cli generate`.
-//   2. App tables (tenantSettings, store, device, receipt, invoice) that
+//   2. App tables (tenantSettings, store, device, document, invoice) that
 //      reference organizationId — the Better Auth organization IS the tenant.
 //
 // Multi-tenancy: every app row carries organizationId. Platform (super-admin)
@@ -165,7 +165,7 @@ export const tenantSettings = pgTable("tenant_settings", {
   organizationId: text("organization_id")
     .primaryKey()
     .references(() => organization.id, { onDelete: "cascade" }),
-  // Price Ditto charges per digital receipt, in whole cents (avoids float drift).
+  // Price Ditto charges per digital document, in whole cents (avoids float drift).
   perPrintPriceCents: integer("per_print_price_cents").default(4).notNull(),
   brandColor: text("brand_color").default("#10A765").notNull(),
   // Optional printer theme tokens (null → derived from brandColor). The printer
@@ -410,14 +410,14 @@ export const webhookDelivery = pgTable(
   ],
 );
 
-export const receipt = pgTable(
-  "receipt",
+export const document = pgTable(
+  "document",
   {
     id: text("id").primaryKey(),
     organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
-    // Nullable: device-ingested receipts set this; cloud-ingested receipts (source="cloud") leave it null.
+    // Nullable: device-ingested documents set this; cloud-ingested documents (source="cloud") leave it null.
     deviceId: text("device_id").references(() => device.id, {
       onDelete: "cascade",
     }),
@@ -425,13 +425,13 @@ export const receipt = pgTable(
     source: text("source", { enum: ["device", "cloud"] })
       .default("device")
       .notNull(),
-    // Technical render metadata ONLY (no parsed receipt semantics). Shape: ReceiptMetadata in lib/ingest-metadata.ts.
+    // Technical render metadata ONLY (no parsed document semantics). Shape: DocumentMetadata in lib/ingest-metadata.ts.
     metadata: jsonb("metadata"),
     storeId: text("store_id").references(() => store.id, {
       onDelete: "set null",
     }),
     // Unguessable capability token (nanoid). The token IS the access grant for
-    // the public receipt page — keep it long.
+    // the public document page — keep it long.
     token: text("token").notNull().unique(),
     storageKey: text("storage_key").notNull(), // R2 object key
     mimeType: text("mime_type").default("image/png").notNull(),
@@ -445,11 +445,11 @@ export const receipt = pgTable(
     downloadedAt: timestamp("downloaded_at"),
   },
   (t) => [
-    uniqueIndex("receipt_token_idx").on(t.token),
-    index("receipt_organization_id_idx").on(t.organizationId),
-    index("receipt_device_id_idx").on(t.deviceId),
-    index("receipt_store_id_idx").on(t.storeId),
-    index("receipt_created_at_idx").on(t.createdAt),
+    uniqueIndex("document_token_idx").on(t.token),
+    index("document_organization_id_idx").on(t.organizationId),
+    index("document_device_id_idx").on(t.deviceId),
+    index("document_store_id_idx").on(t.storeId),
+    index("document_created_at_idx").on(t.createdAt),
   ],
 );
 
@@ -462,7 +462,7 @@ export const invoice = pgTable(
       .references(() => organization.id, { onDelete: "cascade" }),
     periodStart: timestamp("period_start").notNull(),
     periodEnd: timestamp("period_end").notNull(),
-    receiptCount: integer("receipt_count").default(0).notNull(),
+    documentCount: integer("document_count").default(0).notNull(),
     // Stored in cents to avoid floating-point money drift.
     unitPriceCents: integer("unit_price_cents").default(4).notNull(),
     amountDueCents: integer("amount_due_cents").default(0).notNull(),
@@ -491,12 +491,12 @@ export const usageEvent = pgTable(
     organizationId: text("organization_id")
       .notNull()
       .references(() => organization.id, { onDelete: "cascade" }),
-    // One usage event per receipt — the unique index below makes recording
-    // idempotent (insert ... on conflict do nothing) so a receipt can never be
+    // One usage event per document — the unique index below makes recording
+    // idempotent (insert ... on conflict do nothing) so a document can never be
     // metered twice nor silently un-billed.
-    receiptId: text("receipt_id")
+    documentId: text("document_id")
       .notNull()
-      .references(() => receipt.id, { onDelete: "cascade" }),
+      .references(() => document.id, { onDelete: "cascade" }),
     stripeCustomerId: text("stripe_customer_id"),
     status: text("status", { enum: ["pending", "reported", "skipped"] })
       .default("pending")
@@ -508,7 +508,7 @@ export const usageEvent = pgTable(
     reportedAt: timestamp("reported_at"),
   },
   (t) => [
-    uniqueIndex("usage_event_receipt_id_idx").on(t.receiptId),
+    uniqueIndex("usage_event_document_id_idx").on(t.documentId),
     index("usage_event_status_created_idx").on(t.status, t.createdAt),
   ],
 );
@@ -550,7 +550,7 @@ export const alert = pgTable(
   "alert",
   {
     id: text("id").primaryKey(),
-    // Stable identity from computeAlerts: "devices-stale", "receipts-stuck",
+    // Stable identity from computeAlerts: "devices-stale", "documents-stuck",
     // "tenants-inactive", "tenant-inactive:<orgId>".
     key: text("key").notNull(),
     severity: text("severity", { enum: ["info", "warning"] }).notNull(),
@@ -587,7 +587,7 @@ export const schema = {
   apiIdempotency,
   webhookEndpoint,
   webhookDelivery,
-  receipt,
+  document,
   invoice,
   usageEvent,
   rateLimit,

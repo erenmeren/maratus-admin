@@ -3,14 +3,14 @@
   "info": {
     "title": "Ditto Public API",
     "version": "1.0.0",
-    "description": "Read-only, tenant-scoped access to receipts and usage. Authenticate with an API key created in the Ditto dashboard (Authorization: Bearer <key>)."
+    "description": "Read-only, tenant-scoped access to documents and usage. Authenticate with an API key created in the Ditto dashboard (Authorization: Bearer <key>)."
   },
   "servers": [{ "url": "/api/v1" }],
   "security": [{ "bearerAuth": [] }],
   "paths": {
-    "/receipts": {
+    "/documents": {
       "get": {
-        "summary": "List receipts",
+        "summary": "List documents",
         "parameters": [
           { "name": "store_id", "in": "query", "schema": { "type": "string" } },
           { "name": "device_id", "in": "query", "schema": { "type": "string" } },
@@ -22,7 +22,7 @@
           { "name": "cursor", "in": "query", "schema": { "type": "string" }, "description": "Opaque cursor from a previous next_cursor." }
         ],
         "responses": {
-          "200": { "description": "A page of receipts", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReceiptList" } } } },
+          "200": { "description": "A page of documents", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DocumentList" } } } },
           "400": { "$ref": "#/components/responses/Error" },
           "401": { "$ref": "#/components/responses/Error" },
           "403": { "$ref": "#/components/responses/Error" },
@@ -30,12 +30,12 @@
         }
       }
     },
-    "/receipts/{id}": {
+    "/documents/{id}": {
       "get": {
-        "summary": "Get a receipt",
+        "summary": "Get a document",
         "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
         "responses": {
-          "200": { "description": "Receipt with a short-lived image URL", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReceiptDetail" } } } },
+          "200": { "description": "Document with a short-lived image URL", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DocumentDetail" } } } },
           "401": { "$ref": "#/components/responses/Error" },
           "403": { "$ref": "#/components/responses/Error" },
           "404": { "$ref": "#/components/responses/Error" },
@@ -66,7 +66,7 @@
         "properties": { "error": { "type": "object", "properties": { "code": { "type": "string" }, "message": { "type": "string" } }, "required": ["code", "message"] } },
         "required": ["error"]
       },
-      "Receipt": {
+      "Document": {
         "type": "object",
         "properties": {
           "id": { "type": "string" },
@@ -78,16 +78,16 @@
           "created_at": { "type": "string", "format": "date-time" }
         }
       },
-      "ReceiptList": {
+      "DocumentList": {
         "type": "object",
         "properties": {
-          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Receipt" } },
+          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Document" } },
           "next_cursor": { "type": ["string", "null"] }
         }
       },
-      "ReceiptDetail": {
+      "DocumentDetail": {
         "allOf": [
-          { "$ref": "#/components/schemas/Receipt" },
+          { "$ref": "#/components/schemas/Document" },
           {
             "type": "object",
             "properties": {
@@ -102,18 +102,18 @@
         "type": "object",
         "properties": {
           "unit_price_cents": { "type": "integer" },
-          "receipts_this_month": { "type": "integer" },
+          "documents_this_month": { "type": "integer" },
           "current_period": {
             "type": "object",
             "properties": {
               "start": { "type": "string", "format": "date-time" },
               "end": { "type": "string", "format": "date-time" },
-              "receipt_count": { "type": "integer" },
+              "document_count": { "type": "integer" },
               "amount_due_cents": { "type": "integer" }
             }
           },
-          "daily": { "type": "array", "items": { "type": "object", "properties": { "date": { "type": "string" }, "receipts": { "type": "integer" } } } },
-          "monthly": { "type": "array", "items": { "type": "object", "properties": { "month": { "type": "string" }, "receipts": { "type": "integer" } } } }
+          "daily": { "type": "array", "items": { "type": "object", "properties": { "date": { "type": "string" }, "documents": { "type": "integer" } } } },
+          "monthly": { "type": "array", "items": { "type": "object", "properties": { "month": { "type": "string" }, "documents": { "type": "integer" } } } }
         }
       }
     }

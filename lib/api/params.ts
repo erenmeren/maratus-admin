@@ -1,12 +1,12 @@
-// Pure parsing/validation of /api/v1/receipts query params. No IO.
-import type { ReceiptStatus } from "@/lib/receipts-search";
+// Pure parsing/validation of /api/v1/documents query params. No IO.
+import type { DocumentStatus } from "@/lib/documents-search";
 
-const STATUSES: ReceiptStatus[] = ["pending", "ready", "downloaded"];
+const STATUSES: DocumentStatus[] = ["pending", "ready", "downloaded"];
 
 export interface ListParams {
   storeId?: string;
   deviceId?: string;
-  status?: ReceiptStatus;
+  status?: DocumentStatus;
   createdAfter?: Date;
   createdBefore?: Date;
   token?: string;
@@ -41,8 +41,8 @@ export function parseListParams(sp: URLSearchParams): ParseResult {
 
   const statusRaw = str(sp.get("status"));
   if (statusRaw !== undefined) {
-    if (!STATUSES.includes(statusRaw as ReceiptStatus)) return { ok: false, error: "invalid_param: status" };
-    value.status = statusRaw as ReceiptStatus;
+    if (!STATUSES.includes(statusRaw as DocumentStatus)) return { ok: false, error: "invalid_param: status" };
+    value.status = statusRaw as DocumentStatus;
   }
 
   value.storeId = str(sp.get("store_id"));

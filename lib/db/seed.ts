@@ -3,11 +3,11 @@
 // Inserts realistic sample data so the existing UI keeps working end-to-end:
 //   • 1 platform_admin user (Ditto staff)
 //   • 1 coffee-chain organization with an owner user
-//   • ~3 stores, ~6 devices (mixed status), ~30 receipts this month, 2 invoices
+//   • ~3 stores, ~6 devices (mixed status), ~30 documents this month, 2 invoices
 //
 // Users + the organization are created through the Better Auth server API so
 // password hashing and membership wiring exactly match what auth expects.
-// App tables (stores/devices/receipts/invoices) are inserted with Drizzle.
+// App tables (stores/devices/documents/invoices) are inserted with Drizzle.
 
 import "./load-env"; // must be first: loads env before ../db reads it
 import { eq } from "drizzle-orm";
@@ -18,12 +18,12 @@ import {
   invoice,
   member,
   organization,
-  receipt,
+  document,
   store,
   tenantSettings,
   user,
 } from "./schema";
-import { generateDeviceKey, id, pairingCode, receiptToken } from "../ids";
+import { generateDeviceKey, id, pairingCode, documentToken } from "../ids";
 
 const PLATFORM_ADMIN = {
   name: "Ditto Staff",
@@ -141,7 +141,7 @@ async function main() {
 
   // --- Stores + devices ---------------------------------------------------
   // Clear prior app data for this org so reseeds are idempotent.
-  await db.delete(receipt).where(eq(receipt.organizationId, orgId));
+  await db.delete(document).where(eq(document.organizationId, orgId));
   await db.delete(device).where(eq(device.organizationId, orgId));
   await db.delete(store).where(eq(store.organizationId, orgId));
   await db.delete(invoice).where(eq(invoice.organizationId, orgId));
@@ -207,11 +207,11 @@ async function main() {
   }
   console.log(`  • created 3 unclaimed devices (pairing codes: ${unclaimedCodes.join(", ")})`);
 
-  // --- Receipts (≈30 across this month) -----------------------------------
+  // --- Documents (≈30 across this month) -----------------------------------
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const RECEIPTS = 30;
-  for (let i = 0; i < RECEIPTS; i++) {
+  const DOCUMENTS = 30;
+  for (let i = 0; i < DOCUMENTS; i++) {
     const target = allDeviceIds[Math.floor(rand() * allDeviceIds.length)];
     const dayOffset = Math.floor(rand() * (now.getDate()));
     const createdAt = new Date(
@@ -219,13 +219,13 @@ async function main() {
     );
     const downloaded = rand() > 0.4;
     const rid = id("rcp");
-    await db.insert(receipt).values({
+    await db.insert(document).values({
       id: rid,
       organizationId: orgId,
       deviceId: target.deviceId,
       storeId: target.storeId,
-      token: receiptToken(),
-      storageKey: `receipts/${orgId}/${rid}`,
+      token: documentToken(),
+      storageKey: `documents/${orgId}/${rid}`,
       mimeType: "image/png",
       byteSize: 20_000 + Math.floor(rand() * 40_000),
       status: downloaded ? "downloaded" : "ready",
@@ -235,7 +235,7 @@ async function main() {
         : null,
     });
   }
-  console.log(`  • created ${RECEIPTS} receipts this month`);
+  console.log(`  • created ${DOCUMENTS} documents this month`);
 
   // --- Invoices (last month paid, this month draft) -----------------------
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
@@ -247,7 +247,7 @@ async function main() {
       organizationId: orgId,
       periodStart: lastMonthStart,
       periodEnd: lastMonthEnd,
-      receiptCount: 842,
+      documentCount: 842,
       unitPriceCents: 4,
       amountDueCents: 842 * 4,
       status: "paid",
@@ -258,9 +258,9 @@ async function main() {
       organizationId: orgId,
       periodStart: monthStart,
       periodEnd: thisMonthEnd,
-      receiptCount: RECEIPTS,
+      documentCount: DOCUMENTS,
       unitPriceCents: 4,
-      amountDueCents: RECEIPTS * 4,
+      amountDueCents: DOCUMENTS * 4,
       status: "draft",
       createdAt: now,
     },

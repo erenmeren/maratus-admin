@@ -1,4 +1,4 @@
-// Public receipt access (by token) + device provisioning.
+// Public document access (by token) + device provisioning.
 // Separate from lib/data.ts because these are capability-scoped, not
 // organization-scoped: the token IS the access grant.
 
@@ -9,13 +9,13 @@ import { deliverEvent } from "@/lib/webhooks/deliver";
 import {
   device as deviceTable,
   organization as orgTable,
-  receipt as receiptTable,
+  document as documentTable,
   store as storeTable,
 } from "./db/schema";
 import { generateDeviceKey, id } from "./ids";
-import { presignedReceiptUrl } from "./storage";
+import { presignedDocumentUrl } from "./storage";
 
-export interface PublicReceipt {
+export interface PublicDocument {
   token: string;
   status: "pending" | "ready" | "downloaded";
   storeName: string | null;
@@ -27,39 +27,39 @@ export interface PublicReceipt {
 }
 
 /**
- * Look up a receipt by its capability token and, if ready, mint a fresh
- * presigned image URL. Marks the receipt `downloaded` on first view — this is
- * the "receipt sent ✓" signal. Returns null if the token is unknown.
+ * Look up a document by its capability token and, if ready, mint a fresh
+ * presigned image URL. Marks the document `downloaded` on first view — this is
+ * the "document sent ✓" signal. Returns null if the token is unknown.
  */
-export async function getReceiptByToken(
+export async function getDocumentByToken(
   token: string,
-): Promise<PublicReceipt | null> {
+): Promise<PublicDocument | null> {
   const [row] = await db
     .select({
-      receipt: receiptTable,
+      document: documentTable,
       storeName: storeTable.name,
       orgName: orgTable.name,
     })
-    .from(receiptTable)
-    .leftJoin(storeTable, eq(receiptTable.storeId, storeTable.id))
-    .innerJoin(orgTable, eq(receiptTable.organizationId, orgTable.id))
-    .where(eq(receiptTable.token, token))
+    .from(documentTable)
+    .leftJoin(storeTable, eq(documentTable.storeId, storeTable.id))
+    .innerJoin(orgTable, eq(documentTable.organizationId, orgTable.id))
+    .where(eq(documentTable.token, token))
     .limit(1);
 
   if (!row) return null;
-  const r = row.receipt;
+  const r = row.document;
 
   let imageUrl: string | null = null;
   if (r.status !== "pending") {
-    imageUrl = await presignedReceiptUrl(r.storageKey);
+    imageUrl = await presignedDocumentUrl(r.storageKey);
     // First view flips ready → downloaded and stamps the time.
     if (r.status === "ready") {
       await db
-        .update(receiptTable)
+        .update(documentTable)
         .set({ status: "downloaded", downloadedAt: new Date() })
-        .where(eq(receiptTable.id, r.id));
+        .where(eq(documentTable.id, r.id));
       after(() =>
-        deliverEvent(r.organizationId, "receipt.downloaded", {
+        deliverEvent(r.organizationId, "document.downloaded", {
           id: r.id,
           token: r.token,
           status: "downloaded",

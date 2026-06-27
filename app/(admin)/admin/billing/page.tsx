@@ -41,7 +41,7 @@ export default async function BillingPage() {
     "Invoice",
     "Customer",
     "Period",
-    "Receipts",
+    "Documents",
     "Amount (USD)",
     "Status",
   ];
@@ -49,7 +49,7 @@ export default async function BillingPage() {
     inv.id,
     tenantNames[inv.tenantId] ?? inv.tenantId,
     inv.period,
-    inv.receipts,
+    inv.documents,
     inv.amount.toFixed(2),
     inv.lifecycle,
   ]);
@@ -113,7 +113,7 @@ export default async function BillingPage() {
               <TableRow className="hover:bg-transparent">
                 <TableHead className="pl-6">Customer</TableHead>
                 <TableHead className="text-right">Per print</TableHead>
-                <TableHead className="text-right">Receipts (mo.)</TableHead>
+                <TableHead className="text-right">Documents (mo.)</TableHead>
                 <TableHead className="text-right">Revenue (mo.)</TableHead>
                 <TableHead className="text-right">Owed</TableHead>
                 <TableHead className="pr-6">Status</TableHead>
@@ -134,7 +134,7 @@ export default async function BillingPage() {
                     {formatCurrency(t.perPrintPrice, { cents: true })}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatNumber(t.receiptsThisMonth)}
+                    {formatNumber(t.documentsThisMonth)}
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
                     {formatCurrency(t.revenueThisMonth, { cents: true })}
@@ -163,7 +163,7 @@ export default async function BillingPage() {
         <CardHeader>
           <CardTitle>Invoices</CardTitle>
           <CardDescription>
-            Generated from real receipt counts × per-print price
+            Generated from real document counts × per-print price
           </CardDescription>
         </CardHeader>
         <CardContent className="px-0 pb-0">
@@ -173,7 +173,7 @@ export default async function BillingPage() {
                 <TableHead className="pl-6">Invoice</TableHead>
                 <TableHead>Customer</TableHead>
                 <TableHead>Period</TableHead>
-                <TableHead className="text-right">Receipts</TableHead>
+                <TableHead className="text-right">Documents</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-10 pr-4" />
@@ -199,7 +199,7 @@ export default async function BillingPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{inv.period}</TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatNumber(inv.receipts)}
+                    {formatNumber(inv.documents)}
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
                     {formatCurrency(inv.amount, { cents: true })}

@@ -8,8 +8,8 @@ export function id(prefix: string): string {
   return `${prefix}_${nanoid(21)}`;
 }
 
-/** Long, unguessable capability token for public receipt URLs. */
-export function receiptToken(): string {
+/** Long, unguessable capability token for public document URLs. */
+export function documentToken(): string {
   return nanoid(40);
 }
 

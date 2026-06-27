@@ -30,7 +30,7 @@ export default async function ApiKeysPage() {
           <CardDescription>
             Base URL <code className="font-mono">/api/v1</code> · authenticate with{" "}
             <code className="font-mono">Authorization: Bearer &lt;key&gt;</code>. Endpoints:{" "}
-            <code className="font-mono">GET /receipts</code>, <code className="font-mono">GET /receipts/&#123;id&#125;</code>,{" "}
+            <code className="font-mono">GET /documents</code>, <code className="font-mono">GET /documents/&#123;id&#125;</code>,{" "}
             <code className="font-mono">GET /usage</code>. Full schema:{" "}
             <a className="underline" href="/api/v1/openapi.json">/api/v1/openapi.json</a>.
           </CardDescription>

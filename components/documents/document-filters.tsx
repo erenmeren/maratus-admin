@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 
 type Opt = { id: string; name: string };
 
-export function ReceiptFilters({
+export function DocumentFilters({
   stores,
   devices,
   orgs,

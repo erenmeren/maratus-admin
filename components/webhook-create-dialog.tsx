@@ -13,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createWebhookEndpoint } from "@/lib/actions/webhooks";
 
-const EVENT_TYPES = ["receipt.created", "receipt.downloaded"];
+const EVENT_TYPES = ["document.created", "document.downloaded"];
 
 export function WebhookCreateDialog() {
   const router = useRouter();

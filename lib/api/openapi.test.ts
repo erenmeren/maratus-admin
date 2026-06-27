@@ -7,7 +7,7 @@ describe("openapi.json", () => {
   });
   it("declares exactly the three implemented paths", () => {
     expect(Object.keys((openapi as { paths: Record<string, unknown> }).paths).sort()).toEqual(
-      ["/receipts", "/receipts/{id}", "/usage"],
+      ["/documents", "/documents/{id}", "/usage"],
     );
   });
   it("defines a bearerAuth security scheme and applies it globally", () => {

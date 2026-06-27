@@ -3,7 +3,7 @@ import { ExportButton } from "@/components/export-button";
 import {
   BreakdownBarChart,
   MetricAreaChart,
-  ReceiptsAreaChart,
+  DocumentsAreaChart,
 } from "@/components/charts";
 import { EcoSavingsCard } from "@/components/eco-savings";
 import {
@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { getTenant, getTenantStores, tenantMonthly } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
-import { computeEcoSavings, PAPER_GRAMS_PER_RECEIPT } from "@/lib/eco";
+import { computeEcoSavings, PAPER_GRAMS_PER_DOCUMENT } from "@/lib/eco";
 
 export default async function ReportsPage() {
   const { organizationId } = await requireTenant();
@@ -24,14 +24,14 @@ export default async function ReportsPage() {
   const stores = await getTenantStores(organizationId);
 
   const byStore = [...stores]
-    .map((s) => ({ label: s.name.replace("Roastwell ", ""), value: s.receiptsThisMonth }))
+    .map((s) => ({ label: s.name.replace("Roastwell ", ""), value: s.documentsThisMonth }))
     .sort((a, b) => b.value - a.value);
 
   const byDevice = tenant.stores
     .flatMap((store) =>
       store.devices.map((d) => ({
         label: `${store.name.split(" ")[0]} · ${d.name}`,
-        value: d.receiptsThisMonth,
+        value: d.documentsThisMonth,
       })),
     )
     .sort((a, b) => b.value - a.value)
@@ -39,16 +39,16 @@ export default async function ReportsPage() {
 
   const ecoOverTime = monthly.map((p) => ({
     label: p.label,
-    value: Math.round((p.receipts * PAPER_GRAMS_PER_RECEIPT) / 1000),
+    value: Math.round((p.documents * PAPER_GRAMS_PER_DOCUMENT) / 1000),
   }));
 
-  const totalReceipts = monthly.reduce((a, p) => a + p.receipts, 0);
-  const eco = computeEcoSavings(totalReceipts);
+  const totalDocuments = monthly.reduce((a, p) => a + p.documents, 0);
+  const eco = computeEcoSavings(totalDocuments);
 
   // Build a single CSV: a section per breakdown (monthly, by store, by device).
-  const exportHeaders = ["Section", "Label", "Receipts", "Revenue (USD)"];
+  const exportHeaders = ["Section", "Label", "Documents", "Revenue (USD)"];
   const exportRows: (string | number)[][] = [
-    ...monthly.map((p) => ["Monthly", p.label, p.receipts, p.revenue.toFixed(2)]),
+    ...monthly.map((p) => ["Monthly", p.label, p.documents, p.revenue.toFixed(2)]),
     ...byStore.map((s) => ["By store", s.label, s.value, ""]),
     ...byDevice.map((d) => ["By device", d.label, d.value, ""]),
   ];
@@ -57,7 +57,7 @@ export default async function ReportsPage() {
     <>
       <PageHeader
         title="Reports"
-        description="Receipts, breakdowns, and eco savings across your fleet."
+        description="Documents, breakdowns, and eco savings across your fleet."
       >
         <ExportButton
           label="Export report"
@@ -69,11 +69,11 @@ export default async function ReportsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Receipts over time</CardTitle>
-          <CardDescription>Monthly digital receipts, last 9 months</CardDescription>
+          <CardTitle>Documents over time</CardTitle>
+          <CardDescription>Monthly digital documents, last 9 months</CardDescription>
         </CardHeader>
         <CardContent>
-          <ReceiptsAreaChart data={monthly} height={300} />
+          <DocumentsAreaChart data={monthly} height={300} />
         </CardContent>
       </Card>
 
@@ -81,7 +81,7 @@ export default async function ReportsPage() {
         <Card>
           <CardHeader>
             <CardTitle>By store</CardTitle>
-            <CardDescription>Receipts this month, per branch</CardDescription>
+            <CardDescription>Documents this month, per branch</CardDescription>
           </CardHeader>
           <CardContent>
             <BreakdownBarChart data={byStore} />
@@ -90,7 +90,7 @@ export default async function ReportsPage() {
         <Card>
           <CardHeader>
             <CardTitle>By device</CardTitle>
-            <CardDescription>Top printers by receipts this month</CardDescription>
+            <CardDescription>Top printers by documents this month</CardDescription>
           </CardHeader>
           <CardContent>
             <BreakdownBarChart data={byDevice} />

@@ -1,25 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { desc } from "drizzle-orm";
-import {
-  ArrowLeft,
-  Cable,
-  Cpu,
-  Globe,
-  HardDrive,
-  Receipt,
-  ReceiptText,
-  Wifi,
-} from "lucide-react";
+import { ArrowLeft, Cable, Cpu, Globe, HardDrive, FileText, Wifi,  } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { DevicePauseControl } from "@/components/device-pause-control";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle,  } from "@/components/ui/card";
 import { CommandBar } from "@/components/devices/command-bar";
 import { getDevice, getDeviceCommands } from "@/lib/data";
 import { db } from "@/lib/db";
@@ -79,14 +65,14 @@ export default async function DeviceDetailPage({
         <div className="space-y-6 lg:col-span-2">
           <div className="grid gap-4 sm:grid-cols-2">
             <KpiCard
-              label="Receipts today"
-              value={formatNumber(device.receiptsToday)}
-              icon={Receipt}
+              label="Documents today"
+              value={formatNumber(device.documentsToday)}
+              icon={FileText}
             />
             <KpiCard
-              label="Receipts this month"
-              value={formatNumber(device.receiptsThisMonth)}
-              icon={ReceiptText}
+              label="Documents this month"
+              value={formatNumber(device.documentsThisMonth)}
+              icon={FileText}
             />
           </div>
 

@@ -1,19 +1,19 @@
 // view-model → public API JSON (snake_case, integer cents). Pure.
-import type { ReceiptStatus } from "@/lib/receipts-search";
+import type { DocumentStatus } from "@/lib/documents-search";
 
 const IMAGE_TTL_SECONDS = 300; // matches lib/storage presigned GET TTL
 
-export interface ApiReceiptRow {
+export interface ApiDocumentRow {
   id: string;
   token: string;
-  status: ReceiptStatus;
+  status: DocumentStatus;
   storeId: string | null;
   deviceId: string | null;
   byteSize: number;
   createdAt: Date;
 }
 
-export function serializeReceiptRow(r: ApiReceiptRow) {
+export function serializeDocumentRow(r: ApiDocumentRow) {
   return {
     id: r.id,
     token: r.token,
@@ -25,10 +25,10 @@ export function serializeReceiptRow(r: ApiReceiptRow) {
   };
 }
 
-export interface ApiReceiptDetail {
+export interface ApiDocumentDetail {
   id: string;
   token: string;
-  status: ReceiptStatus;
+  status: DocumentStatus;
   storeId: string | null;
   deviceId: string | null;
   byteSize: number;
@@ -37,7 +37,7 @@ export interface ApiReceiptDetail {
   imageUrl: string | null;
 }
 
-export function serializeReceiptDetail(d: ApiReceiptDetail) {
+export function serializeDocumentDetail(d: ApiDocumentDetail) {
   return {
     id: d.id,
     token: d.token,
@@ -54,20 +54,20 @@ export function serializeReceiptDetail(d: ApiReceiptDetail) {
 
 export interface ApiUsage {
   unitPriceCents: number;
-  receiptsThisMonth: number;
-  currentPeriod: { start: string; end: string; receiptCount: number; amountDueCents: number };
-  daily: { date: string; receipts: number }[];
-  monthly: { month: string; receipts: number }[];
+  documentsThisMonth: number;
+  currentPeriod: { start: string; end: string; documentCount: number; amountDueCents: number };
+  daily: { date: string; documents: number }[];
+  monthly: { month: string; documents: number }[];
 }
 
 export function serializeUsage(u: ApiUsage) {
   return {
     unit_price_cents: u.unitPriceCents,
-    receipts_this_month: u.receiptsThisMonth,
+    documents_this_month: u.documentsThisMonth,
     current_period: {
       start: u.currentPeriod.start,
       end: u.currentPeriod.end,
-      receipt_count: u.currentPeriod.receiptCount,
+      document_count: u.currentPeriod.documentCount,
       amount_due_cents: u.currentPeriod.amountDueCents,
     },
     daily: u.daily,

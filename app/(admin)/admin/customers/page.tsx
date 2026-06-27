@@ -34,7 +34,7 @@ export default async function CustomersPage() {
               <TableHead>Customer</TableHead>
               <TableHead className="text-center">Stores</TableHead>
               <TableHead className="text-center">Devices</TableHead>
-              <TableHead className="text-right">Receipts (mo.)</TableHead>
+              <TableHead className="text-right">Documents (mo.)</TableHead>
               <TableHead className="text-right">Revenue (mo.)</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-10" />
@@ -66,7 +66,7 @@ export default async function CustomersPage() {
                   {c.deviceCount}
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  {formatNumber(c.receiptsThisMonth)}
+                  {formatNumber(c.documentsThisMonth)}
                 </TableCell>
                 <TableCell className="text-right font-medium tabular-nums">
                   {formatCurrency(c.revenueThisMonth, { cents: true })}

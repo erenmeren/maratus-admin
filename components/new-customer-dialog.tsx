@@ -90,7 +90,7 @@ export function NewCustomerDialog() {
                 defaultValue="0.04"
               />
               <p className="text-xs text-muted-foreground">
-                Charged per digital receipt issued.
+                Charged per digital document issued.
               </p>
             </div>
           </div>

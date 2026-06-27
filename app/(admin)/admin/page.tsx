@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ArrowUpRight, Cpu, DollarSign, ReceiptText, Users } from "lucide-react";
+import { ArrowUpRight, Cpu, DollarSign, FileText, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
-import { ReceiptsAreaChart, RevenueLineChart } from "@/components/charts";
+import { DocumentsAreaChart, RevenueLineChart } from "@/components/charts";
 import { TenantStatusBadge } from "@/components/tenant-status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,11 +45,11 @@ export default async function AdminOverviewPage() {
           icon={DollarSign}
         />
         <KpiCard
-          label="Receipts this month"
-          value={formatCompact(o.receiptsThisMonth)}
+          label="Documents this month"
+          value={formatCompact(o.documentsThisMonth)}
           delta={12.1}
           hint="platform-wide"
-          icon={ReceiptText}
+          icon={FileText}
         />
         <KpiCard
           label="Active devices"
@@ -77,11 +77,11 @@ export default async function AdminOverviewPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Receipts over time</CardTitle>
-            <CardDescription>Monthly receipts, all customers</CardDescription>
+            <CardTitle>Documents over time</CardTitle>
+            <CardDescription>Monthly documents, all customers</CardDescription>
           </CardHeader>
           <CardContent>
-            <ReceiptsAreaChart data={o.monthly} />
+            <DocumentsAreaChart data={o.monthly} />
           </CardContent>
         </Card>
       </div>
@@ -106,7 +106,7 @@ export default async function AdminOverviewPage() {
                 <TableHead className="pl-6">Customer</TableHead>
                 <TableHead className="text-center">Stores</TableHead>
                 <TableHead className="text-center">Devices</TableHead>
-                <TableHead className="text-right">Receipts</TableHead>
+                <TableHead className="text-right">Documents</TableHead>
                 <TableHead className="text-right pr-6">Revenue</TableHead>
               </TableRow>
             </TableHeader>
@@ -129,7 +129,7 @@ export default async function AdminOverviewPage() {
                     {c.deviceCount}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatNumber(c.receiptsThisMonth)}
+                    {formatNumber(c.documentsThisMonth)}
                   </TableCell>
                   <TableCell className="text-right pr-6 font-medium tabular-nums">
                     {formatCurrency(c.revenueThisMonth, { cents: true })}

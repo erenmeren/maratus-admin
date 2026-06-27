@@ -41,7 +41,7 @@ export default async function StoresPage() {
               <TableHead>Store</TableHead>
               <TableHead>Address</TableHead>
               <TableHead className="text-center">Printers</TableHead>
-              <TableHead className="text-right">Receipts (mo.)</TableHead>
+              <TableHead className="text-right">Documents (mo.)</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-10" />
             </TableRow>
@@ -75,7 +75,7 @@ export default async function StoresPage() {
                   </span>
                 </TableCell>
                 <TableCell className="text-right font-medium tabular-nums">
-                  {formatNumber(s.receiptsThisMonth)}
+                  {formatNumber(s.documentsThisMonth)}
                 </TableCell>
                 <TableCell>
                   <StatusBadge status={s.status} />

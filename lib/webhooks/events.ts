@@ -1,9 +1,9 @@
 // Webhook event types + payload builder. Payload `data` reuses the public API's
-// snake_case receipt shape so webhook + API consumers see identical resources.
-import { serializeReceiptRow, type ApiReceiptRow } from "@/lib/api/serialize";
+// snake_case document shape so webhook + API consumers see identical resources.
+import { serializeDocumentRow, type ApiDocumentRow } from "@/lib/api/serialize";
 import { id } from "@/lib/ids";
 
-export const WEBHOOK_EVENT_TYPES = ["receipt.created", "receipt.downloaded"] as const;
+export const WEBHOOK_EVENT_TYPES = ["document.created", "document.downloaded"] as const;
 export type WebhookEventType = (typeof WEBHOOK_EVENT_TYPES)[number];
 
 export function isWebhookEventType(t: string): t is WebhookEventType {
@@ -14,9 +14,9 @@ export interface WebhookEvent {
   id: string;
   type: WebhookEventType;
   created: string; // ISO emission time
-  data: ReturnType<typeof serializeReceiptRow>;
+  data: ReturnType<typeof serializeDocumentRow>;
 }
 
-export function buildEvent(type: WebhookEventType, receipt: ApiReceiptRow, createdIso: string): WebhookEvent {
-  return { id: id("evt"), type, created: createdIso, data: serializeReceiptRow(receipt) };
+export function buildEvent(type: WebhookEventType, document: ApiDocumentRow, createdIso: string): WebhookEvent {
+  return { id: id("evt"), type, created: createdIso, data: serializeDocumentRow(document) };
 }

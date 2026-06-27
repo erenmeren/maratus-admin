@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { serializeReceiptRow, serializeReceiptDetail, serializeUsage } from "./serialize";
+import { serializeDocumentRow, serializeDocumentDetail, serializeUsage } from "./serialize";
 
-describe("serializeReceiptRow", () => {
+describe("serializeDocumentRow", () => {
   it("maps to snake_case with ISO created_at", () => {
-    const out = serializeReceiptRow({
+    const out = serializeDocumentRow({
       id: "rcp_1", token: "tok", status: "ready",
       storeId: "str_1", deviceId: "dev_1", byteSize: 2048,
       createdAt: new Date("2026-06-07T12:00:00.000Z"),
@@ -16,9 +16,9 @@ describe("serializeReceiptRow", () => {
   });
 });
 
-describe("serializeReceiptDetail", () => {
+describe("serializeDocumentDetail", () => {
   it("includes image url + expiry and downloaded_at", () => {
-    const out = serializeReceiptDetail({
+    const out = serializeDocumentDetail({
       id: "rcp_1", token: "tok", status: "downloaded",
       storeId: "str_1", deviceId: "dev_1", byteSize: 2048,
       createdAt: "2026-06-07T12:00:00.000Z", downloadedAt: "2026-06-07T13:00:00.000Z",
@@ -30,7 +30,7 @@ describe("serializeReceiptDetail", () => {
     expect(out.store_id).toBe("str_1");
   });
   it("nulls image_expires_in when there is no image", () => {
-    const out = serializeReceiptDetail({
+    const out = serializeDocumentDetail({
       id: "rcp_1", token: "tok", status: "pending",
       storeId: null, deviceId: "dev_1", byteSize: 0,
       createdAt: "2026-06-07T12:00:00.000Z", downloadedAt: null, imageUrl: null,
@@ -43,13 +43,13 @@ describe("serializeReceiptDetail", () => {
 describe("serializeUsage", () => {
   it("passes through integer cents + machine keys", () => {
     const out = serializeUsage({
-      unitPriceCents: 4, receiptsThisMonth: 10,
-      currentPeriod: { start: "2026-06-01T00:00:00.000Z", end: "2026-07-01T00:00:00.000Z", receiptCount: 10, amountDueCents: 40 },
-      daily: [{ date: "2026-06-01", receipts: 3 }],
-      monthly: [{ month: "2026-06", receipts: 10 }],
+      unitPriceCents: 4, documentsThisMonth: 10,
+      currentPeriod: { start: "2026-06-01T00:00:00.000Z", end: "2026-07-01T00:00:00.000Z", documentCount: 10, amountDueCents: 40 },
+      daily: [{ date: "2026-06-01", documents: 3 }],
+      monthly: [{ month: "2026-06", documents: 10 }],
     });
     expect(out.unit_price_cents).toBe(4);
     expect(out.current_period.amount_due_cents).toBe(40);
-    expect(out.daily[0]).toEqual({ date: "2026-06-01", receipts: 3 });
+    expect(out.daily[0]).toEqual({ date: "2026-06-01", documents: 3 });
   });
 });

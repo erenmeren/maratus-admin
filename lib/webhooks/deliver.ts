@@ -1,7 +1,7 @@
 // Webhook delivery: persist a delivery per subscribed endpoint and POST signed
 // events. Failures schedule a retry (see retry.ts) and count toward auto-disable
 // at 15 consecutive failures. All errors are swallowed/logged — webhook delivery
-// must never affect the caller (ingest / public receipt page).
+// must never affect the caller (ingest / public document page).
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { webhookEndpoint as epTable, webhookDelivery as delTable } from "@/lib/db/schema";
@@ -11,7 +11,7 @@ import { signPayload } from "./sign";
 import { assertAllowedWebhookUrl } from "./url-guard";
 import { nextBackoff } from "./retry";
 import { buildEvent, type WebhookEventType } from "./events";
-import type { ApiReceiptRow } from "@/lib/api/serialize";
+import type { ApiDocumentRow } from "@/lib/api/serialize";
 
 const TIMEOUT_MS = 5_000;
 const AUTO_DISABLE_AT = 15;
@@ -93,7 +93,7 @@ export async function attemptDelivery(
 }
 
 /** Emit an event to all enabled, subscribed endpoints. Safe to call from after(). */
-export async function deliverEvent(organizationId: string, type: WebhookEventType, receipt: ApiReceiptRow): Promise<void> {
+export async function deliverEvent(organizationId: string, type: WebhookEventType, document: ApiDocumentRow): Promise<void> {
   try {
     const endpoints = await db
       .select()
@@ -102,7 +102,7 @@ export async function deliverEvent(organizationId: string, type: WebhookEventTyp
     const subscribed = endpoints.filter((e) => e.events.includes(type));
     if (subscribed.length === 0) return;
 
-    const event = buildEvent(type, receipt, new Date().toISOString());
+    const event = buildEvent(type, document, new Date().toISOString());
     for (const ep of subscribed) {
       const [row] = await db
         .insert(delTable)

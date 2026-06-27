@@ -8,7 +8,7 @@
 //   • money is stored in cents → exposed as dollars (perPrintPrice, amount)
 //   • tenant_settings.status (active|paused) → TenantStatus (active|suspended)
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
-//   • receiptsToday / receiptsThisMonth are derived from the receipt table
+//   • documentsToday / documentsThisMonth are derived from the document table
 
 import { and, count, desc, eq, gte, isNotNull, lt, lte, max, ne, sql } from "drizzle-orm";
 import { db } from "./db";
@@ -26,7 +26,7 @@ import {
   invoice as invoiceTable,
   member as memberTable,
   organization as orgTable,
-  receipt as receiptTable,
+  document as documentTable,
   store as storeTable,
   tenantSettings as settingsTable,
   user as userTable,
@@ -45,7 +45,7 @@ import {
   type StoreComparisonRow,
 } from "./analytics";
 import { computeAlerts, STALE_MINUTES, STUCK_PENDING_MINUTES, INACTIVE_DAYS, type HealthAlert } from "./health";
-import { type ReceiptFilters, PAGE_SIZE } from "./receipts-search";
+import { type DocumentFilters, PAGE_SIZE } from "./documents-search";
 import { presignedGetUrl } from "./storage";
 import { resolveBrandTokens } from "./color";
 import { ianaToPosix } from "./posix-tz";
@@ -64,14 +64,14 @@ import type {
   TenantSummary,
   TimePoint,
 } from "./types";
-import type { ApiReceiptRow } from "@/lib/api/serialize";
+import type { ApiDocumentRow } from "@/lib/api/serialize";
 
 // ============================================================================
-// Internal: load an org's bounded metadata + SQL-aggregated receipt rollups,
-// then build view-models from the bundle. The unbounded per-receipt rows are
+// Internal: load an org's bounded metadata + SQL-aggregated document rollups,
+// then build view-models from the bundle. The unbounded per-document rows are
 // NEVER pulled into app memory — only GROUP BY aggregates (per-device today/
 // month counts, and per-day/per-month series buckets). A super-admin page is
-// therefore O(devices + buckets) per org, not O(all receipts on the platform).
+// therefore O(devices + buckets) per org, not O(all documents on the platform).
 // ============================================================================
 
 interface OrgBundle {
@@ -79,7 +79,7 @@ interface OrgBundle {
   settings: typeof settingsTable.$inferSelect | undefined;
   stores: (typeof storeTable.$inferSelect)[];
   devices: (typeof deviceTable.$inferSelect)[];
-  /** receipts-per-device, today / this-month (UTC), from SQL GROUP BY. */
+  /** documents-per-device, today / this-month (UTC), from SQL GROUP BY. */
   todayByDevice: Map<string, number>;
   monthByDevice: Map<string, number>;
   /** day-key ("YYYY-MM-DD", last 30d) / month-key ("YYYY-MM", last 9mo) counts. */
@@ -115,12 +115,12 @@ async function loadOrg(organizationId: string): Promise<OrgBundle | null> {
   // `createdAt.getTime() >= startOf*()` epoch test, and the same cast the cursor
   // pagination relies on. date_trunc likewise buckets the stored UTC wall-clock,
   // matching the JS `toISOString()`/`getUTC*` bucketing it replaces.
-  const dayExpr = sql<string>`to_char(date_trunc('day', ${receiptTable.createdAt}), 'YYYY-MM-DD')`;
-  const monthExpr = sql<string>`to_char(date_trunc('month', ${receiptTable.createdAt}), 'YYYY-MM')`;
+  const dayExpr = sql<string>`to_char(date_trunc('day', ${documentTable.createdAt}), 'YYYY-MM-DD')`;
+  const monthExpr = sql<string>`to_char(date_trunc('month', ${documentTable.createdAt}), 'YYYY-MM')`;
   const orgScoped = (sinceStr: string) =>
     and(
-      eq(receiptTable.organizationId, organizationId),
-      sql`${receiptTable.createdAt} >= ${sinceStr}::timestamp`,
+      eq(documentTable.organizationId, organizationId),
+      sql`${documentTable.createdAt} >= ${sinceStr}::timestamp`,
     );
 
   const [
@@ -145,23 +145,23 @@ async function loadOrg(organizationId: string): Promise<OrgBundle | null> {
     // strict subset and `count(*)` is exactly the month count for each device.
     db
       .select({
-        deviceId: receiptTable.deviceId,
-        today: sql<number>`count(*) FILTER (WHERE ${receiptTable.createdAt} >= ${todayStartStr}::timestamp)`.mapWith(
+        deviceId: documentTable.deviceId,
+        today: sql<number>`count(*) FILTER (WHERE ${documentTable.createdAt} >= ${todayStartStr}::timestamp)`.mapWith(
           Number,
         ),
         month: sql<number>`count(*)`.mapWith(Number),
       })
-      .from(receiptTable)
+      .from(documentTable)
       .where(orgScoped(monthStartStr))
-      .groupBy(receiptTable.deviceId),
+      .groupBy(documentTable.deviceId),
     db
       .select({ bucket: dayExpr, count: count() })
-      .from(receiptTable)
+      .from(documentTable)
       .where(orgScoped(since30Str))
       .groupBy(dayExpr),
     db
       .select({ bucket: monthExpr, count: count() })
-      .from(receiptTable)
+      .from(documentTable)
       .where(orgScoped(since9moStr))
       .groupBy(monthExpr),
     db
@@ -171,13 +171,13 @@ async function loadOrg(organizationId: string): Promise<OrgBundle | null> {
       .where(eq(memberTable.organizationId, organizationId)),
   ]);
 
-  // Mirror the old per-receipt loop: a device appears in monthByDevice when it
-  // has ≥1 receipt this month, in todayByDevice when it has ≥1 today; absent
+  // Mirror the old per-document loop: a device appears in monthByDevice when it
+  // has ≥1 document this month, in todayByDevice when it has ≥1 today; absent
   // devices read back as 0 via `?? 0` in mapDevice. (count(*) here is ≥1.)
   const todayByDevice = new Map<string, number>();
   const monthByDevice = new Map<string, number>();
   for (const r of deviceCountRows) {
-    // deviceId is nullable (cloud-ingested receipts have no device); those rows
+    // deviceId is nullable (cloud-ingested documents have no device); those rows
     // don't belong to any device bucket, so skip them.
     if (!r.deviceId) continue;
     monthByDevice.set(r.deviceId, r.month);
@@ -287,8 +287,8 @@ function mapDevice(
     firmwareVersion: d.firmwareVersion,
     lastSeen: (d.lastSeenAt ?? d.createdAt).toISOString(),
     lastSeenAt: d.lastSeenAt ? d.lastSeenAt.toISOString() : null,
-    receiptsToday: todayBy.get(d.id) ?? 0,
-    receiptsThisMonth: monthBy.get(d.id) ?? 0,
+    documentsToday: todayBy.get(d.id) ?? 0,
+    documentsThisMonth: monthBy.get(d.id) ?? 0,
   };
 }
 
@@ -301,8 +301,8 @@ function rollUpStoreStatus(devices: Device[]): StoreSummary["status"] {
 function summarize(b: OrgBundle): TenantSummary {
   const tenant = buildTenant(b);
   const allDevices = tenant.stores.flatMap((s) => s.devices);
-  const receiptsThisMonth = allDevices.reduce(
-    (a, d) => a + d.receiptsThisMonth,
+  const documentsThisMonth = allDevices.reduce(
+    (a, d) => a + d.documentsThisMonth,
     0,
   );
   return {
@@ -311,19 +311,19 @@ function summarize(b: OrgBundle): TenantSummary {
     status: tenant.status,
     storeCount: tenant.stores.length,
     deviceCount: allDevices.length,
-    receiptsThisMonth,
+    documentsThisMonth,
     revenueThisMonth:
-      Math.round(receiptsThisMonth * tenant.perPrintPrice * 100) / 100,
+      Math.round(documentsThisMonth * tenant.perPrintPrice * 100) / 100,
     perPrintPrice: tenant.perPrintPrice,
   };
 }
 
-// ---- time series from SQL-aggregated receipt buckets ------------------------
+// ---- time series from SQL-aggregated document buckets ------------------------
 // The bundle already holds GROUP BY counts keyed "YYYY-MM-DD" / "YYYY-MM" (UTC,
 // via date_trunc). bucketsToSeries joins them onto the ordered day/month keys —
 // the same join the per-store analytics (getStoreAnalytics/getStoresAnalytics)
 // use, so org-wide and per-store series can never drift apart. Buckets outside
-// the key window are simply not joined (identical to the old all-receipts path,
+// the key window are simply not joined (identical to the old all-documents path,
 // which bucketed everything then dropped out-of-window keys).
 
 function dailySeries(b: OrgBundle, price: number): TimePoint[] {
@@ -338,7 +338,7 @@ function sumSeries(all: TimePoint[][]): TimePoint[] {
   if (all.length === 0) return [];
   return all[0].map((_, i) => ({
     label: all[0][i].label,
-    receipts: all.reduce((a, s) => a + s[i].receipts, 0),
+    documents: all.reduce((a, s) => a + s[i].documents, 0),
     revenue: Math.round(all.reduce((a, s) => a + s[i].revenue, 0) * 100) / 100,
   }));
 }
@@ -364,12 +364,12 @@ export async function getTenant(organizationId: string): Promise<Tenant> {
 
 export interface TenantDashboard {
   tenant: Tenant;
-  receiptsToday: number;
-  receiptsThisMonth: number;
+  documentsToday: number;
+  documentsThisMonth: number;
   activeDevices: number;
   totalDevices: number;
   eco: ReturnType<typeof computeEcoSavings>;
-  ecoYtdReceipts: number;
+  ecoYtdDocuments: number;
   ecoYtd: ReturnType<typeof computeEcoSavings>;
   daily: TimePoint[];
 }
@@ -381,20 +381,20 @@ export async function getTenantDashboard(
   if (!b) throw new Error(`Organization not found: ${organizationId}`);
   const tenant = buildTenant(b);
   const devices = tenant.stores.flatMap((s) => s.devices);
-  const receiptsToday = devices.reduce((a, d) => a + d.receiptsToday, 0);
-  const receiptsThisMonth = devices.reduce((a, d) => a + d.receiptsThisMonth, 0);
+  const documentsToday = devices.reduce((a, d) => a + d.documentsToday, 0);
+  const documentsThisMonth = devices.reduce((a, d) => a + d.documentsThisMonth, 0);
   const activeDevices = devices.filter((d) => d.status === "online").length;
-  const ecoYtdReceipts = Math.round(receiptsThisMonth * 7.4);
+  const ecoYtdDocuments = Math.round(documentsThisMonth * 7.4);
 
   return {
     tenant,
-    receiptsToday,
-    receiptsThisMonth,
+    documentsToday,
+    documentsThisMonth,
     activeDevices,
     totalDevices: devices.length,
-    eco: computeEcoSavings(receiptsThisMonth),
-    ecoYtdReceipts,
-    ecoYtd: computeEcoSavings(ecoYtdReceipts),
+    eco: computeEcoSavings(documentsThisMonth),
+    ecoYtdDocuments,
+    ecoYtd: computeEcoSavings(ecoYtdDocuments),
     daily: dailySeries(b, tenant.perPrintPrice),
   };
 }
@@ -410,7 +410,7 @@ export async function getTenantStores(
     timezone: s.timezone,
     deviceCount: s.devices.length,
     onlineCount: s.devices.filter((d) => d.status === "online").length,
-    receiptsThisMonth: s.devices.reduce((a, d) => a + d.receiptsThisMonth, 0),
+    documentsThisMonth: s.devices.reduce((a, d) => a + d.documentsThisMonth, 0),
     status: rollUpStoreStatus(s.devices),
   }));
 }
@@ -430,7 +430,7 @@ export async function getStore(
 }
 
 /**
- * Per-store analytics: daily/monthly receipt series, this-vs-last-month trend,
+ * Per-store analytics: daily/monthly document series, this-vs-last-month trend,
  * revenue + eco for this month, and busiest day-of-week / peak hour. Returns the
  * store too so the page can render without a second lookup. null if not found.
  */
@@ -447,26 +447,26 @@ export async function getStoreAnalytics(
   const since9mo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 8, 1));
   const since90 = new Date(now.getTime() - 90 * 86_400_000);
 
-  const dayExpr = sql<string>`to_char(date_trunc('day', ${receiptTable.createdAt}), 'YYYY-MM-DD')`;
-  const monthExpr = sql<string>`to_char(date_trunc('month', ${receiptTable.createdAt}), 'YYYY-MM')`;
+  const dayExpr = sql<string>`to_char(date_trunc('day', ${documentTable.createdAt}), 'YYYY-MM-DD')`;
+  const monthExpr = sql<string>`to_char(date_trunc('month', ${documentTable.createdAt}), 'YYYY-MM')`;
   // created_at is `timestamp` (no tz) storing UTC wall-clock, so re-anchor to UTC
   // before converting to the store's local zone — the double AT TIME ZONE is required.
-  const localTs = sql`((${receiptTable.createdAt} AT TIME ZONE 'UTC') AT TIME ZONE ${store.timezone})`;
+  const localTs = sql`((${documentTable.createdAt} AT TIME ZONE 'UTC') AT TIME ZONE ${store.timezone})`;
   const dowExpr = sql<number>`extract(dow from ${localTs})::int`;
   const hourExpr = sql<number>`extract(hour from ${localTs})::int`;
   const scoped = (since: Date) =>
-    and(eq(receiptTable.storeId, storeId), gte(receiptTable.createdAt, since));
+    and(eq(documentTable.storeId, storeId), gte(documentTable.createdAt, since));
 
   const [dailyRows, monthlyRows, gridRows] = await Promise.all([
-    db.select({ bucket: dayExpr, count: count() }).from(receiptTable).where(scoped(since30)).groupBy(dayExpr),
-    db.select({ bucket: monthExpr, count: count() }).from(receiptTable).where(scoped(since9mo)).groupBy(monthExpr),
-    db.select({ dow: dowExpr, hour: hourExpr, count: count() }).from(receiptTable).where(scoped(since90)).groupBy(sql`1`, sql`2`),
+    db.select({ bucket: dayExpr, count: count() }).from(documentTable).where(scoped(since30)).groupBy(dayExpr),
+    db.select({ bucket: monthExpr, count: count() }).from(documentTable).where(scoped(since9mo)).groupBy(monthExpr),
+    db.select({ dow: dowExpr, hour: hourExpr, count: count() }).from(documentTable).where(scoped(since90)).groupBy(sql`1`, sql`2`),
   ]);
 
   const daily = bucketsToSeries(dailyRows, dayKeys(now, 30), price);
   const monthly = bucketsToSeries(monthlyRows, monthKeys(now, 9), price);
-  const thisMonth = monthly[monthly.length - 1]?.receipts ?? 0;
-  const lastMonth = monthly[monthly.length - 2]?.receipts ?? 0;
+  const thisMonth = monthly[monthly.length - 1]?.documents ?? 0;
+  const lastMonth = monthly[monthly.length - 2]?.documents ?? 0;
 
   const heatmap = buildHeatmap(gridRows);
   const analytics: StoreAnalytics = {
@@ -482,8 +482,8 @@ export async function getStoreAnalytics(
 }
 
 /**
- * Cross-store comparison for the tenant Analytics page: per-store rows (receipts
- * this month, trend vs last month, revenue, eco) sorted by receipts, plus a
+ * Cross-store comparison for the tenant Analytics page: per-store rows (documents
+ * this month, trend vs last month, revenue, eco) sorted by documents, plus a
  * per-store monthly series for the comparison chart. Degrades to empty on error.
  */
 export async function getStoresAnalytics(organizationId: string): Promise<{
@@ -498,13 +498,13 @@ export async function getStoresAnalytics(organizationId: string): Promise<{
 
     const now = new Date();
     const since9mo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 8, 1));
-    const monthExpr = sql<string>`to_char(date_trunc('month', ${receiptTable.createdAt}), 'YYYY-MM')`;
+    const monthExpr = sql<string>`to_char(date_trunc('month', ${documentTable.createdAt}), 'YYYY-MM')`;
 
     const perStoreMonth = await db
-      .select({ storeId: receiptTable.storeId, bucket: monthExpr, count: count() })
-      .from(receiptTable)
-      .where(and(eq(receiptTable.organizationId, organizationId), gte(receiptTable.createdAt, since9mo)))
-      .groupBy(receiptTable.storeId, monthExpr);
+      .select({ storeId: documentTable.storeId, bucket: monthExpr, count: count() })
+      .from(documentTable)
+      .where(and(eq(documentTable.organizationId, organizationId), gte(documentTable.createdAt, since9mo)))
+      .groupBy(documentTable.storeId, monthExpr);
 
     const keys = monthKeys(now, 9);
     const thisKey = keys[keys.length - 1].key;
@@ -601,7 +601,7 @@ export async function getAllDevices(): Promise<DeviceRow[]> {
 
 export interface AdminOverview {
   mrr: number;
-  receiptsThisMonth: number;
+  documentsThisMonth: number;
   activeDevices: number;
   totalDevices: number;
   totalCustomers: number;
@@ -632,7 +632,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
 
   return {
     mrr: Math.round(summaries.reduce((a, s) => a + s.revenueThisMonth, 0) * 100) / 100,
-    receiptsThisMonth: summaries.reduce((a, s) => a + s.receiptsThisMonth, 0),
+    documentsThisMonth: summaries.reduce((a, s) => a + s.documentsThisMonth, 0),
     activeDevices,
     totalDevices,
     totalCustomers: summaries.length,
@@ -676,7 +676,7 @@ export async function getCustomerDetail(
     devices,
     monthly: monthlySeries(b, tenant.perPrintPrice),
     invoices: await getInvoices(organizationId),
-    eco: computeEcoSavings(summary.receiptsThisMonth),
+    eco: computeEcoSavings(summary.documentsThisMonth),
   };
 }
 
@@ -699,7 +699,7 @@ function mapInvoice(row: typeof invoiceTable.$inferSelect): Invoice {
       month: "short",
       year: "numeric",
     }),
-    receipts: row.receiptCount,
+    documents: row.documentCount,
     amount: dollars(row.amountDueCents),
     status,
     lifecycle: row.status,
@@ -1017,9 +1017,9 @@ export async function enqueueConfigChangedForOrg(
   );
 }
 
-// Device provisioning helpers live in lib/receipts.ts (claimDevice,
+// Device provisioning helpers live in lib/documents.ts (claimDevice,
 // getUnclaimedDevices) — re-exported here so callers have one data entrypoint.
-export { claimDevice, getUnclaimedDevices } from "./receipts";
+export { claimDevice, getUnclaimedDevices } from "./documents";
 
 // ============================================================================
 // Tenant billing view-model (subscription status, saved card, invoices).
@@ -1049,7 +1049,7 @@ export async function getTenantBilling(organizationId: string) {
       id: i.id,
       periodStart: i.periodStart.toISOString(),
       periodEnd: i.periodEnd.toISOString(),
-      receiptCount: i.receiptCount,
+      documentCount: i.documentCount,
       amount: i.amountDueCents / 100,
       status: i.status,
       hostedInvoiceUrl: i.hostedInvoiceUrl ?? null,
@@ -1110,7 +1110,7 @@ export async function getOrgInvitations(organizationId: string) {
   }));
 }
 
-export interface ReceiptListRow {
+export interface DocumentListRow {
   id: string;
   token: string;
   status: "pending" | "ready" | "downloaded";
@@ -1121,46 +1121,46 @@ export interface ReceiptListRow {
 }
 
 /** Build the WHERE conditions shared by the list + count queries. */
-function receiptConditions(f: ReceiptFilters) {
+function documentConditions(f: DocumentFilters) {
   const c = [];
-  if (f.organizationId) c.push(eq(receiptTable.organizationId, f.organizationId));
-  if (f.storeId) c.push(eq(receiptTable.storeId, f.storeId));
-  if (f.deviceId) c.push(eq(receiptTable.deviceId, f.deviceId));
-  if (f.status) c.push(eq(receiptTable.status, f.status));
-  if (f.from) c.push(gte(receiptTable.createdAt, f.from));
-  if (f.to) c.push(lte(receiptTable.createdAt, f.to));
-  if (f.token) c.push(eq(receiptTable.token, f.token));
+  if (f.organizationId) c.push(eq(documentTable.organizationId, f.organizationId));
+  if (f.storeId) c.push(eq(documentTable.storeId, f.storeId));
+  if (f.deviceId) c.push(eq(documentTable.deviceId, f.deviceId));
+  if (f.status) c.push(eq(documentTable.status, f.status));
+  if (f.from) c.push(gte(documentTable.createdAt, f.from));
+  if (f.to) c.push(lte(documentTable.createdAt, f.to));
+  if (f.token) c.push(eq(documentTable.token, f.token));
   return c;
 }
 
-/** Filterable, paginated receipt search (tenant: pass organizationId; admin: omit). */
-export async function searchReceipts(
-  f: ReceiptFilters,
-): Promise<{ rows: ReceiptListRow[]; total: number }> {
-  const conds = receiptConditions(f);
+/** Filterable, paginated document search (tenant: pass organizationId; admin: omit). */
+export async function searchDocuments(
+  f: DocumentFilters,
+): Promise<{ rows: DocumentListRow[]; total: number }> {
+  const conds = documentConditions(f);
   const where = conds.length ? and(...conds) : undefined;
 
   const rows = await db
     .select({
-      id: receiptTable.id,
-      token: receiptTable.token,
-      status: receiptTable.status,
+      id: documentTable.id,
+      token: documentTable.token,
+      status: documentTable.status,
       storeName: storeTable.name,
       deviceName: deviceTable.name,
-      createdAt: receiptTable.createdAt,
-      byteSize: receiptTable.byteSize,
+      createdAt: documentTable.createdAt,
+      byteSize: documentTable.byteSize,
     })
-    .from(receiptTable)
-    .leftJoin(storeTable, eq(receiptTable.storeId, storeTable.id))
-    .leftJoin(deviceTable, eq(receiptTable.deviceId, deviceTable.id))
+    .from(documentTable)
+    .leftJoin(storeTable, eq(documentTable.storeId, storeTable.id))
+    .leftJoin(deviceTable, eq(documentTable.deviceId, deviceTable.id))
     .where(where)
-    .orderBy(desc(receiptTable.createdAt))
+    .orderBy(desc(documentTable.createdAt))
     .limit(PAGE_SIZE)
     .offset((f.page - 1) * PAGE_SIZE);
 
   const [{ total }] = await db
     .select({ total: count() })
-    .from(receiptTable)
+    .from(documentTable)
     .where(where);
 
   return {
@@ -1177,30 +1177,30 @@ export async function searchReceipts(
   };
 }
 
-/** One receipt + a fresh presigned image URL. Read-only — never flips status. */
-export async function getReceiptDetail(
-  receiptId: string,
+/** One document + a fresh presigned image URL. Read-only — never flips status. */
+export async function getDocumentDetail(
+  documentId: string,
   opts: { organizationId?: string },
 ) {
-  const conds = [eq(receiptTable.id, receiptId)];
-  if (opts.organizationId) conds.push(eq(receiptTable.organizationId, opts.organizationId));
+  const conds = [eq(documentTable.id, documentId)];
+  if (opts.organizationId) conds.push(eq(documentTable.organizationId, opts.organizationId));
   const [r] = await db
     .select({
-      id: receiptTable.id,
-      token: receiptTable.token,
-      status: receiptTable.status,
-      storageKey: receiptTable.storageKey,
-      byteSize: receiptTable.byteSize,
-      createdAt: receiptTable.createdAt,
-      downloadedAt: receiptTable.downloadedAt,
+      id: documentTable.id,
+      token: documentTable.token,
+      status: documentTable.status,
+      storageKey: documentTable.storageKey,
+      byteSize: documentTable.byteSize,
+      createdAt: documentTable.createdAt,
+      downloadedAt: documentTable.downloadedAt,
       storeName: storeTable.name,
       deviceName: deviceTable.name,
-      storeId: receiptTable.storeId,
-      deviceId: receiptTable.deviceId,
+      storeId: documentTable.storeId,
+      deviceId: documentTable.deviceId,
     })
-    .from(receiptTable)
-    .leftJoin(storeTable, eq(receiptTable.storeId, storeTable.id))
-    .leftJoin(deviceTable, eq(receiptTable.deviceId, deviceTable.id))
+    .from(documentTable)
+    .leftJoin(storeTable, eq(documentTable.storeId, storeTable.id))
+    .leftJoin(deviceTable, eq(documentTable.deviceId, deviceTable.id))
     .where(and(...conds))
     .limit(1);
   if (!r) return null;
@@ -1229,7 +1229,7 @@ export async function getReceiptDetail(
 }
 
 /** Stores + devices for an org, for the tenant filter dropdowns. */
-export async function getReceiptFilterOptions(organizationId: string) {
+export async function getDocumentFilterOptions(organizationId: string) {
   const [stores, devices] = await Promise.all([
     db.select({ id: storeTable.id, name: storeTable.name }).from(storeTable).where(eq(storeTable.organizationId, organizationId)),
     db.select({ id: deviceTable.id, name: deviceTable.name }).from(deviceTable).where(eq(deviceTable.organizationId, organizationId)),
@@ -1256,7 +1256,7 @@ export interface PlatformHealth {
   };
   usage: {
     topTenants: { id: string; name: string; count: number }[];
-    inactiveTenants: { id: string; name: string; lastReceiptAt: string | null }[];
+    inactiveTenants: { id: string; name: string; lastDocumentAt: string | null }[];
   };
   alerts: HealthAlert[];
 }
@@ -1312,36 +1312,36 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
       .from(deviceTable)
       .where(stalePred);
 
-    const [{ last1h }] = await db.select({ last1h: count() }).from(receiptTable).where(gte(receiptTable.createdAt, h1));
-    const [{ last24h }] = await db.select({ last24h: count() }).from(receiptTable).where(gte(receiptTable.createdAt, h24));
+    const [{ last1h }] = await db.select({ last1h: count() }).from(documentTable).where(gte(documentTable.createdAt, h1));
+    const [{ last24h }] = await db.select({ last24h: count() }).from(documentTable).where(gte(documentTable.createdAt, h24));
     const breakdownRows = await db
-      .select({ status: receiptTable.status, c: count() })
-      .from(receiptTable)
-      .where(gte(receiptTable.createdAt, h24))
-      .groupBy(receiptTable.status);
+      .select({ status: documentTable.status, c: count() })
+      .from(documentTable)
+      .where(gte(documentTable.createdAt, h24))
+      .groupBy(documentTable.status);
     const breakdown = { ready: 0, downloaded: 0, pending: 0 } as Record<string, number>;
     for (const r of breakdownRows) breakdown[r.status] = Number(r.c);
     const [{ stuckPending }] = await db
       .select({ stuckPending: count() })
-      .from(receiptTable)
-      .where(and(eq(receiptTable.status, "pending"), lt(receiptTable.createdAt, stuckCut)));
+      .from(documentTable)
+      .where(and(eq(documentTable.status, "pending"), lt(documentTable.createdAt, stuckCut)));
 
     const topRows = await db
       .select({ id: orgTable.id, name: orgTable.name, c: count() })
-      .from(receiptTable)
-      .innerJoin(orgTable, eq(receiptTable.organizationId, orgTable.id))
-      .where(gte(receiptTable.createdAt, h24))
+      .from(documentTable)
+      .innerJoin(orgTable, eq(documentTable.organizationId, orgTable.id))
+      .where(gte(documentTable.createdAt, h24))
       .groupBy(orgTable.id, orgTable.name)
       .orderBy(desc(count()))
       .limit(5);
     const topTenants = topRows.map((r) => ({ id: r.id, name: r.name, count: Number(r.c) }));
 
     const allOrgs = await db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable);
-    // One row per org (max createdAt) — avoids reading the whole receipt table.
+    // One row per org (max createdAt) — avoids reading the whole document table.
     const lastRows = await db
-      .select({ org: receiptTable.organizationId, last: max(receiptTable.createdAt) })
-      .from(receiptTable)
-      .groupBy(receiptTable.organizationId);
+      .select({ org: documentTable.organizationId, last: max(documentTable.createdAt) })
+      .from(documentTable)
+      .groupBy(documentTable.organizationId);
     const lastByOrg = new Map<string, Date>();
     for (const r of lastRows) if (r.last) lastByOrg.set(r.org, r.last);
     const inactiveTenants = allOrgs
@@ -1352,7 +1352,7 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
       .map((o) => ({
         id: o.id,
         name: o.name,
-        lastReceiptAt: lastByOrg.get(o.id)?.toISOString() ?? null,
+        lastDocumentAt: lastByOrg.get(o.id)?.toISOString() ?? null,
       }));
 
     const alerts = computeAlerts({
@@ -1419,14 +1419,14 @@ export async function getAlertInputs(): Promise<{
     );
   const [{ stuckPendingCount }] = await db
     .select({ stuckPendingCount: count() })
-    .from(receiptTable)
-    .where(and(eq(receiptTable.status, "pending"), lt(receiptTable.createdAt, stuckCut)));
+    .from(documentTable)
+    .where(and(eq(documentTable.status, "pending"), lt(documentTable.createdAt, stuckCut)));
 
   const allOrgs = await db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable);
   const lastRows = await db
-    .select({ org: receiptTable.organizationId, last: max(receiptTable.createdAt) })
-    .from(receiptTable)
-    .groupBy(receiptTable.organizationId);
+    .select({ org: documentTable.organizationId, last: max(documentTable.createdAt) })
+    .from(documentTable)
+    .groupBy(documentTable.organizationId);
   const lastByOrg = new Map<string, Date>();
   for (const r of lastRows) if (r.last) lastByOrg.set(r.org, r.last);
   const inactiveTenants = allOrgs
@@ -1619,10 +1619,10 @@ export async function getRecentWebhookDeliveries(organizationId: string, limit =
 }
 
 // ============================================================================
-// Public API v1 — cursor receipt list + usage aggregate
+// Public API v1 — cursor document list + usage aggregate
 // ============================================================================
 
-export interface ApiReceiptFilters {
+export interface ApiDocumentFilters {
   organizationId: string;
   storeId?: string;
   deviceId?: string;
@@ -1634,17 +1634,17 @@ export interface ApiReceiptFilters {
   cursor?: { t: Date; id: string };
 }
 
-/** Keyset (cursor) receipt list for /api/v1, newest first. Org-scoped. */
-export async function listReceiptsByCursor(f: ApiReceiptFilters): Promise<ApiReceiptRow[]> {
-  const conds = [eq(receiptTable.organizationId, f.organizationId)];
-  if (f.storeId) conds.push(eq(receiptTable.storeId, f.storeId));
-  if (f.deviceId) conds.push(eq(receiptTable.deviceId, f.deviceId));
-  if (f.status) conds.push(eq(receiptTable.status, f.status));
-  if (f.createdAfter) conds.push(gte(receiptTable.createdAt, f.createdAfter));
-  if (f.createdBefore) conds.push(lte(receiptTable.createdAt, f.createdBefore));
-  if (f.token) conds.push(eq(receiptTable.token, f.token));
+/** Keyset (cursor) document list for /api/v1, newest first. Org-scoped. */
+export async function listDocumentsByCursor(f: ApiDocumentFilters): Promise<ApiDocumentRow[]> {
+  const conds = [eq(documentTable.organizationId, f.organizationId)];
+  if (f.storeId) conds.push(eq(documentTable.storeId, f.storeId));
+  if (f.deviceId) conds.push(eq(documentTable.deviceId, f.deviceId));
+  if (f.status) conds.push(eq(documentTable.status, f.status));
+  if (f.createdAfter) conds.push(gte(documentTable.createdAt, f.createdAfter));
+  if (f.createdBefore) conds.push(lte(documentTable.createdAt, f.createdBefore));
+  if (f.token) conds.push(eq(documentTable.token, f.token));
   if (f.cursor) {
-    // receipt.created_at is `timestamp without time zone`. Drizzle sends a JS Date
+    // document.created_at is `timestamp without time zone`. Drizzle sends a JS Date
     // as a `timestamptz` parameter; Postgres then coerces it to `timestamp` using
     // the server's local timezone, shifting the value and breaking the boundary
     // exclusion. Fix: supply the cursor as an explicit `::timestamp` cast from the
@@ -1652,23 +1652,23 @@ export async function listReceiptsByCursor(f: ApiReceiptFilters): Promise<ApiRec
     // unique tiebreaker for rows that share the same millisecond.
     const tStr = f.cursor.t.toISOString(); // e.g. "2026-06-06T12:22:47.610Z"
     conds.push(
-      sql`(${receiptTable.createdAt}, ${receiptTable.id}) < (${tStr}::timestamp, ${f.cursor.id})`,
+      sql`(${documentTable.createdAt}, ${documentTable.id}) < (${tStr}::timestamp, ${f.cursor.id})`,
     );
   }
 
   const rows = await db
     .select({
-      id: receiptTable.id,
-      token: receiptTable.token,
-      status: receiptTable.status,
-      storeId: receiptTable.storeId,
-      deviceId: receiptTable.deviceId,
-      byteSize: receiptTable.byteSize,
-      createdAt: receiptTable.createdAt,
+      id: documentTable.id,
+      token: documentTable.token,
+      status: documentTable.status,
+      storeId: documentTable.storeId,
+      deviceId: documentTable.deviceId,
+      byteSize: documentTable.byteSize,
+      createdAt: documentTable.createdAt,
     })
-    .from(receiptTable)
+    .from(documentTable)
     .where(and(...conds))
-    .orderBy(desc(receiptTable.createdAt), desc(receiptTable.id))
+    .orderBy(desc(documentTable.createdAt), desc(documentTable.id))
     .limit(f.limit);
 
   return rows;
@@ -1676,10 +1676,10 @@ export async function listReceiptsByCursor(f: ApiReceiptFilters): Promise<ApiRec
 
 export interface ApiUsageData {
   unitPriceCents: number;
-  receiptsThisMonth: number;
-  currentPeriod: { start: string; end: string; receiptCount: number; amountDueCents: number };
-  daily: { date: string; receipts: number }[];
-  monthly: { month: string; receipts: number }[];
+  documentsThisMonth: number;
+  currentPeriod: { start: string; end: string; documentCount: number; amountDueCents: number };
+  daily: { date: string; documents: number }[];
+  monthly: { month: string; documents: number }[];
 }
 
 /** Machine-keyed usage for /api/v1/usage (integer cents, UTC buckets). */
@@ -1690,9 +1690,9 @@ export async function getApiUsage(organizationId: string): Promise<ApiUsageData>
   const since30 = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29));
   const since12mo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1));
 
-  const dayExpr = sql<string>`to_char(date_trunc('day', ${receiptTable.createdAt}), 'YYYY-MM-DD')`;
-  const monthExpr = sql<string>`to_char(date_trunc('month', ${receiptTable.createdAt}), 'YYYY-MM')`;
-  const orgScope = (since: Date) => and(eq(receiptTable.organizationId, organizationId), gte(receiptTable.createdAt, since));
+  const dayExpr = sql<string>`to_char(date_trunc('day', ${documentTable.createdAt}), 'YYYY-MM-DD')`;
+  const monthExpr = sql<string>`to_char(date_trunc('month', ${documentTable.createdAt}), 'YYYY-MM')`;
+  const orgScope = (since: Date) => and(eq(documentTable.organizationId, organizationId), gte(documentTable.createdAt, since));
 
   const [settingsRow] = await db
     .select({ price: settingsTable.perPrintPriceCents })
@@ -1702,25 +1702,25 @@ export async function getApiUsage(organizationId: string): Promise<ApiUsageData>
   const unitPriceCents = settingsRow?.price ?? 4;
 
   const [dailyRows, monthlyRows, monthCountRows] = await Promise.all([
-    db.select({ bucket: dayExpr, count: count() }).from(receiptTable).where(orgScope(since30)).groupBy(dayExpr),
-    db.select({ bucket: monthExpr, count: count() }).from(receiptTable).where(orgScope(since12mo)).groupBy(monthExpr),
-    db.select({ count: count() }).from(receiptTable).where(orgScope(monthStart)),
+    db.select({ bucket: dayExpr, count: count() }).from(documentTable).where(orgScope(since30)).groupBy(dayExpr),
+    db.select({ bucket: monthExpr, count: count() }).from(documentTable).where(orgScope(since12mo)).groupBy(monthExpr),
+    db.select({ count: count() }).from(documentTable).where(orgScope(monthStart)),
   ]);
 
   const dailyMap = new Map(dailyRows.map((r) => [r.bucket, Number(r.count)]));
   const monthlyMap = new Map(monthlyRows.map((r) => [r.bucket, Number(r.count)]));
-  const daily = dayKeys(now, 30).map((k) => ({ date: k.key, receipts: dailyMap.get(k.key) ?? 0 }));
-  const monthly = monthKeys(now, 12).map((k) => ({ month: k.key, receipts: monthlyMap.get(k.key) ?? 0 }));
-  const receiptsThisMonth = Number(monthCountRows[0]?.count ?? 0);
+  const daily = dayKeys(now, 30).map((k) => ({ date: k.key, documents: dailyMap.get(k.key) ?? 0 }));
+  const monthly = monthKeys(now, 12).map((k) => ({ month: k.key, documents: monthlyMap.get(k.key) ?? 0 }));
+  const documentsThisMonth = Number(monthCountRows[0]?.count ?? 0);
 
   return {
     unitPriceCents,
-    receiptsThisMonth,
+    documentsThisMonth,
     currentPeriod: {
       start: monthStart.toISOString(),
       end: monthEnd.toISOString(),
-      receiptCount: receiptsThisMonth,
-      amountDueCents: receiptsThisMonth * unitPriceCents,
+      documentCount: documentsThisMonth,
+      amountDueCents: documentsThisMonth * unitPriceCents,
     },
     daily,
     monthly,

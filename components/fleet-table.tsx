@@ -97,7 +97,7 @@ export function FleetTable({
               <TableHead>Store</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Last seen</TableHead>
-              <TableHead className="text-right">Receipts (mo.)</TableHead>
+              <TableHead className="text-right">Documents (mo.)</TableHead>
               <TableHead className="w-10 pr-4" />
             </TableRow>
           </TableHeader>
@@ -117,7 +117,7 @@ export function FleetTable({
                   {timeAgo(r.lastSeen)}
                 </TableCell>
                 <TableCell className="text-right font-medium tabular-nums">
-                  {formatNumber(r.receiptsThisMonth)}
+                  {formatNumber(r.documentsThisMonth)}
                 </TableCell>
                 <TableCell className="pr-4">
                   <DeviceRowActions

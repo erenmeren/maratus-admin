@@ -40,9 +40,9 @@ export function computeAlerts(input: {
     });
   if (input.stuckPendingCount > 0)
     alerts.push({
-      key: "receipts-stuck",
+      key: "documents-stuck",
       severity: "warning",
-      message: `${input.stuckPendingCount} receipt(s) stuck pending ${STUCK_PENDING_MINUTES}+ minutes`,
+      message: `${input.stuckPendingCount} document(s) stuck pending ${STUCK_PENDING_MINUTES}+ minutes`,
     });
   // Per-tenant alerts up to a cap; beyond that, one summarized alert so a
   // platform with many empty orgs doesn't produce an alert wall.
@@ -50,14 +50,14 @@ export function computeAlerts(input: {
     alerts.push({
       key: "tenants-inactive",
       severity: "info",
-      message: `${input.inactiveTenants.length} tenants have no receipts in ${INACTIVE_DAYS} days`,
+      message: `${input.inactiveTenants.length} tenants have no documents in ${INACTIVE_DAYS} days`,
     });
   } else {
     for (const t of input.inactiveTenants)
       alerts.push({
         key: `tenant-inactive:${t.id}`,
         severity: "info",
-        message: `${t.name}: no receipts in ${INACTIVE_DAYS} days`,
+        message: `${t.name}: no documents in ${INACTIVE_DAYS} days`,
       });
   }
   return alerts;

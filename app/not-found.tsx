@@ -13,7 +13,7 @@ export default function NotFound() {
         </p>
         <h1 className="font-display text-xl font-bold">Page not found</h1>
         <p className="max-w-sm text-sm text-muted-foreground">
-          This receipt has gone fully paperless — there&apos;s nothing here.
+          This document has gone fully paperless — there&apos;s nothing here.
         </p>
       </div>
       <div className="flex gap-2">

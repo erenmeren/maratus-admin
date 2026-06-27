@@ -16,11 +16,11 @@ export default async function AnalyticsPage() {
   const { organizationId } = await requireTenant();
   const { rows, monthlyByStore } = await getStoresAnalytics(organizationId);
 
-  const byStore = rows.map((r) => ({ label: r.storeName, value: r.receiptsThisMonth }));
-  const exportHeaders = ["Store", "Receipts (this month)", "Trend %", "Revenue (USD)", "Paper saved (kg)"];
+  const byStore = rows.map((r) => ({ label: r.storeName, value: r.documentsThisMonth }));
+  const exportHeaders = ["Store", "Documents (this month)", "Trend %", "Revenue (USD)", "Paper saved (kg)"];
   const exportRows = rows.map((r) => [
     r.storeName,
-    r.receiptsThisMonth,
+    r.documentsThisMonth,
     r.trend.pctChange === null ? "—" : r.trend.pctChange,
     r.revenueThisMonth.toFixed(2),
     r.eco.paperKg.toFixed(1),
@@ -30,7 +30,7 @@ export default async function AnalyticsPage() {
     <>
       <PageHeader
         title="Analytics"
-        description="Compare receipt volume, trends, and revenue across your stores."
+        description="Compare document volume, trends, and revenue across your stores."
       >
         <ExportButton
           label="Export analytics"
@@ -45,7 +45,7 @@ export default async function AnalyticsPage() {
           <CardContent className="flex flex-col items-center justify-center gap-2 py-16 text-center">
             <p className="text-sm font-medium">No store data yet</p>
             <p className="max-w-xs text-xs text-muted-foreground">
-              Once your stores start issuing receipts, comparisons show up here.
+              Once your stores start issuing documents, comparisons show up here.
             </p>
           </CardContent>
         </Card>
@@ -53,7 +53,7 @@ export default async function AnalyticsPage() {
         <>
           <Card>
             <CardHeader>
-              <CardTitle>Receipts by store</CardTitle>
+              <CardTitle>Documents by store</CardTitle>
               <CardDescription>This month, highest first</CardDescription>
             </CardHeader>
             <CardContent>
@@ -72,7 +72,7 @@ export default async function AnalyticsPage() {
                   <div>
                     <p className="text-sm font-medium">{r.storeName}</p>
                     <p className="text-xs text-muted-foreground">
-                      {formatNumber(r.receiptsThisMonth)} receipts · {formatCurrency(r.revenueThisMonth)}
+                      {formatNumber(r.documentsThisMonth)} documents · {formatCurrency(r.revenueThisMonth)}
                     </p>
                   </div>
                   <span
@@ -94,7 +94,7 @@ export default async function AnalyticsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Trajectories</CardTitle>
-              <CardDescription>Monthly receipts per store, last 9 months</CardDescription>
+              <CardDescription>Monthly documents per store, last 9 months</CardDescription>
             </CardHeader>
             <CardContent>
               <StoreCompareChart data={monthlyByStore} />

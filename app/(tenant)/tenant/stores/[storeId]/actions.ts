@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { store as storeTable } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
-import { claimDevice } from "@/lib/receipts";
+import { claimDevice } from "@/lib/documents";
 import { recordAudit, AUDIT } from "@/lib/audit";
 
 export interface ClaimDeviceResult {

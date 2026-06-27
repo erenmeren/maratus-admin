@@ -1,9 +1,9 @@
 import { guardApiRequest } from "@/lib/api/guard";
 import { parseListParams } from "@/lib/api/params";
 import { decodeCursor, encodeCursor } from "@/lib/api/cursor";
-import { serializeReceiptRow } from "@/lib/api/serialize";
+import { serializeDocumentRow } from "@/lib/api/serialize";
 import { apiError, apiJson } from "@/lib/api/respond";
-import { listReceiptsByCursor } from "@/lib/data";
+import { listDocumentsByCursor } from "@/lib/data";
 
 export const runtime = "nodejs";
 
@@ -25,7 +25,7 @@ export async function GET(req: Request) {
   }
 
   const limit = parsed.value.limit;
-  const rows = await listReceiptsByCursor({
+  const rows = await listDocumentsByCursor({
     organizationId: auth.organizationId,
     storeId: parsed.value.storeId,
     deviceId: parsed.value.deviceId,
@@ -42,5 +42,5 @@ export async function GET(req: Request) {
   const last = page[page.length - 1];
   const nextCursor = hasMore && last ? encodeCursor({ t: last.createdAt.toISOString(), id: last.id }) : null;
 
-  return apiJson({ data: page.map(serializeReceiptRow), next_cursor: nextCursor });
+  return apiJson({ data: page.map(serializeDocumentRow), next_cursor: nextCursor });
 }

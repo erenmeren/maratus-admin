@@ -1,18 +1,12 @@
 import Link from "next/link";
-import { ArrowUpRight, CalendarDays, Cpu, Receipt, ReceiptText } from "lucide-react";
+import { ArrowUpRight, CalendarDays, Cpu, FileText } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { EcoSavingsCard } from "@/components/eco-savings";
-import { ReceiptsAreaChart } from "@/components/charts";
+import { DocumentsAreaChart } from "@/components/charts";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle,  } from "@/components/ui/card";
 import { getTenantDashboard, getTenantStores } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
 import { formatNumber } from "@/lib/format";
@@ -22,7 +16,7 @@ export default async function TenantDashboardPage() {
   const dash = await getTenantDashboard(organizationId);
   const stores = await getTenantStores(organizationId);
   const topStores = [...stores]
-    .sort((a, b) => b.receiptsThisMonth - a.receiptsThisMonth)
+    .sort((a, b) => b.documentsThisMonth - a.documentsThisMonth)
     .slice(0, 4);
 
   return (
@@ -39,18 +33,18 @@ export default async function TenantDashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
-          label="Receipts today"
-          value={formatNumber(dash.receiptsToday)}
+          label="Documents today"
+          value={formatNumber(dash.documentsToday)}
           delta={6.4}
           hint="vs. yesterday"
-          icon={Receipt}
+          icon={FileText}
         />
         <KpiCard
-          label="Receipts this month"
-          value={formatNumber(dash.receiptsThisMonth)}
+          label="Documents this month"
+          value={formatNumber(dash.documentsThisMonth)}
           delta={12.1}
           hint="vs. last month"
-          icon={ReceiptText}
+          icon={FileText}
         />
         <KpiCard
           label="Active devices"
@@ -63,11 +57,11 @@ export default async function TenantDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Receipts over time</CardTitle>
-            <CardDescription>Daily digital receipts, last 30 days</CardDescription>
+            <CardTitle>Documents over time</CardTitle>
+            <CardDescription>Daily digital documents, last 30 days</CardDescription>
           </CardHeader>
           <CardContent>
-            <ReceiptsAreaChart data={dash.daily} />
+            <DocumentsAreaChart data={dash.daily} />
           </CardContent>
         </Card>
 
@@ -78,7 +72,7 @@ export default async function TenantDashboardPage() {
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <div className="space-y-1">
             <CardTitle>Busiest stores</CardTitle>
-            <CardDescription>Receipts this month, by branch</CardDescription>
+            <CardDescription>Documents this month, by branch</CardDescription>
           </div>
           <Button variant="ghost" size="sm" asChild>
             <Link href="/tenant/stores">
@@ -102,7 +96,7 @@ export default async function TenantDashboardPage() {
               </div>
               <div className="flex flex-col items-end gap-1.5">
                 <span className="font-display text-lg font-bold tabular-nums">
-                  {formatNumber(s.receiptsThisMonth)}
+                  {formatNumber(s.documentsThisMonth)}
                 </span>
                 <StatusBadge status={s.status} />
               </div>

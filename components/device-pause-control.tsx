@@ -47,8 +47,8 @@ export function DevicePauseControl({
             {offline
               ? "Device is unreachable"
               : status === "online"
-                ? "Accepting receipts"
-                : "Paused — not accepting receipts"}
+                ? "Accepting documents"
+                : "Paused — not accepting documents"}
           </p>
         </div>
       </div>

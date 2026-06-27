@@ -44,8 +44,8 @@ export default async function HealthPage() {
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-medium">Ingest activity</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard label="Receipts (1h)" value={String(h.ingest.last1h)} />
-          <KpiCard label="Receipts (24h)" value={String(h.ingest.last24h)} />
+          <KpiCard label="Documents (1h)" value={String(h.ingest.last1h)} />
+          <KpiCard label="Documents (24h)" value={String(h.ingest.last24h)} />
           <KpiCard label="Stuck pending" value={String(h.ingest.stuckPending)} />
         </div>
         <p className="text-sm text-muted-foreground">
@@ -59,7 +59,7 @@ export default async function HealthPage() {
           <div>
             <h3 className="mb-2 text-sm font-medium text-muted-foreground">Top tenants (24h)</h3>
             {h.usage.topTenants.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No receipts in the last 24h.</p>
+              <p className="text-sm text-muted-foreground">No documents in the last 24h.</p>
             ) : (
               <ul className="flex flex-col gap-1 text-sm">
                 {h.usage.topTenants.map((t) => (
@@ -77,7 +77,7 @@ export default async function HealthPage() {
                 {h.usage.inactiveTenants.map((t) => (
                   <li key={t.id} className="flex justify-between border-t py-1.5">
                     <span>{t.name}</span>
-                    <span className="text-muted-foreground">{t.lastReceiptAt ? t.lastReceiptAt.slice(0, 10) : "never"}</span>
+                    <span className="text-muted-foreground">{t.lastDocumentAt ? t.lastDocumentAt.slice(0, 10) : "never"}</span>
                   </li>
                 ))}
               </ul>

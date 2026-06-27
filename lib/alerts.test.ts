@@ -50,7 +50,7 @@ describe("alertEmail", () => {
     expect(mail?.html).toContain("2 devices stale");
   });
   it("escapes HTML in messages (tenant names are user-controlled)", () => {
-    const mail = alertEmail([a("x", "<script>x</script>Acme: no receipts")]);
+    const mail = alertEmail([a("x", "<script>x</script>Acme: no documents")]);
     expect(mail?.html).toContain("&lt;script&gt;");
     expect(mail?.html).not.toContain("<script>x</script>");
   });

@@ -110,7 +110,7 @@ export interface PrinterConfig {
   clockTimezone: string;
   clock24h: boolean;
   wifiLevel: number; // 0..4
-  qrTimeoutSeconds: number; // receipt/QR screen display timeout, 15..180
+  qrTimeoutSeconds: number; // document/QR screen display timeout, 15..180
   screens: Record<PrinterScreen, ScreenLayout>;
 }
 
@@ -237,16 +237,16 @@ export function seededScreen(screen: PrinterScreen): ScreenLayout {
       return {
         objects: [
           obj({ id: "spinner", type: "spinner", x: 0.42, y: 0.34, w: 0.16, h: 0.16, z: 0 }),
-          obj({ id: "text-caption", type: "text", x: 0.15, y: 0.56, w: 0.7, h: 0.08, z: 1, text: "Preparing your receipt…", fontSize: 26, align: "center" }),
+          obj({ id: "text-caption", type: "text", x: 0.15, y: 0.56, w: 0.7, h: 0.08, z: 1, text: "Preparing your document…", fontSize: 26, align: "center" }),
           obj({ id: "text-sub", type: "text", x: 0.2, y: 0.66, w: 0.6, h: 0.06, z: 2, text: "This only takes a moment", fontSize: 16, align: "center" }),
         ],
       };
     case "qr":
-      // From ReceiptScreen (printer-preview.tsx): logo + heading + qr + caption + countdown.
+      // From DocumentScreen (printer-preview.tsx): logo + heading + qr + caption + countdown.
       return {
         objects: [
           obj({ id: "logo", type: "logo", x: 0.34, y: 0.06, w: 0.32, h: 0.12, z: 0 }),
-          obj({ id: "text-heading", type: "text", x: 0.1, y: 0.2, w: 0.8, h: 0.07, z: 1, text: "Scan to get your receipt", fontSize: 24, align: "center" }),
+          obj({ id: "text-heading", type: "text", x: 0.1, y: 0.2, w: 0.8, h: 0.07, z: 1, text: "Scan to get your document", fontSize: 24, align: "center" }),
           obj({ id: "qr", type: "qr", x: 0.32, y: 0.3, w: 0.36, h: 0.36, z: 2 }),
           obj({ id: "text-hint", type: "text", x: 0.15, y: 0.7, w: 0.7, h: 0.06, z: 3, text: "Point your phone camera at the code", fontSize: 16, align: "center" }),
           obj({ id: "countdown", type: "countdown", x: 0.3, y: 0.8, w: 0.4, h: 0.1, z: 4 }),
@@ -257,7 +257,7 @@ export function seededScreen(screen: PrinterScreen): ScreenLayout {
       return {
         objects: [
           obj({ id: "icon", type: "icon", x: 0.4, y: 0.22, w: 0.2, h: 0.2, z: 0, icon: { source: "preset", preset: "check", circle: true, tint: "accent" } }),
-          obj({ id: "text-title", type: "text", x: 0.1, y: 0.48, w: 0.8, h: 0.08, z: 1, text: "Your receipt is on its way", fontSize: 26, align: "center" }),
+          obj({ id: "text-title", type: "text", x: 0.1, y: 0.48, w: 0.8, h: 0.08, z: 1, text: "Your document is on its way", fontSize: 26, align: "center" }),
           obj({ id: "text-sub", type: "text", x: 0.15, y: 0.58, w: 0.7, h: 0.06, z: 2, text: "Check your phone — all set. Thank you!", fontSize: 16, align: "center" }),
           obj({ id: "text-footer", type: "text", x: 0.2, y: 0.82, w: 0.6, h: 0.05, z: 3, text: "Returning to start…", fontSize: 14, align: "center" }),
         ],
@@ -267,9 +267,9 @@ export function seededScreen(screen: PrinterScreen): ScreenLayout {
       return {
         objects: [
           obj({ id: "icon", type: "icon", x: 0.42, y: 0.22, w: 0.16, h: 0.16, z: 0, icon: { source: "preset", preset: "wifi-off", tint: "warn", circle: false } }),
-          obj({ id: "text-title", type: "text", x: 0.1, y: 0.44, w: 0.8, h: 0.08, z: 1, text: "We couldn't send your receipt", fontSize: 24, align: "center" }),
+          obj({ id: "text-title", type: "text", x: 0.1, y: 0.44, w: 0.8, h: 0.08, z: 1, text: "We couldn't send your document", fontSize: 24, align: "center" }),
           obj({ id: "text-sub", type: "text", x: 0.15, y: 0.54, w: 0.7, h: 0.06, z: 2, text: "The device is offline right now.", fontSize: 16, align: "center" }),
-          obj({ id: "text-pill", type: "text", x: 0.15, y: 0.72, w: 0.7, h: 0.08, z: 3, text: "Please ask a team member for a paper receipt", fontSize: 15, align: "center" }),
+          obj({ id: "text-pill", type: "text", x: 0.15, y: 0.72, w: 0.7, h: 0.08, z: 3, text: "Please ask a team member for a paper document", fontSize: 15, align: "center" }),
         ],
       };
     case "paused":
@@ -278,7 +278,7 @@ export function seededScreen(screen: PrinterScreen): ScreenLayout {
         objects: [
           obj({ id: "logo", type: "logo", x: 0.34, y: 0.22, w: 0.32, h: 0.16, z: 0 }),
           obj({ id: "text-title", type: "text", x: 0.1, y: 0.46, w: 0.8, h: 0.08, z: 1, text: "Currently unavailable", fontSize: 24, align: "center" }),
-          obj({ id: "text-sub", type: "text", x: 0.15, y: 0.56, w: 0.7, h: 0.06, z: 2, text: "Digital receipts are paused at this register.", fontSize: 16, align: "center" }),
+          obj({ id: "text-sub", type: "text", x: 0.15, y: 0.56, w: 0.7, h: 0.06, z: 2, text: "Digital documents are paused at this register.", fontSize: 16, align: "center" }),
         ],
       };
     case "setup":

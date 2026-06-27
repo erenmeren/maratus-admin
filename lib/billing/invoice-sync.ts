@@ -31,7 +31,7 @@ export async function upsertInvoiceFromStripe(si: Stripe.Invoice): Promise<void>
         status: row.status,
         amountDueCents: row.amountDueCents,
         hostedInvoiceUrl: row.hostedInvoiceUrl,
-        receiptCount: row.receiptCount,
+        documentCount: row.documentCount,
       },
     });
 }

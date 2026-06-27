@@ -25,7 +25,7 @@ export function statusForStripeInvoice(stripeStatus: string): InvoiceStatus {
   }
 }
 
-/** Shape a Billing Meter event reporting one receipt for a customer. */
+/** Shape a Billing Meter event reporting one document for a customer. */
 export function meterEventPayload(stripeCustomerId: string, eventName: string) {
   return {
     event_name: eventName,
@@ -42,13 +42,13 @@ export function isSuspended(subscriptionStatus: string | null): boolean {
 
 /** Pure: shape an `invoice` insert row from a Stripe invoice. */
 export function invoiceRowFromStripe(si: Stripe.Invoice, organizationId: string) {
-  const receiptCount = si.lines?.data?.reduce((n, l) => n + (l.quantity ?? 0), 0) ?? 0;
+  const documentCount = si.lines?.data?.reduce((n, l) => n + (l.quantity ?? 0), 0) ?? 0;
   return {
     id: id("inv"),
     organizationId,
     periodStart: new Date((si.period_start ?? 0) * 1000),
     periodEnd: new Date((si.period_end ?? 0) * 1000),
-    receiptCount,
+    documentCount,
     amountDueCents: si.amount_due ?? 0,
     status: statusForStripeInvoice(si.status ?? "open"),
     stripeInvoiceId: si.id,

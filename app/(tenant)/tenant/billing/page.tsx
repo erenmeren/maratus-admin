@@ -90,7 +90,7 @@ export default async function TenantBillingPage() {
             <thead>
               <tr className="text-left text-muted-foreground">
                 <th className="py-2">Period</th>
-                <th>Receipts</th>
+                <th>Documents</th>
                 <th>Amount</th>
                 <th>Status</th>
                 <th></th>
@@ -100,7 +100,7 @@ export default async function TenantBillingPage() {
               {billing.invoices.map((inv) => (
                 <tr key={inv.id} className="border-t">
                   <td className="py-2">{inv.periodStart.slice(0, 10)}</td>
-                  <td>{inv.receiptCount}</td>
+                  <td>{inv.documentCount}</td>
                   <td>${inv.amount.toFixed(2)}</td>
                   <td>{inv.status}</td>
                   <td>

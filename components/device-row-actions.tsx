@@ -249,7 +249,7 @@ export function DeviceRowActions({
             <DialogTitle>Delete device?</DialogTitle>
             <DialogDescription>
               This permanently removes <span className="font-medium">{deviceName}</span>{" "}
-              and its receipt history. This can&apos;t be undone.
+              and its document history. This can&apos;t be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

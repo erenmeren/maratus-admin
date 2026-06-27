@@ -1,31 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  CalendarClock,
-  Clock,
-  Cpu,
-  MapPin,
-  Receipt,
-  ReceiptText,
-  Router,
-  TrendingUp,
-} from "lucide-react";
+import { ArrowLeft, CalendarClock, Clock, Cpu, MapPin, FileText, Router, TrendingUp,  } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { DeviceCard } from "@/components/device-card";
 import { StatusBadge } from "@/components/status-badge";
 import { ClaimDeviceDialog } from "@/components/claim-device-dialog";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle,  } from "@/components/ui/card";
 import { getStoreAnalytics, getUnclaimedDevices } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
-import { ReceiptsAreaChart } from "@/components/charts";
+import { DocumentsAreaChart } from "@/components/charts";
 import { PeakHeatmap } from "@/components/peak-heatmap";
 import { StoreEditButton } from "@/components/store-edit-button";
 import { formatCurrency, formatNumber } from "@/lib/format";
@@ -46,9 +30,9 @@ export default async function StoreDetailPage({
   const unclaimed = canClaim ? await getUnclaimedDevices(organizationId) : [];
 
   const online = store.devices.filter((d) => d.status === "online").length;
-  const receiptsToday = store.devices.reduce((a, d) => a + d.receiptsToday, 0);
-  const receiptsMonth = store.devices.reduce(
-    (a, d) => a + d.receiptsThisMonth,
+  const documentsToday = store.devices.reduce((a, d) => a + d.documentsToday, 0);
+  const documentsMonth = store.devices.reduce(
+    (a, d) => a + d.documentsThisMonth,
     0,
   );
   const rollup = online
@@ -57,7 +41,7 @@ export default async function StoreDetailPage({
       ? "paused"
       : "offline";
   const avgPerPrinter = store.devices.length
-    ? Math.round(receiptsMonth / store.devices.length)
+    ? Math.round(documentsMonth / store.devices.length)
     : 0;
 
   return (
@@ -97,25 +81,25 @@ export default async function StoreDetailPage({
           icon={Cpu}
         />
         <KpiCard
-          label="Receipts today"
-          value={formatNumber(receiptsToday)}
-          icon={Receipt}
+          label="Documents today"
+          value={formatNumber(documentsToday)}
+          icon={FileText}
         />
         <KpiCard
-          label="Receipts this month"
-          value={formatNumber(receiptsMonth)}
-          icon={ReceiptText}
+          label="Documents this month"
+          value={formatNumber(documentsMonth)}
+          icon={FileText}
         />
         <KpiCard
           label="Avg / printer"
           value={formatNumber(avgPerPrinter)}
-          hint="receipts this month"
+          hint="documents this month"
         />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
-          label="Receipts this month"
+          label="Documents this month"
           value={formatNumber(analytics.monthTrend.current)}
           delta={analytics.monthTrend.pctChange ?? undefined}
           hint="vs last month"
@@ -124,7 +108,7 @@ export default async function StoreDetailPage({
         <KpiCard
           label="Revenue this month"
           value={formatCurrency(analytics.revenueThisMonth)}
-          icon={Receipt}
+          icon={FileText}
         />
         <KpiCard
           label="Paper saved"
@@ -147,11 +131,11 @@ export default async function StoreDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Receipts over time</CardTitle>
-          <CardDescription>Daily digital receipts, last 30 days</CardDescription>
+          <CardTitle>Documents over time</CardTitle>
+          <CardDescription>Daily digital documents, last 30 days</CardDescription>
         </CardHeader>
         <CardContent>
-          <ReceiptsAreaChart data={analytics.daily} height={260} />
+          <DocumentsAreaChart data={analytics.daily} height={260} />
         </CardContent>
       </Card>
 
@@ -159,7 +143,7 @@ export default async function StoreDetailPage({
         <CardHeader>
           <CardTitle>Busiest times</CardTitle>
           <CardDescription>
-            Receipts by day of week and hour, last 90 days
+            Documents by day of week and hour, last 90 days
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -187,7 +171,7 @@ export default async function StoreDetailPage({
               {canClaim && (
                 <p className="max-w-xs text-xs text-muted-foreground">
                   Claim a printer with its pairing code to start issuing digital
-                  receipts at this store.
+                  documents at this store.
                 </p>
               )}
             </CardContent>

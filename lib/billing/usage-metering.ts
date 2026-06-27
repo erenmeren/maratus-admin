@@ -1,8 +1,8 @@
 // lib/billing/usage-metering.ts
-// Durable Stripe usage metering. Every billable receipt gets a `usage_event`
+// Durable Stripe usage metering. Every billable document gets a `usage_event`
 // ledger row at ingest time; that row is the durability guarantee. Reporting to
 // Stripe is best-effort and retried by the /api/cron/usage reconciler, so a
-// dropped meter event can never silently un-bill a receipt.
+// dropped meter event can never silently un-bill a document.
 //
 // The pure status-transition helper (`nextUsageStatus`) is IO-free and unit
 // tested in isolation; everything else does DB/Stripe IO and never throws into
@@ -12,7 +12,7 @@ import { and, eq, lt, lte } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { usageEvent } from "@/lib/db/schema";
 import { stripe } from "@/lib/stripe";
-import { reportReceiptUsage } from "./stripe-billing";
+import { reportDocumentUsage } from "./stripe-billing";
 import { id } from "@/lib/ids";
 import { reportError } from "@/lib/observability";
 import { MAX_USAGE_ATTEMPTS, nextUsageStatus } from "./usage-status";
@@ -25,14 +25,14 @@ export type { UsageStatus } from "./usage-status";
 type UsageEventRow = typeof usageEvent.$inferSelect;
 
 /**
- * Insert a usage_event ledger row for a receipt. Idempotent: the receiptId
+ * Insert a usage_event ledger row for a document. Idempotent: the documentId
  * unique index + onConflictDoNothing means a duplicate call is a no-op. Rows
  * land "pending" when there's a customer + Stripe configured, else "skipped".
  * Never throws — returns the row id, or null on a no-op/error.
  */
 export async function recordUsageEvent(input: {
   organizationId: string;
-  receiptId: string;
+  documentId: string;
   stripeCustomerId: string | null | undefined;
 }): Promise<string | null> {
   const hasCustomer = Boolean(input.stripeCustomerId) && Boolean(stripe);
@@ -43,18 +43,18 @@ export async function recordUsageEvent(input: {
       .values({
         id: rowId,
         organizationId: input.organizationId,
-        receiptId: input.receiptId,
+        documentId: input.documentId,
         stripeCustomerId: input.stripeCustomerId ?? null,
         status: hasCustomer ? "pending" : "skipped",
       })
-      .onConflictDoNothing({ target: usageEvent.receiptId })
+      .onConflictDoNothing({ target: usageEvent.documentId })
       .returning({ id: usageEvent.id });
     return inserted[0]?.id ?? null;
   } catch (err) {
-    console.error("[usage] failed to record usage event", input.receiptId, err);
+    console.error("[usage] failed to record usage event", input.documentId, err);
     reportError(err, {
       path: "usage.record",
-      extra: { orgId: input.organizationId, receiptId: input.receiptId },
+      extra: { orgId: input.organizationId, documentId: input.documentId },
     });
     return null;
   }
@@ -86,7 +86,7 @@ export async function reportUsageEvent(row: UsageEventRow): Promise<{ ok: boolea
 
   let reportSucceeded = false;
   try {
-    await reportReceiptUsage(row.stripeCustomerId!);
+    await reportDocumentUsage(row.stripeCustomerId!);
     reportSucceeded = true;
   } catch (err) {
     console.error("[usage] meter event failed", row.id, err);

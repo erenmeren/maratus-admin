@@ -1,4 +1,4 @@
-// Opaque keyset cursor for /api/v1/receipts. Encodes (created_at ISO, id);
+// Opaque keyset cursor for /api/v1/documents. Encodes (created_at ISO, id);
 // the route orders by (created_at DESC, id DESC) and pages with a row-value
 // comparison. Pure + IO-free.
 

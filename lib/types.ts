@@ -16,8 +16,8 @@ export interface Device {
   firmwareVersion: string;
   lastSeen: string; // ISO timestamp (falls back to createdAt for display)
   lastSeenAt: string | null; // raw last-seen, null if never seen (for status)
-  receiptsToday: number;
-  receiptsThisMonth: number;
+  documentsToday: number;
+  documentsThisMonth: number;
 }
 
 export interface Store {
@@ -32,7 +32,7 @@ export interface Store {
 export interface Tenant {
   id: string;
   name: string;
-  perPrintPrice: number; // price Ditto charges per digital receipt
+  perPrintPrice: number; // price Ditto charges per digital document
   contact: {
     name: string;
     email: string;
@@ -49,7 +49,7 @@ export interface Tenant {
 export interface TimePoint {
   /** Short label for the axis (e.g. "May 24" or "Jan"). */
   label: string;
-  receipts: number;
+  documents: number;
   revenue: number;
 }
 
@@ -61,7 +61,7 @@ export interface Invoice {
   id: string;
   tenantId: string;
   period: string; // e.g. "May 2026"
-  receipts: number;
+  documents: number;
   amount: number;
   status: InvoiceStatus;
   /** Real billing lifecycle (draft → sent → paid). */
@@ -77,7 +77,7 @@ export interface TenantSummary {
   status: TenantStatus;
   storeCount: number;
   deviceCount: number;
-  receiptsThisMonth: number;
+  documentsThisMonth: number;
   revenueThisMonth: number;
   perPrintPrice: number;
 }
@@ -94,6 +94,6 @@ export interface StoreSummary {
   timezone: string;
   deviceCount: number;
   onlineCount: number;
-  receiptsThisMonth: number;
+  documentsThisMonth: number;
   status: DeviceStatus; // rolled-up store status
 }

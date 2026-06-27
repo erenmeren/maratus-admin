@@ -1,16 +1,16 @@
-// lib/receipts-search.ts
-// Pure parsing/normalization of receipt-search URL params (no IO).
+// lib/documents-search.ts
+// Pure parsing/normalization of document-search URL params (no IO).
 
-export type ReceiptStatus = "pending" | "ready" | "downloaded";
+export type DocumentStatus = "pending" | "ready" | "downloaded";
 export const PAGE_SIZE = 25;
 
-const STATUSES: ReceiptStatus[] = ["pending", "ready", "downloaded"];
+const STATUSES: DocumentStatus[] = ["pending", "ready", "downloaded"];
 
-export interface ReceiptFilters {
+export interface DocumentFilters {
   organizationId?: string;
   storeId?: string;
   deviceId?: string;
-  status?: ReceiptStatus;
+  status?: DocumentStatus;
   from?: Date;
   to?: Date;
   token?: string;
@@ -44,15 +44,15 @@ function endOfDayIfDateOnly(v: string | undefined): Date | undefined {
 }
 
 /** Normalize raw URL search params into typed, validated filters. */
-export function parseReceiptFilters(raw: Record<string, string | undefined>): ReceiptFilters {
+export function parseDocumentFilters(raw: Record<string, string | undefined>): DocumentFilters {
   const statusRaw = str(raw.status);
-  const status = STATUSES.includes(statusRaw as ReceiptStatus)
-    ? (statusRaw as ReceiptStatus)
+  const status = STATUSES.includes(statusRaw as DocumentStatus)
+    ? (statusRaw as DocumentStatus)
     : undefined;
   const pageNum = Number.parseInt(raw.page ?? "", 10);
   const page = Number.isFinite(pageNum) && pageNum >= 1 ? pageNum : 1;
 
-  const f: ReceiptFilters = { page };
+  const f: DocumentFilters = { page };
   const organizationId = str(raw.org);
   const storeId = str(raw.store);
   const deviceId = str(raw.device);
@@ -70,6 +70,6 @@ export function parseReceiptFilters(raw: Record<string, string | undefined>): Re
 }
 
 /** Total pages for a result count (never < 1). */
-export function receiptPageCount(total: number, pageSize = PAGE_SIZE): number {
+export function documentPageCount(total: number, pageSize = PAGE_SIZE): number {
   return Math.max(1, Math.ceil(total / pageSize));
 }

@@ -23,9 +23,9 @@ export function PeakHeatmap({ heatmap, timezone }: { heatmap: Heatmap; timezone:
   if (total === 0) {
     return (
       <div className="flex flex-col items-center justify-center gap-1 py-10 text-center">
-        <p className="text-sm font-medium">No receipts in the last 90 days yet</p>
+        <p className="text-sm font-medium">No documents in the last 90 days yet</p>
         <p className="text-xs text-muted-foreground">
-          Busiest times appear here once this store starts issuing receipts.
+          Busiest times appear here once this store starts issuing documents.
         </p>
       </div>
     );
@@ -33,8 +33,8 @@ export function PeakHeatmap({ heatmap, timezone }: { heatmap: Heatmap; timezone:
 
   const summary =
     heatmap.peak.busiestDowLabel && heatmap.peak.peakHourLabel
-      ? `Receipt activity heatmap, last 90 days (${timezone}). Busiest on ${heatmap.peak.busiestDowLabel} around ${heatmap.peak.peakHourLabel}. ${total} receipts total.`
-      : `Receipt activity heatmap, last 90 days (${timezone}). ${total} receipts total.`;
+      ? `Document activity heatmap, last 90 days (${timezone}). Busiest on ${heatmap.peak.busiestDowLabel} around ${heatmap.peak.peakHourLabel}. ${total} documents total.`
+      : `Document activity heatmap, last 90 days (${timezone}). ${total} documents total.`;
 
   return (
     <div className="@container" role="img" aria-label={summary}>
@@ -58,7 +58,7 @@ export function PeakHeatmap({ heatmap, timezone }: { heatmap: Heatmap; timezone:
                   key={hour}
                   className="aspect-square rounded-[2px]"
                   style={cellStyle(count, max)}
-                  title={`${FULL_DAY[dow]} ${hourLabel(hour)} · ${count} receipt${count === 1 ? "" : "s"}`}
+                  title={`${FULL_DAY[dow]} ${hourLabel(hour)} · ${count} document${count === 1 ? "" : "s"}`}
                 />
               ))}
             </div>

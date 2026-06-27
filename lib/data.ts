@@ -224,6 +224,12 @@ function startOfMonth(): number {
   return Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), 1);
 }
 
+/** First instant of the current month, UTC — for analytics "this month" windows. */
+export function currentMonthStart(): Date {
+  const n = new Date();
+  return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), 1));
+}
+
 function dollars(cents: number): number {
   return Math.round(cents) / 100;
 }
@@ -1758,10 +1764,22 @@ export async function getCreditUsageAllOrgs(since: Date) {
   return db
     .select({
       organizationId: creditLedgerTable.organizationId,
+      name: orgTable.name,
       credits: sql<number>`sum(${creditLedgerTable.credits})::int`,
       count: sql<number>`count(*)::int`,
     })
     .from(creditLedgerTable)
+    .leftJoin(orgTable, eq(orgTable.id, creditLedgerTable.organizationId))
     .where(and(eq(creditLedgerTable.kind, "settle"), gte(creditLedgerTable.createdAt, since)))
-    .groupBy(creditLedgerTable.organizationId);
+    .groupBy(creditLedgerTable.organizationId, orgTable.name)
+    .orderBy(desc(sql`sum(${creditLedgerTable.credits})`));
+}
+
+/** Map of device id → name for an org, to label per-device credit usage. */
+export async function deviceNamesForOrg(organizationId: string): Promise<Map<string, string>> {
+  const rows = await db
+    .select({ id: deviceTable.id, name: deviceTable.name })
+    .from(deviceTable)
+    .where(eq(deviceTable.organizationId, organizationId));
+  return new Map(rows.map((r) => [r.id, r.name]));
 }

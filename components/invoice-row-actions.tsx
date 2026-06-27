@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Check, Loader2, MoreHorizontal, Send } from "lucide-react";
+import { Check, Loader2, MoreHorizontal, Send, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,7 +11,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { advanceInvoice, setInvoiceStatus } from "@/lib/actions/billing";
+import { advanceInvoice, setInvoiceStatus, voidInvoice } from "@/lib/actions/billing";
 import type { InvoiceLifecycle } from "@/lib/types";
 
 export function InvoiceRowActions({
@@ -31,6 +31,10 @@ export function InvoiceRowActions({
         Settled
       </span>
     );
+  }
+
+  if (lifecycle === "void") {
+    return <span className="text-xs text-muted-foreground">Void</span>;
   }
 
   async function run(
@@ -74,6 +78,11 @@ export function InvoiceRowActions({
           }
         >
           <Check className="size-4" /> Mark as paid
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => run(() => voidInvoice(invoiceId), "Invoice voided")}
+        >
+          <Ban className="size-4" /> Void
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

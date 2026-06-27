@@ -106,7 +106,7 @@ export default async function TenantBillingPage() {
                   <td>
                     {inv.hostedInvoiceUrl ? (
                       <a className="underline" href={inv.hostedInvoiceUrl} target="_blank" rel="noreferrer">
-                        View
+                        {inv.status === "sent" || inv.status === "overdue" ? "Pay" : "View"}
                       </a>
                     ) : null}
                   </td>

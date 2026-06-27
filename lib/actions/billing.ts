@@ -9,6 +9,9 @@ import { db } from "@/lib/db";
 import { invoice as invoiceTable } from "@/lib/db/schema";
 import { requirePlatformAdmin } from "@/lib/session";
 import { runInvoiceGeneration } from "@/lib/billing-engine";
+import { sendInvoiceToStripe } from "@/lib/billing/stripe-billing";
+import { stripe } from "@/lib/stripe";
+import { recordAudit, AUDIT } from "@/lib/audit";
 
 export interface GenerateInvoicesResult {
   ok: boolean;
@@ -37,11 +40,11 @@ const NEXT_STATUS: Record<string, "sent" | "paid" | null> = {
   paid: null,
 };
 
-/** Advance an invoice: draft → sent → paid. */
+/** Advance an invoice. draft → sent now creates a payable Stripe invoice; sent → paid is a manual override. */
 export async function advanceInvoice(
   invoiceId: string,
 ): Promise<InvoiceActionResult> {
-  await requirePlatformAdmin();
+  const ctx = await requirePlatformAdmin();
 
   const [inv] = await db
     .select()
@@ -49,6 +52,33 @@ export async function advanceInvoice(
     .where(eq(invoiceTable.id, invoiceId))
     .limit(1);
   if (!inv) return { ok: false, error: "Invoice not found." };
+
+  if (inv.status === "draft") {
+    const res = await sendInvoiceToStripe(invoiceId);
+    if (!res.ok) {
+      const message: Record<typeof res.reason, string> = {
+        not_found: "Invoice not found.",
+        already_sent: "Invoice was already sent.",
+        no_amount: "Nothing to collect — this invoice is $0.",
+        stripe_disabled: "Billing is not configured.",
+      };
+      return { ok: false, error: message[res.reason] };
+    }
+    await recordAudit({
+      organizationId: inv.organizationId,
+      actor: { type: "user", id: ctx.user.id, label: ctx.user.name || ctx.user.email },
+      action: AUDIT.invoiceSent,
+      target: { type: "invoice", id: invoiceId },
+      metadata: {
+        stripeInvoiceId: res.stripeInvoiceId,
+        collectionMethod: res.collectionMethod,
+        amountDueCents: inv.amountDueCents,
+      },
+    });
+    revalidatePath("/admin/billing");
+    revalidatePath("/admin");
+    return { ok: true };
+  }
 
   const next = NEXT_STATUS[inv.status];
   if (!next) return { ok: false, error: "Invoice is already paid." };
@@ -73,6 +103,47 @@ export async function setInvoiceStatus(
     .update(invoiceTable)
     .set({ status })
     .where(eq(invoiceTable.id, invoiceId));
+  revalidatePath("/admin/billing");
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
+/** Void an invoice. If it has a Stripe invoice, void it there too (webhook reconciles); else flip locally. Paid invoices cannot be voided. */
+export async function voidInvoice(
+  invoiceId: string,
+): Promise<InvoiceActionResult> {
+  const ctx = await requirePlatformAdmin();
+
+  const [inv] = await db
+    .select()
+    .from(invoiceTable)
+    .where(eq(invoiceTable.id, invoiceId))
+    .limit(1);
+  if (!inv) return { ok: false, error: "Invoice not found." };
+  if (inv.status === "void") return { ok: false, error: "Invoice is already void." };
+  if (inv.status === "paid") return { ok: false, error: "Cannot void a paid invoice." };
+
+  if (inv.stripeInvoiceId && stripe) {
+    try {
+      await stripe.invoices.voidInvoice(inv.stripeInvoiceId);
+    } catch {
+      return { ok: false, error: "Could not void the invoice in Stripe." };
+    }
+  }
+
+  await db
+    .update(invoiceTable)
+    .set({ status: "void" })
+    .where(eq(invoiceTable.id, invoiceId));
+
+  await recordAudit({
+    organizationId: inv.organizationId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.name || ctx.user.email },
+    action: AUDIT.invoiceVoid,
+    target: { type: "invoice", id: invoiceId },
+    metadata: { stripeInvoiceId: inv.stripeInvoiceId ?? null },
+  });
+
   revalidatePath("/admin/billing");
   revalidatePath("/admin");
   return { ok: true };

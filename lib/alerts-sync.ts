@@ -3,18 +3,55 @@
 
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "./db";
-import { alert as alertTable, user as userTable } from "./db/schema";
+import { alert as alertTable, user as userTable, device as deviceTable } from "./db/schema";
+import { shouldMarkOffline } from "./device-status";
+import { recordAudit, AUDIT } from "./audit";
 import { computeAlerts } from "./health";
 import { getAlertInputs } from "./data";
 import { diffAlerts, alertEmail, type OpenAlert } from "./alerts";
 import { sendEmail } from "./email";
 import { id } from "./ids";
 
+/** Reconcile stored device status: flip "online" rows that have gone stale to
+ * "offline" (never touches "paused"/"offline"), and audit each flip. Idempotent.
+ * Folded into the daily health sweep so no separate cron is needed. */
+export async function reconcileOfflineDevices(now: Date): Promise<number> {
+  const onlineRows = await db
+    .select({
+      id: deviceTable.id,
+      organizationId: deviceTable.organizationId,
+      status: deviceTable.status,
+      lastSeenAt: deviceTable.lastSeenAt,
+    })
+    .from(deviceTable)
+    .where(eq(deviceTable.status, "online"));
+
+  const toFlip = onlineRows.filter((r) => shouldMarkOffline(r, now));
+  if (toFlip.length === 0) return 0;
+
+  await db
+    .update(deviceTable)
+    .set({ status: "offline" })
+    .where(inArray(deviceTable.id, toFlip.map((r) => r.id)));
+
+  for (const r of toFlip) {
+    await recordAudit({
+      organizationId: r.organizationId,
+      actor: { type: "system" },
+      action: AUDIT.deviceWentOffline,
+      target: { type: "device", id: r.id },
+      metadata: { lastSeenAt: r.lastSeenAt ? r.lastSeenAt.toISOString() : null },
+    });
+  }
+  return toFlip.length;
+}
+
 export async function evaluateAndPersistAlerts(): Promise<{
   opened: number;
   resolved: number;
   stillOpen: number;
 }> {
+  await reconcileOfflineDevices(new Date());
   const current = computeAlerts(await getAlertInputs());
 
   const openRows = await db

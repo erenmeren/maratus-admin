@@ -33,6 +33,7 @@ export const AUDIT = {
   devicePaused: "device.paused",
   deviceResumed: "device.resumed",
   deviceClaimed: "device.claimed",
+  deviceWentOffline: "device.went_offline",
   storeCreated: "store.created",
   storeUpdated: "store.updated",
   apiKeyCreated: "api_key.created",

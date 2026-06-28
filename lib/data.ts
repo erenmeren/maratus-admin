@@ -32,6 +32,7 @@ import {
   user as userTable,
 } from "./db/schema";
 import { effectiveDeviceStatus } from "./device-status";
+import { tenantHealthLevel } from "./tenant-health";
 import { computeEcoSavings } from "./eco";
 import {
   bucketsToSeries,
@@ -305,16 +306,36 @@ function summarize(b: OrgBundle): TenantSummary {
     (a, d) => a + d.documentsThisMonth,
     0,
   );
+  const now = new Date();
+  let onlineCount = 0;
+  let offlineCount = 0;
+  for (const d of allDevices) {
+    const eff = effectiveDeviceStatus(d.status, d.lastSeenAt ? new Date(d.lastSeenAt) : null, now);
+    if (eff === "online") onlineCount++;
+    else if (eff === "offline") offlineCount++;
+  }
+  const health = tenantHealthLevel(
+    {
+      deviceCount: allDevices.length,
+      onlineCount,
+      offlineCount,
+      subscriptionStatus: b.settings?.subscriptionStatus ?? null,
+    },
+    now,
+  );
   return {
     id: tenant.id,
     name: tenant.name,
     status: tenant.status,
     storeCount: tenant.stores.length,
     deviceCount: allDevices.length,
+    onlineCount,
+    offlineCount,
     documentsThisMonth,
     revenueThisMonth:
       Math.round(documentsThisMonth * tenant.perPrintPrice * 100) / 100,
     perPrintPrice: tenant.perPrintPrice,
+    health,
   };
 }
 

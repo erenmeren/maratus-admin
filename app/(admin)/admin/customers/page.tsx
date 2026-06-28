@@ -1,5 +1,11 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+
+const HEALTH_UI: Record<"healthy" | "warning" | "critical", { dot: string; label: string }> = {
+  healthy: { dot: "bg-emerald-500", label: "Healthy" },
+  warning: { dot: "bg-amber-500", label: "Warning" },
+  critical: { dot: "bg-red-500", label: "Critical" },
+};
 import { PageHeader } from "@/components/page-header";
 import { NewCustomerDialog } from "@/components/new-customer-dialog";
 import { TenantStatusBadge } from "@/components/tenant-status-badge";
@@ -34,6 +40,7 @@ export default async function CustomersPage() {
               <TableHead>Customer</TableHead>
               <TableHead className="text-center">Stores</TableHead>
               <TableHead className="text-center">Devices</TableHead>
+              <TableHead className="text-center">Health</TableHead>
               <TableHead className="text-right">Documents (mo.)</TableHead>
               <TableHead className="text-right">Revenue (mo.)</TableHead>
               <TableHead>Status</TableHead>
@@ -64,6 +71,13 @@ export default async function CustomersPage() {
                 </TableCell>
                 <TableCell className="text-center tabular-nums">
                   {c.deviceCount}
+                </TableCell>
+                <TableCell className="text-center">
+                  <span className="inline-flex items-center gap-1.5 text-xs">
+                    <span className={`size-2 rounded-full ${HEALTH_UI[c.health].dot}`} />
+                    {HEALTH_UI[c.health].label}
+                    <span className="text-muted-foreground">({c.onlineCount}/{c.deviceCount})</span>
+                  </span>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
                   {formatNumber(c.documentsThisMonth)}

@@ -32,6 +32,7 @@ import {
   user as userTable,
 } from "./db/schema";
 import { effectiveDeviceStatus } from "./device-status";
+import { tenantHealthLevel, type HealthLevel } from "./tenant-health";
 import { computeEcoSavings } from "./eco";
 import {
   bucketsToSeries,
@@ -305,16 +306,36 @@ function summarize(b: OrgBundle): TenantSummary {
     (a, d) => a + d.documentsThisMonth,
     0,
   );
+  const now = new Date();
+  let onlineCount = 0;
+  let offlineCount = 0;
+  for (const d of allDevices) {
+    const eff = effectiveDeviceStatus(d.status, d.lastSeenAt ? new Date(d.lastSeenAt) : null, now);
+    if (eff === "online") onlineCount++;
+    else if (eff === "offline") offlineCount++;
+  }
+  const health = tenantHealthLevel(
+    {
+      deviceCount: allDevices.length,
+      onlineCount,
+      offlineCount,
+      subscriptionStatus: b.settings?.subscriptionStatus ?? null,
+    },
+    now,
+  );
   return {
     id: tenant.id,
     name: tenant.name,
     status: tenant.status,
     storeCount: tenant.stores.length,
     deviceCount: allDevices.length,
+    onlineCount,
+    offlineCount,
     documentsThisMonth,
     revenueThisMonth:
       Math.round(documentsThisMonth * tenant.perPrintPrice * 100) / 100,
     perPrintPrice: tenant.perPrintPrice,
+    health,
   };
 }
 
@@ -651,6 +672,14 @@ export interface CustomerDetail {
   tenant: Tenant;
   summary: TenantSummary;
   devices: DeviceRow[];
+  health: {
+    level: HealthLevel;
+    online: number;
+    offline: number;
+    paused: number;
+    stuckPendingCount: number;
+    subscriptionStatus: string | null;
+  };
   monthly: TimePoint[];
   invoices: Invoice[];
   eco: ReturnType<typeof computeEcoSavings>;
@@ -663,17 +692,58 @@ export async function getCustomerDetail(
   if (!b) return null;
   const tenant = buildTenant(b);
   const summary = summarize(b);
+  const now = new Date();
+
+  // Apply effective status locally (mapDevice stays raw globally).
   const devices: DeviceRow[] = tenant.stores.flatMap((store) =>
     store.devices.map((d) => ({
       ...d,
+      status: effectiveDeviceStatus(d.status, d.lastSeenAt ? new Date(d.lastSeenAt) : null, now),
       tenantName: tenant.name,
       storeName: store.name,
     })),
   );
+  let online = 0, offline = 0, paused = 0;
+  for (const d of devices) {
+    if (d.status === "online") online++;
+    else if (d.status === "offline") offline++;
+    else if (d.status === "paused") paused++;
+  }
+
+  const stuckCutoff = new Date(now.getTime() - STUCK_PENDING_MINUTES * 60_000);
+  const [{ stuck }] = await db
+    .select({ stuck: sql<number>`count(*)::int` })
+    .from(documentTable)
+    .where(
+      and(
+        eq(documentTable.organizationId, organizationId),
+        eq(documentTable.status, "pending"),
+        lt(documentTable.createdAt, stuckCutoff),
+      ),
+    );
+  const [{ last }] = await db
+    .select({ last: max(documentTable.createdAt) })
+    .from(documentTable)
+    .where(eq(documentTable.organizationId, organizationId));
+
+  const subscriptionStatus = b.settings?.subscriptionStatus ?? null;
+  const level = tenantHealthLevel(
+    {
+      deviceCount: devices.length,
+      onlineCount: online,
+      offlineCount: offline,
+      subscriptionStatus,
+      stuckPendingCount: stuck,
+      lastActivityAt: last ?? null,
+    },
+    now,
+  );
+
   return {
     tenant,
     summary,
     devices,
+    health: { level, online, offline, paused, stuckPendingCount: stuck, subscriptionStatus },
     monthly: monthlySeries(b, tenant.perPrintPrice),
     invoices: await getInvoices(organizationId),
     eco: computeEcoSavings(summary.documentsThisMonth),

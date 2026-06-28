@@ -38,6 +38,12 @@ import { getBalance } from "@/lib/credits";
 import { GrantCreditsForm } from "@/components/grant-credits-form";
 import { formatCurrency, formatNumber, timeAgo } from "@/lib/format";
 
+const HEALTH_UI: Record<"healthy" | "warning" | "critical", { dot: string; label: string }> = {
+  healthy: { dot: "bg-emerald-500", label: "Healthy" },
+  warning: { dot: "bg-amber-500", label: "Warning" },
+  critical: { dot: "bg-red-500", label: "Critical" },
+};
+
 export default async function CustomerDetailPage({
   params,
 }: {
@@ -53,7 +59,7 @@ export default async function CustomerDetailPage({
     getCreditLedger(tenantId),
   ]);
 
-  const { tenant, summary, devices, monthly } = detail;
+  const { tenant, summary, devices, monthly, health } = detail;
   const storeOptions = tenant.stores.map((s) => ({ id: s.id, name: s.name }));
 
   const byStore = tenant.stores
@@ -112,6 +118,21 @@ export default async function CustomerDetailPage({
               customerName={tenant.name}
             />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Health summary */}
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-x-8 gap-y-3 p-5 text-sm">
+          <span className="inline-flex items-center gap-2 font-medium">
+            <span className={`size-2.5 rounded-full ${HEALTH_UI[health.level].dot}`} />
+            {HEALTH_UI[health.level].label}
+          </span>
+          <span className="text-muted-foreground">Online <strong className="text-foreground">{health.online}</strong></span>
+          <span className="text-muted-foreground">Offline <strong className="text-foreground">{health.offline}</strong></span>
+          <span className="text-muted-foreground">Paused <strong className="text-foreground">{health.paused}</strong></span>
+          <span className="text-muted-foreground">Stuck docs <strong className="text-foreground">{health.stuckPendingCount}</strong></span>
+          <span className="text-muted-foreground">Subscription <strong className="text-foreground">{health.subscriptionStatus ?? "none"}</strong></span>
         </CardContent>
       </Card>
 

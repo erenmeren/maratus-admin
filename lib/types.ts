@@ -1,6 +1,8 @@
 // Core domain types for the Ditto admin app.
 // These mirror the shape a real API would eventually return.
 
+import type { HealthLevel } from "./tenant-health";
+
 export type DeviceStatus = "online" | "offline" | "paused";
 export type ConnectionType = "ethernet" | "wifi";
 export type TenantStatus = "active" | "trial" | "suspended";
@@ -77,6 +79,9 @@ export interface TenantSummary {
   status: TenantStatus;
   storeCount: number;
   deviceCount: number;
+  onlineCount: number;
+  offlineCount: number;
+  health: HealthLevel;
   documentsThisMonth: number;
   revenueThisMonth: number;
   perPrintPrice: number;

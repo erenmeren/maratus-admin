@@ -10,7 +10,6 @@ import {
   Store,
   Tag,
 } from "lucide-react";
-import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { RevenueLineChart, BreakdownBarChart } from "@/components/charts";
 import { StatusDot } from "@/components/status-badge";
@@ -37,6 +36,7 @@ import { getCustomerDetail, getOrgAuditLog, getCreditLedger } from "@/lib/data";
 import { getBalance } from "@/lib/credits";
 import { GrantCreditsForm } from "@/components/grant-credits-form";
 import { formatCurrency, formatNumber, timeAgo } from "@/lib/format";
+import { actionLabel } from "@/lib/audit-labels";
 
 const HEALTH_UI: Record<"healthy" | "warning" | "critical", { dot: string; label: string }> = {
   healthy: { dot: "bg-emerald-500", label: "Healthy" },
@@ -287,10 +287,15 @@ export default async function CustomerDetailPage({
         ) : (
           <ul className="flex flex-col gap-1 text-sm">
             {activity.map((e) => (
-              <li key={e.id} className="flex justify-between border-t py-1.5">
-                <span>{e.action}</span>
-                <span className="text-muted-foreground">
-                  {e.actor} · {e.at.slice(0, 19).replace("T", " ")}
+              <li key={e.id} className="flex justify-between gap-4 border-t py-1.5">
+                <span>
+                  {actionLabel(e.action)}
+                  {e.target && (
+                    <span className="ml-2 font-mono text-xs text-muted-foreground">{e.target}</span>
+                  )}
+                </span>
+                <span className="shrink-0 text-muted-foreground">
+                  {e.actor} · {timeAgo(e.at)}
                 </span>
               </li>
             ))}

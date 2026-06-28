@@ -10,7 +10,6 @@ import {
   Store,
   Tag,
 } from "lucide-react";
-import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { RevenueLineChart, BreakdownBarChart } from "@/components/charts";
 import { StatusDot } from "@/components/status-badge";

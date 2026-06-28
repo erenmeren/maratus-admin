@@ -1164,12 +1164,15 @@ export async function getOrgAuditPage(
   pageSize: number;
   pageCount: number;
 }> {
-  const safePage = Math.max(1, Math.floor(page) || 1);
+  const requestedPage = Math.max(1, Math.floor(page) || 1);
   const [{ total }] = await db
     .select({ total: count() })
     .from(auditLogTable)
     .where(eq(auditLogTable.organizationId, organizationId));
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  // Clamp into the valid range so an over-range ?page= shows the last page with
+  // data (not an empty table reading "Page 99 of 2").
+  const safePage = Math.min(requestedPage, pageCount);
 
   const rows = await db
     .select()

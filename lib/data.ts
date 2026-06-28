@@ -854,6 +854,8 @@ export interface TenantBranding {
   /** Normalized v3 printer config (uploaded icon + image keys are presigned for display). */
   printerConfig: PrinterConfig;
   staffPin: string;
+  supportEmail: string | null;
+  supportUrl: string | null;
 }
 
 export async function getTenantBranding(
@@ -906,6 +908,8 @@ export async function getTenantBranding(
     brandMuted: tokens.muted,
     printerConfig: config,
     staffPin: s?.staffPin ?? "",
+    supportEmail: s?.supportEmail ?? null,
+    supportUrl: s?.supportUrl ?? null,
   };
 }
 

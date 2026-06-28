@@ -11,9 +11,10 @@ import {
   organization as orgTable,
   document as documentTable,
   store as storeTable,
+  tenantSettings,
 } from "./db/schema";
 import { generateDeviceKey, id } from "./ids";
-import { presignedDocumentUrl } from "./storage";
+import { presignedDocumentUrl, presignedGetUrl } from "./storage";
 
 export interface PublicDocument {
   token: string;
@@ -24,6 +25,13 @@ export interface PublicDocument {
   createdAt: Date;
   /** Fresh short-lived presigned URL to the rendered image (null if pending). */
   imageUrl: string | null;
+  /** Tenant brand accent color (hex); defaults to "#10A765" when unset. */
+  brandColor: string;
+  /** Presigned tenant logo URL, or null when no logo. */
+  logoUrl: string | null;
+  storeAddress: string | null;
+  supportEmail: string | null;
+  supportUrl: string | null;
 }
 
 /**
@@ -38,11 +46,17 @@ export async function getDocumentByToken(
     .select({
       document: documentTable,
       storeName: storeTable.name,
+      storeAddress: storeTable.address,
       orgName: orgTable.name,
+      brandColor: tenantSettings.brandColor,
+      logoKey: tenantSettings.logoUrl,
+      supportEmail: tenantSettings.supportEmail,
+      supportUrl: tenantSettings.supportUrl,
     })
     .from(documentTable)
     .leftJoin(storeTable, eq(documentTable.storeId, storeTable.id))
     .innerJoin(orgTable, eq(documentTable.organizationId, orgTable.id))
+    .leftJoin(tenantSettings, eq(documentTable.organizationId, tenantSettings.organizationId))
     .where(eq(documentTable.token, token))
     .limit(1);
 
@@ -72,6 +86,16 @@ export async function getDocumentByToken(
     }
   }
 
+  let logoUrl: string | null = null;
+  if (row.logoKey) {
+    try {
+      logoUrl = await presignedGetUrl(row.logoKey);
+    } catch (err) {
+      console.error("logo presign failed", err);
+      logoUrl = null; // never break the page over a logo
+    }
+  }
+
   return {
     token: r.token,
     status: r.status === "ready" ? "downloaded" : r.status,
@@ -80,6 +104,11 @@ export async function getDocumentByToken(
     mimeType: r.mimeType,
     createdAt: r.createdAt,
     imageUrl,
+    brandColor: row.brandColor ?? "#10A765",
+    logoUrl,
+    storeAddress: row.storeAddress && row.storeAddress.trim() ? row.storeAddress : null,
+    supportEmail: row.supportEmail ?? null,
+    supportUrl: row.supportUrl ?? null,
   };
 }
 

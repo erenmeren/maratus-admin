@@ -185,6 +185,9 @@ export const tenantSettings = pgTable("tenant_settings", {
   // "kiosk_screens" (see note above).
   printerScreens: jsonb("kiosk_screens"),
   logoUrl: text("logo_url"),
+  // Optional customer-facing support contact, shown on the public /d/{token} page.
+  supportEmail: text("support_email"),
+  supportUrl: text("support_url"),
   staffPin: text("staff_pin"),
   // --- Org-wide device policy settings (Device Settings page) -------------
   // QR visible duration. Source of truth for what was PrinterConfig.qrTimeoutSeconds;

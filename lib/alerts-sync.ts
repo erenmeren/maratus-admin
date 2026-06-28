@@ -3,7 +3,9 @@
 
 import { and, eq, inArray } from "drizzle-orm";
 import { db } from "./db";
-import { alert as alertTable, user as userTable, device as deviceTable } from "./db/schema";
+import { alert as alertTable, user as userTable, device as deviceTable, store as storeTable } from "./db/schema";
+import { getOrgEmailContext } from "./billing/invoice-emails";
+import { deviceOfflineEmail } from "./devices/device-emails";
 import { shouldMarkOffline } from "./device-status";
 import { recordAudit, AUDIT } from "./audit";
 import { computeAlerts } from "./health";
@@ -22,8 +24,11 @@ export async function reconcileOfflineDevices(now: Date): Promise<number> {
       organizationId: deviceTable.organizationId,
       status: deviceTable.status,
       lastSeenAt: deviceTable.lastSeenAt,
+      name: deviceTable.name,
+      storeName: storeTable.name,
     })
     .from(deviceTable)
+    .leftJoin(storeTable, eq(storeTable.id, deviceTable.storeId))
     .where(eq(deviceTable.status, "online"));
 
   const toFlip = onlineRows.filter((r) => shouldMarkOffline(r, now));
@@ -43,6 +48,30 @@ export async function reconcileOfflineDevices(now: Date): Promise<number> {
       metadata: { lastSeenAt: r.lastSeenAt ? r.lastSeenAt.toISOString() : null },
     });
   }
+
+  // Notify each affected org's owner once, listing the devices that dropped.
+  const byOrg = new Map<string, typeof toFlip>();
+  for (const r of toFlip) {
+    const arr = byOrg.get(r.organizationId) ?? [];
+    arr.push(r);
+    byOrg.set(r.organizationId, arr);
+  }
+  for (const [orgId, devs] of byOrg) {
+    const { ownerEmail, orgName } = await getOrgEmailContext(orgId);
+    if (!ownerEmail) continue;
+    const mail = deviceOfflineEmail({
+      orgName,
+      devices: devs.map((d) => ({
+        name: d.name,
+        storeName: d.storeName ?? "—",
+        lastSeenLabel: d.lastSeenAt
+          ? `${d.lastSeenAt.toISOString().slice(0, 16).replace("T", " ")} UTC`
+          : "never",
+      })),
+    });
+    await sendEmail(ownerEmail, mail.subject, mail.html);
+  }
+
   return toFlip.length;
 }
 

@@ -21,6 +21,7 @@ export const AUDIT = {
   invoicePaymentFailed: "invoice.payment_failed",
   invoiceVoid: "invoice.void",
   invoiceSent: "invoice.sent",
+  invoiceOverdue: "invoice.overdue",
   billingActivated: "billing.activated",
   customerCreated: "customer.created",
   deviceProvisioned: "device.provisioned",

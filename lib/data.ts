@@ -1137,11 +1137,63 @@ export async function getOrgAuditLog(organizationId: string, limit = 100) {
   return rows.map((r) => ({
     id: r.id,
     action: r.action,
+    actorType: r.actorType,
     actor: r.actorLabel ?? r.actorType,
     target: r.targetType && r.targetId ? `${r.targetType}:${r.targetId}` : null,
     metadata: (r.metadata as Record<string, unknown> | null) ?? null,
     at: r.createdAt.toISOString(),
   }));
+}
+
+export async function getOrgAuditPage(
+  organizationId: string,
+  page: number,
+  pageSize = 25,
+): Promise<{
+  rows: {
+    id: string;
+    action: string;
+    actorType: string;
+    actor: string;
+    target: string | null;
+    metadata: Record<string, unknown> | null;
+    at: string;
+  }[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}> {
+  const safePage = Math.max(1, Math.floor(page) || 1);
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(auditLogTable)
+    .where(eq(auditLogTable.organizationId, organizationId));
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+
+  const rows = await db
+    .select()
+    .from(auditLogTable)
+    .where(eq(auditLogTable.organizationId, organizationId))
+    .orderBy(desc(auditLogTable.createdAt))
+    .limit(pageSize)
+    .offset((safePage - 1) * pageSize);
+
+  return {
+    rows: rows.map((r) => ({
+      id: r.id,
+      action: r.action,
+      actorType: r.actorType,
+      actor: r.actorLabel ?? r.actorType,
+      target: r.targetType && r.targetId ? `${r.targetType}:${r.targetId}` : null,
+      metadata: (r.metadata as Record<string, unknown> | null) ?? null,
+      at: r.createdAt.toISOString(),
+    })),
+    total,
+    page: safePage,
+    pageSize,
+    pageCount,
+  };
 }
 
 export async function getOrgMembers(organizationId: string) {

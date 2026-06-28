@@ -1,7 +1,7 @@
 // POST /api/stripe/webhook — reconcile Stripe events into our DB.
 // Verified by STRIPE_WEBHOOK_SECRET. Stripe is authoritative; we mirror.
 
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import type Stripe from "stripe";
 import { stripe } from "@/lib/stripe";
 import { db } from "@/lib/db";
@@ -12,6 +12,9 @@ import { upsertInvoiceFromStripe } from "@/lib/billing/invoice-sync";
 import { isSuspended } from "@/lib/billing/billing-status";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { grantCredits } from "@/lib/credits";
+import { invoicePeriodLabel } from "@/lib/billing/invoice-collect";
+import { getOrgEmailContext, paymentFailedEmail, paidReceiptEmail } from "@/lib/billing/invoice-emails";
+import { sendEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -50,8 +53,38 @@ export async function POST(req: Request) {
           if (event.type === "invoice.payment_failed") {
             await db.update(invoiceTable).set({ status: "overdue" }).where(eq(invoiceTable.stripeInvoiceId, si.id));
             await recordAudit({ organizationId: row.org, actor: { type: "stripe" }, action: AUDIT.invoicePaymentFailed, target: { type: "invoice", id: si.id }, metadata: { amountDueCents: si.amount_due } });
+            const orgId = row.org;
+            const stripeInvoiceId = si.id;
+            after(async () => {
+              const [invRow] = await db.select().from(invoiceTable).where(eq(invoiceTable.stripeInvoiceId, stripeInvoiceId)).limit(1);
+              if (!invRow) return;
+              const { ownerEmail, orgName } = await getOrgEmailContext(orgId);
+              if (!ownerEmail) return;
+              const mail = paymentFailedEmail({
+                orgName,
+                periodLabel: invoicePeriodLabel(invRow.periodStart),
+                amountDollars: invRow.amountDueCents / 100,
+                payUrl: invRow.hostedInvoiceUrl ?? `${getEnv().BETTER_AUTH_URL}/tenant/billing`,
+              });
+              await sendEmail(ownerEmail, mail.subject, mail.html);
+            });
           } else if (event.type === "invoice.paid") {
             await recordAudit({ organizationId: row.org, actor: { type: "stripe" }, action: AUDIT.invoicePaid, target: { type: "invoice", id: si.id }, metadata: { amountDueCents: si.amount_due } });
+            const orgId = row.org;
+            const stripeInvoiceId = si.id;
+            after(async () => {
+              const [invRow] = await db.select().from(invoiceTable).where(eq(invoiceTable.stripeInvoiceId, stripeInvoiceId)).limit(1);
+              if (!invRow) return;
+              const { ownerEmail, orgName } = await getOrgEmailContext(orgId);
+              if (!ownerEmail) return;
+              const mail = paidReceiptEmail({
+                orgName,
+                periodLabel: invoicePeriodLabel(invRow.periodStart),
+                amountDollars: invRow.amountDueCents / 100,
+                payUrl: invRow.hostedInvoiceUrl ?? `${getEnv().BETTER_AUTH_URL}/tenant/billing`,
+              });
+              await sendEmail(ownerEmail, mail.subject, mail.html);
+            });
           } else if (event.type === "invoice.voided") {
             await recordAudit({ organizationId: row.org, actor: { type: "stripe" }, action: AUDIT.invoiceVoid, target: { type: "invoice", id: si.id } });
           }

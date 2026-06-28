@@ -182,6 +182,7 @@ export async function sendInvoiceToStripe(invoiceId: string): Promise<
     .set({
       stripeInvoiceId: finalized.id,
       hostedInvoiceUrl: finalized.hosted_invoice_url ?? null,
+      dueDate: finalized.due_date != null ? new Date(finalized.due_date * 1000) : null,
       status: "sent",
     })
     .where(eq(invoiceTable.id, inv.id));

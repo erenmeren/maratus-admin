@@ -18,7 +18,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { device as deviceTable, document as documentTable, tenantSettings, usageEvent as usageEventTable } from "@/lib/db/schema";
 import { recordUsageEvent, reportUsageEvent } from "@/lib/billing/usage-metering";
-import { isSuspended } from "@/lib/billing/billing-status";
+import { isOrgPaymentBlocked } from "@/lib/billing/enforcement";
 import { id, documentToken } from "@/lib/ids";
 import { authenticateDevice } from "@/lib/device-auth";
 import { putDocument, documentStorageKey } from "@/lib/storage";
@@ -41,20 +41,14 @@ export async function POST(req: Request) {
   if (!device) return bad(401, "Unknown or missing device key");
   if (device.status === "paused") return bad(403, "Device is paused");
 
-  // Block ingestion for orgs whose subscription is terminally unpaid. Fail safe
-  // (allow) on a transient read error so a DB blip can't block a paying customer.
-  try {
-    const [billing] = await db
-      .select({ status: tenantSettings.subscriptionStatus })
-      .from(tenantSettings)
-      .where(eq(tenantSettings.organizationId, device.organizationId))
-      .limit(1);
-    if (isSuspended(billing?.status ?? null)) {
-      return bad(403, "Subscription inactive");
-    }
-  } catch (err) {
-    console.error("[ingest] suspension check failed (allowing)", err);
-    reportError(err, { path: "ingest.suspension-check", extra: { orgId: device.organizationId, deviceId: device.id } });
+  // Block ingestion for orgs that are payment-blocked: suspended subscription
+  // (403) or an unpaid invoice past the grace window (402). isOrgPaymentBlocked
+  // fails open on a transient read error, so a DB blip can't lock out a customer.
+  const block = await isOrgPaymentBlocked(device.organizationId);
+  if (block.blocked) {
+    return block.reason === "past_due"
+      ? bad(402, "Account past due")
+      : bad(403, "Subscription inactive");
   }
 
   // Throttle per device: 30 documents / minute is generous for a printer.

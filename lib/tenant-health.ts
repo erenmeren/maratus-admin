@@ -16,9 +16,10 @@ export interface TenantHealthInput {
 }
 
 export function tenantHealthLevel(input: TenantHealthInput, now: Date): HealthLevel {
-  // critical: service blocked, or the fleet can't print at all.
+  // critical: service blocked, or devices are unreachable with none online.
+  // (An all-paused fleet is intentional, not critical — only offline counts.)
   if (isSuspended(input.subscriptionStatus)) return "critical";
-  if (input.deviceCount > 0 && input.onlineCount === 0) return "critical";
+  if (input.offlineCount > 0 && input.onlineCount === 0) return "critical";
 
   // warning: degraded but operational.
   if (input.offlineCount > 0) return "warning";

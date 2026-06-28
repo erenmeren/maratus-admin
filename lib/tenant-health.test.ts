@@ -17,8 +17,12 @@ describe("tenantHealthLevel", () => {
   it("critical when subscription is suspended (canceled)", () => {
     expect(tenantHealthLevel({ ...base, subscriptionStatus: "canceled" }, now)).toBe("critical");
   });
-  it("critical when there are devices but none online", () => {
+  it("critical when devices are offline and none online", () => {
     expect(tenantHealthLevel({ ...base, onlineCount: 0, offlineCount: 3 }, now)).toBe("critical");
+  });
+  it("NOT critical when the whole fleet is intentionally paused (none offline)", () => {
+    // 3 devices, all paused → online 0, offline 0. Paused is intentional, not a failure.
+    expect(tenantHealthLevel({ ...base, onlineCount: 0, offlineCount: 0 }, now)).toBe("healthy");
   });
   it("warning when some (but not all) devices are offline", () => {
     expect(tenantHealthLevel({ ...base, onlineCount: 2, offlineCount: 1 }, now)).toBe("warning");

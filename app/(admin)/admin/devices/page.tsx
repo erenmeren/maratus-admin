@@ -1,12 +1,20 @@
+import { desc } from "drizzle-orm";
 import { Cpu } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { FleetTable } from "@/components/fleet-table";
 import { getAllDevices, getTenants } from "@/lib/data";
+import { db } from "@/lib/db";
+import { firmwareRelease } from "@/lib/db/schema";
 
 export default async function FleetPage() {
   const rows = await getAllDevices();
   const customers = (await getTenants()).map((t) => ({ id: t.id, name: t.name }));
+  const [latestFw] = await db
+    .select({ version: firmwareRelease.version })
+    .from(firmwareRelease)
+    .orderBy(desc(firmwareRelease.createdAt))
+    .limit(1);
   const online = rows.filter((r) => r.status === "online").length;
   const paused = rows.filter((r) => r.status === "paused").length;
   const offline = rows.filter((r) => r.status === "offline").length;
@@ -25,7 +33,7 @@ export default async function FleetPage() {
         <KpiCard label="Offline" value={String(offline)} hint="unreachable" />
       </div>
 
-      <FleetTable rows={rows} customers={customers} />
+      <FleetTable rows={rows} customers={customers} latestFirmwareVersion={latestFw?.version ?? null} />
     </>
   );
 }

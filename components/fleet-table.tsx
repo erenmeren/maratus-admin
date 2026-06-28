@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Search } from "lucide-react";
 import { StatusDot } from "@/components/status-badge";
 import { DeviceRowActions } from "@/components/device-row-actions";
@@ -23,13 +24,16 @@ import {
 } from "@/components/ui/table";
 import type { DeviceRow, DeviceStatus } from "@/lib/types";
 import { formatNumber, timeAgo } from "@/lib/format";
+import { firmwareUpdateAvailable } from "@/lib/device-status";
 
 export function FleetTable({
   rows,
   customers,
+  latestFirmwareVersion,
 }: {
   rows: DeviceRow[];
   customers: { id: string; name: string }[];
+  latestFirmwareVersion: string | null;
 }) {
   const [customer, setCustomer] = React.useState("all");
   const [status, setStatus] = React.useState("all");
@@ -97,6 +101,7 @@ export function FleetTable({
               <TableHead>Store</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Last seen</TableHead>
+              <TableHead>Firmware</TableHead>
               <TableHead className="text-right">Documents (mo.)</TableHead>
               <TableHead className="w-10 pr-4" />
             </TableRow>
@@ -104,7 +109,11 @@ export function FleetTable({
           <TableBody>
             {filtered.map((r) => (
               <TableRow key={r.id}>
-                <TableCell className="pl-6 font-mono text-xs">{r.id}</TableCell>
+                <TableCell className="pl-6 font-mono text-xs">
+                  <Link href={`/admin/devices/${r.id}`} className="underline-offset-2 hover:underline">
+                    {r.id}
+                  </Link>
+                </TableCell>
                 <TableCell className="font-medium">{r.tenantName}</TableCell>
                 <TableCell className="text-muted-foreground">{r.storeName}</TableCell>
                 <TableCell>
@@ -115,6 +124,14 @@ export function FleetTable({
                 </TableCell>
                 <TableCell className="text-muted-foreground">
                   {timeAgo(r.lastSeen)}
+                </TableCell>
+                <TableCell className="font-mono text-xs">
+                  v{r.firmwareVersion}
+                  {firmwareUpdateAvailable(r.firmwareVersion, latestFirmwareVersion) && (
+                    <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                      update
+                    </span>
+                  )}
                 </TableCell>
                 <TableCell className="text-right font-medium tabular-nums">
                   {formatNumber(r.documentsThisMonth)}
@@ -131,7 +148,7 @@ export function FleetTable({
             {filtered.length === 0 && (
               <TableRow className="hover:bg-transparent">
                 <TableCell
-                  colSpan={7}
+                  colSpan={8}
                   className="py-12 text-center text-sm text-muted-foreground"
                 >
                   No devices match your filters.

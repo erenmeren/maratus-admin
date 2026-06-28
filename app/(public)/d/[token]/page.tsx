@@ -1,11 +1,10 @@
 import Link from "next/link";
-import { Check, Download, Leaf, FileText, SearchX } from "lucide-react";
+import { Check, Download, Leaf, FileText, SearchX, Mail, ExternalLink } from "lucide-react";
 import { DittoWordmark } from "@/components/brand";
-import { getDocumentByToken } from "@/lib/documents";
+import { getDocumentByToken, type PublicDocument } from "@/lib/documents";
+import { supportLinks } from "@/lib/branding/support";
+import { isValidHex } from "@/lib/color";
 
-// Public document page — what a customer sees after scanning the printer QR.
-// No auth: the token IS the capability (long + unguessable). Viewing a ready
-// document flips it to "downloaded" (the "document sent ✓" signal).
 export default async function DocumentPage({
   params,
 }: {
@@ -16,9 +15,11 @@ export default async function DocumentPage({
 
   if (!document) return <DocumentNotFound />;
 
+  const accent = isValidHex(document.brandColor) ? document.brandColor : "#10A765";
+
   if (document.status === "pending" || !document.imageUrl) {
     return (
-      <Shell>
+      <Shell brand={document}>
         <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
           <span className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <FileText className="size-6" />
@@ -36,18 +37,25 @@ export default async function DocumentPage({
     dateStyle: "medium",
     timeStyle: "short",
   });
+  const support = supportLinks(document);
 
   return (
-    <Shell>
-      <div className="flex flex-col items-center gap-2 border-b bg-primary/5 px-6 py-6 text-center">
-        <span className="flex size-11 items-center justify-center rounded-full bg-status-online/15 text-status-online">
+    <Shell brand={document}>
+      <div className="flex flex-col items-center gap-2 border-b px-6 py-6 text-center">
+        <span
+          className="flex size-11 items-center justify-center rounded-full text-white"
+          style={{ backgroundColor: accent }}
+        >
           <Check className="size-6" />
         </span>
         <h1 className="font-display text-lg font-bold">Document ready</h1>
         <p className="text-xs text-muted-foreground">
-          {document.organizationName}
+          Issued by {document.organizationName}
           {document.storeName ? ` · ${document.storeName}` : ""}
         </p>
+        {document.storeAddress && (
+          <p className="text-xs text-muted-foreground">{document.storeAddress}</p>
+        )}
         <p className="text-xs text-muted-foreground">{dateStr}</p>
       </div>
 
@@ -61,34 +69,61 @@ export default async function DocumentPage({
         />
       </div>
 
-      <div className="px-6 pb-6 pt-4">
+      <div className="px-6 pb-4 pt-4">
         <a
           href={document.imageUrl}
           download
           target="_blank"
           rel="noopener noreferrer"
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary py-2.5 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          className="flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90"
+          style={{ backgroundColor: accent }}
         >
           <Download className="size-4" /> Download document
         </a>
       </div>
+
+      {support.show && (
+        <div className="border-t px-6 py-4 text-center text-xs text-muted-foreground">
+          <p className="mb-1.5">
+            Questions about this{document.storeName ? `? Contact ${document.storeName}` : "?"}
+          </p>
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+            {support.email && (
+              <a href={`mailto:${support.email}`} className="inline-flex items-center gap-1 font-medium hover:underline">
+                <Mail className="size-3.5" /> {support.email}
+              </a>
+            )}
+            {support.url && (
+              <a href={support.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 font-medium hover:underline">
+                <ExternalLink className="size-3.5" /> Return policy &amp; help
+              </a>
+            )}
+          </div>
+        </div>
+      )}
     </Shell>
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
+function Shell({ children, brand }: { children: React.ReactNode; brand?: Pick<PublicDocument, "logoUrl" | "organizationName"> }) {
   return (
     <div className="flex min-h-svh items-center justify-center bg-muted/40 p-4">
       <div className="w-full max-w-sm space-y-4">
         <div className="flex justify-center">
-          <DittoWordmark subtle />
+          {brand?.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={brand.logoUrl} alt={brand.organizationName} className="h-10 w-auto object-contain" />
+          ) : brand?.organizationName ? (
+            <span className="font-display text-lg font-bold">{brand.organizationName}</span>
+          ) : null}
         </div>
         <div className="overflow-hidden rounded-2xl border bg-card shadow-sm">
           {children}
         </div>
         <div className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
           <Leaf className="size-3.5 text-primary" />
-          A paperless document, powered by Ditto.
+          <span className="inline-flex items-center gap-1">A paperless document, powered by</span>
+          <DittoWordmark subtle />
         </div>
       </div>
     </div>
@@ -107,10 +142,7 @@ function DocumentNotFound() {
           This link is invalid or has expired. Ask the store to re-issue your
           document.
         </p>
-        <Link
-          href="/"
-          className="text-sm font-medium text-primary hover:underline"
-        >
+        <Link href="/" className="text-sm font-medium text-primary hover:underline">
           Go to Ditto
         </Link>
       </div>

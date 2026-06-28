@@ -471,6 +471,9 @@ export const invoice = pgTable(
       .notNull(),
     stripeInvoiceId: text("stripe_invoice_id"),
     hostedInvoiceUrl: text("hosted_invoice_url"),
+    // Local mirror of the Stripe invoice due_date (send_invoice invoices only;
+    // charge_automatically has none → null). Drives the overdue sweep + grace.
+    dueDate: timestamp("due_date"),
     createdAt: timestamp("created_at")
       .$defaultFn(() => new Date())
       .notNull(),

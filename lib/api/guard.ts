@@ -1,12 +1,9 @@
 // Shared preamble for /api/v1 routes: bearer auth → rate limit → suspension.
 // Returns the resolved auth or a ready-to-send error NextResponse.
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
 import { authenticateApiKey, type ApiKeyAuth } from "@/lib/api-auth";
 import { checkRateLimit } from "@/lib/rate-limit";
-import { isSuspended } from "@/lib/billing/billing-status";
-import { db } from "@/lib/db";
-import { tenantSettings } from "@/lib/db/schema";
+import { isOrgPaymentBlocked } from "@/lib/billing/enforcement";
 import { apiError } from "@/lib/api/respond";
 
 export async function guardApiRequest(
@@ -22,13 +19,11 @@ export async function guardApiRequest(
     return { error: res };
   }
 
-  const [billing] = await db
-    .select({ status: tenantSettings.subscriptionStatus })
-    .from(tenantSettings)
-    .where(eq(tenantSettings.organizationId, auth.organizationId))
-    .limit(1);
-  if (isSuspended(billing?.status ?? null)) {
-    return { error: apiError("subscription_inactive", "Subscription inactive.", 403) };
+  const block = await isOrgPaymentBlocked(auth.organizationId);
+  if (block.blocked) {
+    return block.reason === "past_due"
+      ? { error: apiError("payment_past_due", "Account past due.", 402) }
+      : { error: apiError("subscription_inactive", "Subscription inactive.", 403) };
   }
 
   return { auth };

@@ -1,8 +1,12 @@
 // lib/billing/invoice-emails.ts
 // Phase 1C — invoice transition emails. The four builders are PURE (data in →
 // {subject, html} out), mirroring lib/alerts.ts so they unit-test without IO.
-// The one IO helper (getOrgEmailContext) is added in a later task. Org names are
-// user-controlled, so escapeHtml() guards every interpolation of them.
+// getOrgEmailContext is the one IO helper: resolves org owner email + org name.
+// Org names are user-controlled, so escapeHtml() guards every interpolation.
+
+import { db } from "@/lib/db";
+import { member, user, organization } from "@/lib/db/schema";
+import { eq } from "drizzle-orm";
 
 export interface InvoiceEmailData {
   orgName: string;
@@ -83,4 +87,26 @@ export function overdueReminderEmail(d: InvoiceEmailData): { subject: string; ht
     `<p>Your <strong>${escapeHtml(d.periodLabel)}</strong> invoice (${money(d.amountDollars)}) is past due${was}. Please pay now to avoid interruption of service.</p>` +
     button(d.payUrl, "Pay now");
   return { subject: `Your ${BRAND} invoice is overdue`, html: emailLayout(body) };
+}
+
+/** Resolve the org owner's email (fallback: any member) + the org name, for
+ * addressing/personalising a transition email. ownerEmail is null when the org
+ * has no members. */
+export async function getOrgEmailContext(
+  organizationId: string,
+): Promise<{ ownerEmail: string | null; orgName: string }> {
+  const [org] = await db
+    .select({ name: organization.name })
+    .from(organization)
+    .where(eq(organization.id, organizationId))
+    .limit(1);
+
+  const rows = await db
+    .select({ email: user.email, role: member.role })
+    .from(member)
+    .innerJoin(user, eq(member.userId, user.id))
+    .where(eq(member.organizationId, organizationId));
+
+  const owner = rows.find((r) => r.role === "owner") ?? rows[0] ?? null;
+  return { ownerEmail: owner?.email ?? null, orgName: org?.name ?? "your organization" };
 }

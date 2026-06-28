@@ -11,6 +11,10 @@ import { runInvoiceGeneration } from "@/lib/billing-engine";
 import { previousMonthMarker } from "@/lib/billing/dunning";
 import { sendInvoiceToStripe } from "@/lib/billing/stripe-billing";
 import { recordAudit, AUDIT } from "@/lib/audit";
+import { invoicePeriodLabel } from "./invoice-collect";
+import { getOrgEmailContext, overdueReminderEmail, formatDueDate } from "./invoice-emails";
+import { sendEmail } from "@/lib/email";
+import { getEnv } from "@/lib/env";
 
 export async function runBillingCron(
   now: Date,
@@ -57,6 +61,9 @@ export async function runBillingCron(
       id: invoiceTable.id,
       organizationId: invoiceTable.organizationId,
       dueDate: invoiceTable.dueDate,
+      periodStart: invoiceTable.periodStart,
+      amountDueCents: invoiceTable.amountDueCents,
+      hostedInvoiceUrl: invoiceTable.hostedInvoiceUrl,
     });
   for (const row of swept) {
     await recordAudit({
@@ -66,6 +73,17 @@ export async function runBillingCron(
       target: { type: "invoice", id: row.id },
       metadata: { dueDate: row.dueDate?.toISOString() ?? null },
     });
+    const { ownerEmail, orgName } = await getOrgEmailContext(row.organizationId);
+    if (ownerEmail) {
+      const mail = overdueReminderEmail({
+        orgName,
+        periodLabel: invoicePeriodLabel(row.periodStart),
+        amountDollars: row.amountDueCents / 100,
+        payUrl: row.hostedInvoiceUrl ?? `${getEnv().BETTER_AUTH_URL}/tenant/billing`,
+        dueDateLabel: row.dueDate ? formatDueDate(row.dueDate) : undefined,
+      });
+      await sendEmail(ownerEmail, mail.subject, mail.html);
+    }
   }
 
   return { generated, autoSent, sweptOverdue: swept.length };

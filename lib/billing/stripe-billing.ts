@@ -5,11 +5,13 @@
 import { stripe } from "@/lib/stripe";
 import { db } from "@/lib/db";
 import { tenantSettings, invoice as invoiceTable } from "@/lib/db/schema";
-import { stripeInvoiceParamsFor } from "./invoice-collect";
+import { stripeInvoiceParamsFor, invoicePeriodLabel } from "./invoice-collect";
 import { getEnv } from "@/lib/env";
 import { eq } from "drizzle-orm";
 import { meterEventPayload } from "./billing-status";
 import { findPack } from "./credit-packs";
+import { getOrgEmailContext, invoiceSentEmail, formatDueDate } from "./invoice-emails";
+import { sendEmail } from "@/lib/email";
 
 export { statusForStripeInvoice, meterEventPayload } from "./billing-status";
 
@@ -186,6 +188,23 @@ export async function sendInvoiceToStripe(invoiceId: string): Promise<
       status: "sent",
     })
     .where(eq(invoiceTable.id, inv.id));
+
+  // 1C: notify the tenant owner only on the send_invoice (pay-link) path. For
+  // charge_automatically there's nothing to pay; paid/failed emails cover it.
+  if (params.collectionMethod === "send_invoice") {
+    const { ownerEmail, orgName } = await getOrgEmailContext(inv.organizationId);
+    if (ownerEmail) {
+      const mail = invoiceSentEmail({
+        orgName,
+        periodLabel: invoicePeriodLabel(inv.periodStart),
+        amountDollars: inv.amountDueCents / 100,
+        payUrl: finalized.hosted_invoice_url ?? `${getEnv().BETTER_AUTH_URL}/tenant/billing`,
+        dueDateLabel:
+          finalized.due_date != null ? formatDueDate(new Date(finalized.due_date * 1000)) : undefined,
+      });
+      await sendEmail(ownerEmail, mail.subject, mail.html);
+    }
+  }
 
   return {
     ok: true,

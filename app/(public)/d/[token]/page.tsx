@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { Check, Download, Leaf, FileText, SearchX, Mail, ExternalLink } from "lucide-react";
+import { Check, Download, Leaf, FileText, SearchX, Mail, ExternalLink, RotateCcw, ShieldCheck } from "lucide-react";
 import { DittoWordmark } from "@/components/brand";
 import { getDocumentByToken, type PublicDocument } from "@/lib/documents";
 import { supportLinks } from "@/lib/branding/support";
+import { coverageStatus } from "@/lib/branding/coverage";
 import { isValidHex } from "@/lib/color";
 
 export default async function DocumentPage({
@@ -38,6 +39,7 @@ export default async function DocumentPage({
     timeStyle: "short",
   });
   const support = supportLinks(document);
+  const coverage = coverageStatus(document, new Date());
 
   return (
     <Shell brand={document}>
@@ -99,6 +101,43 @@ export default async function DocumentPage({
               </a>
             )}
           </div>
+        </div>
+      )}
+
+      {coverage.show && (
+        <div className="space-y-2 border-t px-6 py-4 text-center text-xs">
+          {coverage.return && (
+            <p className="flex items-center justify-center gap-1.5">
+              <RotateCcw className="size-3.5" style={{ color: coverage.return.expired ? undefined : accent }} />
+              {coverage.return.expired ? (
+                <span className="text-muted-foreground">
+                  Return period ended (was{" "}
+                  {coverage.return.untilDate.toLocaleDateString("en-US", { dateStyle: "medium" })})
+                </span>
+              ) : (
+                <span className="font-medium" style={{ color: accent }}>
+                  Returns accepted until{" "}
+                  {coverage.return.untilDate.toLocaleDateString("en-US", { dateStyle: "medium" })}
+                </span>
+              )}
+            </p>
+          )}
+          {coverage.warranty && (
+            <p className="flex items-center justify-center gap-1.5">
+              <ShieldCheck className="size-3.5" style={{ color: coverage.warranty.expired ? undefined : accent }} />
+              {coverage.warranty.expired ? (
+                <span className="text-muted-foreground">
+                  Warranty expired{" "}
+                  {coverage.warranty.untilDate.toLocaleDateString("en-US", { year: "numeric", month: "short" })}
+                </span>
+              ) : (
+                <span className="font-medium" style={{ color: accent }}>
+                  Under warranty until{" "}
+                  {coverage.warranty.untilDate.toLocaleDateString("en-US", { year: "numeric", month: "short" })}
+                </span>
+              )}
+            </p>
+          )}
         </div>
       )}
     </Shell>

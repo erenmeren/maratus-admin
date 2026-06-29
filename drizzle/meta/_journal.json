@@ -183,6 +183,13 @@
       "when": 1782676639211,
       "tag": "0025_happy_patch",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1782742856752,
+      "tag": "0026_chief_bug",
+      "breakpoints": true
     }
   ]
 }

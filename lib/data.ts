@@ -856,6 +856,8 @@ export interface TenantBranding {
   staffPin: string;
   supportEmail: string | null;
   supportUrl: string | null;
+  returnWindowDays: number | null;
+  warrantyPeriodMonths: number | null;
 }
 
 export async function getTenantBranding(
@@ -910,6 +912,8 @@ export async function getTenantBranding(
     staffPin: s?.staffPin ?? "",
     supportEmail: s?.supportEmail ?? null,
     supportUrl: s?.supportUrl ?? null,
+    returnWindowDays: s?.returnWindowDays ?? null,
+    warrantyPeriodMonths: s?.warrantyPeriodMonths ?? null,
   };
 }
 

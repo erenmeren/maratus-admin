@@ -32,6 +32,10 @@ export interface PublicDocument {
   storeAddress: string | null;
   supportEmail: string | null;
   supportUrl: string | null;
+  /** Tenant return window in days; null = off. */
+  returnWindowDays: number | null;
+  /** Tenant warranty period in months; null = off. */
+  warrantyPeriodMonths: number | null;
 }
 
 /**
@@ -52,6 +56,8 @@ export async function getDocumentByToken(
       logoKey: tenantSettings.logoUrl,
       supportEmail: tenantSettings.supportEmail,
       supportUrl: tenantSettings.supportUrl,
+      returnWindowDays: tenantSettings.returnWindowDays,
+      warrantyPeriodMonths: tenantSettings.warrantyPeriodMonths,
     })
     .from(documentTable)
     .leftJoin(storeTable, eq(documentTable.storeId, storeTable.id))
@@ -109,6 +115,8 @@ export async function getDocumentByToken(
     storeAddress: row.storeAddress && row.storeAddress.trim() ? row.storeAddress : null,
     supportEmail: row.supportEmail ?? null,
     supportUrl: row.supportUrl ?? null,
+    returnWindowDays: row.returnWindowDays ?? null,
+    warrantyPeriodMonths: row.warrantyPeriodMonths ?? null,
   };
 }
 

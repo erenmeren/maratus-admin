@@ -5,6 +5,7 @@ import { getDocumentByToken, type PublicDocument } from "@/lib/documents";
 import { supportLinks } from "@/lib/branding/support";
 import { coverageStatus } from "@/lib/branding/coverage";
 import { isValidHex } from "@/lib/color";
+import { DocumentEmailForm } from "@/components/document-email-form";
 
 export default async function DocumentPage({
   params,
@@ -140,6 +141,8 @@ export default async function DocumentPage({
           )}
         </div>
       )}
+
+      <DocumentEmailForm token={document.token} organizationId={document.organizationId} accent={accent} />
     </Shell>
   );
 }

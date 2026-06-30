@@ -32,9 +32,12 @@ export function DocumentEmailForm({
 
     setEmailError(undefined);
     setPending(true);
-    await requestDocumentEmail(formData);
-    setPending(false);
-    setSent(true);
+    try {
+      await requestDocumentEmail(formData);
+      setSent(true);
+    } finally {
+      setPending(false);
+    }
   }
 
   if (sent) {

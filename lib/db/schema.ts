@@ -461,6 +461,57 @@ export const document = pgTable(
   ],
 );
 
+export const documentContact = pgTable(
+  "document_contact",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    documentId: text("document_id")
+      .notNull()
+      .references(() => document.id, { onDelete: "cascade" }),
+    email: text("email").notNull(), // lowercased/trimmed by the caller
+    createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
+  },
+  (t) => [
+    index("document_contact_org_email_idx").on(t.organizationId, t.email),
+    index("document_contact_document_id_idx").on(t.documentId),
+  ],
+);
+
+export const marketingContact = pgTable(
+  "marketing_contact",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    optInAt: timestamp("opt_in_at").$defaultFn(() => new Date()).notNull(),
+    createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
+  },
+  (t) => [
+    uniqueIndex("marketing_contact_org_email_idx").on(t.organizationId, t.email),
+  ],
+);
+
+export const lookupToken = pgTable(
+  "lookup_token",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at").notNull(),
+    consumedAt: timestamp("consumed_at"),
+    createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
+  },
+  (t) => [index("lookup_token_hash_idx").on(t.tokenHash)],
+);
+
 export const invoice = pgTable(
   "invoice",
   {
@@ -599,6 +650,9 @@ export const schema = {
   webhookEndpoint,
   webhookDelivery,
   document,
+  documentContact,
+  marketingContact,
+  lookupToken,
   invoice,
   usageEvent,
   rateLimit,

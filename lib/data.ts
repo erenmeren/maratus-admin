@@ -24,6 +24,7 @@ import {
   deviceCommand,
   invitation as invitationTable,
   invoice as invoiceTable,
+  marketingContact as marketingContactTable,
   member as memberTable,
   organization as orgTable,
   document as documentTable,
@@ -1915,4 +1916,15 @@ export async function deviceNamesForOrg(organizationId: string): Promise<Map<str
     .from(deviceTable)
     .where(eq(deviceTable.organizationId, organizationId));
   return new Map(rows.map((r) => [r.id, r.name]));
+}
+
+/** Customers who opted in to marketing for an org, newest opt-in first. */
+export async function getMarketingContacts(
+  organizationId: string,
+): Promise<Array<{ email: string; optInAt: Date }>> {
+  return db
+    .select({ email: marketingContactTable.email, optInAt: marketingContactTable.optInAt })
+    .from(marketingContactTable)
+    .where(eq(marketingContactTable.organizationId, organizationId))
+    .orderBy(desc(marketingContactTable.optInAt));
 }

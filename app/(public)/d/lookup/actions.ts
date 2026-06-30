@@ -1,5 +1,6 @@
 "use server";
 
+import { eq } from "drizzle-orm";
 import { getEnv } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { normalizeEmail } from "@/lib/lookup/normalize";
@@ -9,6 +10,8 @@ import {
 import { getDocumentByTokenMeta } from "@/lib/documents";
 import { sendEmail } from "@/lib/email";
 import { documentEmail, lookupEmail } from "@/lib/lookup/email-templates";
+import { db } from "@/lib/db";
+import { organization } from "@/lib/db/schema";
 
 const RL = { limit: 5, windowMs: 60_000 };
 
@@ -40,18 +43,19 @@ export async function requestLookupLink(formData: FormData): Promise<{ ok: boole
   const rl = await checkRateLimit(`lookup-link:${email}`, RL);
   if (!rl.allowed) return { ok: true };
 
-  const { raw } = await createLookupToken({ organizationId: orgId, email });
-  const url = `${getEnv().BETTER_AUTH_URL}/d/lookup/${orgId}/${raw}`;
-  const orgName = await orgNameById(orgId);
-  const { subject, html } = lookupEmail({ orgName, recoveryUrl: url });
-  await sendEmail(email, subject, html);
+  try {
+    const { raw } = await createLookupToken({ organizationId: orgId, email });
+    const url = `${getEnv().BETTER_AUTH_URL}/d/lookup/${orgId}/${raw}`;
+    const orgName = await orgNameById(orgId);
+    const { subject, html } = lookupEmail({ orgName, recoveryUrl: url });
+    await sendEmail(email, subject, html);
+  } catch {
+    // Swallow any errors — never reveal org existence or token
+  }
   return { ok: true }; // always generic — no enumeration
 }
 
 async function orgNameById(orgId: string): Promise<string> {
-  const { db } = await import("@/lib/db");
-  const { organization } = await import("@/lib/db/schema");
-  const { eq } = await import("drizzle-orm");
   const [row] = await db.select({ name: organization.name }).from(organization).where(eq(organization.id, orgId)).limit(1);
   return row?.name ?? "your merchant";
 }

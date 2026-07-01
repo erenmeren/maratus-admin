@@ -86,6 +86,7 @@ export async function listDocumentsForEmail(input: {
     .innerJoin(document, eq(documentContact.documentId, document.id))
     .leftJoin(tenantSettings, eq(tenantSettings.organizationId, document.organizationId))
     .where(and(eq(documentContact.organizationId, input.organizationId), eq(documentContact.email, input.email)))
+    .groupBy(document.token, document.createdAt, tenantSettings.returnWindowDays, tenantSettings.warrantyPeriodMonths)
     .orderBy(desc(document.createdAt));
   return rows;
 }

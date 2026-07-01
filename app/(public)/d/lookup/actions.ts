@@ -1,6 +1,7 @@
 "use server";
 
 import { eq } from "drizzle-orm";
+import { headers } from "next/headers";
 import { getEnv } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { normalizeEmail } from "@/lib/lookup/normalize";
@@ -14,12 +15,19 @@ import { db } from "@/lib/db";
 import { organization } from "@/lib/db/schema";
 
 const RL = { limit: 5, windowMs: 60_000 };
+const RL_IP = { limit: 20, windowMs: 60_000 };
 
 export async function requestDocumentEmail(formData: FormData): Promise<{ ok: boolean }> {
   const token = String(formData.get("token") ?? "");
   const email = normalizeEmail(String(formData.get("email") ?? ""));
   const optIn = formData.get("optIn") === "on";
   if (!email) return { ok: false };
+
+  const h = await headers();
+  const ip = (h.get("x-forwarded-for")?.split(",")[0] ?? h.get("x-real-ip") ?? "unknown").trim();
+
+  const rlIp = await checkRateLimit(`doc-email-ip:${ip}`, RL_IP);
+  if (!rlIp.allowed) return { ok: true }; // generic — don't reveal throttling
 
   const rl = await checkRateLimit(`doc-email:${email}`, RL);
   if (!rl.allowed) return { ok: true }; // generic — don't reveal throttling
@@ -39,6 +47,12 @@ export async function requestLookupLink(formData: FormData): Promise<{ ok: boole
   const orgId = String(formData.get("orgId") ?? "");
   const email = normalizeEmail(String(formData.get("email") ?? ""));
   if (!email || !orgId) return { ok: true };
+
+  const h = await headers();
+  const ip = (h.get("x-forwarded-for")?.split(",")[0] ?? h.get("x-real-ip") ?? "unknown").trim();
+
+  const rlIp = await checkRateLimit(`lookup-link-ip:${ip}`, RL_IP);
+  if (!rlIp.allowed) return { ok: true };
 
   const rl = await checkRateLimit(`lookup-link:${email}`, RL);
   if (!rl.allowed) return { ok: true };

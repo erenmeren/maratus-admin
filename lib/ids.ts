@@ -45,3 +45,8 @@ export function generateApiKey(): { key: string; hash: string; prefix: string } 
 export function generateWebhookSecret(): string {
   return `whsec_${nanoid(40)}`;
 }
+
+/** SHA-256 hex of a magic-link lookup token (same algorithm as device/api keys). */
+export function hashLookupToken(raw: string): string {
+  return createHash("sha256").update(raw).digest("hex");
+}

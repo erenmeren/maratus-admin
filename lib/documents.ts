@@ -21,6 +21,7 @@ export interface PublicDocument {
   status: "pending" | "ready" | "downloaded";
   storeName: string | null;
   organizationName: string;
+  organizationId: string;
   mimeType: string;
   createdAt: Date;
   /** Fresh short-lived presigned URL to the rendered image (null if pending). */
@@ -107,6 +108,7 @@ export async function getDocumentByToken(
     status: r.status === "ready" ? "downloaded" : r.status,
     storeName: row.storeName,
     organizationName: row.orgName,
+    organizationId: r.organizationId,
     mimeType: r.mimeType,
     createdAt: r.createdAt,
     imageUrl,
@@ -209,6 +211,27 @@ export async function claimDevice(
     throw err;
   }
   return { deviceId, deviceName: name, deviceKey: key };
+}
+
+/**
+ * Lightweight meta-only lookup by token. Returns the document id,
+ * organizationId, and org name WITHOUT minting a presigned URL or flipping
+ * ready → downloaded. Used by the public "email me this document" action.
+ */
+export async function getDocumentByTokenMeta(
+  token: string,
+): Promise<{ id: string; organizationId: string; organizationName: string } | null> {
+  const [row] = await db
+    .select({
+      id: documentTable.id,
+      organizationId: documentTable.organizationId,
+      organizationName: orgTable.name,
+    })
+    .from(documentTable)
+    .innerJoin(orgTable, eq(orgTable.id, documentTable.organizationId))
+    .where(eq(documentTable.token, token))
+    .limit(1);
+  return row ?? null;
 }
 
 /** List unclaimed devices for an org (have a pairing code, not yet bound). */

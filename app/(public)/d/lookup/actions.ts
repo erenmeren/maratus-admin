@@ -7,6 +7,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { normalizeEmail } from "@/lib/lookup/normalize";
 import {
   recordDocumentContact, upsertMarketingContact, createLookupToken,
+  consumeLookupToken, listDocumentsForEmail,
 } from "@/lib/lookup/store";
 import { getDocumentByTokenMeta } from "@/lib/documents";
 import { sendEmail } from "@/lib/email";
@@ -67,6 +68,33 @@ export async function requestLookupLink(formData: FormData): Promise<{ ok: boole
     // Swallow any errors — never reveal org existence or token
   }
   return { ok: true }; // always generic — no enumeration
+}
+
+// The ONLY place that consumes a lookup token — invoked via a POST server
+// action from the interstitial's "View my documents" button, never on GET.
+// No rate limiting here: the caller already holds a valid one-time token.
+export async function confirmLookup(formData: FormData): Promise<
+  | {
+      ok: true;
+      email: string;
+      documents: Array<{
+        token: string;
+        createdAt: Date;
+        returnWindowDays: number | null;
+        warrantyPeriodMonths: number | null;
+      }>;
+    }
+  | { ok: false }
+> {
+  const orgId = String(formData.get("orgId") ?? "");
+  const token = String(formData.get("token") ?? "");
+  if (!orgId || !token) return { ok: false };
+
+  const res = await consumeLookupToken({ organizationId: orgId, rawToken: token });
+  if (!res) return { ok: false };
+
+  const documents = await listDocumentsForEmail({ organizationId: orgId, email: res.email });
+  return { ok: true, email: res.email, documents };
 }
 
 async function orgNameById(orgId: string): Promise<string> {

@@ -71,6 +71,21 @@ export async function consumeLookupToken(input: {
   return { email: row.email };
 }
 
+export async function peekLookupToken(input: {
+  organizationId: string;
+  rawToken: string;
+}): Promise<{ email: string } | null> {
+  const hash = hashLookupToken(input.rawToken);
+  const [row] = await db
+    .select()
+    .from(lookupToken)
+    .where(and(eq(lookupToken.tokenHash, hash), eq(lookupToken.organizationId, input.organizationId)))
+    .limit(1);
+  if (!row) return null;
+  if (!isLookupValid(row, new Date())) return null;
+  return { email: row.email };
+}
+
 export async function listDocumentsForEmail(input: {
   organizationId: string;
   email: string;

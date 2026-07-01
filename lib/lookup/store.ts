@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, lt, or } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   documentContact,
@@ -104,4 +104,17 @@ export async function listDocumentsForEmail(input: {
     .groupBy(document.token, document.createdAt, tenantSettings.returnWindowDays, tenantSettings.warrantyPeriodMonths)
     .orderBy(desc(document.createdAt));
   return rows;
+}
+
+/**
+ * Delete dead magic-link rows — already consumed, or past their TTL. Called
+ * from the daily maintenance cron so `lookup_token` doesn't grow unbounded.
+ * Returns the number of rows removed.
+ */
+export async function reapExpiredLookupTokens(now: Date = new Date()): Promise<number> {
+  const deleted = await db
+    .delete(lookupToken)
+    .where(or(isNotNull(lookupToken.consumedAt), lt(lookupToken.expiresAt, now)))
+    .returning({ id: lookupToken.id });
+  return deleted.length;
 }

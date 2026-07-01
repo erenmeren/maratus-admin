@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { getEnv } from "@/lib/env";
 import { evaluateAndPersistAlerts } from "@/lib/alerts-sync";
+import { reapExpiredLookupTokens } from "@/lib/lookup/store";
 
 export const runtime = "nodejs";
 
@@ -15,5 +16,6 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const summary = await evaluateAndPersistAlerts();
-  return NextResponse.json({ ok: true, ...summary });
+  const reapedLookupTokens = await reapExpiredLookupTokens();
+  return NextResponse.json({ ok: true, ...summary, reapedLookupTokens });
 }

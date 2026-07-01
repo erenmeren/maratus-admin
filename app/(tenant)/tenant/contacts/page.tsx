@@ -11,7 +11,8 @@ export default async function ContactsPage() {
   const { ctx, organizationId } = await requireTenant();
   const role = ctx.organizations.find((o) => o.id === organizationId)?.role;
   const canManage = !!role && ["owner", "admin"].includes(role);
-  const contacts = await getMarketingContacts(organizationId);
+  // Customer emails are PII — only owners/admins may see the list or export it.
+  const contacts = canManage ? await getMarketingContacts(organizationId) : [];
 
   return (
     <>
@@ -22,34 +23,40 @@ export default async function ContactsPage() {
         {canManage && <ContactsExportButton />}
       </PageHeader>
 
-      <Card className="overflow-hidden py-0">
-        <Table>
-          <TableHeader>
-            <TableRow className="hover:bg-transparent">
-              <TableHead>Email</TableHead>
-              <TableHead>Opted in</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {contacts.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={2} className="py-10 text-center text-sm text-muted-foreground">
-                  No opted-in customers yet.
-                </TableCell>
+      {!canManage ? (
+        <Card className="px-6 py-10 text-center text-sm text-muted-foreground">
+          Only owners and admins can view marketing contacts.
+        </Card>
+      ) : (
+        <Card className="overflow-hidden py-0">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Email</TableHead>
+                <TableHead>Opted in</TableHead>
               </TableRow>
-            ) : (
-              contacts.map((c) => (
-                <TableRow key={c.email}>
-                  <TableCell className="font-medium">{c.email}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {c.optInAt.toLocaleDateString()}
+            </TableHeader>
+            <TableBody>
+              {contacts.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={2} className="py-10 text-center text-sm text-muted-foreground">
+                    No opted-in customers yet.
                   </TableCell>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+              ) : (
+                contacts.map((c) => (
+                  <TableRow key={c.email}>
+                    <TableCell className="font-medium">{c.email}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {c.optInAt.toLocaleDateString()}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </Card>
+      )}
     </>
   );
 }

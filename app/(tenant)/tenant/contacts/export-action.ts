@@ -18,5 +18,9 @@ export async function exportContactsCsv(): Promise<{ filename: string; csv: stri
 }
 
 function csvCell(s: string): string {
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  // Neutralize CSV formula injection: a cell a spreadsheet would evaluate as a
+  // formula (leading = + - @, tab, or CR) is prefixed with a single quote.
+  const guarded = /^[=+\-@\t\r]/.test(s) ? `'${s}` : s;
+  // Quote if the (guarded) value contains a comma, quote, CR, or LF.
+  return /[",\r\n]/.test(guarded) ? `"${guarded.replace(/"/g, '""')}"` : guarded;
 }

@@ -112,12 +112,15 @@ async function loadOrg(organizationId: string): Promise<OrgBundle | null> {
   // `createdAt.getTime() >= startOf*()` epoch test, and the same cast the cursor
   // pagination relies on. date_trunc likewise buckets the stored UTC wall-clock,
   // matching the JS `toISOString()`/`getUTC*` bucketing it replaces.
-  const dayExpr = sql<string>`to_char(date_trunc('day', ${documentTable.createdAt}), 'YYYY-MM-DD')`;
-  const monthExpr = sql<string>`to_char(date_trunc('month', ${documentTable.createdAt}), 'YYYY-MM')`;
+  const dayExpr = sql<string>`to_char(date_trunc('day', ${deviceCommand.createdAt}), 'YYYY-MM-DD')`;
+  const monthExpr = sql<string>`to_char(date_trunc('month', ${deviceCommand.createdAt}), 'YYYY-MM')`;
+  // Metric = acked trigger commands (a QR the device actually rendered).
   const orgScoped = (sinceStr: string) =>
     and(
-      eq(documentTable.organizationId, organizationId),
-      sql`${documentTable.createdAt} >= ${sinceStr}::timestamp`,
+      eq(deviceCommand.organizationId, organizationId),
+      eq(deviceCommand.type, "trigger"),
+      eq(deviceCommand.status, "acked"),
+      sql`${deviceCommand.createdAt} >= ${sinceStr}::timestamp`,
     );
 
   const [
@@ -142,23 +145,23 @@ async function loadOrg(organizationId: string): Promise<OrgBundle | null> {
     // strict subset and `count(*)` is exactly the month count for each device.
     db
       .select({
-        deviceId: documentTable.deviceId,
-        today: sql<number>`count(*) FILTER (WHERE ${documentTable.createdAt} >= ${todayStartStr}::timestamp)`.mapWith(
+        deviceId: deviceCommand.deviceId,
+        today: sql<number>`count(*) FILTER (WHERE ${deviceCommand.createdAt} >= ${todayStartStr}::timestamp)`.mapWith(
           Number,
         ),
         month: sql<number>`count(*)`.mapWith(Number),
       })
-      .from(documentTable)
+      .from(deviceCommand)
       .where(orgScoped(monthStartStr))
-      .groupBy(documentTable.deviceId),
+      .groupBy(deviceCommand.deviceId),
     db
       .select({ bucket: dayExpr, count: count() })
-      .from(documentTable)
+      .from(deviceCommand)
       .where(orgScoped(since30Str))
       .groupBy(dayExpr),
     db
       .select({ bucket: monthExpr, count: count() })
-      .from(documentTable)
+      .from(deviceCommand)
       .where(orgScoped(since9moStr))
       .groupBy(monthExpr),
     db
@@ -464,20 +467,25 @@ export async function getStoreAnalytics(
   const since9mo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 8, 1));
   const since90 = new Date(now.getTime() - 90 * 86_400_000);
 
-  const dayExpr = sql<string>`to_char(date_trunc('day', ${documentTable.createdAt}), 'YYYY-MM-DD')`;
-  const monthExpr = sql<string>`to_char(date_trunc('month', ${documentTable.createdAt}), 'YYYY-MM')`;
+  const dayExpr = sql<string>`to_char(date_trunc('day', ${deviceCommand.createdAt}), 'YYYY-MM-DD')`;
+  const monthExpr = sql<string>`to_char(date_trunc('month', ${deviceCommand.createdAt}), 'YYYY-MM')`;
   // created_at is `timestamp` (no tz) storing UTC wall-clock, so re-anchor to UTC
   // before converting to the store's local zone — the double AT TIME ZONE is required.
-  const localTs = sql`((${documentTable.createdAt} AT TIME ZONE 'UTC') AT TIME ZONE ${store.timezone})`;
+  const localTs = sql`((${deviceCommand.createdAt} AT TIME ZONE 'UTC') AT TIME ZONE ${store.timezone})`;
   const dowExpr = sql<number>`extract(dow from ${localTs})::int`;
   const hourExpr = sql<number>`extract(hour from ${localTs})::int`;
   const scoped = (since: Date) =>
-    and(eq(documentTable.storeId, storeId), gte(documentTable.createdAt, since));
+    and(
+      eq(deviceTable.storeId, storeId),
+      eq(deviceCommand.type, "trigger"),
+      eq(deviceCommand.status, "acked"),
+      gte(deviceCommand.createdAt, since),
+    );
 
   const [dailyRows, monthlyRows, gridRows] = await Promise.all([
-    db.select({ bucket: dayExpr, count: count() }).from(documentTable).where(scoped(since30)).groupBy(dayExpr),
-    db.select({ bucket: monthExpr, count: count() }).from(documentTable).where(scoped(since9mo)).groupBy(monthExpr),
-    db.select({ dow: dowExpr, hour: hourExpr, count: count() }).from(documentTable).where(scoped(since90)).groupBy(sql`1`, sql`2`),
+    db.select({ bucket: dayExpr, count: count() }).from(deviceCommand).innerJoin(deviceTable, eq(deviceCommand.deviceId, deviceTable.id)).where(scoped(since30)).groupBy(dayExpr),
+    db.select({ bucket: monthExpr, count: count() }).from(deviceCommand).innerJoin(deviceTable, eq(deviceCommand.deviceId, deviceTable.id)).where(scoped(since9mo)).groupBy(monthExpr),
+    db.select({ dow: dowExpr, hour: hourExpr, count: count() }).from(deviceCommand).innerJoin(deviceTable, eq(deviceCommand.deviceId, deviceTable.id)).where(scoped(since90)).groupBy(sql`1`, sql`2`),
   ]);
 
   const daily = bucketsToSeries(dailyRows, dayKeys(now, 30), price);
@@ -515,13 +523,19 @@ export async function getStoresAnalytics(organizationId: string): Promise<{
 
     const now = new Date();
     const since9mo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 8, 1));
-    const monthExpr = sql<string>`to_char(date_trunc('month', ${documentTable.createdAt}), 'YYYY-MM')`;
+    const monthExpr = sql<string>`to_char(date_trunc('month', ${deviceCommand.createdAt}), 'YYYY-MM')`;
 
     const perStoreMonth = await db
-      .select({ storeId: documentTable.storeId, bucket: monthExpr, count: count() })
-      .from(documentTable)
-      .where(and(eq(documentTable.organizationId, organizationId), gte(documentTable.createdAt, since9mo)))
-      .groupBy(documentTable.storeId, monthExpr);
+      .select({ storeId: deviceTable.storeId, bucket: monthExpr, count: count() })
+      .from(deviceCommand)
+      .innerJoin(deviceTable, eq(deviceCommand.deviceId, deviceTable.id))
+      .where(and(
+        eq(deviceCommand.organizationId, organizationId),
+        eq(deviceCommand.type, "trigger"),
+        eq(deviceCommand.status, "acked"),
+        gte(deviceCommand.createdAt, since9mo),
+      ))
+      .groupBy(deviceTable.storeId, monthExpr);
 
     const keys = monthKeys(now, 9);
     const thisKey = keys[keys.length - 1].key;

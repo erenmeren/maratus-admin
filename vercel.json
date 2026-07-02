@@ -1,7 +1,6 @@
 {
   "crons": [
     { "path": "/api/cron/health", "schedule": "0 9 * * *" },
-    { "path": "/api/cron/webhooks", "schedule": "0 9 * * *" },
     { "path": "/api/cron/usage", "schedule": "0 9 * * *" },
     { "path": "/api/cron/credit-holds", "schedule": "0 9 * * *" },
     { "path": "/api/cron/billing", "schedule": "0 9 * * *" }

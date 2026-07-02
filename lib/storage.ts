@@ -76,22 +76,6 @@ export async function deleteObject(key: string): Promise<boolean> {
   }
 }
 
-// ---- Document-specific (Phase 3 ingest path) --------------------------------
-
-/** Upload a rendered document to R2. Returns the storage key. */
-export const putDocument = putObject;
-
-/** Mint a short-lived presigned GET URL for a private document object. */
-export const presignedDocumentUrl = presignedGetUrl;
-
-/** Object key convention for a document's rendered image. */
-export function documentStorageKey(
-  organizationId: string,
-  documentId: string,
-): string {
-  return `documents/${organizationId}/${documentId}`;
-}
-
 // ---- Tenant branding assets -------------------------------------------------
 
 /** Object key convention for a tenant's uploaded logo. */

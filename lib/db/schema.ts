@@ -185,14 +185,6 @@ export const tenantSettings = pgTable("tenant_settings", {
   // "kiosk_screens" (see note above).
   printerScreens: jsonb("kiosk_screens"),
   logoUrl: text("logo_url"),
-  // Optional customer-facing support contact, shown on the public /d/{token} page.
-  supportEmail: text("support_email"),
-  supportUrl: text("support_url"),
-  // Optional time-based coverage windows shown on the public /d/{token} page.
-  // Both null = off. Return deadline = document.createdAt + returnWindowDays days;
-  // warranty expiry = document.createdAt + warrantyPeriodMonths calendar months.
-  returnWindowDays: integer("return_window_days"),
-  warrantyPeriodMonths: integer("warranty_period_months"),
   staffPin: text("staff_pin"),
   // --- Org-wide device policy settings (Device Settings page) -------------
   // QR visible duration. Source of truth for what was PrinterConfig.qrTimeoutSeconds;
@@ -378,46 +370,6 @@ export const apiIdempotency = pgTable(
   (t) => [primaryKey({ columns: [t.key, t.organizationId] })],
 );
 
-export const webhookEndpoint = pgTable(
-  "webhook_endpoint",
-  {
-    id: text("id").primaryKey(),
-    organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
-    url: text("url").notNull(),
-    secret: text("secret").notNull(),
-    events: text("events").array().notNull(),
-    enabled: boolean("enabled").notNull().default(true),
-    consecutiveFailures: integer("consecutive_failures").notNull().default(0),
-    disabledReason: text("disabled_reason"),
-    createdByUserId: text("created_by_user_id"),
-    createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
-    lastDeliveryAt: timestamp("last_delivery_at"),
-  },
-  (t) => [index("webhook_endpoint_org_idx").on(t.organizationId)],
-);
-
-export const webhookDelivery = pgTable(
-  "webhook_delivery",
-  {
-    id: text("id").primaryKey(),
-    endpointId: text("endpoint_id").notNull().references(() => webhookEndpoint.id, { onDelete: "cascade" }),
-    organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
-    eventId: text("event_id").notNull(),
-    eventType: text("event_type").notNull(),
-    payload: jsonb("payload").notNull(),
-    status: text("status", { enum: ["pending", "success", "failed"] }).notNull().default("pending"),
-    attempts: integer("attempts").notNull().default(0),
-    responseStatus: integer("response_status"),
-    nextRetryAt: timestamp("next_retry_at"),
-    lastAttemptAt: timestamp("last_attempt_at"),
-    createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
-  },
-  (t) => [
-    index("webhook_delivery_endpoint_idx").on(t.endpointId),
-    index("webhook_delivery_retry_idx").on(t.status, t.nextRetryAt),
-  ],
-);
-
 export const document = pgTable(
   "document",
   {
@@ -433,7 +385,7 @@ export const document = pgTable(
     source: text("source", { enum: ["device", "cloud"] })
       .default("device")
       .notNull(),
-    // Technical render metadata ONLY (no parsed document semantics). Shape: DocumentMetadata in lib/ingest-metadata.ts.
+    // Technical render metadata ONLY (no parsed document semantics). Free-form JSON, shape defined by the ingest caller.
     metadata: jsonb("metadata"),
     storeId: text("store_id").references(() => store.id, {
       onDelete: "set null",
@@ -459,57 +411,6 @@ export const document = pgTable(
     index("document_store_id_idx").on(t.storeId),
     index("document_created_at_idx").on(t.createdAt),
   ],
-);
-
-export const documentContact = pgTable(
-  "document_contact",
-  {
-    id: text("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organization.id, { onDelete: "cascade" }),
-    documentId: text("document_id")
-      .notNull()
-      .references(() => document.id, { onDelete: "cascade" }),
-    email: text("email").notNull(), // lowercased/trimmed by the caller
-    createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
-  },
-  (t) => [
-    index("document_contact_org_email_idx").on(t.organizationId, t.email),
-    index("document_contact_document_id_idx").on(t.documentId),
-  ],
-);
-
-export const marketingContact = pgTable(
-  "marketing_contact",
-  {
-    id: text("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organization.id, { onDelete: "cascade" }),
-    email: text("email").notNull(),
-    optInAt: timestamp("opt_in_at").$defaultFn(() => new Date()).notNull(),
-    createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
-  },
-  (t) => [
-    uniqueIndex("marketing_contact_org_email_idx").on(t.organizationId, t.email),
-  ],
-);
-
-export const lookupToken = pgTable(
-  "lookup_token",
-  {
-    id: text("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organization.id, { onDelete: "cascade" }),
-    email: text("email").notNull(),
-    tokenHash: text("token_hash").notNull(),
-    expiresAt: timestamp("expires_at").notNull(),
-    consumedAt: timestamp("consumed_at"),
-    createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
-  },
-  (t) => [index("lookup_token_hash_idx").on(t.tokenHash)],
 );
 
 export const invoice = pgTable(
@@ -647,12 +548,7 @@ export const schema = {
   creditBalance,
   creditLedger,
   apiIdempotency,
-  webhookEndpoint,
-  webhookDelivery,
   document,
-  documentContact,
-  marketingContact,
-  lookupToken,
   invoice,
   usageEvent,
   rateLimit,

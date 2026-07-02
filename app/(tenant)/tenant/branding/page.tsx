@@ -1,7 +1,5 @@
 import { PageHeader } from "@/components/page-header";
 import { BrandingEditor } from "@/components/branding-editor";
-import { SupportContactForm } from "@/components/support-contact-form";
-import { CoverageWindowForm } from "@/components/coverage-window-form";
 import { getTenant, getTenantBranding } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
 
@@ -32,20 +30,6 @@ export default async function BrandingPage() {
         storeName={tenant.name}
         canEdit={canEdit}
       />
-      <div className="mt-6">
-        <SupportContactForm
-          initialEmail={branding.supportEmail}
-          initialUrl={branding.supportUrl}
-          canEdit={canEdit}
-        />
-      </div>
-      <div className="mt-6">
-        <CoverageWindowForm
-          initialReturnDays={branding.returnWindowDays}
-          initialWarrantyMonths={branding.warrantyPeriodMonths}
-          canEdit={canEdit}
-        />
-      </div>
     </>
   );
 }

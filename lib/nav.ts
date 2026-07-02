@@ -9,12 +9,9 @@ import {
   LineChart,
   Wallet,
   Activity,
-  FileText,
   KeyRound,
-  Webhook,
   HardDriveDownload,
   MonitorCog,
-  Mail,
 } from "lucide-react";
 
 export interface NavItem {
@@ -29,7 +26,6 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Device Fleet", href: "/admin/devices", icon: Cpu },
   { label: "Health", href: "/admin/health", icon: Activity },
   { label: "Firmware", href: "/admin/firmware", icon: HardDriveDownload },
-  { label: "Documents", href: "/admin/documents", icon: FileText },
   { label: "Billing & Revenue", href: "/admin/billing", icon: Wallet },
 ];
 
@@ -41,10 +37,7 @@ export const TENANT_NAV: NavItem[] = [
   { label: "Members", href: "/tenant/members", icon: Users },
   { label: "Reports", href: "/tenant/reports", icon: BarChart3 },
   { label: "Analytics", href: "/tenant/analytics", icon: LineChart },
-  { label: "Documents", href: "/tenant/documents", icon: FileText },
   { label: "Billing", href: "/tenant/billing", icon: Wallet },
   { label: "API", href: "/tenant/api", icon: KeyRound },
-  { label: "Webhooks", href: "/tenant/webhooks", icon: Webhook },
-  { label: "Contacts", href: "/tenant/contacts", icon: Mail },
   { label: "Activity", href: "/tenant/activity", icon: Activity },
 ];

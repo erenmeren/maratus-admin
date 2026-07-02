@@ -30,8 +30,9 @@ export default async function ApiKeysPage() {
           <CardDescription>
             Base URL <code className="font-mono">/api/v1</code> · authenticate with{" "}
             <code className="font-mono">Authorization: Bearer &lt;key&gt;</code>. Endpoints:{" "}
-            <code className="font-mono">GET /documents</code>, <code className="font-mono">GET /documents/&#123;id&#125;</code>,{" "}
-            <code className="font-mono">GET /usage</code>. Full schema:{" "}
+            <code className="font-mono">GET /usage</code>, and{" "}
+            <code className="font-mono">POST /api/v1/devices/&#123;deviceId&#125;/trigger</code>{" "}
+            (fires a device action, e.g. show a QR for a URL you host). Full schema:{" "}
             <a className="underline" href="/api/v1/openapi.json">/api/v1/openapi.json</a>.
           </CardDescription>
         </CardHeader>

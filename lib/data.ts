@@ -10,21 +10,18 @@
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
 //   • documentsToday / documentsThisMonth are derived from the document table
 
-import { and, count, desc, eq, gte, isNotNull, lt, lte, max, ne, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNotNull, lt, max, ne, sql } from "drizzle-orm";
 import { db } from "./db";
 import { id as genId } from "@/lib/ids";
 import {
   alert as alertTable,
   apiKey as apiKeyTable,
-  webhookEndpoint as webhookEndpointTable,
-  webhookDelivery as webhookDeliveryTable,
   auditLog as auditLogTable,
   creditLedger as creditLedgerTable,
   device as deviceTable,
   deviceCommand,
   invitation as invitationTable,
   invoice as invoiceTable,
-  marketingContact as marketingContactTable,
   member as memberTable,
   organization as orgTable,
   document as documentTable,
@@ -47,7 +44,6 @@ import {
   type StoreComparisonRow,
 } from "./analytics";
 import { computeAlerts, STALE_MINUTES, STUCK_PENDING_MINUTES, INACTIVE_DAYS, type HealthAlert } from "./health";
-import { type DocumentFilters, PAGE_SIZE } from "./documents-search";
 import { presignedGetUrl } from "./storage";
 import { resolveBrandTokens } from "./color";
 import { ianaToPosix } from "./posix-tz";
@@ -66,7 +62,6 @@ import type {
   TenantSummary,
   TimePoint,
 } from "./types";
-import type { ApiDocumentRow } from "@/lib/api/serialize";
 
 // ============================================================================
 // Internal: load an org's bounded metadata + SQL-aggregated document rollups,
@@ -855,10 +850,6 @@ export interface TenantBranding {
   /** Normalized v3 printer config (uploaded icon + image keys are presigned for display). */
   printerConfig: PrinterConfig;
   staffPin: string;
-  supportEmail: string | null;
-  supportUrl: string | null;
-  returnWindowDays: number | null;
-  warrantyPeriodMonths: number | null;
 }
 
 export async function getTenantBranding(
@@ -911,10 +902,6 @@ export async function getTenantBranding(
     brandMuted: tokens.muted,
     printerConfig: config,
     staffPin: s?.staffPin ?? "",
-    supportEmail: s?.supportEmail ?? null,
-    supportUrl: s?.supportUrl ?? null,
-    returnWindowDays: s?.returnWindowDays ?? null,
-    warrantyPeriodMonths: s?.warrantyPeriodMonths ?? null,
   };
 }
 
@@ -1244,132 +1231,6 @@ export async function getOrgInvitations(organizationId: string) {
   }));
 }
 
-export interface DocumentListRow {
-  id: string;
-  token: string;
-  status: "pending" | "ready" | "downloaded";
-  storeName: string | null;
-  deviceName: string | null;
-  createdAt: string;
-  byteSize: number;
-}
-
-/** Build the WHERE conditions shared by the list + count queries. */
-function documentConditions(f: DocumentFilters) {
-  const c = [];
-  if (f.organizationId) c.push(eq(documentTable.organizationId, f.organizationId));
-  if (f.storeId) c.push(eq(documentTable.storeId, f.storeId));
-  if (f.deviceId) c.push(eq(documentTable.deviceId, f.deviceId));
-  if (f.status) c.push(eq(documentTable.status, f.status));
-  if (f.from) c.push(gte(documentTable.createdAt, f.from));
-  if (f.to) c.push(lte(documentTable.createdAt, f.to));
-  if (f.token) c.push(eq(documentTable.token, f.token));
-  return c;
-}
-
-/** Filterable, paginated document search (tenant: pass organizationId; admin: omit). */
-export async function searchDocuments(
-  f: DocumentFilters,
-): Promise<{ rows: DocumentListRow[]; total: number }> {
-  const conds = documentConditions(f);
-  const where = conds.length ? and(...conds) : undefined;
-
-  const rows = await db
-    .select({
-      id: documentTable.id,
-      token: documentTable.token,
-      status: documentTable.status,
-      storeName: storeTable.name,
-      deviceName: deviceTable.name,
-      createdAt: documentTable.createdAt,
-      byteSize: documentTable.byteSize,
-    })
-    .from(documentTable)
-    .leftJoin(storeTable, eq(documentTable.storeId, storeTable.id))
-    .leftJoin(deviceTable, eq(documentTable.deviceId, deviceTable.id))
-    .where(where)
-    .orderBy(desc(documentTable.createdAt))
-    .limit(PAGE_SIZE)
-    .offset((f.page - 1) * PAGE_SIZE);
-
-  const [{ total }] = await db
-    .select({ total: count() })
-    .from(documentTable)
-    .where(where);
-
-  return {
-    rows: rows.map((r) => ({
-      id: r.id,
-      token: r.token,
-      status: r.status,
-      storeName: r.storeName,
-      deviceName: r.deviceName,
-      createdAt: r.createdAt.toISOString(),
-      byteSize: r.byteSize,
-    })),
-    total: Number(total),
-  };
-}
-
-/** One document + a fresh presigned image URL. Read-only — never flips status. */
-export async function getDocumentDetail(
-  documentId: string,
-  opts: { organizationId?: string },
-) {
-  const conds = [eq(documentTable.id, documentId)];
-  if (opts.organizationId) conds.push(eq(documentTable.organizationId, opts.organizationId));
-  const [r] = await db
-    .select({
-      id: documentTable.id,
-      token: documentTable.token,
-      status: documentTable.status,
-      storageKey: documentTable.storageKey,
-      byteSize: documentTable.byteSize,
-      createdAt: documentTable.createdAt,
-      downloadedAt: documentTable.downloadedAt,
-      storeName: storeTable.name,
-      deviceName: deviceTable.name,
-      storeId: documentTable.storeId,
-      deviceId: documentTable.deviceId,
-    })
-    .from(documentTable)
-    .leftJoin(storeTable, eq(documentTable.storeId, storeTable.id))
-    .leftJoin(deviceTable, eq(documentTable.deviceId, deviceTable.id))
-    .where(and(...conds))
-    .limit(1);
-  if (!r) return null;
-
-  let imageUrl: string | null = null;
-  if (r.status !== "pending") {
-    try {
-      imageUrl = await presignedGetUrl(r.storageKey);
-    } catch {
-      imageUrl = null;
-    }
-  }
-  return {
-    id: r.id,
-    token: r.token,
-    status: r.status,
-    storeName: r.storeName,
-    deviceName: r.deviceName,
-    byteSize: r.byteSize,
-    createdAt: r.createdAt.toISOString(),
-    downloadedAt: r.downloadedAt ? r.downloadedAt.toISOString() : null,
-    imageUrl,
-    storeId: r.storeId,
-    deviceId: r.deviceId,
-  };
-}
-
-/** Stores + devices for an org, for the tenant filter dropdowns. */
-export async function getDocumentFilterOptions(organizationId: string) {
-  const [stores, devices] = await Promise.all([
-    db.select({ id: storeTable.id, name: storeTable.name }).from(storeTable).where(eq(storeTable.organizationId, organizationId)),
-    db.select({ id: deviceTable.id, name: deviceTable.name }).from(deviceTable).where(eq(deviceTable.organizationId, organizationId)),
-  ]);
-  return { stores, devices };
-}
 
 export interface PlatformHealth {
   fleet: {
@@ -1672,141 +1533,8 @@ export async function getApiKeys(organizationId: string): Promise<ApiKeyRow[]> {
 }
 
 // ============================================================================
-// Webhooks
-// ============================================================================
-
-export interface WebhookEndpointRow {
-  id: string;
-  url: string;
-  events: string[];
-  enabled: boolean;
-  consecutiveFailures: number;
-  disabledReason: string | null;
-  createdAt: string;
-  lastDeliveryAt: string | null;
-}
-
-/** Endpoint listing for the management UI — never returns the signing secret. */
-export async function getWebhookEndpoints(organizationId: string): Promise<WebhookEndpointRow[]> {
-  const rows = await db
-    .select({
-      id: webhookEndpointTable.id,
-      url: webhookEndpointTable.url,
-      events: webhookEndpointTable.events,
-      enabled: webhookEndpointTable.enabled,
-      consecutiveFailures: webhookEndpointTable.consecutiveFailures,
-      disabledReason: webhookEndpointTable.disabledReason,
-      createdAt: webhookEndpointTable.createdAt,
-      lastDeliveryAt: webhookEndpointTable.lastDeliveryAt,
-    })
-    .from(webhookEndpointTable)
-    .where(eq(webhookEndpointTable.organizationId, organizationId))
-    .orderBy(desc(webhookEndpointTable.createdAt));
-  return rows.map((r) => ({
-    id: r.id,
-    url: r.url,
-    events: r.events,
-    enabled: r.enabled,
-    consecutiveFailures: r.consecutiveFailures,
-    disabledReason: r.disabledReason,
-    createdAt: r.createdAt.toISOString(),
-    lastDeliveryAt: r.lastDeliveryAt ? r.lastDeliveryAt.toISOString() : null,
-  }));
-}
-
-export interface WebhookDeliveryRow {
-  id: string;
-  url: string;
-  eventType: string;
-  status: "pending" | "success" | "failed";
-  responseStatus: number | null;
-  attempts: number;
-  createdAt: string;
-}
-
-/** Recent deliveries across the org's endpoints, newest first. */
-export async function getRecentWebhookDeliveries(organizationId: string, limit = 20): Promise<WebhookDeliveryRow[]> {
-  const rows = await db
-    .select({
-      id: webhookDeliveryTable.id,
-      url: webhookEndpointTable.url,
-      eventType: webhookDeliveryTable.eventType,
-      status: webhookDeliveryTable.status,
-      responseStatus: webhookDeliveryTable.responseStatus,
-      attempts: webhookDeliveryTable.attempts,
-      createdAt: webhookDeliveryTable.createdAt,
-    })
-    .from(webhookDeliveryTable)
-    .leftJoin(webhookEndpointTable, eq(webhookDeliveryTable.endpointId, webhookEndpointTable.id))
-    .where(eq(webhookDeliveryTable.organizationId, organizationId))
-    .orderBy(desc(webhookDeliveryTable.createdAt))
-    .limit(limit);
-  return rows.map((r) => ({
-    id: r.id,
-    url: r.url ?? "(deleted endpoint)",
-    eventType: r.eventType,
-    status: r.status,
-    responseStatus: r.responseStatus,
-    attempts: r.attempts,
-    createdAt: r.createdAt.toISOString(),
-  }));
-}
-
-// ============================================================================
 // Public API v1 — cursor document list + usage aggregate
 // ============================================================================
-
-export interface ApiDocumentFilters {
-  organizationId: string;
-  storeId?: string;
-  deviceId?: string;
-  status?: "pending" | "ready" | "downloaded";
-  createdAfter?: Date;
-  createdBefore?: Date;
-  token?: string;
-  limit: number;            // pass desired+1 to detect a next page
-  cursor?: { t: Date; id: string };
-}
-
-/** Keyset (cursor) document list for /api/v1, newest first. Org-scoped. */
-export async function listDocumentsByCursor(f: ApiDocumentFilters): Promise<ApiDocumentRow[]> {
-  const conds = [eq(documentTable.organizationId, f.organizationId)];
-  if (f.storeId) conds.push(eq(documentTable.storeId, f.storeId));
-  if (f.deviceId) conds.push(eq(documentTable.deviceId, f.deviceId));
-  if (f.status) conds.push(eq(documentTable.status, f.status));
-  if (f.createdAfter) conds.push(gte(documentTable.createdAt, f.createdAfter));
-  if (f.createdBefore) conds.push(lte(documentTable.createdAt, f.createdBefore));
-  if (f.token) conds.push(eq(documentTable.token, f.token));
-  if (f.cursor) {
-    // document.created_at is `timestamp without time zone`. Drizzle sends a JS Date
-    // as a `timestamptz` parameter; Postgres then coerces it to `timestamp` using
-    // the server's local timezone, shifting the value and breaking the boundary
-    // exclusion. Fix: supply the cursor as an explicit `::timestamp` cast from the
-    // ISO-8601 UTC string so no timezone conversion is applied. id is the strict
-    // unique tiebreaker for rows that share the same millisecond.
-    const tStr = f.cursor.t.toISOString(); // e.g. "2026-06-06T12:22:47.610Z"
-    conds.push(
-      sql`(${documentTable.createdAt}, ${documentTable.id}) < (${tStr}::timestamp, ${f.cursor.id})`,
-    );
-  }
-
-  const rows = await db
-    .select({
-      id: documentTable.id,
-      token: documentTable.token,
-      status: documentTable.status,
-      storeId: documentTable.storeId,
-      deviceId: documentTable.deviceId,
-      byteSize: documentTable.byteSize,
-      createdAt: documentTable.createdAt,
-    })
-    .from(documentTable)
-    .where(and(...conds))
-    .orderBy(desc(documentTable.createdAt), desc(documentTable.id))
-    .limit(f.limit);
-
-  return rows;
-}
 
 export interface ApiUsageData {
   unitPriceCents: number;
@@ -1916,15 +1644,4 @@ export async function deviceNamesForOrg(organizationId: string): Promise<Map<str
     .from(deviceTable)
     .where(eq(deviceTable.organizationId, organizationId));
   return new Map(rows.map((r) => [r.id, r.name]));
-}
-
-/** Customers who opted in to marketing for an org, newest opt-in first. */
-export async function getMarketingContacts(
-  organizationId: string,
-): Promise<Array<{ email: string; optInAt: Date }>> {
-  return db
-    .select({ email: marketingContactTable.email, optInAt: marketingContactTable.optInAt })
-    .from(marketingContactTable)
-    .where(eq(marketingContactTable.organizationId, organizationId))
-    .orderBy(desc(marketingContactTable.optInAt));
 }

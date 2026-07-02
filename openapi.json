@@ -8,41 +8,6 @@
   "servers": [{ "url": "/api/v1" }],
   "security": [{ "bearerAuth": [] }],
   "paths": {
-    "/documents": {
-      "get": {
-        "summary": "List documents",
-        "parameters": [
-          { "name": "store_id", "in": "query", "schema": { "type": "string" } },
-          { "name": "device_id", "in": "query", "schema": { "type": "string" } },
-          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["pending", "ready", "downloaded"] } },
-          { "name": "created_after", "in": "query", "schema": { "type": "string", "format": "date-time" } },
-          { "name": "created_before", "in": "query", "schema": { "type": "string", "format": "date-time" } },
-          { "name": "token", "in": "query", "schema": { "type": "string" } },
-          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 50, "maximum": 100, "minimum": 1 } },
-          { "name": "cursor", "in": "query", "schema": { "type": "string" }, "description": "Opaque cursor from a previous next_cursor." }
-        ],
-        "responses": {
-          "200": { "description": "A page of documents", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DocumentList" } } } },
-          "400": { "$ref": "#/components/responses/Error" },
-          "401": { "$ref": "#/components/responses/Error" },
-          "403": { "$ref": "#/components/responses/Error" },
-          "429": { "$ref": "#/components/responses/Error" }
-        }
-      }
-    },
-    "/documents/{id}": {
-      "get": {
-        "summary": "Get a document",
-        "parameters": [{ "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }],
-        "responses": {
-          "200": { "description": "Document with a short-lived image URL", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/DocumentDetail" } } } },
-          "401": { "$ref": "#/components/responses/Error" },
-          "403": { "$ref": "#/components/responses/Error" },
-          "404": { "$ref": "#/components/responses/Error" },
-          "429": { "$ref": "#/components/responses/Error" }
-        }
-      }
-    },
     "/usage": {
       "get": {
         "summary": "Usage totals",
@@ -65,38 +30,6 @@
         "type": "object",
         "properties": { "error": { "type": "object", "properties": { "code": { "type": "string" }, "message": { "type": "string" } }, "required": ["code", "message"] } },
         "required": ["error"]
-      },
-      "Document": {
-        "type": "object",
-        "properties": {
-          "id": { "type": "string" },
-          "token": { "type": "string" },
-          "status": { "type": "string", "enum": ["pending", "ready", "downloaded"] },
-          "store_id": { "type": ["string", "null"] },
-          "device_id": { "type": "string" },
-          "byte_size": { "type": "integer" },
-          "created_at": { "type": "string", "format": "date-time" }
-        }
-      },
-      "DocumentList": {
-        "type": "object",
-        "properties": {
-          "data": { "type": "array", "items": { "$ref": "#/components/schemas/Document" } },
-          "next_cursor": { "type": ["string", "null"] }
-        }
-      },
-      "DocumentDetail": {
-        "allOf": [
-          { "$ref": "#/components/schemas/Document" },
-          {
-            "type": "object",
-            "properties": {
-              "downloaded_at": { "type": ["string", "null"], "format": "date-time" },
-              "image_url": { "type": ["string", "null"] },
-              "image_expires_in": { "type": ["integer", "null"] }
-            }
-          }
-        ]
       },
       "Usage": {
         "type": "object",

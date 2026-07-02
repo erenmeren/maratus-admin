@@ -5,9 +5,9 @@ describe("openapi.json", () => {
   it("is an OpenAPI 3.1 document", () => {
     expect((openapi as { openapi: string }).openapi).toMatch(/^3\.1/);
   });
-  it("declares exactly the three implemented paths", () => {
+  it("declares exactly the implemented paths", () => {
     expect(Object.keys((openapi as { paths: Record<string, unknown> }).paths).sort()).toEqual(
-      ["/documents", "/documents/{id}", "/usage"],
+      ["/usage"],
     );
   });
   it("defines a bearerAuth security scheme and applies it globally", () => {

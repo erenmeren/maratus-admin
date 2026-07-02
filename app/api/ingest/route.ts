@@ -22,7 +22,6 @@ import { isOrgPaymentBlocked } from "@/lib/billing/enforcement";
 import { id, documentToken } from "@/lib/ids";
 import { authenticateDevice } from "@/lib/device-auth";
 import { putDocument, documentStorageKey } from "@/lib/storage";
-import { deliverEvent } from "@/lib/webhooks/deliver";
 import { getEnv } from "@/lib/env";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateDocumentPayload } from "@/lib/ingest-validation";
@@ -135,19 +134,6 @@ export async function POST(req: Request) {
     metadata,
     createdAt: now,
   });
-
-  // Fire document.created to subscribed webhooks — non-blocking, never affects the response.
-  after(() =>
-    deliverEvent(device.organizationId, "document.created", {
-      id: documentId,
-      token,
-      status: "ready",
-      storeId: device.storeId,
-      deviceId: device.id,
-      byteSize: bytes.byteLength,
-      createdAt: now,
-    }),
-  );
 
   // Bump device heartbeat + mark online.
   const version = req.headers.get("x-device-version");

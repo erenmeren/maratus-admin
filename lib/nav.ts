@@ -11,7 +11,6 @@ import {
   Activity,
   FileText,
   KeyRound,
-  Webhook,
   HardDriveDownload,
   MonitorCog,
   Mail,
@@ -44,7 +43,6 @@ export const TENANT_NAV: NavItem[] = [
   { label: "Documents", href: "/tenant/documents", icon: FileText },
   { label: "Billing", href: "/tenant/billing", icon: Wallet },
   { label: "API", href: "/tenant/api", icon: KeyRound },
-  { label: "Webhooks", href: "/tenant/webhooks", icon: Webhook },
   { label: "Contacts", href: "/tenant/contacts", icon: Mail },
   { label: "Activity", href: "/tenant/activity", icon: Activity },
 ];

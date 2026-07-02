@@ -16,8 +16,6 @@ import { id as genId } from "@/lib/ids";
 import {
   alert as alertTable,
   apiKey as apiKeyTable,
-  webhookEndpoint as webhookEndpointTable,
-  webhookDelivery as webhookDeliveryTable,
   auditLog as auditLogTable,
   creditLedger as creditLedgerTable,
   device as deviceTable,
@@ -1668,87 +1666,6 @@ export async function getApiKeys(organizationId: string): Promise<ApiKeyRow[]> {
     lastUsedAt: r.lastUsedAt ? r.lastUsedAt.toISOString() : null,
     createdAt: r.createdAt.toISOString(),
     revokedAt: r.revokedAt ? r.revokedAt.toISOString() : null,
-  }));
-}
-
-// ============================================================================
-// Webhooks
-// ============================================================================
-
-export interface WebhookEndpointRow {
-  id: string;
-  url: string;
-  events: string[];
-  enabled: boolean;
-  consecutiveFailures: number;
-  disabledReason: string | null;
-  createdAt: string;
-  lastDeliveryAt: string | null;
-}
-
-/** Endpoint listing for the management UI — never returns the signing secret. */
-export async function getWebhookEndpoints(organizationId: string): Promise<WebhookEndpointRow[]> {
-  const rows = await db
-    .select({
-      id: webhookEndpointTable.id,
-      url: webhookEndpointTable.url,
-      events: webhookEndpointTable.events,
-      enabled: webhookEndpointTable.enabled,
-      consecutiveFailures: webhookEndpointTable.consecutiveFailures,
-      disabledReason: webhookEndpointTable.disabledReason,
-      createdAt: webhookEndpointTable.createdAt,
-      lastDeliveryAt: webhookEndpointTable.lastDeliveryAt,
-    })
-    .from(webhookEndpointTable)
-    .where(eq(webhookEndpointTable.organizationId, organizationId))
-    .orderBy(desc(webhookEndpointTable.createdAt));
-  return rows.map((r) => ({
-    id: r.id,
-    url: r.url,
-    events: r.events,
-    enabled: r.enabled,
-    consecutiveFailures: r.consecutiveFailures,
-    disabledReason: r.disabledReason,
-    createdAt: r.createdAt.toISOString(),
-    lastDeliveryAt: r.lastDeliveryAt ? r.lastDeliveryAt.toISOString() : null,
-  }));
-}
-
-export interface WebhookDeliveryRow {
-  id: string;
-  url: string;
-  eventType: string;
-  status: "pending" | "success" | "failed";
-  responseStatus: number | null;
-  attempts: number;
-  createdAt: string;
-}
-
-/** Recent deliveries across the org's endpoints, newest first. */
-export async function getRecentWebhookDeliveries(organizationId: string, limit = 20): Promise<WebhookDeliveryRow[]> {
-  const rows = await db
-    .select({
-      id: webhookDeliveryTable.id,
-      url: webhookEndpointTable.url,
-      eventType: webhookDeliveryTable.eventType,
-      status: webhookDeliveryTable.status,
-      responseStatus: webhookDeliveryTable.responseStatus,
-      attempts: webhookDeliveryTable.attempts,
-      createdAt: webhookDeliveryTable.createdAt,
-    })
-    .from(webhookDeliveryTable)
-    .leftJoin(webhookEndpointTable, eq(webhookDeliveryTable.endpointId, webhookEndpointTable.id))
-    .where(eq(webhookDeliveryTable.organizationId, organizationId))
-    .orderBy(desc(webhookDeliveryTable.createdAt))
-    .limit(limit);
-  return rows.map((r) => ({
-    id: r.id,
-    url: r.url ?? "(deleted endpoint)",
-    eventType: r.eventType,
-    status: r.status,
-    responseStatus: r.responseStatus,
-    attempts: r.attempts,
-    createdAt: r.createdAt.toISOString(),
   }));
 }
 

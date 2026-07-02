@@ -12,7 +12,6 @@ import {
   KeyRound,
   HardDriveDownload,
   MonitorCog,
-  Mail,
 } from "lucide-react";
 
 export interface NavItem {
@@ -40,6 +39,5 @@ export const TENANT_NAV: NavItem[] = [
   { label: "Analytics", href: "/tenant/analytics", icon: LineChart },
   { label: "Billing", href: "/tenant/billing", icon: Wallet },
   { label: "API", href: "/tenant/api", icon: KeyRound },
-  { label: "Contacts", href: "/tenant/contacts", icon: Mail },
   { label: "Activity", href: "/tenant/activity", icon: Activity },
 ];

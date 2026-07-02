@@ -4,110 +4,8 @@
 
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "./db";
-import {
-  device as deviceTable,
-  organization as orgTable,
-  document as documentTable,
-  store as storeTable,
-  tenantSettings,
-} from "./db/schema";
+import { device as deviceTable, store as storeTable } from "./db/schema";
 import { generateDeviceKey, id } from "./ids";
-import { presignedDocumentUrl, presignedGetUrl } from "./storage";
-
-export interface PublicDocument {
-  token: string;
-  status: "pending" | "ready" | "downloaded";
-  storeName: string | null;
-  organizationName: string;
-  organizationId: string;
-  mimeType: string;
-  createdAt: Date;
-  /** Fresh short-lived presigned URL to the rendered image (null if pending). */
-  imageUrl: string | null;
-  /** Tenant brand accent color (hex); defaults to "#10A765" when unset. */
-  brandColor: string;
-  /** Presigned tenant logo URL, or null when no logo. */
-  logoUrl: string | null;
-  storeAddress: string | null;
-  supportEmail: string | null;
-  supportUrl: string | null;
-  /** Tenant return window in days; null = off. */
-  returnWindowDays: number | null;
-  /** Tenant warranty period in months; null = off. */
-  warrantyPeriodMonths: number | null;
-}
-
-/**
- * Look up a document by its capability token and, if ready, mint a fresh
- * presigned image URL. Marks the document `downloaded` on first view — this is
- * the "document sent ✓" signal. Returns null if the token is unknown.
- */
-export async function getDocumentByToken(
-  token: string,
-): Promise<PublicDocument | null> {
-  const [row] = await db
-    .select({
-      document: documentTable,
-      storeName: storeTable.name,
-      storeAddress: storeTable.address,
-      orgName: orgTable.name,
-      brandColor: tenantSettings.brandColor,
-      logoKey: tenantSettings.logoUrl,
-      supportEmail: tenantSettings.supportEmail,
-      supportUrl: tenantSettings.supportUrl,
-      returnWindowDays: tenantSettings.returnWindowDays,
-      warrantyPeriodMonths: tenantSettings.warrantyPeriodMonths,
-    })
-    .from(documentTable)
-    .leftJoin(storeTable, eq(documentTable.storeId, storeTable.id))
-    .innerJoin(orgTable, eq(documentTable.organizationId, orgTable.id))
-    .leftJoin(tenantSettings, eq(documentTable.organizationId, tenantSettings.organizationId))
-    .where(eq(documentTable.token, token))
-    .limit(1);
-
-  if (!row) return null;
-  const r = row.document;
-
-  let imageUrl: string | null = null;
-  if (r.status !== "pending") {
-    imageUrl = await presignedDocumentUrl(r.storageKey);
-    // First view flips ready → downloaded and stamps the time.
-    if (r.status === "ready") {
-      await db
-        .update(documentTable)
-        .set({ status: "downloaded", downloadedAt: new Date() })
-        .where(eq(documentTable.id, r.id));
-    }
-  }
-
-  let logoUrl: string | null = null;
-  if (row.logoKey) {
-    try {
-      logoUrl = await presignedGetUrl(row.logoKey);
-    } catch (err) {
-      console.error("logo presign failed", err);
-      logoUrl = null; // never break the page over a logo
-    }
-  }
-
-  return {
-    token: r.token,
-    status: r.status === "ready" ? "downloaded" : r.status,
-    storeName: row.storeName,
-    organizationName: row.orgName,
-    organizationId: r.organizationId,
-    mimeType: r.mimeType,
-    createdAt: r.createdAt,
-    imageUrl,
-    brandColor: row.brandColor ?? "#10A765",
-    logoUrl,
-    storeAddress: row.storeAddress && row.storeAddress.trim() ? row.storeAddress : null,
-    supportEmail: row.supportEmail ?? null,
-    supportUrl: row.supportUrl ?? null,
-    returnWindowDays: row.returnWindowDays ?? null,
-    warrantyPeriodMonths: row.warrantyPeriodMonths ?? null,
-  };
-}
 
 export interface ClaimResult {
   deviceId: string;
@@ -198,27 +96,6 @@ export async function claimDevice(
     throw err;
   }
   return { deviceId, deviceName: name, deviceKey: key };
-}
-
-/**
- * Lightweight meta-only lookup by token. Returns the document id,
- * organizationId, and org name WITHOUT minting a presigned URL or flipping
- * ready → downloaded. Used by the public "email me this document" action.
- */
-export async function getDocumentByTokenMeta(
-  token: string,
-): Promise<{ id: string; organizationId: string; organizationName: string } | null> {
-  const [row] = await db
-    .select({
-      id: documentTable.id,
-      organizationId: documentTable.organizationId,
-      organizationName: orgTable.name,
-    })
-    .from(documentTable)
-    .innerJoin(orgTable, eq(orgTable.id, documentTable.organizationId))
-    .where(eq(documentTable.token, token))
-    .limit(1);
-  return row ?? null;
 }
 
 /** List unclaimed devices for an org (have a pairing code, not yet bound). */

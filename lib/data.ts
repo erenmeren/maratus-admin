@@ -723,18 +723,23 @@ export async function getCustomerDetail(
   const stuckCutoff = new Date(now.getTime() - STUCK_PENDING_MINUTES * 60_000);
   const [{ stuck }] = await db
     .select({ stuck: sql<number>`count(*)::int` })
-    .from(documentTable)
+    .from(deviceCommand)
     .where(
       and(
-        eq(documentTable.organizationId, organizationId),
-        eq(documentTable.status, "pending"),
-        lt(documentTable.createdAt, stuckCutoff),
+        eq(deviceCommand.organizationId, organizationId),
+        eq(deviceCommand.type, "trigger"),
+        eq(deviceCommand.status, "pending"),
+        lt(deviceCommand.createdAt, stuckCutoff),
       ),
     );
   const [{ last }] = await db
-    .select({ last: max(documentTable.createdAt) })
-    .from(documentTable)
-    .where(eq(documentTable.organizationId, organizationId));
+    .select({ last: max(deviceCommand.createdAt) })
+    .from(deviceCommand)
+    .where(and(
+      eq(deviceCommand.organizationId, organizationId),
+      eq(deviceCommand.type, "trigger"),
+      eq(deviceCommand.status, "acked"),
+    ));
 
   const subscriptionStatus = b.settings?.subscriptionStatus ?? null;
   const level = tenantHealthLevel(
@@ -1255,17 +1260,17 @@ export interface PlatformHealth {
     staleCount: number;
     stale: { deviceId: string; name: string; tenantName: string | null; lastSeen: string }[];
   };
-  ingest: {
+  activity: {
     last1h: number;
     last24h: number;
-    ready: number;
-    downloaded: number;
+    acked: number;
     pending: number;
+    failed: number;
     stuckPending: number;
   };
   usage: {
     topTenants: { id: string; name: string; count: number }[];
-    inactiveTenants: { id: string; name: string; lastDocumentAt: string | null }[];
+    inactiveTenants: { id: string; name: string; lastActivityAt: string | null }[];
   };
   alerts: HealthAlert[];
 }
@@ -1273,7 +1278,7 @@ export interface PlatformHealth {
 function zeroedHealth(): PlatformHealth {
   return {
     fleet: { total: 0, online: 0, offline: 0, paused: 0, staleCount: 0, stale: [] },
-    ingest: { last1h: 0, last24h: 0, ready: 0, downloaded: 0, pending: 0, stuckPending: 0 },
+    activity: { last1h: 0, last24h: 0, acked: 0, pending: 0, failed: 0, stuckPending: 0 },
     usage: { topTenants: [], inactiveTenants: [] },
     alerts: [],
   };
@@ -1321,36 +1326,42 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
       .from(deviceTable)
       .where(stalePred);
 
-    const [{ last1h }] = await db.select({ last1h: count() }).from(documentTable).where(gte(documentTable.createdAt, h1));
-    const [{ last24h }] = await db.select({ last24h: count() }).from(documentTable).where(gte(documentTable.createdAt, h24));
+    const trigAcked = and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "acked"));
+    const [{ last1h }] = await db.select({ last1h: count() }).from(deviceCommand).where(and(trigAcked, gte(deviceCommand.createdAt, h1)));
+    const [{ last24h }] = await db.select({ last24h: count() }).from(deviceCommand).where(and(trigAcked, gte(deviceCommand.createdAt, h24)));
+    // Status breakdown over all trigger commands in 24h (not just acked).
     const breakdownRows = await db
-      .select({ status: documentTable.status, c: count() })
-      .from(documentTable)
-      .where(gte(documentTable.createdAt, h24))
-      .groupBy(documentTable.status);
-    const breakdown = { ready: 0, downloaded: 0, pending: 0 } as Record<string, number>;
-    for (const r of breakdownRows) breakdown[r.status] = Number(r.c);
+      .select({ status: deviceCommand.status, c: count() })
+      .from(deviceCommand)
+      .where(and(eq(deviceCommand.type, "trigger"), gte(deviceCommand.createdAt, h24)))
+      .groupBy(deviceCommand.status);
+    const bd = { acked: 0, pending: 0, failed: 0 } as Record<string, number>;
+    for (const r of breakdownRows) {
+      if (r.status === "acked") bd.acked += Number(r.c);
+      else if (r.status === "pending" || r.status === "delivered") bd.pending += Number(r.c);
+      else bd.failed += Number(r.c); // failed + expired
+    }
     const [{ stuckPending }] = await db
       .select({ stuckPending: count() })
-      .from(documentTable)
-      .where(and(eq(documentTable.status, "pending"), lt(documentTable.createdAt, stuckCut)));
+      .from(deviceCommand)
+      .where(and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "pending"), lt(deviceCommand.createdAt, stuckCut)));
 
     const topRows = await db
       .select({ id: orgTable.id, name: orgTable.name, c: count() })
-      .from(documentTable)
-      .innerJoin(orgTable, eq(documentTable.organizationId, orgTable.id))
-      .where(gte(documentTable.createdAt, h24))
+      .from(deviceCommand)
+      .innerJoin(orgTable, eq(deviceCommand.organizationId, orgTable.id))
+      .where(and(trigAcked, gte(deviceCommand.createdAt, h24)))
       .groupBy(orgTable.id, orgTable.name)
       .orderBy(desc(count()))
       .limit(5);
     const topTenants = topRows.map((r) => ({ id: r.id, name: r.name, count: Number(r.c) }));
 
     const allOrgs = await db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable);
-    // One row per org (max createdAt) — avoids reading the whole document table.
     const lastRows = await db
-      .select({ org: documentTable.organizationId, last: max(documentTable.createdAt) })
-      .from(documentTable)
-      .groupBy(documentTable.organizationId);
+      .select({ org: deviceCommand.organizationId, last: max(deviceCommand.createdAt) })
+      .from(deviceCommand)
+      .where(trigAcked)
+      .groupBy(deviceCommand.organizationId);
     const lastByOrg = new Map<string, Date>();
     for (const r of lastRows) if (r.last) lastByOrg.set(r.org, r.last);
     const inactiveTenants = allOrgs
@@ -1361,7 +1372,7 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
       .map((o) => ({
         id: o.id,
         name: o.name,
-        lastDocumentAt: lastByOrg.get(o.id)?.toISOString() ?? null,
+        lastActivityAt: lastByOrg.get(o.id)?.toISOString() ?? null,
       }));
 
     const alerts = computeAlerts({
@@ -1384,12 +1395,12 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
           lastSeen: r.lastSeen ? r.lastSeen.toISOString() : "",
         })),
       },
-      ingest: {
+      activity: {
         last1h: Number(last1h),
         last24h: Number(last24h),
-        ready: breakdown.ready ?? 0,
-        downloaded: breakdown.downloaded ?? 0,
-        pending: breakdown.pending ?? 0,
+        acked: bd.acked,
+        pending: bd.pending,
+        failed: bd.failed,
         stuckPending: Number(stuckPending),
       },
       usage: { topTenants, inactiveTenants },
@@ -1428,14 +1439,15 @@ export async function getAlertInputs(): Promise<{
     );
   const [{ stuckPendingCount }] = await db
     .select({ stuckPendingCount: count() })
-    .from(documentTable)
-    .where(and(eq(documentTable.status, "pending"), lt(documentTable.createdAt, stuckCut)));
+    .from(deviceCommand)
+    .where(and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "pending"), lt(deviceCommand.createdAt, stuckCut)));
 
   const allOrgs = await db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable);
   const lastRows = await db
-    .select({ org: documentTable.organizationId, last: max(documentTable.createdAt) })
-    .from(documentTable)
-    .groupBy(documentTable.organizationId);
+    .select({ org: deviceCommand.organizationId, last: max(deviceCommand.createdAt) })
+    .from(deviceCommand)
+    .where(and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "acked")))
+    .groupBy(deviceCommand.organizationId);
   const lastByOrg = new Map<string, Date>();
   for (const r of lastRows) if (r.last) lastByOrg.set(r.org, r.last);
   const inactiveTenants = allOrgs

@@ -22,7 +22,6 @@ import {
   deviceCommand,
   invitation as invitationTable,
   invoice as invoiceTable,
-  marketingContact as marketingContactTable,
   member as memberTable,
   organization as orgTable,
   document as documentTable,

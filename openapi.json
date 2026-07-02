@@ -3,7 +3,7 @@
   "info": {
     "title": "Ditto Public API",
     "version": "1.0.0",
-    "description": "Read-only, tenant-scoped access to documents and usage. Authenticate with an API key created in the Ditto dashboard (Authorization: Bearer <key>)."
+    "description": "Read-only, tenant-scoped access to usage. Authenticate with an API key created in the Ditto dashboard (Authorization: Bearer <key>)."
   },
   "servers": [{ "url": "/api/v1" }],
   "security": [{ "bearerAuth": [] }],

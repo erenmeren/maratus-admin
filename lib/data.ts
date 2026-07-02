@@ -850,10 +850,6 @@ export interface TenantBranding {
   /** Normalized v3 printer config (uploaded icon + image keys are presigned for display). */
   printerConfig: PrinterConfig;
   staffPin: string;
-  supportEmail: string | null;
-  supportUrl: string | null;
-  returnWindowDays: number | null;
-  warrantyPeriodMonths: number | null;
 }
 
 export async function getTenantBranding(
@@ -906,10 +902,6 @@ export async function getTenantBranding(
     brandMuted: tokens.muted,
     printerConfig: config,
     staffPin: s?.staffPin ?? "",
-    supportEmail: s?.supportEmail ?? null,
-    supportUrl: s?.supportUrl ?? null,
-    returnWindowDays: s?.returnWindowDays ?? null,
-    warrantyPeriodMonths: s?.warrantyPeriodMonths ?? null,
   };
 }
 

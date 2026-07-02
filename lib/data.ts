@@ -10,7 +10,7 @@
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
 //   • documentsToday / documentsThisMonth are derived from the document table
 
-import { and, count, desc, eq, gte, isNotNull, lt, lte, max, ne, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNotNull, lt, max, ne, sql } from "drizzle-orm";
 import { db } from "./db";
 import { id as genId } from "@/lib/ids";
 import {

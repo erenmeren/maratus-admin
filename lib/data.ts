@@ -64,11 +64,11 @@ import type {
 } from "./types";
 
 // ============================================================================
-// Internal: load an org's bounded metadata + SQL-aggregated document rollups,
-// then build view-models from the bundle. The unbounded per-document rows are
+// Internal: load an org's bounded metadata + SQL-aggregated activation rollups,
+// then build view-models from the bundle. The unbounded per-trigger rows are
 // NEVER pulled into app memory — only GROUP BY aggregates (per-device today/
 // month counts, and per-day/per-month series buckets). A super-admin page is
-// therefore O(devices + buckets) per org, not O(all documents on the platform).
+// therefore O(devices + buckets) per org, not O(all triggers on the platform).
 // ============================================================================
 
 interface OrgBundle {
@@ -76,7 +76,7 @@ interface OrgBundle {
   settings: typeof settingsTable.$inferSelect | undefined;
   stores: (typeof storeTable.$inferSelect)[];
   devices: (typeof deviceTable.$inferSelect)[];
-  /** documents-per-device, today / this-month (UTC), from SQL GROUP BY. */
+  /** activations-per-device, today / this-month (UTC), from SQL GROUP BY. */
   todayByDevice: Map<string, number>;
   monthByDevice: Map<string, number>;
   /** day-key ("YYYY-MM-DD", last 30d) / month-key ("YYYY-MM", last 9mo) counts. */
@@ -171,14 +171,13 @@ async function loadOrg(organizationId: string): Promise<OrgBundle | null> {
       .where(eq(memberTable.organizationId, organizationId)),
   ]);
 
-  // Mirror the old per-document loop: a device appears in monthByDevice when it
-  // has ≥1 document this month, in todayByDevice when it has ≥1 today; absent
-  // devices read back as 0 via `?? 0` in mapDevice. (count(*) here is ≥1.)
+  // Per-device rollup of acked triggers: a device appears in monthByDevice when
+  // it has ≥1 activation this month, in todayByDevice when it has ≥1 today;
+  // absent devices read back as 0 via `?? 0` in mapDevice. (count(*) here is ≥1.)
   const todayByDevice = new Map<string, number>();
   const monthByDevice = new Map<string, number>();
   for (const r of deviceCountRows) {
-    // deviceId is nullable (cloud-ingested documents have no device); those rows
-    // don't belong to any device bucket, so skip them.
+    // deviceId is non-null on device_command; the guard is cheap insurance.
     if (!r.deviceId) continue;
     monthByDevice.set(r.deviceId, r.month);
     if (r.today) todayByDevice.set(r.deviceId, r.today);
@@ -338,12 +337,12 @@ function summarize(b: OrgBundle): TenantSummary {
   };
 }
 
-// ---- time series from SQL-aggregated document buckets ------------------------
+// ---- time series from SQL-aggregated activation buckets ----------------------
 // The bundle already holds GROUP BY counts keyed "YYYY-MM-DD" / "YYYY-MM" (UTC,
 // via date_trunc). bucketsToSeries joins them onto the ordered day/month keys —
 // the same join the per-store analytics (getStoreAnalytics/getStoresAnalytics)
 // use, so org-wide and per-store series can never drift apart. Buckets outside
-// the key window are simply not joined (identical to the old all-documents path,
+// the key window are simply not joined (identical to the old all-triggers path,
 // which bucketed everything then dropped out-of-window keys).
 
 function dailySeries(b: OrgBundle, price: number): TimePoint[] {
@@ -450,7 +449,7 @@ export async function getStore(
 }
 
 /**
- * Per-store analytics: daily/monthly document series, this-vs-last-month trend,
+ * Per-store analytics: daily/monthly activation series, this-vs-last-month trend,
  * revenue + eco for this month, and busiest day-of-week / peak hour. Returns the
  * store too so the page can render without a second lookup. null if not found.
  */
@@ -507,8 +506,8 @@ export async function getStoreAnalytics(
 }
 
 /**
- * Cross-store comparison for the tenant Analytics page: per-store rows (documents
- * this month, trend vs last month, revenue, eco) sorted by documents, plus a
+ * Cross-store comparison for the tenant Analytics page: per-store rows (activations
+ * this month, trend vs last month, revenue, eco) sorted by activations, plus a
  * per-store monthly series for the comparison chart. Degrades to empty on error.
  */
 export async function getStoresAnalytics(organizationId: string): Promise<{

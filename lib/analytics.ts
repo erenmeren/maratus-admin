@@ -113,7 +113,7 @@ export function hourLabel(hour: number): string {
     : `${start.base}${start.period}–${end.base}${end.period}`;
 }
 
-/** Returns the bucket with the most documents; on a tie the first in input order wins. Empty/all-zero → null fields. */
+/** Returns the bucket with the most activations; on a tie the first in input order wins. Empty/all-zero → null fields. */
 export function pickPeakDow(rows: DowCount[]): { dow: number | null; count: number; label: string | null } {
   let best: DowCount | null = null;
   for (const r of rows) if (!best || r.count > best.count) best = r;
@@ -121,7 +121,7 @@ export function pickPeakDow(rows: DowCount[]): { dow: number | null; count: numb
   return { dow: best.dow, count: best.count, label: dowLabel(best.dow) };
 }
 
-/** Returns the bucket with the most documents; on a tie the first in input order wins. Empty/all-zero → null fields. */
+/** Returns the bucket with the most activations; on a tie the first in input order wins. Empty/all-zero → null fields. */
 export function pickPeakHour(rows: HourCount[]): { hour: number | null; count: number; label: string | null } {
   let best: HourCount | null = null;
   for (const r of rows) if (!best || r.count > best.count) best = r;

@@ -16,21 +16,21 @@ export const CO2_GRAMS_PER_DOCUMENT = 4.6; // PLACEHOLDER
 export const PAPER_GRAMS_PER_TREE = 8500; // PLACEHOLDER
 
 export interface EcoSavings {
-  documents: number;
+  activations: number;
   paperKg: number;
   waterLiters: number;
   co2Kg: number;
   trees: number;
 }
 
-/** Compute aggregate eco savings for a given number of documents. */
-export function computeEcoSavings(documents: number): EcoSavings {
-  const paperGrams = documents * PAPER_GRAMS_PER_DOCUMENT;
+/** Compute aggregate eco savings for a given number of activations. */
+export function computeEcoSavings(activations: number): EcoSavings {
+  const paperGrams = activations * PAPER_GRAMS_PER_DOCUMENT;
   return {
-    documents,
+    activations,
     paperKg: paperGrams / 1000,
-    waterLiters: documents * WATER_LITERS_PER_DOCUMENT,
-    co2Kg: (documents * CO2_GRAMS_PER_DOCUMENT) / 1000,
+    waterLiters: activations * WATER_LITERS_PER_DOCUMENT,
+    co2Kg: (activations * CO2_GRAMS_PER_DOCUMENT) / 1000,
     trees: paperGrams / PAPER_GRAMS_PER_TREE,
   };
 }

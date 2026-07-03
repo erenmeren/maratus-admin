@@ -102,7 +102,7 @@ export function FleetTable({
               <TableHead>Status</TableHead>
               <TableHead>Last seen</TableHead>
               <TableHead>Firmware</TableHead>
-              <TableHead className="text-right">Documents (mo.)</TableHead>
+              <TableHead className="text-right">Activations (mo.)</TableHead>
               <TableHead className="w-10 pr-4" />
             </TableRow>
           </TableHeader>
@@ -134,7 +134,7 @@ export function FleetTable({
                   )}
                 </TableCell>
                 <TableCell className="text-right font-medium tabular-nums">
-                  {formatNumber(r.documentsThisMonth)}
+                  {formatNumber(r.activationsThisMonth)}
                 </TableCell>
                 <TableCell className="pr-4">
                   <DeviceRowActions

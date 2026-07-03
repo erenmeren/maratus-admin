@@ -66,7 +66,7 @@ function ChartTooltip({
   );
 }
 
-/** Documents over time — soft emerald area chart. */
+/** Activations over time — soft emerald area chart. */
 export function DocumentsAreaChart({
   data,
   height = 280,
@@ -89,12 +89,12 @@ export function DocumentsAreaChart({
         <XAxis dataKey="label" {...AXIS} interval={interval} minTickGap={16} />
         <YAxis {...AXIS} width={40} tickFormatter={(v) => formatCompact(Number(v))} />
         <Tooltip
-          content={<ChartTooltip unit="documents" />}
+          content={<ChartTooltip unit="activations" />}
           cursor={{ stroke: "var(--border)" }}
         />
         <Area
           type="monotone"
-          dataKey="documents"
+          dataKey="activations"
           stroke="var(--chart-1)"
           strokeWidth={2}
           fill="url(#fillDocuments)"
@@ -221,7 +221,7 @@ export function BreakdownBarChart({
           tickFormatter={(v: string) => (v.length > 18 ? v.slice(0, 17) + "…" : v)}
         />
         <Tooltip
-          content={<ChartTooltip money={money} unit={money ? undefined : "documents"} />}
+          content={<ChartTooltip money={money} unit={money ? undefined : "activations"} />}
           cursor={{ fill: "var(--accent)", opacity: 0.4 }}
         />
         <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={18}>
@@ -242,7 +242,7 @@ const COMPARE_COLORS = [
   "var(--chart-5)",
 ];
 
-/** Multi-line monthly documents comparison — one line per store. */
+/** Multi-line monthly activations comparison — one line per store. */
 export function StoreCompareChart({
   data,
   height = 300,
@@ -260,10 +260,10 @@ export function StoreCompareChart({
       </div>
     );
   }
-  // Merge per-store series into rows keyed by month label: { label, [storeId]: documents }.
+  // Merge per-store series into rows keyed by month label: { label, [storeId]: activations }.
   const rows = data[0].monthly.map((point, i) => {
     const row: Record<string, string | number> = { label: point.label };
-    for (const s of data) row[s.storeId] = s.monthly[i]?.documents ?? 0;
+    for (const s of data) row[s.storeId] = s.monthly[i]?.activations ?? 0;
     return row;
   });
   return (
@@ -272,7 +272,7 @@ export function StoreCompareChart({
         <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
         <XAxis dataKey="label" {...AXIS} minTickGap={16} />
         <YAxis {...AXIS} width={40} />
-        <Tooltip content={<ChartTooltip unit="documents" />} cursor={{ stroke: "var(--border)" }} />
+        <Tooltip content={<ChartTooltip unit="activations" />} cursor={{ stroke: "var(--border)" }} />
         {data.map((s, i) => (
           <Line
             key={s.storeId}

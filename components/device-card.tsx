@@ -66,13 +66,13 @@ export function DeviceCard({ device }: { device: Device }) {
         <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
           <div className="rounded-lg bg-muted/50 p-2.5">
             <p className="font-display text-base font-bold tabular-nums">
-              {formatNumber(device.documentsToday)}
+              {formatNumber(device.activationsToday)}
             </p>
             <p className="text-xs text-muted-foreground">today</p>
           </div>
           <div className="rounded-lg bg-muted/50 p-2.5">
             <p className="font-display text-base font-bold tabular-nums">
-              {formatNumber(device.documentsThisMonth)}
+              {formatNumber(device.activationsThisMonth)}
             </p>
             <p className="text-xs text-muted-foreground">this month</p>
           </div>

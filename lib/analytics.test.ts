@@ -38,9 +38,9 @@ describe("bucketsToSeries", () => {
     const keys = dayKeys(NOW, 3);
     const series = bucketsToSeries([{ bucket: "2026-06-04", count: 5 }], keys, 4);
     expect(series).toEqual([
-      { label: "Jun 3", documents: 0, revenue: 0 },
-      { label: "Jun 4", documents: 5, revenue: 20 },
-      { label: "Jun 5", documents: 0, revenue: 0 },
+      { label: "Jun 3", activations: 0, revenue: 0 },
+      { label: "Jun 4", activations: 5, revenue: 20 },
+      { label: "Jun 5", activations: 0, revenue: 0 },
     ]);
   });
 });
@@ -89,7 +89,7 @@ describe("buildPeak", () => {
 });
 
 describe("toComparisonRows", () => {
-  it("maps + sorts by documents desc", () => {
+  it("maps + sorts by activations desc", () => {
     const rows = toComparisonRows([
       { storeId: "a", storeName: "A", current: 3, previous: 2, price: 4 },
       { storeId: "b", storeName: "B", current: 10, previous: 5, price: 4 },
@@ -97,7 +97,7 @@ describe("toComparisonRows", () => {
     expect(rows.map((r) => r.storeId)).toEqual(["b", "a"]);
     expect(rows[0].trend.pctChange).toBe(100);
     expect(rows[0].revenueThisMonth).toBe(40);
-    expect(rows[0].eco.documents).toBe(10);
+    expect(rows[0].eco.activations).toBe(10);
   });
   it("returns [] for empty input", () => {
     expect(toComparisonRows([])).toEqual([]);

@@ -65,7 +65,7 @@ export default async function CustomerDetailPage({
   const byStore = tenant.stores
     .map((s) => ({
       label: s.name.replace(`${tenant.name} `, "").replace(`${tenant.logoText} — `, ""),
-      value: s.devices.reduce((a, d) => a + d.documentsThisMonth, 0),
+      value: s.devices.reduce((a, d) => a + d.activationsThisMonth, 0),
     }))
     .sort((a, b) => b.value - a.value);
 
@@ -131,7 +131,7 @@ export default async function CustomerDetailPage({
           <span className="text-muted-foreground">Online <strong className="text-foreground">{health.online}</strong></span>
           <span className="text-muted-foreground">Offline <strong className="text-foreground">{health.offline}</strong></span>
           <span className="text-muted-foreground">Paused <strong className="text-foreground">{health.paused}</strong></span>
-          <span className="text-muted-foreground">Stuck docs <strong className="text-foreground">{health.stuckPendingCount}</strong></span>
+          <span className="text-muted-foreground">Stuck pending <strong className="text-foreground">{health.stuckPendingCount}</strong></span>
           <span className="text-muted-foreground">Subscription <strong className="text-foreground">{health.subscriptionStatus ?? "none"}</strong></span>
         </CardContent>
       </Card>
@@ -141,8 +141,8 @@ export default async function CustomerDetailPage({
         <KpiCard label="Stores" value={formatNumber(summary.storeCount)} icon={Store} />
         <KpiCard label="Devices" value={formatNumber(summary.deviceCount)} icon={Cpu} />
         <KpiCard
-          label="Documents this month"
-          value={formatNumber(summary.documentsThisMonth)}
+          label="Activations this month"
+          value={formatNumber(summary.activationsThisMonth)}
           icon={FileText}
         />
         <KpiCard
@@ -165,7 +165,7 @@ export default async function CustomerDetailPage({
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Documents by store</CardTitle>
+            <CardTitle>Activations by store</CardTitle>
             <CardDescription>This month, per branch</CardDescription>
           </CardHeader>
           <CardContent>
@@ -249,7 +249,7 @@ export default async function CustomerDetailPage({
                 <TableHead>Store</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last seen</TableHead>
-                <TableHead className="text-right">Documents (mo.)</TableHead>
+                <TableHead className="text-right">Activations (mo.)</TableHead>
                 <TableHead className="w-10 pr-4" />
               </TableRow>
             </TableHeader>
@@ -268,7 +268,7 @@ export default async function CustomerDetailPage({
                     {timeAgo(d.lastSeen)}
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
-                    {formatNumber(d.documentsThisMonth)}
+                    {formatNumber(d.activationsThisMonth)}
                   </TableCell>
                   <TableCell className="pr-4">
                     <DeviceRowActions deviceId={d.id} status={d.status} />

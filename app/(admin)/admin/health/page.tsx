@@ -42,14 +42,14 @@ export default async function HealthPage() {
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Ingest activity</h2>
+        <h2 className="text-lg font-medium">Trigger activity</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <KpiCard label="Documents (1h)" value={String(h.ingest.last1h)} />
-          <KpiCard label="Documents (24h)" value={String(h.ingest.last24h)} />
-          <KpiCard label="Stuck pending" value={String(h.ingest.stuckPending)} />
+          <KpiCard label="Activations (1h)" value={String(h.activity.last1h)} />
+          <KpiCard label="Activations (24h)" value={String(h.activity.last24h)} />
+          <KpiCard label="Stuck pending" value={String(h.activity.stuckPending)} />
         </div>
         <p className="text-sm text-muted-foreground">
-          Last 24h: {h.ingest.ready} ready · {h.ingest.downloaded} downloaded · {h.ingest.pending} pending
+          Last 24h: {h.activity.acked} acked · {h.activity.pending} pending · {h.activity.failed} failed
         </p>
       </section>
 
@@ -59,7 +59,7 @@ export default async function HealthPage() {
           <div>
             <h3 className="mb-2 text-sm font-medium text-muted-foreground">Top tenants (24h)</h3>
             {h.usage.topTenants.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No documents in the last 24h.</p>
+              <p className="text-sm text-muted-foreground">No activations in the last 24h.</p>
             ) : (
               <ul className="flex flex-col gap-1 text-sm">
                 {h.usage.topTenants.map((t) => (
@@ -77,7 +77,7 @@ export default async function HealthPage() {
                 {h.usage.inactiveTenants.map((t) => (
                   <li key={t.id} className="flex justify-between border-t py-1.5">
                     <span>{t.name}</span>
-                    <span className="text-muted-foreground">{t.lastDocumentAt ? t.lastDocumentAt.slice(0, 10) : "never"}</span>
+                    <span className="text-muted-foreground">{t.lastActivityAt ? t.lastActivityAt.slice(0, 10) : "never"}</span>
                   </li>
                 ))}
               </ul>

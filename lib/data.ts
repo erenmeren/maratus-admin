@@ -8,7 +8,7 @@
 //   • money is stored in cents → exposed as dollars (perPrintPrice, amount)
 //   • tenant_settings.status (active|paused) → TenantStatus (active|suspended)
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
-//   • documentsToday / documentsThisMonth are derived from the document table
+//   • activationsToday / activationsThisMonth are derived from acked device-trigger commands
 
 import { and, count, desc, eq, gte, isNotNull, lt, max, ne, sql } from "drizzle-orm";
 import { db } from "./db";
@@ -64,11 +64,11 @@ import type {
 } from "./types";
 
 // ============================================================================
-// Internal: load an org's bounded metadata + SQL-aggregated document rollups,
-// then build view-models from the bundle. The unbounded per-document rows are
+// Internal: load an org's bounded metadata + SQL-aggregated activation rollups,
+// then build view-models from the bundle. The unbounded per-trigger rows are
 // NEVER pulled into app memory — only GROUP BY aggregates (per-device today/
 // month counts, and per-day/per-month series buckets). A super-admin page is
-// therefore O(devices + buckets) per org, not O(all documents on the platform).
+// therefore O(devices + buckets) per org, not O(all triggers on the platform).
 // ============================================================================
 
 interface OrgBundle {
@@ -76,7 +76,7 @@ interface OrgBundle {
   settings: typeof settingsTable.$inferSelect | undefined;
   stores: (typeof storeTable.$inferSelect)[];
   devices: (typeof deviceTable.$inferSelect)[];
-  /** documents-per-device, today / this-month (UTC), from SQL GROUP BY. */
+  /** activations-per-device, today / this-month (UTC), from SQL GROUP BY. */
   todayByDevice: Map<string, number>;
   monthByDevice: Map<string, number>;
   /** day-key ("YYYY-MM-DD", last 30d) / month-key ("YYYY-MM", last 9mo) counts. */
@@ -112,12 +112,15 @@ async function loadOrg(organizationId: string): Promise<OrgBundle | null> {
   // `createdAt.getTime() >= startOf*()` epoch test, and the same cast the cursor
   // pagination relies on. date_trunc likewise buckets the stored UTC wall-clock,
   // matching the JS `toISOString()`/`getUTC*` bucketing it replaces.
-  const dayExpr = sql<string>`to_char(date_trunc('day', ${documentTable.createdAt}), 'YYYY-MM-DD')`;
-  const monthExpr = sql<string>`to_char(date_trunc('month', ${documentTable.createdAt}), 'YYYY-MM')`;
+  const dayExpr = sql<string>`to_char(date_trunc('day', ${deviceCommand.createdAt}), 'YYYY-MM-DD')`;
+  const monthExpr = sql<string>`to_char(date_trunc('month', ${deviceCommand.createdAt}), 'YYYY-MM')`;
+  // Metric = acked trigger commands (a QR the device actually rendered).
   const orgScoped = (sinceStr: string) =>
     and(
-      eq(documentTable.organizationId, organizationId),
-      sql`${documentTable.createdAt} >= ${sinceStr}::timestamp`,
+      eq(deviceCommand.organizationId, organizationId),
+      eq(deviceCommand.type, "trigger"),
+      eq(deviceCommand.status, "acked"),
+      sql`${deviceCommand.createdAt} >= ${sinceStr}::timestamp`,
     );
 
   const [
@@ -142,23 +145,23 @@ async function loadOrg(organizationId: string): Promise<OrgBundle | null> {
     // strict subset and `count(*)` is exactly the month count for each device.
     db
       .select({
-        deviceId: documentTable.deviceId,
-        today: sql<number>`count(*) FILTER (WHERE ${documentTable.createdAt} >= ${todayStartStr}::timestamp)`.mapWith(
+        deviceId: deviceCommand.deviceId,
+        today: sql<number>`count(*) FILTER (WHERE ${deviceCommand.createdAt} >= ${todayStartStr}::timestamp)`.mapWith(
           Number,
         ),
         month: sql<number>`count(*)`.mapWith(Number),
       })
-      .from(documentTable)
+      .from(deviceCommand)
       .where(orgScoped(monthStartStr))
-      .groupBy(documentTable.deviceId),
+      .groupBy(deviceCommand.deviceId),
     db
       .select({ bucket: dayExpr, count: count() })
-      .from(documentTable)
+      .from(deviceCommand)
       .where(orgScoped(since30Str))
       .groupBy(dayExpr),
     db
       .select({ bucket: monthExpr, count: count() })
-      .from(documentTable)
+      .from(deviceCommand)
       .where(orgScoped(since9moStr))
       .groupBy(monthExpr),
     db
@@ -168,14 +171,13 @@ async function loadOrg(organizationId: string): Promise<OrgBundle | null> {
       .where(eq(memberTable.organizationId, organizationId)),
   ]);
 
-  // Mirror the old per-document loop: a device appears in monthByDevice when it
-  // has ≥1 document this month, in todayByDevice when it has ≥1 today; absent
-  // devices read back as 0 via `?? 0` in mapDevice. (count(*) here is ≥1.)
+  // Per-device rollup of acked triggers: a device appears in monthByDevice when
+  // it has ≥1 activation this month, in todayByDevice when it has ≥1 today;
+  // absent devices read back as 0 via `?? 0` in mapDevice. (count(*) here is ≥1.)
   const todayByDevice = new Map<string, number>();
   const monthByDevice = new Map<string, number>();
   for (const r of deviceCountRows) {
-    // deviceId is nullable (cloud-ingested documents have no device); those rows
-    // don't belong to any device bucket, so skip them.
+    // deviceId is non-null on device_command; the guard is cheap insurance.
     if (!r.deviceId) continue;
     monthByDevice.set(r.deviceId, r.month);
     if (r.today) todayByDevice.set(r.deviceId, r.today);
@@ -284,8 +286,8 @@ function mapDevice(
     firmwareVersion: d.firmwareVersion,
     lastSeen: (d.lastSeenAt ?? d.createdAt).toISOString(),
     lastSeenAt: d.lastSeenAt ? d.lastSeenAt.toISOString() : null,
-    documentsToday: todayBy.get(d.id) ?? 0,
-    documentsThisMonth: monthBy.get(d.id) ?? 0,
+    activationsToday: todayBy.get(d.id) ?? 0,
+    activationsThisMonth: monthBy.get(d.id) ?? 0,
   };
 }
 
@@ -298,8 +300,8 @@ function rollUpStoreStatus(devices: Device[]): StoreSummary["status"] {
 function summarize(b: OrgBundle): TenantSummary {
   const tenant = buildTenant(b);
   const allDevices = tenant.stores.flatMap((s) => s.devices);
-  const documentsThisMonth = allDevices.reduce(
-    (a, d) => a + d.documentsThisMonth,
+  const activationsThisMonth = allDevices.reduce(
+    (a, d) => a + d.activationsThisMonth,
     0,
   );
   const now = new Date();
@@ -327,20 +329,20 @@ function summarize(b: OrgBundle): TenantSummary {
     deviceCount: allDevices.length,
     onlineCount,
     offlineCount,
-    documentsThisMonth,
+    activationsThisMonth,
     revenueThisMonth:
-      Math.round(documentsThisMonth * tenant.perPrintPrice * 100) / 100,
+      Math.round(activationsThisMonth * tenant.perPrintPrice * 100) / 100,
     perPrintPrice: tenant.perPrintPrice,
     health,
   };
 }
 
-// ---- time series from SQL-aggregated document buckets ------------------------
+// ---- time series from SQL-aggregated activation buckets ----------------------
 // The bundle already holds GROUP BY counts keyed "YYYY-MM-DD" / "YYYY-MM" (UTC,
 // via date_trunc). bucketsToSeries joins them onto the ordered day/month keys —
 // the same join the per-store analytics (getStoreAnalytics/getStoresAnalytics)
 // use, so org-wide and per-store series can never drift apart. Buckets outside
-// the key window are simply not joined (identical to the old all-documents path,
+// the key window are simply not joined (identical to the old all-triggers path,
 // which bucketed everything then dropped out-of-window keys).
 
 function dailySeries(b: OrgBundle, price: number): TimePoint[] {
@@ -355,7 +357,7 @@ function sumSeries(all: TimePoint[][]): TimePoint[] {
   if (all.length === 0) return [];
   return all[0].map((_, i) => ({
     label: all[0][i].label,
-    documents: all.reduce((a, s) => a + s[i].documents, 0),
+    activations: all.reduce((a, s) => a + s[i].activations, 0),
     revenue: Math.round(all.reduce((a, s) => a + s[i].revenue, 0) * 100) / 100,
   }));
 }
@@ -381,12 +383,12 @@ export async function getTenant(organizationId: string): Promise<Tenant> {
 
 export interface TenantDashboard {
   tenant: Tenant;
-  documentsToday: number;
-  documentsThisMonth: number;
+  activationsToday: number;
+  activationsThisMonth: number;
   activeDevices: number;
   totalDevices: number;
   eco: ReturnType<typeof computeEcoSavings>;
-  ecoYtdDocuments: number;
+  ecoYtdActivations: number;
   ecoYtd: ReturnType<typeof computeEcoSavings>;
   daily: TimePoint[];
 }
@@ -398,20 +400,20 @@ export async function getTenantDashboard(
   if (!b) throw new Error(`Organization not found: ${organizationId}`);
   const tenant = buildTenant(b);
   const devices = tenant.stores.flatMap((s) => s.devices);
-  const documentsToday = devices.reduce((a, d) => a + d.documentsToday, 0);
-  const documentsThisMonth = devices.reduce((a, d) => a + d.documentsThisMonth, 0);
+  const activationsToday = devices.reduce((a, d) => a + d.activationsToday, 0);
+  const activationsThisMonth = devices.reduce((a, d) => a + d.activationsThisMonth, 0);
   const activeDevices = devices.filter((d) => d.status === "online").length;
-  const ecoYtdDocuments = Math.round(documentsThisMonth * 7.4);
+  const ecoYtdActivations = Math.round(activationsThisMonth * 7.4);
 
   return {
     tenant,
-    documentsToday,
-    documentsThisMonth,
+    activationsToday,
+    activationsThisMonth,
     activeDevices,
     totalDevices: devices.length,
-    eco: computeEcoSavings(documentsThisMonth),
-    ecoYtdDocuments,
-    ecoYtd: computeEcoSavings(ecoYtdDocuments),
+    eco: computeEcoSavings(activationsThisMonth),
+    ecoYtdActivations,
+    ecoYtd: computeEcoSavings(ecoYtdActivations),
     daily: dailySeries(b, tenant.perPrintPrice),
   };
 }
@@ -427,7 +429,7 @@ export async function getTenantStores(
     timezone: s.timezone,
     deviceCount: s.devices.length,
     onlineCount: s.devices.filter((d) => d.status === "online").length,
-    documentsThisMonth: s.devices.reduce((a, d) => a + d.documentsThisMonth, 0),
+    activationsThisMonth: s.devices.reduce((a, d) => a + d.activationsThisMonth, 0),
     status: rollUpStoreStatus(s.devices),
   }));
 }
@@ -447,7 +449,7 @@ export async function getStore(
 }
 
 /**
- * Per-store analytics: daily/monthly document series, this-vs-last-month trend,
+ * Per-store analytics: daily/monthly activation series, this-vs-last-month trend,
  * revenue + eco for this month, and busiest day-of-week / peak hour. Returns the
  * store too so the page can render without a second lookup. null if not found.
  */
@@ -464,26 +466,31 @@ export async function getStoreAnalytics(
   const since9mo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 8, 1));
   const since90 = new Date(now.getTime() - 90 * 86_400_000);
 
-  const dayExpr = sql<string>`to_char(date_trunc('day', ${documentTable.createdAt}), 'YYYY-MM-DD')`;
-  const monthExpr = sql<string>`to_char(date_trunc('month', ${documentTable.createdAt}), 'YYYY-MM')`;
+  const dayExpr = sql<string>`to_char(date_trunc('day', ${deviceCommand.createdAt}), 'YYYY-MM-DD')`;
+  const monthExpr = sql<string>`to_char(date_trunc('month', ${deviceCommand.createdAt}), 'YYYY-MM')`;
   // created_at is `timestamp` (no tz) storing UTC wall-clock, so re-anchor to UTC
   // before converting to the store's local zone — the double AT TIME ZONE is required.
-  const localTs = sql`((${documentTable.createdAt} AT TIME ZONE 'UTC') AT TIME ZONE ${store.timezone})`;
+  const localTs = sql`((${deviceCommand.createdAt} AT TIME ZONE 'UTC') AT TIME ZONE ${store.timezone})`;
   const dowExpr = sql<number>`extract(dow from ${localTs})::int`;
   const hourExpr = sql<number>`extract(hour from ${localTs})::int`;
   const scoped = (since: Date) =>
-    and(eq(documentTable.storeId, storeId), gte(documentTable.createdAt, since));
+    and(
+      eq(deviceTable.storeId, storeId),
+      eq(deviceCommand.type, "trigger"),
+      eq(deviceCommand.status, "acked"),
+      gte(deviceCommand.createdAt, since),
+    );
 
   const [dailyRows, monthlyRows, gridRows] = await Promise.all([
-    db.select({ bucket: dayExpr, count: count() }).from(documentTable).where(scoped(since30)).groupBy(dayExpr),
-    db.select({ bucket: monthExpr, count: count() }).from(documentTable).where(scoped(since9mo)).groupBy(monthExpr),
-    db.select({ dow: dowExpr, hour: hourExpr, count: count() }).from(documentTable).where(scoped(since90)).groupBy(sql`1`, sql`2`),
+    db.select({ bucket: dayExpr, count: count() }).from(deviceCommand).innerJoin(deviceTable, eq(deviceCommand.deviceId, deviceTable.id)).where(scoped(since30)).groupBy(dayExpr),
+    db.select({ bucket: monthExpr, count: count() }).from(deviceCommand).innerJoin(deviceTable, eq(deviceCommand.deviceId, deviceTable.id)).where(scoped(since9mo)).groupBy(monthExpr),
+    db.select({ dow: dowExpr, hour: hourExpr, count: count() }).from(deviceCommand).innerJoin(deviceTable, eq(deviceCommand.deviceId, deviceTable.id)).where(scoped(since90)).groupBy(sql`1`, sql`2`),
   ]);
 
   const daily = bucketsToSeries(dailyRows, dayKeys(now, 30), price);
   const monthly = bucketsToSeries(monthlyRows, monthKeys(now, 9), price);
-  const thisMonth = monthly[monthly.length - 1]?.documents ?? 0;
-  const lastMonth = monthly[monthly.length - 2]?.documents ?? 0;
+  const thisMonth = monthly[monthly.length - 1]?.activations ?? 0;
+  const lastMonth = monthly[monthly.length - 2]?.activations ?? 0;
 
   const heatmap = buildHeatmap(gridRows);
   const analytics: StoreAnalytics = {
@@ -499,8 +506,8 @@ export async function getStoreAnalytics(
 }
 
 /**
- * Cross-store comparison for the tenant Analytics page: per-store rows (documents
- * this month, trend vs last month, revenue, eco) sorted by documents, plus a
+ * Cross-store comparison for the tenant Analytics page: per-store rows (activations
+ * this month, trend vs last month, revenue, eco) sorted by activations, plus a
  * per-store monthly series for the comparison chart. Degrades to empty on error.
  */
 export async function getStoresAnalytics(organizationId: string): Promise<{
@@ -515,13 +522,19 @@ export async function getStoresAnalytics(organizationId: string): Promise<{
 
     const now = new Date();
     const since9mo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 8, 1));
-    const monthExpr = sql<string>`to_char(date_trunc('month', ${documentTable.createdAt}), 'YYYY-MM')`;
+    const monthExpr = sql<string>`to_char(date_trunc('month', ${deviceCommand.createdAt}), 'YYYY-MM')`;
 
     const perStoreMonth = await db
-      .select({ storeId: documentTable.storeId, bucket: monthExpr, count: count() })
-      .from(documentTable)
-      .where(and(eq(documentTable.organizationId, organizationId), gte(documentTable.createdAt, since9mo)))
-      .groupBy(documentTable.storeId, monthExpr);
+      .select({ storeId: deviceTable.storeId, bucket: monthExpr, count: count() })
+      .from(deviceCommand)
+      .innerJoin(deviceTable, eq(deviceCommand.deviceId, deviceTable.id))
+      .where(and(
+        eq(deviceCommand.organizationId, organizationId),
+        eq(deviceCommand.type, "trigger"),
+        eq(deviceCommand.status, "acked"),
+        gte(deviceCommand.createdAt, since9mo),
+      ))
+      .groupBy(deviceTable.storeId, monthExpr);
 
     const keys = monthKeys(now, 9);
     const thisKey = keys[keys.length - 1].key;
@@ -618,7 +631,7 @@ export async function getAllDevices(): Promise<DeviceRow[]> {
 
 export interface AdminOverview {
   mrr: number;
-  documentsThisMonth: number;
+  activationsThisMonth: number;
   activeDevices: number;
   totalDevices: number;
   totalCustomers: number;
@@ -649,7 +662,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
 
   return {
     mrr: Math.round(summaries.reduce((a, s) => a + s.revenueThisMonth, 0) * 100) / 100,
-    documentsThisMonth: summaries.reduce((a, s) => a + s.documentsThisMonth, 0),
+    activationsThisMonth: summaries.reduce((a, s) => a + s.activationsThisMonth, 0),
     activeDevices,
     totalDevices,
     totalCustomers: summaries.length,
@@ -709,18 +722,23 @@ export async function getCustomerDetail(
   const stuckCutoff = new Date(now.getTime() - STUCK_PENDING_MINUTES * 60_000);
   const [{ stuck }] = await db
     .select({ stuck: sql<number>`count(*)::int` })
-    .from(documentTable)
+    .from(deviceCommand)
     .where(
       and(
-        eq(documentTable.organizationId, organizationId),
-        eq(documentTable.status, "pending"),
-        lt(documentTable.createdAt, stuckCutoff),
+        eq(deviceCommand.organizationId, organizationId),
+        eq(deviceCommand.type, "trigger"),
+        eq(deviceCommand.status, "pending"),
+        lt(deviceCommand.createdAt, stuckCutoff),
       ),
     );
   const [{ last }] = await db
-    .select({ last: max(documentTable.createdAt) })
-    .from(documentTable)
-    .where(eq(documentTable.organizationId, organizationId));
+    .select({ last: max(deviceCommand.createdAt) })
+    .from(deviceCommand)
+    .where(and(
+      eq(deviceCommand.organizationId, organizationId),
+      eq(deviceCommand.type, "trigger"),
+      eq(deviceCommand.status, "acked"),
+    ));
 
   const subscriptionStatus = b.settings?.subscriptionStatus ?? null;
   const level = tenantHealthLevel(
@@ -742,7 +760,7 @@ export async function getCustomerDetail(
     health: { level, online, offline, paused, stuckPendingCount: stuck, subscriptionStatus },
     monthly: monthlySeries(b, tenant.perPrintPrice),
     invoices: await getInvoices(organizationId),
-    eco: computeEcoSavings(summary.documentsThisMonth),
+    eco: computeEcoSavings(summary.activationsThisMonth),
   };
 }
 
@@ -1241,17 +1259,17 @@ export interface PlatformHealth {
     staleCount: number;
     stale: { deviceId: string; name: string; tenantName: string | null; lastSeen: string }[];
   };
-  ingest: {
+  activity: {
     last1h: number;
     last24h: number;
-    ready: number;
-    downloaded: number;
+    acked: number;
     pending: number;
+    failed: number;
     stuckPending: number;
   };
   usage: {
     topTenants: { id: string; name: string; count: number }[];
-    inactiveTenants: { id: string; name: string; lastDocumentAt: string | null }[];
+    inactiveTenants: { id: string; name: string; lastActivityAt: string | null }[];
   };
   alerts: HealthAlert[];
 }
@@ -1259,7 +1277,7 @@ export interface PlatformHealth {
 function zeroedHealth(): PlatformHealth {
   return {
     fleet: { total: 0, online: 0, offline: 0, paused: 0, staleCount: 0, stale: [] },
-    ingest: { last1h: 0, last24h: 0, ready: 0, downloaded: 0, pending: 0, stuckPending: 0 },
+    activity: { last1h: 0, last24h: 0, acked: 0, pending: 0, failed: 0, stuckPending: 0 },
     usage: { topTenants: [], inactiveTenants: [] },
     alerts: [],
   };
@@ -1307,36 +1325,42 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
       .from(deviceTable)
       .where(stalePred);
 
-    const [{ last1h }] = await db.select({ last1h: count() }).from(documentTable).where(gte(documentTable.createdAt, h1));
-    const [{ last24h }] = await db.select({ last24h: count() }).from(documentTable).where(gte(documentTable.createdAt, h24));
+    const trigAcked = and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "acked"));
+    const [{ last1h }] = await db.select({ last1h: count() }).from(deviceCommand).where(and(trigAcked, gte(deviceCommand.createdAt, h1)));
+    const [{ last24h }] = await db.select({ last24h: count() }).from(deviceCommand).where(and(trigAcked, gte(deviceCommand.createdAt, h24)));
+    // Status breakdown over all trigger commands in 24h (not just acked).
     const breakdownRows = await db
-      .select({ status: documentTable.status, c: count() })
-      .from(documentTable)
-      .where(gte(documentTable.createdAt, h24))
-      .groupBy(documentTable.status);
-    const breakdown = { ready: 0, downloaded: 0, pending: 0 } as Record<string, number>;
-    for (const r of breakdownRows) breakdown[r.status] = Number(r.c);
+      .select({ status: deviceCommand.status, c: count() })
+      .from(deviceCommand)
+      .where(and(eq(deviceCommand.type, "trigger"), gte(deviceCommand.createdAt, h24)))
+      .groupBy(deviceCommand.status);
+    const bd = { acked: 0, pending: 0, failed: 0 } as Record<string, number>;
+    for (const r of breakdownRows) {
+      if (r.status === "acked") bd.acked += Number(r.c);
+      else if (r.status === "pending" || r.status === "delivered") bd.pending += Number(r.c);
+      else bd.failed += Number(r.c); // failed + expired
+    }
     const [{ stuckPending }] = await db
       .select({ stuckPending: count() })
-      .from(documentTable)
-      .where(and(eq(documentTable.status, "pending"), lt(documentTable.createdAt, stuckCut)));
+      .from(deviceCommand)
+      .where(and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "pending"), lt(deviceCommand.createdAt, stuckCut)));
 
     const topRows = await db
       .select({ id: orgTable.id, name: orgTable.name, c: count() })
-      .from(documentTable)
-      .innerJoin(orgTable, eq(documentTable.organizationId, orgTable.id))
-      .where(gte(documentTable.createdAt, h24))
+      .from(deviceCommand)
+      .innerJoin(orgTable, eq(deviceCommand.organizationId, orgTable.id))
+      .where(and(trigAcked, gte(deviceCommand.createdAt, h24)))
       .groupBy(orgTable.id, orgTable.name)
       .orderBy(desc(count()))
       .limit(5);
     const topTenants = topRows.map((r) => ({ id: r.id, name: r.name, count: Number(r.c) }));
 
     const allOrgs = await db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable);
-    // One row per org (max createdAt) — avoids reading the whole document table.
     const lastRows = await db
-      .select({ org: documentTable.organizationId, last: max(documentTable.createdAt) })
-      .from(documentTable)
-      .groupBy(documentTable.organizationId);
+      .select({ org: deviceCommand.organizationId, last: max(deviceCommand.createdAt) })
+      .from(deviceCommand)
+      .where(trigAcked)
+      .groupBy(deviceCommand.organizationId);
     const lastByOrg = new Map<string, Date>();
     for (const r of lastRows) if (r.last) lastByOrg.set(r.org, r.last);
     const inactiveTenants = allOrgs
@@ -1347,7 +1371,7 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
       .map((o) => ({
         id: o.id,
         name: o.name,
-        lastDocumentAt: lastByOrg.get(o.id)?.toISOString() ?? null,
+        lastActivityAt: lastByOrg.get(o.id)?.toISOString() ?? null,
       }));
 
     const alerts = computeAlerts({
@@ -1370,12 +1394,12 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
           lastSeen: r.lastSeen ? r.lastSeen.toISOString() : "",
         })),
       },
-      ingest: {
+      activity: {
         last1h: Number(last1h),
         last24h: Number(last24h),
-        ready: breakdown.ready ?? 0,
-        downloaded: breakdown.downloaded ?? 0,
-        pending: breakdown.pending ?? 0,
+        acked: bd.acked,
+        pending: bd.pending,
+        failed: bd.failed,
         stuckPending: Number(stuckPending),
       },
       usage: { topTenants, inactiveTenants },
@@ -1414,14 +1438,15 @@ export async function getAlertInputs(): Promise<{
     );
   const [{ stuckPendingCount }] = await db
     .select({ stuckPendingCount: count() })
-    .from(documentTable)
-    .where(and(eq(documentTable.status, "pending"), lt(documentTable.createdAt, stuckCut)));
+    .from(deviceCommand)
+    .where(and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "pending"), lt(deviceCommand.createdAt, stuckCut)));
 
   const allOrgs = await db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable);
   const lastRows = await db
-    .select({ org: documentTable.organizationId, last: max(documentTable.createdAt) })
-    .from(documentTable)
-    .groupBy(documentTable.organizationId);
+    .select({ org: deviceCommand.organizationId, last: max(deviceCommand.createdAt) })
+    .from(deviceCommand)
+    .where(and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "acked")))
+    .groupBy(deviceCommand.organizationId);
   const lastByOrg = new Map<string, Date>();
   for (const r of lastRows) if (r.last) lastByOrg.set(r.org, r.last);
   const inactiveTenants = allOrgs

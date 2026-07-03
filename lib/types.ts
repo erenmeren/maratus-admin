@@ -18,8 +18,8 @@ export interface Device {
   firmwareVersion: string;
   lastSeen: string; // ISO timestamp (falls back to createdAt for display)
   lastSeenAt: string | null; // raw last-seen, null if never seen (for status)
-  documentsToday: number;
-  documentsThisMonth: number;
+  activationsToday: number;
+  activationsThisMonth: number;
 }
 
 export interface Store {
@@ -51,7 +51,7 @@ export interface Tenant {
 export interface TimePoint {
   /** Short label for the axis (e.g. "May 24" or "Jan"). */
   label: string;
-  documents: number;
+  activations: number;
   revenue: number;
 }
 
@@ -82,7 +82,7 @@ export interface TenantSummary {
   onlineCount: number;
   offlineCount: number;
   health: HealthLevel;
-  documentsThisMonth: number;
+  activationsThisMonth: number;
   revenueThisMonth: number;
   perPrintPrice: number;
 }
@@ -99,6 +99,6 @@ export interface StoreSummary {
   timezone: string;
   deviceCount: number;
   onlineCount: number;
-  documentsThisMonth: number;
+  activationsThisMonth: number;
   status: DeviceStatus; // rolled-up store status
 }

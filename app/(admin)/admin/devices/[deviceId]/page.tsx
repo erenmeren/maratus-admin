@@ -72,8 +72,8 @@ export default async function AdminDeviceDetailPage({
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <div className="grid gap-4 sm:grid-cols-2">
-            <KpiCard label="Documents today" value={formatNumber(device.documentsToday)} icon={FileText} />
-            <KpiCard label="Documents this month" value={formatNumber(device.documentsThisMonth)} icon={FileText} />
+            <KpiCard label="Activations today" value={formatNumber(device.activationsToday)} icon={FileText} />
+            <KpiCard label="Activations this month" value={formatNumber(device.activationsThisMonth)} icon={FileText} />
           </div>
 
           <Card>

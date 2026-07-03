@@ -1109,38 +1109,6 @@ export { claimDevice, getUnclaimedDevices } from "./documents";
 // Tenant billing view-model (subscription status, saved card, invoices).
 // ============================================================================
 
-export async function getTenantBilling(organizationId: string) {
-  const [settings] = await db
-    .select()
-    .from(settingsTable)
-    .where(eq(settingsTable.organizationId, organizationId))
-    .limit(1);
-
-  const invoices = await db
-    .select()
-    .from(invoiceTable)
-    .where(eq(invoiceTable.organizationId, organizationId))
-    .orderBy(desc(invoiceTable.periodStart));
-
-  return {
-    subscriptionStatus: settings?.subscriptionStatus ?? null,
-    hasSubscription: Boolean(settings?.stripeSubscriptionId),
-    card:
-      settings?.cardBrand && settings?.cardLast4
-        ? { brand: settings.cardBrand, last4: settings.cardLast4 }
-        : null,
-    invoices: invoices.map((i) => ({
-      id: i.id,
-      periodStart: i.periodStart.toISOString(),
-      periodEnd: i.periodEnd.toISOString(),
-      documentCount: i.documentCount,
-      amount: i.amountDueCents / 100,
-      status: i.status,
-      hostedInvoiceUrl: i.hostedInvoiceUrl ?? null,
-    })),
-  };
-}
-
 export async function getOrgAuditLog(organizationId: string, limit = 100) {
   const rows = await db
     .select()

@@ -1,15 +1,13 @@
 // app/(tenant)/tenant/billing/page.tsx
 import { requireTenant } from "@/lib/session";
-import { getTenantBilling, getCreditUsageByDevice, deviceNamesForOrg, currentMonthStart } from "@/lib/data";
-import { PaymentMethodForm } from "@/components/billing/payment-method-form";
+import { getCreditUsageByDevice, deviceNamesForOrg, currentMonthStart } from "@/lib/data";
 import { BuyCreditsSection } from "@/components/billing/buy-credits-form";
 import { creditPacks } from "@/lib/billing/credit-packs";
 import { getBalance } from "@/lib/credits";
 
 export default async function TenantBillingPage() {
   const { organizationId } = await requireTenant();
-  const [billing, balance, usage, deviceNames] = await Promise.all([
-    getTenantBilling(organizationId),
+  const [balance, usage, deviceNames] = await Promise.all([
     getBalance(organizationId),
     getCreditUsageByDevice(organizationId, currentMonthStart()),
     deviceNamesForOrg(organizationId),
@@ -20,22 +18,8 @@ export default async function TenantBillingPage() {
     <div className="flex flex-col gap-8 p-6">
       <header>
         <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
-        <p className="text-muted-foreground">
-          {billing.hasSubscription
-            ? `Subscription: ${billing.subscriptionStatus ?? "unknown"}`
-            : "Activate billing to start your monthly plan."}
-        </p>
+        <p className="text-muted-foreground">Manage your prepaid credit balance.</p>
       </header>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Payment method</h2>
-        {billing.card ? (
-          <p className="text-sm">
-            {billing.card.brand} •••• {billing.card.last4}
-          </p>
-        ) : null}
-        <PaymentMethodForm />
-      </section>
 
       <BuyCreditsSection packs={packs} availableCredits={balance.available} />
 
@@ -76,42 +60,6 @@ export default async function TenantBillingPage() {
                 <td className="text-right tabular-nums">{usage.total}</td>
                 <td></td>
               </tr>
-            </tbody>
-          </table>
-        )}
-      </section>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Invoices</h2>
-        {billing.invoices.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No invoices yet.</p>
-        ) : (
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-muted-foreground">
-                <th className="py-2">Period</th>
-                <th>Documents</th>
-                <th>Amount</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {billing.invoices.map((inv) => (
-                <tr key={inv.id} className="border-t">
-                  <td className="py-2">{inv.periodStart.slice(0, 10)}</td>
-                  <td>{inv.documentCount}</td>
-                  <td>${inv.amount.toFixed(2)}</td>
-                  <td>{inv.status}</td>
-                  <td>
-                    {inv.hostedInvoiceUrl ? (
-                      <a className="underline" href={inv.hostedInvoiceUrl} target="_blank" rel="noreferrer">
-                        {inv.status === "sent" || inv.status === "overdue" ? "Pay" : "View"}
-                      </a>
-                    ) : null}
-                  </td>
-                </tr>
-              ))}
             </tbody>
           </table>
         )}

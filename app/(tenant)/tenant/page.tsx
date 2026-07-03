@@ -16,7 +16,7 @@ export default async function TenantDashboardPage() {
   const dash = await getTenantDashboard(organizationId);
   const stores = await getTenantStores(organizationId);
   const topStores = [...stores]
-    .sort((a, b) => b.documentsThisMonth - a.documentsThisMonth)
+    .sort((a, b) => b.activationsThisMonth - a.activationsThisMonth)
     .slice(0, 4);
 
   return (
@@ -33,15 +33,15 @@ export default async function TenantDashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
-          label="Documents today"
-          value={formatNumber(dash.documentsToday)}
+          label="Activations today"
+          value={formatNumber(dash.activationsToday)}
           delta={6.4}
           hint="vs. yesterday"
           icon={FileText}
         />
         <KpiCard
-          label="Documents this month"
-          value={formatNumber(dash.documentsThisMonth)}
+          label="Activations this month"
+          value={formatNumber(dash.activationsThisMonth)}
           delta={12.1}
           hint="vs. last month"
           icon={FileText}
@@ -58,7 +58,7 @@ export default async function TenantDashboardPage() {
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Documents over time</CardTitle>
-            <CardDescription>Daily digital documents, last 30 days</CardDescription>
+            <CardDescription>Daily activations, last 30 days</CardDescription>
           </CardHeader>
           <CardContent>
             <DocumentsAreaChart data={dash.daily} />
@@ -96,7 +96,7 @@ export default async function TenantDashboardPage() {
               </div>
               <div className="flex flex-col items-end gap-1.5">
                 <span className="font-display text-lg font-bold tabular-nums">
-                  {formatNumber(s.documentsThisMonth)}
+                  {formatNumber(s.activationsThisMonth)}
                 </span>
                 <StatusBadge status={s.status} />
               </div>

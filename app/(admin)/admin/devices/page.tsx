@@ -28,7 +28,7 @@ export default async function FleetPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard label="Total devices" value={String(rows.length)} icon={Cpu} />
-        <KpiCard label="Online" value={String(online)} hint="accepting documents" />
+        <KpiCard label="Online" value={String(online)} hint="ready to trigger" />
         <KpiCard label="Paused" value={String(paused)} hint="temporarily off" />
         <KpiCard label="Offline" value={String(offline)} hint="unreachable" />
       </div>

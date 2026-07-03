@@ -134,7 +134,7 @@ export function FleetTable({
                   )}
                 </TableCell>
                 <TableCell className="text-right font-medium tabular-nums">
-                  {formatNumber(r.documentsThisMonth)}
+                  {formatNumber(r.activationsThisMonth)}
                 </TableCell>
                 <TableCell className="pr-4">
                   <DeviceRowActions

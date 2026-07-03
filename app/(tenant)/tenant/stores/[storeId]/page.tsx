@@ -30,9 +30,9 @@ export default async function StoreDetailPage({
   const unclaimed = canClaim ? await getUnclaimedDevices(organizationId) : [];
 
   const online = store.devices.filter((d) => d.status === "online").length;
-  const documentsToday = store.devices.reduce((a, d) => a + d.documentsToday, 0);
-  const documentsMonth = store.devices.reduce(
-    (a, d) => a + d.documentsThisMonth,
+  const activationsToday = store.devices.reduce((a, d) => a + d.activationsToday, 0);
+  const activationsMonth = store.devices.reduce(
+    (a, d) => a + d.activationsThisMonth,
     0,
   );
   const rollup = online
@@ -41,7 +41,7 @@ export default async function StoreDetailPage({
       ? "paused"
       : "offline";
   const avgPerPrinter = store.devices.length
-    ? Math.round(documentsMonth / store.devices.length)
+    ? Math.round(activationsMonth / store.devices.length)
     : 0;
 
   return (
@@ -81,25 +81,25 @@ export default async function StoreDetailPage({
           icon={Cpu}
         />
         <KpiCard
-          label="Documents today"
-          value={formatNumber(documentsToday)}
+          label="Activations today"
+          value={formatNumber(activationsToday)}
           icon={FileText}
         />
         <KpiCard
-          label="Documents this month"
-          value={formatNumber(documentsMonth)}
+          label="Activations this month"
+          value={formatNumber(activationsMonth)}
           icon={FileText}
         />
         <KpiCard
           label="Avg / printer"
           value={formatNumber(avgPerPrinter)}
-          hint="documents this month"
+          hint="activations this month"
         />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
-          label="Documents this month"
+          label="Activations this month"
           value={formatNumber(analytics.monthTrend.current)}
           delta={analytics.monthTrend.pctChange ?? undefined}
           hint="vs last month"
@@ -132,7 +132,7 @@ export default async function StoreDetailPage({
       <Card>
         <CardHeader>
           <CardTitle>Documents over time</CardTitle>
-          <CardDescription>Daily digital documents, last 30 days</CardDescription>
+          <CardDescription>Daily activations, last 30 days</CardDescription>
         </CardHeader>
         <CardContent>
           <DocumentsAreaChart data={analytics.daily} height={260} />
@@ -170,8 +170,8 @@ export default async function StoreDetailPage({
               <p className="text-sm font-medium">No printers here yet</p>
               {canClaim && (
                 <p className="max-w-xs text-xs text-muted-foreground">
-                  Claim a printer with its pairing code to start issuing digital
-                  documents at this store.
+                  Claim a printer with its pairing code to start issuing
+                  activations at this store.
                 </p>
               )}
             </CardContent>

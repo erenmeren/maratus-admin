@@ -24,14 +24,14 @@ export default async function ReportsPage() {
   const stores = await getTenantStores(organizationId);
 
   const byStore = [...stores]
-    .map((s) => ({ label: s.name.replace("Roastwell ", ""), value: s.documentsThisMonth }))
+    .map((s) => ({ label: s.name.replace("Roastwell ", ""), value: s.activationsThisMonth }))
     .sort((a, b) => b.value - a.value);
 
   const byDevice = tenant.stores
     .flatMap((store) =>
       store.devices.map((d) => ({
         label: `${store.name.split(" ")[0]} · ${d.name}`,
-        value: d.documentsThisMonth,
+        value: d.activationsThisMonth,
       })),
     )
     .sort((a, b) => b.value - a.value)
@@ -39,16 +39,16 @@ export default async function ReportsPage() {
 
   const ecoOverTime = monthly.map((p) => ({
     label: p.label,
-    value: Math.round((p.documents * PAPER_GRAMS_PER_DOCUMENT) / 1000),
+    value: Math.round((p.activations * PAPER_GRAMS_PER_DOCUMENT) / 1000),
   }));
 
-  const totalDocuments = monthly.reduce((a, p) => a + p.documents, 0);
-  const eco = computeEcoSavings(totalDocuments);
+  const totalActivations = monthly.reduce((a, p) => a + p.activations, 0);
+  const eco = computeEcoSavings(totalActivations);
 
   // Build a single CSV: a section per breakdown (monthly, by store, by device).
-  const exportHeaders = ["Section", "Label", "Documents", "Revenue (USD)"];
+  const exportHeaders = ["Section", "Label", "Activations", "Revenue (USD)"];
   const exportRows: (string | number)[][] = [
-    ...monthly.map((p) => ["Monthly", p.label, p.documents, p.revenue.toFixed(2)]),
+    ...monthly.map((p) => ["Monthly", p.label, p.activations, p.revenue.toFixed(2)]),
     ...byStore.map((s) => ["By store", s.label, s.value, ""]),
     ...byDevice.map((d) => ["By device", d.label, d.value, ""]),
   ];
@@ -70,7 +70,7 @@ export default async function ReportsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Documents over time</CardTitle>
-          <CardDescription>Monthly digital documents, last 9 months</CardDescription>
+          <CardDescription>Monthly activations, last 9 months</CardDescription>
         </CardHeader>
         <CardContent>
           <DocumentsAreaChart data={monthly} height={300} />
@@ -90,7 +90,7 @@ export default async function ReportsPage() {
         <Card>
           <CardHeader>
             <CardTitle>By device</CardTitle>
-            <CardDescription>Top printers by documents this month</CardDescription>
+            <CardDescription>Top printers by activations this month</CardDescription>
           </CardHeader>
           <CardContent>
             <BreakdownBarChart data={byDevice} />

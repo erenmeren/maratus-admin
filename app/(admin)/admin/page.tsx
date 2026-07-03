@@ -46,7 +46,7 @@ export default async function AdminOverviewPage() {
         />
         <KpiCard
           label="Documents this month"
-          value={formatCompact(o.documentsThisMonth)}
+          value={formatCompact(o.activationsThisMonth)}
           delta={12.1}
           hint="platform-wide"
           icon={FileText}
@@ -78,7 +78,7 @@ export default async function AdminOverviewPage() {
         <Card>
           <CardHeader>
             <CardTitle>Documents over time</CardTitle>
-            <CardDescription>Monthly documents, all customers</CardDescription>
+            <CardDescription>Monthly activations, all customers</CardDescription>
           </CardHeader>
           <CardContent>
             <DocumentsAreaChart data={o.monthly} />
@@ -129,7 +129,7 @@ export default async function AdminOverviewPage() {
                     {c.deviceCount}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatNumber(c.documentsThisMonth)}
+                    {formatNumber(c.activationsThisMonth)}
                   </TableCell>
                   <TableCell className="text-right pr-6 font-medium tabular-nums">
                     {formatCurrency(c.revenueThisMonth, { cents: true })}

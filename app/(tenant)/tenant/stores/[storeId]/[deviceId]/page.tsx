@@ -65,13 +65,13 @@ export default async function DeviceDetailPage({
         <div className="space-y-6 lg:col-span-2">
           <div className="grid gap-4 sm:grid-cols-2">
             <KpiCard
-              label="Documents today"
-              value={formatNumber(device.documentsToday)}
+              label="Activations today"
+              value={formatNumber(device.activationsToday)}
               icon={FileText}
             />
             <KpiCard
-              label="Documents this month"
-              value={formatNumber(device.documentsThisMonth)}
+              label="Activations this month"
+              value={formatNumber(device.activationsThisMonth)}
               icon={FileText}
             />
           </div>

@@ -47,8 +47,8 @@ export function monthKeys(now: Date, n: number): BucketKey[] {
 export function bucketsToSeries(counts: BucketCount[], keys: BucketKey[], price: number): TimePoint[] {
   const byKey = new Map(counts.map((c) => [c.bucket, c.count]));
   return keys.map((k) => {
-    const documents = byKey.get(k.key) ?? 0;
-    return { label: k.label, documents, revenue: round2(documents * price) };
+    const activations = byKey.get(k.key) ?? 0;
+    return { label: k.label, activations, revenue: round2(activations * price) };
   });
 }
 
@@ -67,7 +67,7 @@ export interface Peak {
   peakHourCount: number;
 }
 export interface Heatmap {
-  grid: number[][]; // [7][24] — grid[dow][hour] = document count (dow 0=Sun..6=Sat)
+  grid: number[][]; // [7][24] — grid[dow][hour] = activation count (dow 0=Sun..6=Sat)
   max: number;      // largest single-cell count (0 when empty); drives intensity
   total: number;
   peak: Peak;       // busiest day + peak hour, derived from the grid
@@ -84,7 +84,7 @@ export interface StoreAnalytics {
 export interface StoreComparisonRow {
   storeId: string;
   storeName: string;
-  documentsThisMonth: number;
+  activationsThisMonth: number;
   trend: Trend;
   revenueThisMonth: number;
   eco: EcoSavings;
@@ -173,12 +173,12 @@ export function toComparisonRows(
     .map((s) => ({
       storeId: s.storeId,
       storeName: s.storeName,
-      documentsThisMonth: s.current,
+      activationsThisMonth: s.current,
       trend: computeTrend(s.current, s.previous),
       revenueThisMonth: round2(s.current * s.price),
       eco: computeEcoSavings(s.current),
     }))
-    .sort((a, b) => b.documentsThisMonth - a.documentsThisMonth);
+    .sort((a, b) => b.activationsThisMonth - a.activationsThisMonth);
 }
 
 /** Group dates into UTC day-key ("YYYY-MM-DD") counts. Pairs with dayKeys. */

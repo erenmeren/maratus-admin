@@ -65,7 +65,7 @@ export default async function CustomerDetailPage({
   const byStore = tenant.stores
     .map((s) => ({
       label: s.name.replace(`${tenant.name} `, "").replace(`${tenant.logoText} — `, ""),
-      value: s.devices.reduce((a, d) => a + d.documentsThisMonth, 0),
+      value: s.devices.reduce((a, d) => a + d.activationsThisMonth, 0),
     }))
     .sort((a, b) => b.value - a.value);
 
@@ -142,7 +142,7 @@ export default async function CustomerDetailPage({
         <KpiCard label="Devices" value={formatNumber(summary.deviceCount)} icon={Cpu} />
         <KpiCard
           label="Documents this month"
-          value={formatNumber(summary.documentsThisMonth)}
+          value={formatNumber(summary.activationsThisMonth)}
           icon={FileText}
         />
         <KpiCard
@@ -268,7 +268,7 @@ export default async function CustomerDetailPage({
                     {timeAgo(d.lastSeen)}
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
-                    {formatNumber(d.documentsThisMonth)}
+                    {formatNumber(d.activationsThisMonth)}
                   </TableCell>
                   <TableCell className="pr-4">
                     <DeviceRowActions deviceId={d.id} status={d.status} />

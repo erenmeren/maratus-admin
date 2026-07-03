@@ -16,11 +16,11 @@ export default async function AnalyticsPage() {
   const { organizationId } = await requireTenant();
   const { rows, monthlyByStore } = await getStoresAnalytics(organizationId);
 
-  const byStore = rows.map((r) => ({ label: r.storeName, value: r.documentsThisMonth }));
+  const byStore = rows.map((r) => ({ label: r.storeName, value: r.activationsThisMonth }));
   const exportHeaders = ["Store", "Documents (this month)", "Trend %", "Revenue (USD)", "Paper saved (kg)"];
   const exportRows = rows.map((r) => [
     r.storeName,
-    r.documentsThisMonth,
+    r.activationsThisMonth,
     r.trend.pctChange === null ? "—" : r.trend.pctChange,
     r.revenueThisMonth.toFixed(2),
     r.eco.paperKg.toFixed(1),
@@ -30,7 +30,7 @@ export default async function AnalyticsPage() {
     <>
       <PageHeader
         title="Analytics"
-        description="Compare document volume, trends, and revenue across your stores."
+        description="Compare activation volume, trends, and revenue across your stores."
       >
         <ExportButton
           label="Export analytics"
@@ -45,7 +45,7 @@ export default async function AnalyticsPage() {
           <CardContent className="flex flex-col items-center justify-center gap-2 py-16 text-center">
             <p className="text-sm font-medium">No store data yet</p>
             <p className="max-w-xs text-xs text-muted-foreground">
-              Once your stores start issuing documents, comparisons show up here.
+              Once your stores start showing QR codes, comparisons show up here.
             </p>
           </CardContent>
         </Card>
@@ -72,7 +72,7 @@ export default async function AnalyticsPage() {
                   <div>
                     <p className="text-sm font-medium">{r.storeName}</p>
                     <p className="text-xs text-muted-foreground">
-                      {formatNumber(r.documentsThisMonth)} documents · {formatCurrency(r.revenueThisMonth)}
+                      {formatNumber(r.activationsThisMonth)} activations · {formatCurrency(r.revenueThisMonth)}
                     </p>
                   </div>
                   <span
@@ -94,7 +94,7 @@ export default async function AnalyticsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Trajectories</CardTitle>
-              <CardDescription>Monthly documents per store, last 9 months</CardDescription>
+              <CardDescription>Monthly activations per store, last 9 months</CardDescription>
             </CardHeader>
             <CardContent>
               <StoreCompareChart data={monthlyByStore} />

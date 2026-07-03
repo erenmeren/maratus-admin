@@ -75,7 +75,7 @@ export default async function StoresPage() {
                   </span>
                 </TableCell>
                 <TableCell className="text-right font-medium tabular-nums">
-                  {formatNumber(s.documentsThisMonth)}
+                  {formatNumber(s.activationsThisMonth)}
                 </TableCell>
                 <TableCell>
                   <StatusBadge status={s.status} />

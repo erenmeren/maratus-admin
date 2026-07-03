@@ -134,7 +134,7 @@ export default async function BillingPage() {
                     {formatCurrency(t.perPrintPrice, { cents: true })}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {formatNumber(t.documentsThisMonth)}
+                    {formatNumber(t.activationsThisMonth)}
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
                     {formatCurrency(t.revenueThisMonth, { cents: true })}

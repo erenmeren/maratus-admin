@@ -8,7 +8,7 @@
 //   • money is stored in cents → exposed as dollars (perPrintPrice, amount)
 //   • tenant_settings.status (active|paused) → TenantStatus (active|suspended)
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
-//   • documentsToday / documentsThisMonth are derived from the document table
+//   • activationsToday / activationsThisMonth are derived from acked device-trigger commands
 
 import { and, count, desc, eq, gte, isNotNull, lt, max, ne, sql } from "drizzle-orm";
 import { db } from "./db";
@@ -287,8 +287,8 @@ function mapDevice(
     firmwareVersion: d.firmwareVersion,
     lastSeen: (d.lastSeenAt ?? d.createdAt).toISOString(),
     lastSeenAt: d.lastSeenAt ? d.lastSeenAt.toISOString() : null,
-    documentsToday: todayBy.get(d.id) ?? 0,
-    documentsThisMonth: monthBy.get(d.id) ?? 0,
+    activationsToday: todayBy.get(d.id) ?? 0,
+    activationsThisMonth: monthBy.get(d.id) ?? 0,
   };
 }
 
@@ -301,8 +301,8 @@ function rollUpStoreStatus(devices: Device[]): StoreSummary["status"] {
 function summarize(b: OrgBundle): TenantSummary {
   const tenant = buildTenant(b);
   const allDevices = tenant.stores.flatMap((s) => s.devices);
-  const documentsThisMonth = allDevices.reduce(
-    (a, d) => a + d.documentsThisMonth,
+  const activationsThisMonth = allDevices.reduce(
+    (a, d) => a + d.activationsThisMonth,
     0,
   );
   const now = new Date();
@@ -330,9 +330,9 @@ function summarize(b: OrgBundle): TenantSummary {
     deviceCount: allDevices.length,
     onlineCount,
     offlineCount,
-    documentsThisMonth,
+    activationsThisMonth,
     revenueThisMonth:
-      Math.round(documentsThisMonth * tenant.perPrintPrice * 100) / 100,
+      Math.round(activationsThisMonth * tenant.perPrintPrice * 100) / 100,
     perPrintPrice: tenant.perPrintPrice,
     health,
   };
@@ -358,7 +358,7 @@ function sumSeries(all: TimePoint[][]): TimePoint[] {
   if (all.length === 0) return [];
   return all[0].map((_, i) => ({
     label: all[0][i].label,
-    documents: all.reduce((a, s) => a + s[i].documents, 0),
+    activations: all.reduce((a, s) => a + s[i].activations, 0),
     revenue: Math.round(all.reduce((a, s) => a + s[i].revenue, 0) * 100) / 100,
   }));
 }
@@ -384,12 +384,12 @@ export async function getTenant(organizationId: string): Promise<Tenant> {
 
 export interface TenantDashboard {
   tenant: Tenant;
-  documentsToday: number;
-  documentsThisMonth: number;
+  activationsToday: number;
+  activationsThisMonth: number;
   activeDevices: number;
   totalDevices: number;
   eco: ReturnType<typeof computeEcoSavings>;
-  ecoYtdDocuments: number;
+  ecoYtdActivations: number;
   ecoYtd: ReturnType<typeof computeEcoSavings>;
   daily: TimePoint[];
 }
@@ -401,20 +401,20 @@ export async function getTenantDashboard(
   if (!b) throw new Error(`Organization not found: ${organizationId}`);
   const tenant = buildTenant(b);
   const devices = tenant.stores.flatMap((s) => s.devices);
-  const documentsToday = devices.reduce((a, d) => a + d.documentsToday, 0);
-  const documentsThisMonth = devices.reduce((a, d) => a + d.documentsThisMonth, 0);
+  const activationsToday = devices.reduce((a, d) => a + d.activationsToday, 0);
+  const activationsThisMonth = devices.reduce((a, d) => a + d.activationsThisMonth, 0);
   const activeDevices = devices.filter((d) => d.status === "online").length;
-  const ecoYtdDocuments = Math.round(documentsThisMonth * 7.4);
+  const ecoYtdActivations = Math.round(activationsThisMonth * 7.4);
 
   return {
     tenant,
-    documentsToday,
-    documentsThisMonth,
+    activationsToday,
+    activationsThisMonth,
     activeDevices,
     totalDevices: devices.length,
-    eco: computeEcoSavings(documentsThisMonth),
-    ecoYtdDocuments,
-    ecoYtd: computeEcoSavings(ecoYtdDocuments),
+    eco: computeEcoSavings(activationsThisMonth),
+    ecoYtdActivations,
+    ecoYtd: computeEcoSavings(ecoYtdActivations),
     daily: dailySeries(b, tenant.perPrintPrice),
   };
 }
@@ -430,7 +430,7 @@ export async function getTenantStores(
     timezone: s.timezone,
     deviceCount: s.devices.length,
     onlineCount: s.devices.filter((d) => d.status === "online").length,
-    documentsThisMonth: s.devices.reduce((a, d) => a + d.documentsThisMonth, 0),
+    activationsThisMonth: s.devices.reduce((a, d) => a + d.activationsThisMonth, 0),
     status: rollUpStoreStatus(s.devices),
   }));
 }
@@ -490,8 +490,8 @@ export async function getStoreAnalytics(
 
   const daily = bucketsToSeries(dailyRows, dayKeys(now, 30), price);
   const monthly = bucketsToSeries(monthlyRows, monthKeys(now, 9), price);
-  const thisMonth = monthly[monthly.length - 1]?.documents ?? 0;
-  const lastMonth = monthly[monthly.length - 2]?.documents ?? 0;
+  const thisMonth = monthly[monthly.length - 1]?.activations ?? 0;
+  const lastMonth = monthly[monthly.length - 2]?.activations ?? 0;
 
   const heatmap = buildHeatmap(gridRows);
   const analytics: StoreAnalytics = {
@@ -632,7 +632,7 @@ export async function getAllDevices(): Promise<DeviceRow[]> {
 
 export interface AdminOverview {
   mrr: number;
-  documentsThisMonth: number;
+  activationsThisMonth: number;
   activeDevices: number;
   totalDevices: number;
   totalCustomers: number;
@@ -663,7 +663,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
 
   return {
     mrr: Math.round(summaries.reduce((a, s) => a + s.revenueThisMonth, 0) * 100) / 100,
-    documentsThisMonth: summaries.reduce((a, s) => a + s.documentsThisMonth, 0),
+    activationsThisMonth: summaries.reduce((a, s) => a + s.activationsThisMonth, 0),
     activeDevices,
     totalDevices,
     totalCustomers: summaries.length,
@@ -761,7 +761,7 @@ export async function getCustomerDetail(
     health: { level, online, offline, paused, stuckPendingCount: stuck, subscriptionStatus },
     monthly: monthlySeries(b, tenant.perPrintPrice),
     invoices: await getInvoices(organizationId),
-    eco: computeEcoSavings(summary.documentsThisMonth),
+    eco: computeEcoSavings(summary.activationsThisMonth),
   };
 }
 

@@ -55,7 +55,7 @@ export function EcoSavingsCard({
         <p className="text-sm text-muted-foreground">
           From{" "}
           <span className="font-medium text-foreground tabular-nums">
-            {formatNumber(eco.documents)}
+            {formatNumber(eco.activations)}
           </span>{" "}
           paperless documents {period}.
         </p>

@@ -57,7 +57,7 @@ export default async function ReportsPage() {
     <>
       <PageHeader
         title="Reports"
-        description="Documents, breakdowns, and eco savings across your fleet."
+        description="Activations, breakdowns, and eco savings across your fleet."
       >
         <ExportButton
           label="Export report"
@@ -69,7 +69,7 @@ export default async function ReportsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Documents over time</CardTitle>
+          <CardTitle>Activations over time</CardTitle>
           <CardDescription>Monthly activations, last 9 months</CardDescription>
         </CardHeader>
         <CardContent>
@@ -81,7 +81,7 @@ export default async function ReportsPage() {
         <Card>
           <CardHeader>
             <CardTitle>By store</CardTitle>
-            <CardDescription>Documents this month, per branch</CardDescription>
+            <CardDescription>Activations this month, per branch</CardDescription>
           </CardHeader>
           <CardContent>
             <BreakdownBarChart data={byStore} />

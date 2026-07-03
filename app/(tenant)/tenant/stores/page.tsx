@@ -41,7 +41,7 @@ export default async function StoresPage() {
               <TableHead>Store</TableHead>
               <TableHead>Address</TableHead>
               <TableHead className="text-center">Printers</TableHead>
-              <TableHead className="text-right">Documents (mo.)</TableHead>
+              <TableHead className="text-right">Activations (mo.)</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-10" />
             </TableRow>

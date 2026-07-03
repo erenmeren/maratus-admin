@@ -131,7 +131,7 @@ export default async function StoreDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Documents over time</CardTitle>
+          <CardTitle>Activations over time</CardTitle>
           <CardDescription>Daily activations, last 30 days</CardDescription>
         </CardHeader>
         <CardContent>
@@ -143,7 +143,7 @@ export default async function StoreDetailPage({
         <CardHeader>
           <CardTitle>Busiest times</CardTitle>
           <CardDescription>
-            Documents by day of week and hour, last 90 days
+            Activations by day of week and hour, last 90 days
           </CardDescription>
         </CardHeader>
         <CardContent>

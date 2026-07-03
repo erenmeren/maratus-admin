@@ -41,7 +41,7 @@ export default async function CustomersPage() {
               <TableHead className="text-center">Stores</TableHead>
               <TableHead className="text-center">Devices</TableHead>
               <TableHead className="text-center">Health</TableHead>
-              <TableHead className="text-right">Documents (mo.)</TableHead>
+              <TableHead className="text-right">Activations (mo.)</TableHead>
               <TableHead className="text-right">Revenue (mo.)</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-10" />

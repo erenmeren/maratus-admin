@@ -66,7 +66,7 @@ function ChartTooltip({
   );
 }
 
-/** Documents over time — soft emerald area chart. */
+/** Activations over time — soft emerald area chart. */
 export function DocumentsAreaChart({
   data,
   height = 280,
@@ -260,7 +260,7 @@ export function StoreCompareChart({
       </div>
     );
   }
-  // Merge per-store series into rows keyed by month label: { label, [storeId]: documents }.
+  // Merge per-store series into rows keyed by month label: { label, [storeId]: activations }.
   const rows = data[0].monthly.map((point, i) => {
     const row: Record<string, string | number> = { label: point.label };
     for (const s of data) row[s.storeId] = s.monthly[i]?.activations ?? 0;

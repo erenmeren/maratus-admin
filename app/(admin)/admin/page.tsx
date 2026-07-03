@@ -45,7 +45,7 @@ export default async function AdminOverviewPage() {
           icon={DollarSign}
         />
         <KpiCard
-          label="Documents this month"
+          label="Activations this month"
           value={formatCompact(o.activationsThisMonth)}
           delta={12.1}
           hint="platform-wide"
@@ -77,7 +77,7 @@ export default async function AdminOverviewPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Documents over time</CardTitle>
+            <CardTitle>Activations over time</CardTitle>
             <CardDescription>Monthly activations, all customers</CardDescription>
           </CardHeader>
           <CardContent>
@@ -106,7 +106,7 @@ export default async function AdminOverviewPage() {
                 <TableHead className="pl-6">Customer</TableHead>
                 <TableHead className="text-center">Stores</TableHead>
                 <TableHead className="text-center">Devices</TableHead>
-                <TableHead className="text-right">Documents</TableHead>
+                <TableHead className="text-right">Activations</TableHead>
                 <TableHead className="text-right pr-6">Revenue</TableHead>
               </TableRow>
             </TableHeader>

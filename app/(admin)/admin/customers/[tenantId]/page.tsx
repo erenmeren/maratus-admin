@@ -141,7 +141,7 @@ export default async function CustomerDetailPage({
         <KpiCard label="Stores" value={formatNumber(summary.storeCount)} icon={Store} />
         <KpiCard label="Devices" value={formatNumber(summary.deviceCount)} icon={Cpu} />
         <KpiCard
-          label="Documents this month"
+          label="Activations this month"
           value={formatNumber(summary.activationsThisMonth)}
           icon={FileText}
         />
@@ -165,7 +165,7 @@ export default async function CustomerDetailPage({
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle>Documents by store</CardTitle>
+            <CardTitle>Activations by store</CardTitle>
             <CardDescription>This month, per branch</CardDescription>
           </CardHeader>
           <CardContent>
@@ -249,7 +249,7 @@ export default async function CustomerDetailPage({
                 <TableHead>Store</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Last seen</TableHead>
-                <TableHead className="text-right">Documents (mo.)</TableHead>
+                <TableHead className="text-right">Activations (mo.)</TableHead>
                 <TableHead className="w-10 pr-4" />
               </TableRow>
             </TableHeader>

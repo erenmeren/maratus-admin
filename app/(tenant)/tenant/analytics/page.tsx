@@ -17,7 +17,7 @@ export default async function AnalyticsPage() {
   const { rows, monthlyByStore } = await getStoresAnalytics(organizationId);
 
   const byStore = rows.map((r) => ({ label: r.storeName, value: r.activationsThisMonth }));
-  const exportHeaders = ["Store", "Documents (this month)", "Trend %", "Revenue (USD)", "Paper saved (kg)"];
+  const exportHeaders = ["Store", "Activations (this month)", "Trend %", "Revenue (USD)", "Paper saved (kg)"];
   const exportRows = rows.map((r) => [
     r.storeName,
     r.activationsThisMonth,
@@ -53,7 +53,7 @@ export default async function AnalyticsPage() {
         <>
           <Card>
             <CardHeader>
-              <CardTitle>Documents by store</CardTitle>
+              <CardTitle>Activations by store</CardTitle>
               <CardDescription>This month, highest first</CardDescription>
             </CardHeader>
             <CardContent>

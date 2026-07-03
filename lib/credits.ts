@@ -143,8 +143,10 @@ export async function releaseHold(a: {
   });
 }
 
-/** Add credits. For `purchase`, the ledger row (unique on kind+idempotencyKey)
- *  is written FIRST; balance bumps only if it wrote (replay guard). */
+/** Add credits. The ledger row (unique on kind+idempotencyKey where the key is
+ *  non-null) is written FIRST; the balance bumps only if that row actually
+ *  inserted — the replay guard. A null idempotencyKey means no guard (e.g. an
+ *  admin manual grant), which stays non-idempotent as before. */
 export async function grantCredits(a: {
   organizationId: string;
   credits: number;
@@ -153,24 +155,23 @@ export async function grantCredits(a: {
   createdByUserId?: string;
   idempotencyKey?: string;
 }): Promise<{ applied: boolean }> {
-  if (a.kind === "purchase") {
-    const inserted = await db
-      .insert(creditLedger)
-      .values({
-        id: id("cl"),
-        organizationId: a.organizationId,
-        kind: "purchase",
-        credits: a.credits,
-        idempotencyKey: a.idempotencyKey ?? null,
-        note: a.note ?? null,
-      })
-      .onConflictDoNothing({
-        target: [creditLedger.kind, creditLedger.idempotencyKey],
-        where: sql`${creditLedger.idempotencyKey} is not null`,
-      })
-      .returning({ id: creditLedger.id });
-    if (inserted.length === 0) return { applied: false }; // replay
-  }
+  const inserted = await db
+    .insert(creditLedger)
+    .values({
+      id: id("cl"),
+      organizationId: a.organizationId,
+      kind: a.kind,
+      credits: a.credits,
+      idempotencyKey: a.idempotencyKey ?? null,
+      note: a.note ?? null,
+      createdByUserId: a.createdByUserId ?? null,
+    })
+    .onConflictDoNothing({
+      target: [creditLedger.kind, creditLedger.idempotencyKey],
+      where: sql`${creditLedger.idempotencyKey} is not null`,
+    })
+    .returning({ id: creditLedger.id });
+  if (a.idempotencyKey && inserted.length === 0) return { applied: false }; // replay
   await db
     .insert(creditBalance)
     .values({ organizationId: a.organizationId, available: a.credits, held: 0, updatedAt: new Date() })
@@ -181,14 +182,5 @@ export async function grantCredits(a: {
         updatedAt: new Date(),
       },
     });
-  if (a.kind === "grant") {
-    await ledger({
-      organizationId: a.organizationId,
-      kind: "grant",
-      credits: a.credits,
-      note: a.note ?? null,
-      createdByUserId: a.createdByUserId ?? null,
-    });
-  }
   return { applied: true };
 }

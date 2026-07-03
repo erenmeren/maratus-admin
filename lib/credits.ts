@@ -13,6 +13,9 @@ import { db } from "./db";
 import { creditBalance, creditLedger } from "./db/schema";
 import { id } from "./ids";
 
+/** Free credits granted once to a new tenant org so onboarding + first trigger work. */
+export const STARTER_CREDITS = 50;
+
 type LedgerRow = {
   organizationId: string;
   deviceId?: string | null;

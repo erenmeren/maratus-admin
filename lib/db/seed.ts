@@ -13,6 +13,7 @@ import "./load-env"; // must be first: loads env before ../db reads it
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { auth } from "../auth";
+import { grantCredits, STARTER_CREDITS } from "../credits";
 import {
   device,
   invoice,
@@ -125,6 +126,17 @@ async function main() {
       createdAt: new Date(),
     });
   }
+
+  // Starter credits: prepaid is the only payment path, so a brand-new org
+  // needs an allotment or its first trigger 402s. Idempotent by org id, so
+  // re-seeding is safe.
+  await grantCredits({
+    organizationId: orgId,
+    credits: STARTER_CREDITS,
+    kind: "grant",
+    idempotencyKey: `starter-grant:${orgId}`,
+    note: "starter grant",
+  });
 
   // --- Tenant settings ----------------------------------------------------
   await db

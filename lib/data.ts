@@ -24,7 +24,6 @@ import {
   invoice as invoiceTable,
   member as memberTable,
   organization as orgTable,
-  document as documentTable,
   store as storeTable,
   tenantSettings as settingsTable,
   user as userTable,
@@ -51,6 +50,7 @@ import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "./p
 import { computeConfigVersion, etagMatches } from "@/lib/device-config";
 import { normalizeDeviceSettings } from "@/lib/device-settings";
 import { rollupByDevice } from "@/lib/credit-usage";
+import { getBalance } from "./credits";
 import type {
   Device,
   DeviceRow,
@@ -1562,55 +1562,44 @@ export async function getApiKeys(organizationId: string): Promise<ApiKeyRow[]> {
 // ============================================================================
 
 export interface ApiUsageData {
-  unitPriceCents: number;
-  documentsThisMonth: number;
-  currentPeriod: { start: string; end: string; documentCount: number; amountDueCents: number };
-  daily: { date: string; documents: number }[];
-  monthly: { month: string; documents: number }[];
+  credits: { available: number; held: number };
+  creditsConsumedThisMonth: number;
+  activationsThisMonth: number;
+  period: { start: string; end: string };
 }
 
-/** Machine-keyed usage for /api/v1/usage (integer cents, UTC buckets). */
+/** Machine-keyed usage for /api/v1/usage — credit-denominated (UTC month). */
 export async function getApiUsage(organizationId: string): Promise<ApiUsageData> {
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-  const since30 = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29));
-  const since12mo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1));
 
-  const dayExpr = sql<string>`to_char(date_trunc('day', ${documentTable.createdAt}), 'YYYY-MM-DD')`;
-  const monthExpr = sql<string>`to_char(date_trunc('month', ${documentTable.createdAt}), 'YYYY-MM')`;
-  const orgScope = (since: Date) => and(eq(documentTable.organizationId, organizationId), gte(documentTable.createdAt, since));
-
-  const [settingsRow] = await db
-    .select({ price: settingsTable.perPrintPriceCents })
-    .from(settingsTable)
-    .where(eq(settingsTable.organizationId, organizationId))
-    .limit(1);
-  const unitPriceCents = settingsRow?.price ?? 4;
-
-  const [dailyRows, monthlyRows, monthCountRows] = await Promise.all([
-    db.select({ bucket: dayExpr, count: count() }).from(documentTable).where(orgScope(since30)).groupBy(dayExpr),
-    db.select({ bucket: monthExpr, count: count() }).from(documentTable).where(orgScope(since12mo)).groupBy(monthExpr),
-    db.select({ count: count() }).from(documentTable).where(orgScope(monthStart)),
+  const [credits, [consumedRow], [actRow]] = await Promise.all([
+    getBalance(organizationId),
+    db
+      .select({ c: sql<number>`coalesce(sum(${creditLedgerTable.credits}), 0)::int` })
+      .from(creditLedgerTable)
+      .where(and(
+        eq(creditLedgerTable.organizationId, organizationId),
+        eq(creditLedgerTable.kind, "settle"),
+        gte(creditLedgerTable.createdAt, monthStart),
+      )),
+    db
+      .select({ c: count() })
+      .from(deviceCommand)
+      .where(and(
+        eq(deviceCommand.organizationId, organizationId),
+        eq(deviceCommand.type, "trigger"),
+        eq(deviceCommand.status, "acked"),
+        gte(deviceCommand.createdAt, monthStart),
+      )),
   ]);
 
-  const dailyMap = new Map(dailyRows.map((r) => [r.bucket, Number(r.count)]));
-  const monthlyMap = new Map(monthlyRows.map((r) => [r.bucket, Number(r.count)]));
-  const daily = dayKeys(now, 30).map((k) => ({ date: k.key, documents: dailyMap.get(k.key) ?? 0 }));
-  const monthly = monthKeys(now, 12).map((k) => ({ month: k.key, documents: monthlyMap.get(k.key) ?? 0 }));
-  const documentsThisMonth = Number(monthCountRows[0]?.count ?? 0);
-
   return {
-    unitPriceCents,
-    documentsThisMonth,
-    currentPeriod: {
-      start: monthStart.toISOString(),
-      end: monthEnd.toISOString(),
-      documentCount: documentsThisMonth,
-      amountDueCents: documentsThisMonth * unitPriceCents,
-    },
-    daily,
-    monthly,
+    credits,
+    creditsConsumedThisMonth: Number(consumedRow?.c ?? 0),
+    activationsThisMonth: Number(actRow?.c ?? 0),
+    period: { start: monthStart.toISOString(), end: monthEnd.toISOString() },
   };
 }
 

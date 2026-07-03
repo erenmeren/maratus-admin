@@ -1,24 +1,17 @@
 // view-model → public API JSON (snake_case, integer cents). Pure.
 
 export interface ApiUsage {
-  unitPriceCents: number;
-  documentsThisMonth: number;
-  currentPeriod: { start: string; end: string; documentCount: number; amountDueCents: number };
-  daily: { date: string; documents: number }[];
-  monthly: { month: string; documents: number }[];
+  credits: { available: number; held: number };
+  creditsConsumedThisMonth: number;
+  activationsThisMonth: number;
+  period: { start: string; end: string };
 }
 
 export function serializeUsage(u: ApiUsage) {
   return {
-    unit_price_cents: u.unitPriceCents,
-    documents_this_month: u.documentsThisMonth,
-    current_period: {
-      start: u.currentPeriod.start,
-      end: u.currentPeriod.end,
-      document_count: u.currentPeriod.documentCount,
-      amount_due_cents: u.currentPeriod.amountDueCents,
-    },
-    daily: u.daily,
-    monthly: u.monthly,
+    credits: { available: u.credits.available, held: u.credits.held },
+    credits_consumed_this_month: u.creditsConsumedThisMonth,
+    activations_this_month: u.activationsThisMonth,
+    period: { start: u.period.start, end: u.period.end },
   };
 }

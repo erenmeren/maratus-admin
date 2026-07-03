@@ -34,19 +34,10 @@
       "Usage": {
         "type": "object",
         "properties": {
-          "unit_price_cents": { "type": "integer" },
-          "documents_this_month": { "type": "integer" },
-          "current_period": {
-            "type": "object",
-            "properties": {
-              "start": { "type": "string", "format": "date-time" },
-              "end": { "type": "string", "format": "date-time" },
-              "document_count": { "type": "integer" },
-              "amount_due_cents": { "type": "integer" }
-            }
-          },
-          "daily": { "type": "array", "items": { "type": "object", "properties": { "date": { "type": "string" }, "documents": { "type": "integer" } } } },
-          "monthly": { "type": "array", "items": { "type": "object", "properties": { "month": { "type": "string" }, "documents": { "type": "integer" } } } }
+          "credits": { "type": "object", "properties": { "available": { "type": "integer" }, "held": { "type": "integer" } } },
+          "credits_consumed_this_month": { "type": "integer" },
+          "activations_this_month": { "type": "integer" },
+          "period": { "type": "object", "properties": { "start": { "type": "string" }, "end": { "type": "string" } } }
         }
       }
     }

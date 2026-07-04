@@ -7,15 +7,11 @@ const base: TenantHealthInput = {
   deviceCount: 3,
   onlineCount: 3,
   offlineCount: 0,
-  subscriptionStatus: "active",
 };
 
 describe("tenantHealthLevel", () => {
-  it("healthy when all online and subscription active", () => {
+  it("healthy when all devices online", () => {
     expect(tenantHealthLevel(base, now)).toBe("healthy");
-  });
-  it("critical when subscription is suspended (canceled)", () => {
-    expect(tenantHealthLevel({ ...base, subscriptionStatus: "canceled" }, now)).toBe("critical");
   });
   it("critical when devices are offline and none online", () => {
     expect(tenantHealthLevel({ ...base, onlineCount: 0, offlineCount: 3 }, now)).toBe("critical");
@@ -30,17 +26,9 @@ describe("tenantHealthLevel", () => {
   it("warning on stuck-pending documents", () => {
     expect(tenantHealthLevel({ ...base, stuckPendingCount: 2 }, now)).toBe("warning");
   });
-  it("warning when subscription is past_due", () => {
-    expect(tenantHealthLevel({ ...base, subscriptionStatus: "past_due" }, now)).toBe("warning");
-  });
   it("warning when inactive beyond INACTIVE_DAYS", () => {
     const old = new Date(now.getTime() - (INACTIVE_DAYS + 1) * 86_400_000);
     expect(tenantHealthLevel({ ...base, lastActivityAt: old }, now)).toBe("warning");
-  });
-  it("critical takes precedence over warning", () => {
-    expect(
-      tenantHealthLevel({ ...base, subscriptionStatus: "canceled", offlineCount: 1, onlineCount: 2 }, now),
-    ).toBe("critical");
   });
   it("an empty fleet (0 devices) is not critical for the zero-online reason", () => {
     expect(tenantHealthLevel({ ...base, deviceCount: 0, onlineCount: 0, offlineCount: 0 }, now)).toBe("healthy");

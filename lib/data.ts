@@ -5,7 +5,7 @@
 // `organizationId` (the active tenant); super-admin functions span all orgs.
 //
 // DB conventions → view-model conversions happen here:
-//   • money is stored in cents → exposed as dollars (perPrintPrice, amount)
+//   • money is stored in cents → exposed as dollars (invoice amount)
 //   • tenant_settings.status (active|paused) → TenantStatus (active|suspended)
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
 //   • activationsToday / activationsThisMonth are derived from acked device-trigger commands
@@ -17,14 +17,13 @@ import {
   alert as alertTable,
   apiKey as apiKeyTable,
   auditLog as auditLogTable,
+  creditBalance as creditBalanceTable,
   creditLedger as creditLedgerTable,
   device as deviceTable,
   deviceCommand,
   invitation as invitationTable,
-  invoice as invoiceTable,
   member as memberTable,
   organization as orgTable,
-  document as documentTable,
   store as storeTable,
   tenantSettings as settingsTable,
   user as userTable,
@@ -51,10 +50,11 @@ import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "./p
 import { computeConfigVersion, etagMatches } from "@/lib/device-config";
 import { normalizeDeviceSettings } from "@/lib/device-settings";
 import { rollupByDevice } from "@/lib/credit-usage";
+import { rollupCredits, type CreditsOverview } from "@/lib/credits-overview";
+import { getBalance } from "./credits";
 import type {
   Device,
   DeviceRow,
-  Invoice,
   Store,
   StoreSummary,
   Tenant,
@@ -229,10 +229,6 @@ export function currentMonthStart(): Date {
   return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), 1));
 }
 
-function dollars(cents: number): number {
-  return Math.round(cents) / 100;
-}
-
 function mapTenantStatus(s: string | undefined): TenantStatus {
   // tenant_settings.status is active|paused; the view model adds trial/suspended.
   return s === "paused" ? "suspended" : "active";
@@ -243,7 +239,6 @@ function mapTenantStatus(s: string | undefined): TenantStatus {
 function buildTenant(b: OrgBundle): Tenant {
   const todayBy = b.todayByDevice;
   const monthBy = b.monthByDevice;
-  const price = dollars(b.settings?.perPrintPriceCents ?? 4);
 
   const stores: Store[] = b.stores.map((s) => ({
     id: s.id,
@@ -259,7 +254,6 @@ function buildTenant(b: OrgBundle): Tenant {
   return {
     id: b.org.id,
     name: b.org.name,
-    perPrintPrice: price,
     contact: b.contact,
     status: mapTenantStatus(b.settings?.status),
     brandColor: b.settings?.brandColor ?? "#10A765",
@@ -317,7 +311,6 @@ function summarize(b: OrgBundle): TenantSummary {
       deviceCount: allDevices.length,
       onlineCount,
       offlineCount,
-      subscriptionStatus: b.settings?.subscriptionStatus ?? null,
     },
     now,
   );
@@ -330,9 +323,6 @@ function summarize(b: OrgBundle): TenantSummary {
     onlineCount,
     offlineCount,
     activationsThisMonth,
-    revenueThisMonth:
-      Math.round(activationsThisMonth * tenant.perPrintPrice * 100) / 100,
-    perPrintPrice: tenant.perPrintPrice,
     health,
   };
 }
@@ -345,12 +335,12 @@ function summarize(b: OrgBundle): TenantSummary {
 // the key window are simply not joined (identical to the old all-triggers path,
 // which bucketed everything then dropped out-of-window keys).
 
-function dailySeries(b: OrgBundle, price: number): TimePoint[] {
-  return bucketsToSeries(b.dailyBuckets, dayKeys(new Date(), 30), price);
+function dailySeries(b: OrgBundle): TimePoint[] {
+  return bucketsToSeries(b.dailyBuckets, dayKeys(new Date(), 30));
 }
 
-function monthlySeries(b: OrgBundle, price: number): TimePoint[] {
-  return bucketsToSeries(b.monthlyBuckets, monthKeys(new Date(), 9), price);
+function monthlySeries(b: OrgBundle): TimePoint[] {
+  return bucketsToSeries(b.monthlyBuckets, monthKeys(new Date(), 9));
 }
 
 function sumSeries(all: TimePoint[][]): TimePoint[] {
@@ -358,7 +348,6 @@ function sumSeries(all: TimePoint[][]): TimePoint[] {
   return all[0].map((_, i) => ({
     label: all[0][i].label,
     activations: all.reduce((a, s) => a + s[i].activations, 0),
-    revenue: Math.round(all.reduce((a, s) => a + s[i].revenue, 0) * 100) / 100,
   }));
 }
 
@@ -414,7 +403,7 @@ export async function getTenantDashboard(
     eco: computeEcoSavings(activationsThisMonth),
     ecoYtdActivations,
     ecoYtd: computeEcoSavings(ecoYtdActivations),
-    daily: dailySeries(b, tenant.perPrintPrice),
+    daily: dailySeries(b),
   };
 }
 
@@ -450,7 +439,7 @@ export async function getStore(
 
 /**
  * Per-store analytics: daily/monthly activation series, this-vs-last-month trend,
- * revenue + eco for this month, and busiest day-of-week / peak hour. Returns the
+ * eco savings for this month, and busiest day-of-week / peak hour. Returns the
  * store too so the page can render without a second lookup. null if not found.
  */
 export async function getStoreAnalytics(
@@ -458,8 +447,7 @@ export async function getStoreAnalytics(
 ): Promise<{ store: Store; analytics: StoreAnalytics } | null> {
   const result = await getStore(storeId);
   if (!result) return null;
-  const { store, tenant } = result;
-  const price = tenant.perPrintPrice;
+  const { store } = result;
   const now = new Date();
 
   const since30 = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29));
@@ -487,8 +475,8 @@ export async function getStoreAnalytics(
     db.select({ dow: dowExpr, hour: hourExpr, count: count() }).from(deviceCommand).innerJoin(deviceTable, eq(deviceCommand.deviceId, deviceTable.id)).where(scoped(since90)).groupBy(sql`1`, sql`2`),
   ]);
 
-  const daily = bucketsToSeries(dailyRows, dayKeys(now, 30), price);
-  const monthly = bucketsToSeries(monthlyRows, monthKeys(now, 9), price);
+  const daily = bucketsToSeries(dailyRows, dayKeys(now, 30));
+  const monthly = bucketsToSeries(monthlyRows, monthKeys(now, 9));
   const thisMonth = monthly[monthly.length - 1]?.activations ?? 0;
   const lastMonth = monthly[monthly.length - 2]?.activations ?? 0;
 
@@ -497,7 +485,6 @@ export async function getStoreAnalytics(
     daily,
     monthly,
     monthTrend: computeTrend(thisMonth, lastMonth),
-    revenueThisMonth: Math.round(thisMonth * price * 100) / 100,
     eco: computeEcoSavings(thisMonth),
     peak: heatmap.peak,
     heatmap,
@@ -507,7 +494,7 @@ export async function getStoreAnalytics(
 
 /**
  * Cross-store comparison for the tenant Analytics page: per-store rows (activations
- * this month, trend vs last month, revenue, eco) sorted by activations, plus a
+ * this month, trend vs last month, eco) sorted by activations, plus a
  * per-store monthly series for the comparison chart. Degrades to empty on error.
  */
 export async function getStoresAnalytics(organizationId: string): Promise<{
@@ -516,7 +503,6 @@ export async function getStoresAnalytics(organizationId: string): Promise<{
 }> {
   try {
     const tenant = await getTenant(organizationId);
-    const price = tenant.perPrintPrice;
     const stores = tenant.stores;
     if (stores.length === 0) return { rows: [], monthlyByStore: [] };
 
@@ -546,7 +532,6 @@ export async function getStoresAnalytics(organizationId: string): Promise<{
         storeName: s.name,
         current: perStoreMonth.find((r) => r.storeId === s.id && r.bucket === thisKey)?.count ?? 0,
         previous: perStoreMonth.find((r) => r.storeId === s.id && r.bucket === lastKey)?.count ?? 0,
-        price,
       })),
     );
 
@@ -556,7 +541,6 @@ export async function getStoresAnalytics(organizationId: string): Promise<{
       monthly: bucketsToSeries(
         perStoreMonth.filter((r) => r.storeId === s.id).map((r) => ({ bucket: r.bucket, count: r.count })),
         keys,
-        price,
       ),
     }));
 
@@ -587,13 +571,13 @@ export async function getDevice(
 export async function tenantDaily(organizationId: string): Promise<TimePoint[]> {
   const b = await loadOrg(organizationId);
   if (!b) return [];
-  return dailySeries(b, dollars(b.settings?.perPrintPriceCents ?? 4));
+  return dailySeries(b);
 }
 
 export async function tenantMonthly(organizationId: string): Promise<TimePoint[]> {
   const b = await loadOrg(organizationId);
   if (!b) return [];
-  return monthlySeries(b, dollars(b.settings?.perPrintPriceCents ?? 4));
+  return monthlySeries(b);
 }
 
 // ============================================================================
@@ -630,7 +614,6 @@ export async function getAllDevices(): Promise<DeviceRow[]> {
 }
 
 export interface AdminOverview {
-  mrr: number;
   activationsThisMonth: number;
   activeDevices: number;
   totalDevices: number;
@@ -644,12 +627,8 @@ export interface AdminOverview {
 export async function getAdminOverview(): Promise<AdminOverview> {
   const bundles = await loadAllOrgs();
   const summaries = bundles.map(summarize);
-  const monthly = sumSeries(
-    bundles.map((b) => monthlySeries(b, dollars(b.settings?.perPrintPriceCents ?? 4))),
-  );
-  const daily = sumSeries(
-    bundles.map((b) => dailySeries(b, dollars(b.settings?.perPrintPriceCents ?? 4))),
-  );
+  const monthly = sumSeries(bundles.map((b) => monthlySeries(b)));
+  const daily = sumSeries(bundles.map((b) => dailySeries(b)));
 
   let activeDevices = 0;
   let totalDevices = 0;
@@ -661,7 +640,6 @@ export async function getAdminOverview(): Promise<AdminOverview> {
   }
 
   return {
-    mrr: Math.round(summaries.reduce((a, s) => a + s.revenueThisMonth, 0) * 100) / 100,
     activationsThisMonth: summaries.reduce((a, s) => a + s.activationsThisMonth, 0),
     activeDevices,
     totalDevices,
@@ -670,7 +648,7 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     monthly,
     daily,
     topCustomers: [...summaries]
-      .sort((a, b) => b.revenueThisMonth - a.revenueThisMonth)
+      .sort((a, b) => b.activationsThisMonth - a.activationsThisMonth)
       .slice(0, 5),
   };
 }
@@ -687,10 +665,7 @@ export interface CustomerDetail {
     offline: number;
     paused: number;
     stuckPendingCount: number;
-    subscriptionStatus: string | null;
   };
-  monthly: TimePoint[];
-  invoices: Invoice[];
   eco: ReturnType<typeof computeEcoSavings>;
 }
 
@@ -740,13 +715,11 @@ export async function getCustomerDetail(
       eq(deviceCommand.status, "acked"),
     ));
 
-  const subscriptionStatus = b.settings?.subscriptionStatus ?? null;
   const level = tenantHealthLevel(
     {
       deviceCount: devices.length,
       onlineCount: online,
       offlineCount: offline,
-      subscriptionStatus,
       stuckPendingCount: stuck,
       lastActivityAt: last ?? null,
     },
@@ -757,9 +730,7 @@ export async function getCustomerDetail(
     tenant,
     summary,
     devices,
-    health: { level, online, offline, paused, stuckPendingCount: stuck, subscriptionStatus },
-    monthly: monthlySeries(b, tenant.perPrintPrice),
-    invoices: await getInvoices(organizationId),
+    health: { level, online, offline, paused, stuckPendingCount: stuck },
     eco: computeEcoSavings(summary.activationsThisMonth),
   };
 }
@@ -767,83 +738,6 @@ export async function getCustomerDetail(
 // ============================================================================
 // Billing
 // ============================================================================
-
-function mapInvoice(row: typeof invoiceTable.$inferSelect): Invoice {
-  const now = Date.now();
-  const status: Invoice["status"] =
-    row.status === "paid"
-      ? "paid"
-      : row.status === "sent" && row.periodEnd.getTime() < now
-        ? "overdue"
-        : "due";
-  return {
-    id: row.id,
-    tenantId: row.organizationId,
-    period: row.periodStart.toLocaleDateString("en-US", {
-      month: "short",
-      year: "numeric",
-    }),
-    documents: row.documentCount,
-    amount: dollars(row.amountDueCents),
-    status,
-    lifecycle: row.status,
-    issuedOn: row.createdAt.toISOString(),
-  };
-}
-
-export async function getInvoices(organizationId?: string): Promise<Invoice[]> {
-  const rows = organizationId
-    ? await db
-        .select()
-        .from(invoiceTable)
-        .where(eq(invoiceTable.organizationId, organizationId))
-    : await db.select().from(invoiceTable);
-  return rows
-    .map(mapInvoice)
-    .sort((a, b) => b.issuedOn.localeCompare(a.issuedOn));
-}
-
-export interface BillingOverview {
-  totalEarnings: number;
-  outstanding: number;
-  invoices: Invoice[];
-  byTenant: (TenantSummary & { amountOwed: number })[];
-  monthly: TimePoint[];
-}
-
-export async function getBillingOverview(): Promise<BillingOverview> {
-  const bundles = await loadAllOrgs();
-  const summaries = bundles.map(summarize);
-  const allInvoices = await getInvoices();
-
-  const totalEarnings =
-    Math.round(
-      allInvoices.filter((i) => i.status === "paid").reduce((a, i) => a + i.amount, 0) *
-        100,
-    ) / 100;
-  const outstanding =
-    Math.round(
-      allInvoices.filter((i) => i.status !== "paid").reduce((a, i) => a + i.amount, 0) *
-        100,
-    ) / 100;
-
-  const byTenant = summaries.map((s) => {
-    const owed = allInvoices
-      .filter((i) => i.tenantId === s.id && i.status !== "paid")
-      .reduce((a, i) => a + i.amount, 0);
-    return { ...s, amountOwed: Math.round(owed * 100) / 100 };
-  });
-
-  return {
-    totalEarnings,
-    outstanding,
-    invoices: allInvoices,
-    byTenant,
-    monthly: sumSeries(
-      bundles.map((b) => monthlySeries(b, dollars(b.settings?.perPrintPriceCents ?? 4))),
-    ),
-  };
-}
 
 /** Map an organizationId → display name. */
 export async function tenantNameOf(organizationId: string): Promise<string> {
@@ -1108,38 +1002,6 @@ export { claimDevice, getUnclaimedDevices } from "./documents";
 // ============================================================================
 // Tenant billing view-model (subscription status, saved card, invoices).
 // ============================================================================
-
-export async function getTenantBilling(organizationId: string) {
-  const [settings] = await db
-    .select()
-    .from(settingsTable)
-    .where(eq(settingsTable.organizationId, organizationId))
-    .limit(1);
-
-  const invoices = await db
-    .select()
-    .from(invoiceTable)
-    .where(eq(invoiceTable.organizationId, organizationId))
-    .orderBy(desc(invoiceTable.periodStart));
-
-  return {
-    subscriptionStatus: settings?.subscriptionStatus ?? null,
-    hasSubscription: Boolean(settings?.stripeSubscriptionId),
-    card:
-      settings?.cardBrand && settings?.cardLast4
-        ? { brand: settings.cardBrand, last4: settings.cardLast4 }
-        : null,
-    invoices: invoices.map((i) => ({
-      id: i.id,
-      periodStart: i.periodStart.toISOString(),
-      periodEnd: i.periodEnd.toISOString(),
-      documentCount: i.documentCount,
-      amount: i.amountDueCents / 100,
-      status: i.status,
-      hostedInvoiceUrl: i.hostedInvoiceUrl ?? null,
-    })),
-  };
-}
 
 export async function getOrgAuditLog(organizationId: string, limit = 100) {
   const rows = await db
@@ -1562,55 +1424,44 @@ export async function getApiKeys(organizationId: string): Promise<ApiKeyRow[]> {
 // ============================================================================
 
 export interface ApiUsageData {
-  unitPriceCents: number;
-  documentsThisMonth: number;
-  currentPeriod: { start: string; end: string; documentCount: number; amountDueCents: number };
-  daily: { date: string; documents: number }[];
-  monthly: { month: string; documents: number }[];
+  credits: { available: number; held: number };
+  creditsConsumedThisMonth: number;
+  activationsThisMonth: number;
+  period: { start: string; end: string };
 }
 
-/** Machine-keyed usage for /api/v1/usage (integer cents, UTC buckets). */
+/** Machine-keyed usage for /api/v1/usage — credit-denominated (UTC month). */
 export async function getApiUsage(organizationId: string): Promise<ApiUsageData> {
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
-  const since30 = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29));
-  const since12mo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 11, 1));
 
-  const dayExpr = sql<string>`to_char(date_trunc('day', ${documentTable.createdAt}), 'YYYY-MM-DD')`;
-  const monthExpr = sql<string>`to_char(date_trunc('month', ${documentTable.createdAt}), 'YYYY-MM')`;
-  const orgScope = (since: Date) => and(eq(documentTable.organizationId, organizationId), gte(documentTable.createdAt, since));
-
-  const [settingsRow] = await db
-    .select({ price: settingsTable.perPrintPriceCents })
-    .from(settingsTable)
-    .where(eq(settingsTable.organizationId, organizationId))
-    .limit(1);
-  const unitPriceCents = settingsRow?.price ?? 4;
-
-  const [dailyRows, monthlyRows, monthCountRows] = await Promise.all([
-    db.select({ bucket: dayExpr, count: count() }).from(documentTable).where(orgScope(since30)).groupBy(dayExpr),
-    db.select({ bucket: monthExpr, count: count() }).from(documentTable).where(orgScope(since12mo)).groupBy(monthExpr),
-    db.select({ count: count() }).from(documentTable).where(orgScope(monthStart)),
+  const [credits, [consumedRow], [actRow]] = await Promise.all([
+    getBalance(organizationId),
+    db
+      .select({ c: sql<number>`coalesce(sum(${creditLedgerTable.credits}), 0)::int` })
+      .from(creditLedgerTable)
+      .where(and(
+        eq(creditLedgerTable.organizationId, organizationId),
+        eq(creditLedgerTable.kind, "settle"),
+        gte(creditLedgerTable.createdAt, monthStart),
+      )),
+    db
+      .select({ c: count() })
+      .from(deviceCommand)
+      .where(and(
+        eq(deviceCommand.organizationId, organizationId),
+        eq(deviceCommand.type, "trigger"),
+        eq(deviceCommand.status, "acked"),
+        gte(deviceCommand.createdAt, monthStart),
+      )),
   ]);
 
-  const dailyMap = new Map(dailyRows.map((r) => [r.bucket, Number(r.count)]));
-  const monthlyMap = new Map(monthlyRows.map((r) => [r.bucket, Number(r.count)]));
-  const daily = dayKeys(now, 30).map((k) => ({ date: k.key, documents: dailyMap.get(k.key) ?? 0 }));
-  const monthly = monthKeys(now, 12).map((k) => ({ month: k.key, documents: monthlyMap.get(k.key) ?? 0 }));
-  const documentsThisMonth = Number(monthCountRows[0]?.count ?? 0);
-
   return {
-    unitPriceCents,
-    documentsThisMonth,
-    currentPeriod: {
-      start: monthStart.toISOString(),
-      end: monthEnd.toISOString(),
-      documentCount: documentsThisMonth,
-      amountDueCents: documentsThisMonth * unitPriceCents,
-    },
-    daily,
-    monthly,
+    credits,
+    creditsConsumedThisMonth: Number(consumedRow?.c ?? 0),
+    activationsThisMonth: Number(actRow?.c ?? 0),
+    period: { start: monthStart.toISOString(), end: monthEnd.toISOString() },
   };
 }
 
@@ -1669,4 +1520,45 @@ export async function deviceNamesForOrg(organizationId: string): Promise<Map<str
     .from(deviceTable)
     .where(eq(deviceTable.organizationId, organizationId));
   return new Map(rows.map((r) => [r.id, r.name]));
+}
+
+export type { CreditsOverview };
+
+/** Platform-admin: credits view for the admin Billing page (granted/purchased/consumed/outstanding). */
+export async function getCreditsOverview(): Promise<CreditsOverview> {
+  const [orgs, ledgerRows, balanceRows] = await Promise.all([
+    db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable),
+    db
+      .select({
+        organizationId: creditLedgerTable.organizationId,
+        kind: creditLedgerTable.kind,
+        credits: creditLedgerTable.credits,
+        createdAt: creditLedgerTable.createdAt,
+      })
+      .from(creditLedgerTable),
+    db
+      .select({
+        organizationId: creditBalanceTable.organizationId,
+        available: creditBalanceTable.available,
+      })
+      .from(creditBalanceTable),
+  ]);
+
+  const nameOf = new Map(orgs.map((o) => [o.id, o.name]));
+
+  return rollupCredits(
+    ledgerRows.map((r) => ({
+      orgId: r.organizationId,
+      name: nameOf.get(r.organizationId) ?? r.organizationId,
+      kind: r.kind,
+      credits: r.credits,
+      createdAt: r.createdAt,
+    })),
+    balanceRows.map((b) => ({
+      orgId: b.organizationId,
+      name: nameOf.get(b.organizationId) ?? b.organizationId,
+      available: b.available,
+    })),
+    new Date(),
+  );
 }

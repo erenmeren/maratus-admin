@@ -1,15 +1,8 @@
 import Link from "next/link";
-import { CircleDollarSign, Clock, Wallet } from "lucide-react";
+import { CircleDollarSign, Coins, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { ExportButton } from "@/components/export-button";
-import { GenerateInvoicesButton } from "@/components/generate-invoices-button";
-import { InvoiceRowActions } from "@/components/invoice-row-actions";
-import { RevenueLineChart } from "@/components/charts";
-import {
-  TenantStatusBadge,
-  InvoiceLifecycleBadge,
-} from "@/components/tenant-status-badge";
 import {
   Card,
   CardContent,
@@ -25,193 +18,100 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getBillingOverview } from "@/lib/data";
-import { formatCurrency, formatNumber } from "@/lib/format";
+import { getCreditsOverview } from "@/lib/data";
+import { formatNumber } from "@/lib/format";
 
 export default async function BillingPage() {
-  const billing = await getBillingOverview();
-  const mrr = billing.byTenant.reduce((a, t) => a + t.revenueThisMonth, 0);
-  // org id → display name, for the invoice table
-  const tenantNames = Object.fromEntries(
-    billing.byTenant.map((t) => [t.id, t.name]),
-  );
+  const credits = await getCreditsOverview();
 
-  // Real CSV export of the invoice table.
-  const exportHeaders = [
-    "Invoice",
-    "Customer",
-    "Period",
-    "Documents",
-    "Amount (USD)",
-    "Status",
-  ];
-  const exportRows = billing.invoices.map((inv) => [
-    inv.id,
-    tenantNames[inv.tenantId] ?? inv.tenantId,
-    inv.period,
-    inv.documents,
-    inv.amount.toFixed(2),
-    inv.lifecycle,
+  const exportHeaders = ["Customer", "Balance", "Consumed (mo.)", "Lifetime purchased"];
+  const exportRows = credits.perTenant.map((t) => [
+    t.name,
+    t.balance,
+    t.consumedThisMonth,
+    t.lifetimePurchased,
   ]);
 
   return (
     <>
       <PageHeader
-        title="Billing & Revenue"
-        description="Per-customer pricing, invoices, and Ditto's earnings."
+        title="Billing & Credits"
+        description="Platform-wide prepaid credit sales, consumption, and per-tenant balances."
       >
         <ExportButton
-          label="Export invoices"
-          filename="ditto-invoices.csv"
+          label="Export tenants"
+          filename="ditto-credits.csv"
           headers={exportHeaders}
           rows={exportRows}
         />
-        <GenerateInvoicesButton />
       </PageHeader>
 
       <div className="grid gap-4 sm:grid-cols-3">
         <KpiCard
-          label="Total earnings"
-          value={formatCurrency(billing.totalEarnings, { cents: true })}
-          hint="collected to date"
-          icon={Wallet}
-        />
-        <KpiCard
-          label="Current MRR"
-          value={formatCurrency(mrr, { cents: true })}
-          delta={9.2}
-          hint="this month"
+          label="Credits sold"
+          value={formatNumber(credits.totals.purchased)}
+          hint="lifetime, all tenants"
           icon={CircleDollarSign}
         />
         <KpiCard
-          label="Outstanding"
-          value={formatCurrency(billing.outstanding, { cents: true })}
-          hint="due + overdue"
-          icon={Clock}
+          label="Credits consumed"
+          value={formatNumber(credits.totals.consumed)}
+          hint="lifetime, all tenants"
+          icon={Coins}
+        />
+        <KpiCard
+          label="Outstanding liability"
+          value={formatNumber(credits.totals.outstanding)}
+          hint="unspent credits owed to tenants"
+          icon={Wallet}
         />
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Revenue over time</CardTitle>
-          <CardDescription>Platform-wide monthly revenue</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <RevenueLineChart data={billing.monthly} />
-        </CardContent>
-      </Card>
-
-      {/* Per-customer pricing + amount owed */}
+      {/* Per-tenant credits */}
       <Card className="overflow-hidden">
         <CardHeader>
-          <CardTitle>Per-customer billing</CardTitle>
-          <CardDescription>Pricing, monthly revenue, and balance owed</CardDescription>
+          <CardTitle>Per-tenant credits</CardTitle>
+          <CardDescription>Balance, consumption this month, and lifetime purchases</CardDescription>
         </CardHeader>
         <CardContent className="px-0 pb-0">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead className="pl-6">Customer</TableHead>
-                <TableHead className="text-right">Per print</TableHead>
-                <TableHead className="text-right">Documents (mo.)</TableHead>
-                <TableHead className="text-right">Revenue (mo.)</TableHead>
-                <TableHead className="text-right">Owed</TableHead>
-                <TableHead className="pr-6">Status</TableHead>
+                <TableHead className="text-right">Balance</TableHead>
+                <TableHead className="text-right">Consumed (mo.)</TableHead>
+                <TableHead className="pr-6 text-right">Lifetime purchased</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {billing.byTenant.map((t) => (
-                <TableRow key={t.id}>
+              {credits.perTenant.length === 0 && (
+                <TableRow className="hover:bg-transparent">
+                  <TableCell
+                    colSpan={4}
+                    className="py-12 text-center text-sm text-muted-foreground"
+                  >
+                    No tenants with credit activity yet.
+                  </TableCell>
+                </TableRow>
+              )}
+              {credits.perTenant.map((t) => (
+                <TableRow key={t.orgId}>
                   <TableCell className="pl-6">
                     <Link
-                      href={`/admin/customers/${t.id}`}
+                      href={`/admin/customers/${t.orgId}`}
                       className="font-medium hover:underline"
                     >
                       {t.name}
                     </Link>
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatCurrency(t.perPrintPrice, { cents: true })}
-                  </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatNumber(t.activationsThisMonth)}
-                  </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
-                    {formatCurrency(t.revenueThisMonth, { cents: true })}
+                    {formatNumber(t.balance)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
-                    {t.amountOwed > 0 ? (
-                      <span className="font-medium text-foreground">
-                        {formatCurrency(t.amountOwed, { cents: true })}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
+                    {formatNumber(t.consumedThisMonth)}
                   </TableCell>
-                  <TableCell className="pr-6">
-                    <TenantStatusBadge status={t.status} />
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* Invoices */}
-      <Card className="overflow-hidden">
-        <CardHeader>
-          <CardTitle>Invoices</CardTitle>
-          <CardDescription>
-            Generated from real document counts × per-print price
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0 pb-0">
-          <Table>
-            <TableHeader>
-              <TableRow className="hover:bg-transparent">
-                <TableHead className="pl-6">Invoice</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead className="text-right">Documents</TableHead>
-                <TableHead className="text-right">Amount</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="w-10 pr-4" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {billing.invoices.length === 0 && (
-                <TableRow className="hover:bg-transparent">
-                  <TableCell
-                    colSpan={7}
-                    className="py-12 text-center text-sm text-muted-foreground"
-                  >
-                    No invoices yet. Click “Generate invoices” to bill the
-                    current month.
-                  </TableCell>
-                </TableRow>
-              )}
-              {billing.invoices.map((inv) => (
-                <TableRow key={inv.id}>
-                  <TableCell className="pl-6 font-mono text-xs">{inv.id}</TableCell>
-                  <TableCell className="font-medium">
-                    {tenantNames[inv.tenantId] ?? inv.tenantId}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{inv.period}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatNumber(inv.documents)}
-                  </TableCell>
-                  <TableCell className="text-right font-medium tabular-nums">
-                    {formatCurrency(inv.amount, { cents: true })}
-                  </TableCell>
-                  <TableCell>
-                    <InvoiceLifecycleBadge status={inv.lifecycle} />
-                  </TableCell>
-                  <TableCell className="pr-4">
-                    <InvoiceRowActions
-                      invoiceId={inv.id}
-                      lifecycle={inv.lifecycle}
-                    />
+                  <TableCell className="pr-6 text-right tabular-nums">
+                    {formatNumber(t.lifetimePurchased)}
                   </TableCell>
                 </TableRow>
               ))}

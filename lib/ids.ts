@@ -8,11 +8,6 @@ export function id(prefix: string): string {
   return `${prefix}_${nanoid(21)}`;
 }
 
-/** Long, unguessable capability token for public document URLs. */
-export function documentToken(): string {
-  return nanoid(40);
-}
-
 // Human-friendly pairing code (no ambiguous chars), e.g. "7K3F-9QXM".
 const pairingAlphabet = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 8);
 export function pairingCode(): string {

@@ -3,27 +3,26 @@
 // Inserts realistic sample data so the existing UI keeps working end-to-end:
 //   • 1 platform_admin user (Ditto staff)
 //   • 1 coffee-chain organization with an owner user
-//   • ~3 stores, ~6 devices (mixed status), ~30 documents this month, 2 invoices
+//   • ~3 stores, ~6 devices (mixed status)
 //
 // Users + the organization are created through the Better Auth server API so
 // password hashing and membership wiring exactly match what auth expects.
-// App tables (stores/devices/documents/invoices) are inserted with Drizzle.
+// App tables (stores/devices) are inserted with Drizzle.
 
 import "./load-env"; // must be first: loads env before ../db reads it
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { auth } from "../auth";
+import { grantCredits, STARTER_CREDITS } from "../credits";
 import {
   device,
-  invoice,
   member,
   organization,
-  document,
   store,
   tenantSettings,
   user,
 } from "./schema";
-import { generateDeviceKey, id, pairingCode, documentToken } from "../ids";
+import { generateDeviceKey, id, pairingCode } from "../ids";
 
 const PLATFORM_ADMIN = {
   name: "Ditto Staff",
@@ -126,12 +125,22 @@ async function main() {
     });
   }
 
+  // Starter credits: prepaid is the only payment path, so a brand-new org
+  // needs an allotment or its first trigger 402s. Idempotent by org id, so
+  // re-seeding is safe.
+  await grantCredits({
+    organizationId: orgId,
+    credits: STARTER_CREDITS,
+    kind: "grant",
+    idempotencyKey: `starter-grant:${orgId}`,
+    note: "starter grant",
+  });
+
   // --- Tenant settings ----------------------------------------------------
   await db
     .insert(tenantSettings)
     .values({
       organizationId: orgId,
-      perPrintPriceCents: 4,
       brandColor: "#B4541F",
       logoUrl: null,
       staffPin: "4827",
@@ -141,10 +150,8 @@ async function main() {
 
   // --- Stores + devices ---------------------------------------------------
   // Clear prior app data for this org so reseeds are idempotent.
-  await db.delete(document).where(eq(document.organizationId, orgId));
   await db.delete(device).where(eq(device.organizationId, orgId));
   await db.delete(store).where(eq(store.organizationId, orgId));
-  await db.delete(invoice).where(eq(invoice.organizationId, orgId));
 
   const statuses = ["online", "online", "online", "paused", "offline"] as const;
   const allDeviceIds: { deviceId: string; storeId: string }[] = [];
@@ -206,66 +213,6 @@ async function main() {
     });
   }
   console.log(`  • created 3 unclaimed devices (pairing codes: ${unclaimedCodes.join(", ")})`);
-
-  // --- Documents (≈30 across this month) -----------------------------------
-  const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const DOCUMENTS = 30;
-  for (let i = 0; i < DOCUMENTS; i++) {
-    const target = allDeviceIds[Math.floor(rand() * allDeviceIds.length)];
-    const dayOffset = Math.floor(rand() * (now.getDate()));
-    const createdAt = new Date(
-      monthStart.getTime() + dayOffset * 86_400_000 + Math.floor(rand() * 86_400_000),
-    );
-    const downloaded = rand() > 0.4;
-    const rid = id("rcp");
-    await db.insert(document).values({
-      id: rid,
-      organizationId: orgId,
-      deviceId: target.deviceId,
-      storeId: target.storeId,
-      token: documentToken(),
-      storageKey: `documents/${orgId}/${rid}`,
-      mimeType: "image/png",
-      byteSize: 20_000 + Math.floor(rand() * 40_000),
-      status: downloaded ? "downloaded" : "ready",
-      createdAt,
-      downloadedAt: downloaded
-        ? new Date(createdAt.getTime() + Math.floor(rand() * 600_000))
-        : null,
-    });
-  }
-  console.log(`  • created ${DOCUMENTS} documents this month`);
-
-  // --- Invoices (last month paid, this month draft) -----------------------
-  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
-  const thisMonthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-  await db.insert(invoice).values([
-    {
-      id: id("inv"),
-      organizationId: orgId,
-      periodStart: lastMonthStart,
-      periodEnd: lastMonthEnd,
-      documentCount: 842,
-      unitPriceCents: 4,
-      amountDueCents: 842 * 4,
-      status: "paid",
-      createdAt: lastMonthEnd,
-    },
-    {
-      id: id("inv"),
-      organizationId: orgId,
-      periodStart: monthStart,
-      periodEnd: thisMonthEnd,
-      documentCount: DOCUMENTS,
-      unitPriceCents: 4,
-      amountDueCents: DOCUMENTS * 4,
-      status: "draft",
-      createdAt: now,
-    },
-  ]);
-  console.log("  • created 2 invoices");
 
   console.log("\n✅ Seed complete.");
   console.log(`   platform admin: ${PLATFORM_ADMIN.email} / ${PLATFORM_ADMIN.password}`);

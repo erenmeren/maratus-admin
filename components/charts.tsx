@@ -106,42 +106,6 @@ export function DocumentsAreaChart({
   );
 }
 
-/** Revenue over time — emerald line chart. */
-export function RevenueLineChart({
-  data,
-  height = 280,
-}: {
-  data: TimePoint[];
-  height?: number;
-}) {
-  const interval = data.length > 14 ? Math.floor(data.length / 7) : 0;
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-        <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
-        <XAxis dataKey="label" {...AXIS} interval={interval} minTickGap={16} />
-        <YAxis
-          {...AXIS}
-          width={48}
-          tickFormatter={(v) => `$${formatCompact(Number(v))}`}
-        />
-        <Tooltip
-          content={<ChartTooltip money />}
-          cursor={{ stroke: "var(--border)" }}
-        />
-        <Line
-          type="monotone"
-          dataKey="revenue"
-          stroke="var(--chart-1)"
-          strokeWidth={2}
-          dot={false}
-          activeDot={{ r: 4, strokeWidth: 0 }}
-        />
-      </LineChart>
-    </ResponsiveContainer>
-  );
-}
-
 /** Generic metric area chart for series like "paper saved (kg) per month". */
 export function MetricAreaChart({
   data,

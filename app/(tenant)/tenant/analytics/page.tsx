@@ -10,19 +10,18 @@ import {
 } from "@/components/ui/card";
 import { getStoresAnalytics } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
-import { formatCurrency, formatNumber } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 
 export default async function AnalyticsPage() {
   const { organizationId } = await requireTenant();
   const { rows, monthlyByStore } = await getStoresAnalytics(organizationId);
 
   const byStore = rows.map((r) => ({ label: r.storeName, value: r.activationsThisMonth }));
-  const exportHeaders = ["Store", "Activations (this month)", "Trend %", "Revenue (USD)", "Paper saved (kg)"];
+  const exportHeaders = ["Store", "Activations (this month)", "Trend %", "Paper saved (kg)"];
   const exportRows = rows.map((r) => [
     r.storeName,
     r.activationsThisMonth,
     r.trend.pctChange === null ? "—" : r.trend.pctChange,
-    r.revenueThisMonth.toFixed(2),
     r.eco.paperKg.toFixed(1),
   ]);
 
@@ -30,7 +29,7 @@ export default async function AnalyticsPage() {
     <>
       <PageHeader
         title="Analytics"
-        description="Compare activation volume, trends, and revenue across your stores."
+        description="Compare activation volume and trends across your stores."
       >
         <ExportButton
           label="Export analytics"
@@ -72,7 +71,7 @@ export default async function AnalyticsPage() {
                   <div>
                     <p className="text-sm font-medium">{r.storeName}</p>
                     <p className="text-xs text-muted-foreground">
-                      {formatNumber(r.activationsThisMonth)} activations · {formatCurrency(r.revenueThisMonth)}
+                      {formatNumber(r.activationsThisMonth)} activations
                     </p>
                   </div>
                   <span

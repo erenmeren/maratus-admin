@@ -37,8 +37,6 @@ const envSchema = z.object({
   // Stripe billing. All optional: absent → billing features are inert.
   STRIPE_SECRET_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
-  STRIPE_PRICE_ID: z.string().optional(),
-  STRIPE_METER_EVENT_NAME: z.string().default("documents"),
   NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
   // Comma-separated list of credit packs: `packId:priceId:credits[,...]`
   // e.g. `small:price_abc:100,large:price_def:1000`

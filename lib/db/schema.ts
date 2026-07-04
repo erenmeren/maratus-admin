@@ -4,8 +4,8 @@
 //   1. Better Auth tables (user, session, account, verification + organization
 //      plugin: organization, member, invitation). These match what Better Auth
 //      expects. Regenerate/verify with `npx @better-auth/cli generate`.
-//   2. App tables (tenantSettings, store, device, document, invoice) that
-//      reference organizationId — the Better Auth organization IS the tenant.
+//   2. App tables (tenantSettings, store, device, ...) that reference
+//      organizationId — the Better Auth organization IS the tenant.
 //
 // Multi-tenancy: every app row carries organizationId. Platform (super-admin)
 // access is NOT an org membership — it's user.role = 'platform_admin'.
@@ -165,8 +165,6 @@ export const tenantSettings = pgTable("tenant_settings", {
   organizationId: text("organization_id")
     .primaryKey()
     .references(() => organization.id, { onDelete: "cascade" }),
-  // Price Ditto charges per digital document, in whole cents (avoids float drift).
-  perPrintPriceCents: integer("per_print_price_cents").default(4).notNull(),
   brandColor: text("brand_color").default("#10A765").notNull(),
   // Optional printer theme tokens (null → derived from brandColor). The printer
   // preview lets a tenant tune background / foreground / muted separately.
@@ -200,10 +198,6 @@ export const tenantSettings = pgTable("tenant_settings", {
   deviceSettingsPasswordHash: text("device_settings_password_hash"),
   deviceSettingsPasswordSalt: text("device_settings_password_salt"),
   stripeCustomerId: text("stripe_customer_id"),
-  stripeSubscriptionId: text("stripe_subscription_id"),
-  subscriptionStatus: text("subscription_status"),
-  cardBrand: text("card_brand"),
-  cardLast4: text("card_last4"),
   status: text("status", { enum: ["active", "paused"] })
     .default("active")
     .notNull(),
@@ -370,112 +364,6 @@ export const apiIdempotency = pgTable(
   (t) => [primaryKey({ columns: [t.key, t.organizationId] })],
 );
 
-export const document = pgTable(
-  "document",
-  {
-    id: text("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organization.id, { onDelete: "cascade" }),
-    // Nullable: device-ingested documents set this; cloud-ingested documents (source="cloud") leave it null.
-    deviceId: text("device_id").references(() => device.id, {
-      onDelete: "cascade",
-    }),
-    // Ingestion source. "device" = rendered + uploaded by a printer; "cloud" = created via partner API.
-    source: text("source", { enum: ["device", "cloud"] })
-      .default("device")
-      .notNull(),
-    // Technical render metadata ONLY (no parsed document semantics). Free-form JSON, shape defined by the ingest caller.
-    metadata: jsonb("metadata"),
-    storeId: text("store_id").references(() => store.id, {
-      onDelete: "set null",
-    }),
-    // Unguessable capability token (nanoid). The token IS the access grant for
-    // the public document page — keep it long.
-    token: text("token").notNull().unique(),
-    storageKey: text("storage_key").notNull(), // R2 object key
-    mimeType: text("mime_type").default("image/png").notNull(),
-    byteSize: integer("byte_size").default(0).notNull(),
-    status: text("status", { enum: ["pending", "ready", "downloaded"] })
-      .default("pending")
-      .notNull(),
-    createdAt: timestamp("created_at")
-      .$defaultFn(() => new Date())
-      .notNull(),
-    downloadedAt: timestamp("downloaded_at"),
-  },
-  (t) => [
-    uniqueIndex("document_token_idx").on(t.token),
-    index("document_organization_id_idx").on(t.organizationId),
-    index("document_device_id_idx").on(t.deviceId),
-    index("document_store_id_idx").on(t.storeId),
-    index("document_created_at_idx").on(t.createdAt),
-  ],
-);
-
-export const invoice = pgTable(
-  "invoice",
-  {
-    id: text("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organization.id, { onDelete: "cascade" }),
-    periodStart: timestamp("period_start").notNull(),
-    periodEnd: timestamp("period_end").notNull(),
-    documentCount: integer("document_count").default(0).notNull(),
-    // Stored in cents to avoid floating-point money drift.
-    unitPriceCents: integer("unit_price_cents").default(4).notNull(),
-    amountDueCents: integer("amount_due_cents").default(0).notNull(),
-    status: text("status", { enum: ["draft", "sent", "paid", "overdue", "void"] })
-      .default("draft")
-      .notNull(),
-    stripeInvoiceId: text("stripe_invoice_id"),
-    hostedInvoiceUrl: text("hosted_invoice_url"),
-    // Local mirror of the Stripe invoice due_date (send_invoice invoices only;
-    // charge_automatically has none → null). Drives the overdue sweep + grace.
-    dueDate: timestamp("due_date"),
-    createdAt: timestamp("created_at")
-      .$defaultFn(() => new Date())
-      .notNull(),
-  },
-  (t) => [
-    index("invoice_organization_id_idx").on(t.organizationId),
-    // One row per Stripe invoice — makes the webhook upsert idempotent under
-    // Stripe's at-least-once / concurrent delivery. NULLs (legacy rows) are
-    // allowed multiple times by Postgres unique semantics.
-    uniqueIndex("invoice_stripe_invoice_id_idx").on(t.stripeInvoiceId),
-  ],
-);
-
-export const usageEvent = pgTable(
-  "usage_event",
-  {
-    id: text("id").primaryKey(),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organization.id, { onDelete: "cascade" }),
-    // One usage event per document — the unique index below makes recording
-    // idempotent (insert ... on conflict do nothing) so a document can never be
-    // metered twice nor silently un-billed.
-    documentId: text("document_id")
-      .notNull()
-      .references(() => document.id, { onDelete: "cascade" }),
-    stripeCustomerId: text("stripe_customer_id"),
-    status: text("status", { enum: ["pending", "reported", "skipped"] })
-      .default("pending")
-      .notNull(),
-    attempts: integer("attempts").default(0).notNull(),
-    createdAt: timestamp("created_at")
-      .$defaultFn(() => new Date())
-      .notNull(),
-    reportedAt: timestamp("reported_at"),
-  },
-  (t) => [
-    uniqueIndex("usage_event_document_id_idx").on(t.documentId),
-    index("usage_event_status_created_idx").on(t.status, t.createdAt),
-  ],
-);
-
 // Cross-instance fixed-window rate limiter backing store. One row per limiter
 // key (e.g. a device key hash or API key hash). `windowStart` is the floored
 // start of the current fixed window; `count` is the number of hits seen in it.
@@ -548,9 +436,6 @@ export const schema = {
   creditBalance,
   creditLedger,
   apiIdempotency,
-  document,
-  invoice,
-  usageEvent,
   rateLimit,
   auditLog,
   alert,

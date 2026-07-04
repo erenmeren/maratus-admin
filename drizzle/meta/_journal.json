@@ -204,6 +204,13 @@
       "when": 1783003950618,
       "tag": "0028_overjoyed_bucky",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1783180241409,
+      "tag": "0029_tricky_green_goblin",
+      "breakpoints": true
     }
   ]
 }

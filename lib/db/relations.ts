@@ -6,10 +6,8 @@ import {
   account,
   device,
   invitation,
-  invoice,
   member,
   organization,
-  document,
   session,
   store,
   tenantSettings,
@@ -39,8 +37,6 @@ export const organizationRelations = relations(organization, ({ one, many }) => 
   }),
   stores: many(store),
   devices: many(device),
-  documents: many(document),
-  invoices: many(invoice),
 }));
 
 export const memberRelations = relations(member, ({ one }) => ({
@@ -74,27 +70,10 @@ export const storeRelations = relations(store, ({ one, many }) => ({
   devices: many(device),
 }));
 
-export const deviceRelations = relations(device, ({ one, many }) => ({
+export const deviceRelations = relations(device, ({ one }) => ({
   organization: one(organization, {
     fields: [device.organizationId],
     references: [organization.id],
   }),
   store: one(store, { fields: [device.storeId], references: [store.id] }),
-  documents: many(document),
-}));
-
-export const documentRelations = relations(document, ({ one }) => ({
-  organization: one(organization, {
-    fields: [document.organizationId],
-    references: [organization.id],
-  }),
-  device: one(device, { fields: [document.deviceId], references: [device.id] }),
-  store: one(store, { fields: [document.storeId], references: [store.id] }),
-}));
-
-export const invoiceRelations = relations(invoice, ({ one }) => ({
-  organization: one(organization, {
-    fields: [invoice.organizationId],
-    references: [organization.id],
-  }),
 }));

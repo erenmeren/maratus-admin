@@ -3,10 +3,8 @@ import { sql } from "drizzle-orm";
 import { db } from "../lib/db";
 import {
   device,
-  invoice,
   member,
   organization,
-  document,
   store,
   tenantSettings,
   user,
@@ -25,8 +23,6 @@ async function main() {
     tenant_settings: await count(tenantSettings),
     stores: await count(store),
     devices: await count(device),
-    documents: await count(document),
-    invoices: await count(invoice),
     roles: await db.select({ email: user.email, role: user.role }).from(user),
     deviceStatuses: await db.select({ s: device.status }).from(device),
   };

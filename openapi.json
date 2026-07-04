@@ -3,14 +3,60 @@
   "info": {
     "title": "Ditto Public API",
     "version": "1.0.0",
-    "description": "Read-only, tenant-scoped access to usage. Authenticate with an API key created in the Ditto dashboard (Authorization: Bearer <key>)."
+    "description": "Tenant-scoped API for device activation and usage. Authenticate with an API key created in the Ditto dashboard (Authorization: Bearer <key>). Each key carries scopes: `devices:trigger` to activate a device, `usage:read` to read usage."
   },
   "servers": [{ "url": "/api/v1" }],
   "security": [{ "bearerAuth": [] }],
   "paths": {
+    "/devices/{deviceId}/trigger": {
+      "post": {
+        "summary": "Trigger a device",
+        "description": "Activates a device to show a QR code of a caller-supplied URL. Requires the `devices:trigger` scope and a unique `Idempotency-Key` header. Reserves 1 credit; the credit settles when the device acknowledges rendering, or is released on failure/expiry. Returns 202 with a queued command the device will poll for. Retrying with the same Idempotency-Key replays the original response without charging again.",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "path",
+            "required": true,
+            "description": "The device to activate. Must belong to the authenticated tenant.",
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique key per logical request. Replaying the same key returns the original response and does not charge a second credit.",
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TriggerRequest" }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Command queued; the device will poll and render it.",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TriggerAccepted" } } }
+          },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Error" },
+          "402": { "$ref": "#/components/responses/Error" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "409": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" },
+          "429": { "$ref": "#/components/responses/Error" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
     "/usage": {
       "get": {
         "summary": "Usage totals",
+        "description": "Credit-denominated usage for the authenticated tenant. Requires the `usage:read` scope.",
         "responses": {
           "200": { "description": "Usage for the org", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Usage" } } } },
           "401": { "$ref": "#/components/responses/Error" },
@@ -30,6 +76,33 @@
         "type": "object",
         "properties": { "error": { "type": "object", "properties": { "code": { "type": "string" }, "message": { "type": "string" } }, "required": ["code", "message"] } },
         "required": ["error"]
+      },
+      "TriggerRequest": {
+        "type": "object",
+        "properties": {
+          "action": { "type": "string", "enum": ["show_qr"], "description": "The action to perform. Only `show_qr` is supported." },
+          "payload": {
+            "type": "object",
+            "properties": {
+              "url": {
+                "type": "string",
+                "format": "uri",
+                "maxLength": 2048,
+                "description": "http(s) URL the device renders as a QR code. The caller hosts this content."
+              }
+            },
+            "required": ["url"]
+          }
+        },
+        "required": ["action", "payload"]
+      },
+      "TriggerAccepted": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "The queued command id." },
+          "status": { "type": "string", "enum": ["queued"] }
+        },
+        "required": ["id", "status"]
       },
       "Usage": {
         "type": "object",

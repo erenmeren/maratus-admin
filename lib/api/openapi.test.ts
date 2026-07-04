@@ -7,8 +7,16 @@ describe("openapi.json", () => {
   });
   it("declares exactly the implemented paths", () => {
     expect(Object.keys((openapi as { paths: Record<string, unknown> }).paths).sort()).toEqual(
-      ["/usage"],
+      ["/devices/{deviceId}/trigger", "/usage"],
     );
+  });
+  it("documents the trigger endpoint as a POST with a required JSON body", () => {
+    const doc = openapi as {
+      paths: Record<string, { post?: { requestBody?: { required?: boolean } } }>;
+    };
+    const op = doc.paths["/devices/{deviceId}/trigger"].post;
+    expect(op).toBeDefined();
+    expect(op?.requestBody?.required).toBe(true);
   });
   it("defines a bearerAuth security scheme and applies it globally", () => {
     const doc = openapi as {

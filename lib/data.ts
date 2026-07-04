@@ -17,6 +17,7 @@ import {
   alert as alertTable,
   apiKey as apiKeyTable,
   auditLog as auditLogTable,
+  creditBalance as creditBalanceTable,
   creditLedger as creditLedgerTable,
   device as deviceTable,
   deviceCommand,
@@ -50,6 +51,7 @@ import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "./p
 import { computeConfigVersion, etagMatches } from "@/lib/device-config";
 import { normalizeDeviceSettings } from "@/lib/device-settings";
 import { rollupByDevice } from "@/lib/credit-usage";
+import { rollupCredits, type CreditsOverview } from "@/lib/credits-overview";
 import { getBalance } from "./credits";
 import type {
   Device,
@@ -1626,4 +1628,45 @@ export async function deviceNamesForOrg(organizationId: string): Promise<Map<str
     .from(deviceTable)
     .where(eq(deviceTable.organizationId, organizationId));
   return new Map(rows.map((r) => [r.id, r.name]));
+}
+
+export type { CreditsOverview };
+
+/** Platform-admin: credits view for the admin Billing page (granted/purchased/consumed/outstanding). */
+export async function getCreditsOverview(): Promise<CreditsOverview> {
+  const [orgs, ledgerRows, balanceRows] = await Promise.all([
+    db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable),
+    db
+      .select({
+        organizationId: creditLedgerTable.organizationId,
+        kind: creditLedgerTable.kind,
+        credits: creditLedgerTable.credits,
+        createdAt: creditLedgerTable.createdAt,
+      })
+      .from(creditLedgerTable),
+    db
+      .select({
+        organizationId: creditBalanceTable.organizationId,
+        available: creditBalanceTable.available,
+      })
+      .from(creditBalanceTable),
+  ]);
+
+  const nameOf = new Map(orgs.map((o) => [o.id, o.name]));
+
+  return rollupCredits(
+    ledgerRows.map((r) => ({
+      orgId: r.organizationId,
+      name: nameOf.get(r.organizationId) ?? r.organizationId,
+      kind: r.kind,
+      credits: r.credits,
+      createdAt: r.createdAt,
+    })),
+    balanceRows.map((b) => ({
+      orgId: b.organizationId,
+      name: nameOf.get(b.organizationId) ?? b.organizationId,
+      available: b.available,
+    })),
+    new Date(),
+  );
 }

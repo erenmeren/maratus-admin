@@ -12,7 +12,7 @@ import { requireTenant } from "@/lib/session";
 import { DocumentsAreaChart } from "@/components/charts";
 import { PeakHeatmap } from "@/components/peak-heatmap";
 import { StoreEditButton } from "@/components/store-edit-button";
-import { formatCurrency, formatNumber } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 
 export default async function StoreDetailPage({
   params,
@@ -104,11 +104,6 @@ export default async function StoreDetailPage({
           delta={analytics.monthTrend.pctChange ?? undefined}
           hint="vs last month"
           icon={TrendingUp}
-        />
-        <KpiCard
-          label="Revenue this month"
-          value={formatCurrency(analytics.revenueThisMonth)}
-          icon={FileText}
         />
         <KpiCard
           label="Paper saved"

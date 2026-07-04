@@ -34,7 +34,6 @@ export interface Store {
 export interface Tenant {
   id: string;
   name: string;
-  perPrintPrice: number; // price Ditto charges per digital document
   contact: {
     name: string;
     email: string;
@@ -52,7 +51,6 @@ export interface TimePoint {
   /** Short label for the axis (e.g. "May 24" or "Jan"). */
   label: string;
   activations: number;
-  revenue: number;
 }
 
 export type InvoiceStatus = "paid" | "due" | "overdue";
@@ -83,8 +81,6 @@ export interface TenantSummary {
   offlineCount: number;
   health: HealthLevel;
   activationsThisMonth: number;
-  revenueThisMonth: number;
-  perPrintPrice: number;
 }
 
 export interface DeviceRow extends Device {

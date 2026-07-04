@@ -46,11 +46,11 @@ export default async function ReportsPage() {
   const eco = computeEcoSavings(totalActivations);
 
   // Build a single CSV: a section per breakdown (monthly, by store, by device).
-  const exportHeaders = ["Section", "Label", "Activations", "Revenue (USD)"];
+  const exportHeaders = ["Section", "Label", "Activations"];
   const exportRows: (string | number)[][] = [
-    ...monthly.map((p) => ["Monthly", p.label, p.activations, p.revenue.toFixed(2)]),
-    ...byStore.map((s) => ["By store", s.label, s.value, ""]),
-    ...byDevice.map((d) => ["By device", d.label, d.value, ""]),
+    ...monthly.map((p) => ["Monthly", p.label, p.activations]),
+    ...byStore.map((s) => ["By store", s.label, s.value]),
+    ...byDevice.map((d) => ["By device", d.label, d.value]),
   ];
 
   return (

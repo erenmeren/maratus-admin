@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { ArrowUpRight, Cpu, DollarSign, FileText, Users } from "lucide-react";
+import { ArrowUpRight, Cpu, FileText, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
-import { DocumentsAreaChart, RevenueLineChart } from "@/components/charts";
+import { DocumentsAreaChart } from "@/components/charts";
 import { TenantStatusBadge } from "@/components/tenant-status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,7 +21,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getAdminOverview, getCreditUsageAllOrgs, currentMonthStart } from "@/lib/data";
-import { formatCompact, formatCurrency, formatNumber } from "@/lib/format";
+import { formatCompact, formatNumber } from "@/lib/format";
 
 export default async function AdminOverviewPage() {
   const [o, creditsByOrg] = await Promise.all([
@@ -36,14 +36,7 @@ export default async function AdminOverviewPage() {
         description="Platform-wide performance across all Ditto customers."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label="MRR"
-          value={formatCurrency(o.mrr, { cents: true })}
-          delta={9.2}
-          hint="recurring"
-          icon={DollarSign}
-        />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
           label="Activations this month"
           value={formatCompact(o.activationsThisMonth)}
@@ -65,32 +58,21 @@ export default async function AdminOverviewPage() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue over time</CardTitle>
-            <CardDescription>Monthly recurring revenue, all customers</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <RevenueLineChart data={o.monthly} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Activations over time</CardTitle>
-            <CardDescription>Monthly activations, all customers</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <DocumentsAreaChart data={o.monthly} />
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Activations over time</CardTitle>
+          <CardDescription>Monthly activations, all customers</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <DocumentsAreaChart data={o.monthly} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">
           <div className="space-y-1">
             <CardTitle>Top customers</CardTitle>
-            <CardDescription>By revenue this month</CardDescription>
+            <CardDescription>By activations this month</CardDescription>
           </div>
           <Button variant="ghost" size="sm" asChild>
             <Link href="/admin/customers">
@@ -106,8 +88,7 @@ export default async function AdminOverviewPage() {
                 <TableHead className="pl-6">Customer</TableHead>
                 <TableHead className="text-center">Stores</TableHead>
                 <TableHead className="text-center">Devices</TableHead>
-                <TableHead className="text-right">Activations</TableHead>
-                <TableHead className="text-right pr-6">Revenue</TableHead>
+                <TableHead className="text-right pr-6">Activations</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -128,11 +109,8 @@ export default async function AdminOverviewPage() {
                   <TableCell className="text-center tabular-nums">
                     {c.deviceCount}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatNumber(c.activationsThisMonth)}
-                  </TableCell>
                   <TableCell className="text-right pr-6 font-medium tabular-nums">
-                    {formatCurrency(c.revenueThisMonth, { cents: true })}
+                    {formatNumber(c.activationsThisMonth)}
                   </TableCell>
                 </TableRow>
               ))}

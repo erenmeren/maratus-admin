@@ -19,7 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getTenantSummaries } from "@/lib/data";
-import { formatCurrency, formatNumber } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 
 export default async function CustomersPage() {
   const customers = await getTenantSummaries();
@@ -42,7 +42,6 @@ export default async function CustomersPage() {
               <TableHead className="text-center">Devices</TableHead>
               <TableHead className="text-center">Health</TableHead>
               <TableHead className="text-right">Activations (mo.)</TableHead>
-              <TableHead className="text-right">Revenue (mo.)</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-10" />
             </TableRow>
@@ -58,12 +57,7 @@ export default async function CustomersPage() {
                     <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 font-display text-sm font-bold text-primary">
                       {c.name.slice(0, 1)}
                     </span>
-                    <div>
-                      <p className="font-medium">{c.name}</p>
-                      <p className="text-xs text-muted-foreground tabular-nums">
-                        {formatCurrency(c.perPrintPrice, { cents: true })} / print
-                      </p>
-                    </div>
+                    <p className="font-medium">{c.name}</p>
                   </Link>
                 </TableCell>
                 <TableCell className="text-center tabular-nums">
@@ -79,11 +73,8 @@ export default async function CustomersPage() {
                     <span className="text-muted-foreground">({c.onlineCount}/{c.deviceCount})</span>
                   </span>
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatNumber(c.activationsThisMonth)}
-                </TableCell>
                 <TableCell className="text-right font-medium tabular-nums">
-                  {formatCurrency(c.revenueThisMonth, { cents: true })}
+                  {formatNumber(c.activationsThisMonth)}
                 </TableCell>
                 <TableCell>
                   <TenantStatusBadge status={c.status} />

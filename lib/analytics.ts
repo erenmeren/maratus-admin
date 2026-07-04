@@ -12,8 +12,6 @@ export interface DowCount { dow: number; count: number }   // dow 0..6 (Sun..Sat
 export interface HourCount { hour: number; count: number } // hour 0..23
 export interface BucketKey { key: string; label: string }
 
-const round2 = (n: number) => Math.round(n * 100) / 100;
-
 /** n UTC day keys ending on `now`'s date, oldest first. */
 export function dayKeys(now: Date, n: number): BucketKey[] {
   const base = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
@@ -44,11 +42,11 @@ export function monthKeys(now: Date, n: number): BucketKey[] {
 }
 
 /** Join grouped counts onto the expected ordered keys, zero-filling gaps. */
-export function bucketsToSeries(counts: BucketCount[], keys: BucketKey[], price: number): TimePoint[] {
+export function bucketsToSeries(counts: BucketCount[], keys: BucketKey[]): TimePoint[] {
   const byKey = new Map(counts.map((c) => [c.bucket, c.count]));
   return keys.map((k) => {
     const activations = byKey.get(k.key) ?? 0;
-    return { label: k.label, activations, revenue: round2(activations * price) };
+    return { label: k.label, activations };
   });
 }
 
@@ -76,7 +74,6 @@ export interface StoreAnalytics {
   daily: TimePoint[];
   monthly: TimePoint[];
   monthTrend: Trend;
-  revenueThisMonth: number;
   eco: EcoSavings;
   peak: Peak;
   heatmap: Heatmap;
@@ -86,7 +83,6 @@ export interface StoreComparisonRow {
   storeName: string;
   activationsThisMonth: number;
   trend: Trend;
-  revenueThisMonth: number;
   eco: EcoSavings;
 }
 
@@ -167,7 +163,7 @@ export function buildHeatmap(rows: { dow: number; hour: number; count: number }[
 }
 
 export function toComparisonRows(
-  input: Array<{ storeId: string; storeName: string; current: number; previous: number; price: number }>,
+  input: Array<{ storeId: string; storeName: string; current: number; previous: number }>,
 ): StoreComparisonRow[] {
   return input
     .map((s) => ({
@@ -175,7 +171,6 @@ export function toComparisonRows(
       storeName: s.storeName,
       activationsThisMonth: s.current,
       trend: computeTrend(s.current, s.previous),
-      revenueThisMonth: round2(s.current * s.price),
       eco: computeEcoSavings(s.current),
     }))
     .sort((a, b) => b.activationsThisMonth - a.activationsThisMonth);

@@ -3,15 +3,13 @@ import { notFound } from "next/navigation";
 import {
   ArrowLeft,
   Cpu,
-  DollarSign,
   Mail,
   Phone,
   FileText,
   Store,
-  Tag,
 } from "lucide-react";
 import { KpiCard } from "@/components/kpi-card";
-import { RevenueLineChart, BreakdownBarChart } from "@/components/charts";
+import { BreakdownBarChart } from "@/components/charts";
 import { StatusDot } from "@/components/status-badge";
 import { TenantStatusBadge } from "@/components/tenant-status-badge";
 import { AddBranchDialog } from "@/components/add-branch-dialog";
@@ -35,7 +33,7 @@ import {
 import { getCustomerDetail, getOrgAuditLog, getCreditLedger } from "@/lib/data";
 import { getBalance } from "@/lib/credits";
 import { GrantCreditsForm } from "@/components/grant-credits-form";
-import { formatCurrency, formatNumber, timeAgo } from "@/lib/format";
+import { formatNumber, timeAgo } from "@/lib/format";
 import { actionLabel } from "@/lib/audit-labels";
 
 const HEALTH_UI: Record<"healthy" | "warning" | "critical", { dot: string; label: string }> = {
@@ -59,7 +57,7 @@ export default async function CustomerDetailPage({
     getCreditLedger(tenantId),
   ]);
 
-  const { tenant, summary, devices, monthly, health } = detail;
+  const { tenant, summary, devices, health } = detail;
   const storeOptions = tenant.stores.map((s) => ({ id: s.id, name: s.name }));
 
   const byStore = tenant.stores
@@ -104,15 +102,6 @@ export default async function CustomerDetailPage({
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 rounded-xl border bg-muted/40 px-4 py-3">
-              <Tag className="size-4 text-primary" />
-              <div>
-                <p className="font-display text-xl font-bold tabular-nums">
-                  {formatCurrency(tenant.perPrintPrice, { cents: true })}
-                </p>
-                <p className="text-xs text-muted-foreground">per print</p>
-              </div>
-            </div>
             <AddBranchDialog
               organizationId={tenant.id}
               customerName={tenant.name}
@@ -137,7 +126,7 @@ export default async function CustomerDetailPage({
       </Card>
 
       {/* KPI row */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-3">
         <KpiCard label="Stores" value={formatNumber(summary.storeCount)} icon={Store} />
         <KpiCard label="Devices" value={formatNumber(summary.deviceCount)} icon={Cpu} />
         <KpiCard
@@ -145,34 +134,18 @@ export default async function CustomerDetailPage({
           value={formatNumber(summary.activationsThisMonth)}
           icon={FileText}
         />
-        <KpiCard
-          label="Revenue this month"
-          value={formatCurrency(summary.revenueThisMonth, { cents: true })}
-          icon={DollarSign}
-        />
       </div>
 
-      {/* Print / revenue breakdown */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue over time</CardTitle>
-            <CardDescription>Monthly revenue from this customer</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <RevenueLineChart data={monthly} height={240} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Activations by store</CardTitle>
-            <CardDescription>This month, per branch</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <BreakdownBarChart data={byStore} height={240} />
-          </CardContent>
-        </Card>
-      </div>
+      {/* Activations breakdown */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Activations by store</CardTitle>
+          <CardDescription>This month, per branch</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <BreakdownBarChart data={byStore} height={240} />
+        </CardContent>
+      </Card>
 
       {/* Credits */}
       <Card className="overflow-hidden">

@@ -805,48 +805,6 @@ export async function getInvoices(organizationId?: string): Promise<Invoice[]> {
     .sort((a, b) => b.issuedOn.localeCompare(a.issuedOn));
 }
 
-export interface BillingOverview {
-  totalEarnings: number;
-  outstanding: number;
-  invoices: Invoice[];
-  byTenant: (TenantSummary & { amountOwed: number })[];
-  monthly: TimePoint[];
-}
-
-export async function getBillingOverview(): Promise<BillingOverview> {
-  const bundles = await loadAllOrgs();
-  const summaries = bundles.map(summarize);
-  const allInvoices = await getInvoices();
-
-  const totalEarnings =
-    Math.round(
-      allInvoices.filter((i) => i.status === "paid").reduce((a, i) => a + i.amount, 0) *
-        100,
-    ) / 100;
-  const outstanding =
-    Math.round(
-      allInvoices.filter((i) => i.status !== "paid").reduce((a, i) => a + i.amount, 0) *
-        100,
-    ) / 100;
-
-  const byTenant = summaries.map((s) => {
-    const owed = allInvoices
-      .filter((i) => i.tenantId === s.id && i.status !== "paid")
-      .reduce((a, i) => a + i.amount, 0);
-    return { ...s, amountOwed: Math.round(owed * 100) / 100 };
-  });
-
-  return {
-    totalEarnings,
-    outstanding,
-    invoices: allInvoices,
-    byTenant,
-    monthly: sumSeries(
-      bundles.map((b) => monthlySeries(b, dollars(b.settings?.perPrintPriceCents ?? 4))),
-    ),
-  };
-}
-
 /** Map an organizationId → display name. */
 export async function tenantNameOf(organizationId: string): Promise<string> {
   const [row] = await db

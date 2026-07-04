@@ -175,7 +175,7 @@ export async function registerCompany(
         });
       }
 
-      // 4. Seed tenant settings (default per-print price + brand).
+      // 4. Seed tenant settings (brand defaults).
       await tx
         .insert(tenantSettings)
         .values({ organizationId: orgId, status: "active" })

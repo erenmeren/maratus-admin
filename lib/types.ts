@@ -53,22 +53,6 @@ export interface TimePoint {
   activations: number;
 }
 
-export type InvoiceStatus = "paid" | "due" | "overdue";
-/** Raw billing lifecycle stored in the DB. */
-export type InvoiceLifecycle = "draft" | "sent" | "paid" | "overdue" | "void";
-
-export interface Invoice {
-  id: string;
-  tenantId: string;
-  period: string; // e.g. "May 2026"
-  documents: number;
-  amount: number;
-  status: InvoiceStatus;
-  /** Real billing lifecycle (draft → sent → paid). */
-  lifecycle: InvoiceLifecycle;
-  issuedOn: string; // ISO date
-}
-
 // ---- Derived / view-model shapes returned by the data layer ----
 
 export interface TenantSummary {

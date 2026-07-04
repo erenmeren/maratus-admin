@@ -32,13 +32,6 @@ export async function createCustomer(
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { ok: false, error: "Company name is required." };
 
-  // Per-print price comes in as dollars; store as integer cents.
-  const priceDollars = Number(formData.get("price"));
-  const perPrintPriceCents =
-    Number.isFinite(priceDollars) && priceDollars >= 0
-      ? Math.round(priceDollars * 100)
-      : 4;
-
   // Unique slug (append a short suffix if taken).
   let slug = slugify(name) || "customer";
   const existing = await db
@@ -58,7 +51,6 @@ export async function createCustomer(
 
   await db.insert(tenantSettings).values({
     organizationId: orgId,
-    perPrintPriceCents,
     status: "active",
   });
 

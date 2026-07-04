@@ -143,7 +143,6 @@ async function main() {
     .insert(tenantSettings)
     .values({
       organizationId: orgId,
-      perPrintPriceCents: 4,
       brandColor: "#B4541F",
       logoUrl: null,
       staffPin: "4827",

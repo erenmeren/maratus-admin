@@ -22,7 +22,6 @@ import {
   device as deviceTable,
   deviceCommand,
   invitation as invitationTable,
-  invoice as invoiceTable,
   member as memberTable,
   organization as orgTable,
   store as storeTable,
@@ -56,7 +55,6 @@ import { getBalance } from "./credits";
 import type {
   Device,
   DeviceRow,
-  Invoice,
   Store,
   StoreSummary,
   Tenant,
@@ -231,10 +229,6 @@ export function currentMonthStart(): Date {
   return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), 1));
 }
 
-function dollars(cents: number): number {
-  return Math.round(cents) / 100;
-}
-
 function mapTenantStatus(s: string | undefined): TenantStatus {
   // tenant_settings.status is active|paused; the view model adds trial/suspended.
   return s === "paused" ? "suspended" : "active";
@@ -317,7 +311,6 @@ function summarize(b: OrgBundle): TenantSummary {
       deviceCount: allDevices.length,
       onlineCount,
       offlineCount,
-      subscriptionStatus: b.settings?.subscriptionStatus ?? null,
     },
     now,
   );
@@ -672,10 +665,7 @@ export interface CustomerDetail {
     offline: number;
     paused: number;
     stuckPendingCount: number;
-    subscriptionStatus: string | null;
   };
-  monthly: TimePoint[];
-  invoices: Invoice[];
   eco: ReturnType<typeof computeEcoSavings>;
 }
 
@@ -725,13 +715,11 @@ export async function getCustomerDetail(
       eq(deviceCommand.status, "acked"),
     ));
 
-  const subscriptionStatus = b.settings?.subscriptionStatus ?? null;
   const level = tenantHealthLevel(
     {
       deviceCount: devices.length,
       onlineCount: online,
       offlineCount: offline,
-      subscriptionStatus,
       stuckPendingCount: stuck,
       lastActivityAt: last ?? null,
     },
@@ -742,9 +730,7 @@ export async function getCustomerDetail(
     tenant,
     summary,
     devices,
-    health: { level, online, offline, paused, stuckPendingCount: stuck, subscriptionStatus },
-    monthly: monthlySeries(b),
-    invoices: await getInvoices(organizationId),
+    health: { level, online, offline, paused, stuckPendingCount: stuck },
     eco: computeEcoSavings(summary.activationsThisMonth),
   };
 }
@@ -752,41 +738,6 @@ export async function getCustomerDetail(
 // ============================================================================
 // Billing
 // ============================================================================
-
-function mapInvoice(row: typeof invoiceTable.$inferSelect): Invoice {
-  const now = Date.now();
-  const status: Invoice["status"] =
-    row.status === "paid"
-      ? "paid"
-      : row.status === "sent" && row.periodEnd.getTime() < now
-        ? "overdue"
-        : "due";
-  return {
-    id: row.id,
-    tenantId: row.organizationId,
-    period: row.periodStart.toLocaleDateString("en-US", {
-      month: "short",
-      year: "numeric",
-    }),
-    documents: row.documentCount,
-    amount: dollars(row.amountDueCents),
-    status,
-    lifecycle: row.status,
-    issuedOn: row.createdAt.toISOString(),
-  };
-}
-
-export async function getInvoices(organizationId?: string): Promise<Invoice[]> {
-  const rows = organizationId
-    ? await db
-        .select()
-        .from(invoiceTable)
-        .where(eq(invoiceTable.organizationId, organizationId))
-    : await db.select().from(invoiceTable);
-  return rows
-    .map(mapInvoice)
-    .sort((a, b) => b.issuedOn.localeCompare(a.issuedOn));
-}
 
 /** Map an organizationId → display name. */
 export async function tenantNameOf(organizationId: string): Promise<string> {

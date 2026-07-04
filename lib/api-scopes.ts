@@ -1,6 +1,6 @@
-export const API_SCOPES = ["documents:read", "usage:read", "devices:trigger"] as const;
+export const API_SCOPES = ["usage:read", "devices:trigger"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
-export const DEFAULT_KEY_SCOPES: ApiScope[] = ["documents:read", "usage:read"];
+export const DEFAULT_KEY_SCOPES: ApiScope[] = ["usage:read"];
 
 export function hasScope(scopes: readonly string[] | null | undefined, required: ApiScope): boolean {
   return Array.isArray(scopes) && scopes.includes(required);

@@ -121,7 +121,6 @@ export default async function CustomerDetailPage({
           <span className="text-muted-foreground">Offline <strong className="text-foreground">{health.offline}</strong></span>
           <span className="text-muted-foreground">Paused <strong className="text-foreground">{health.paused}</strong></span>
           <span className="text-muted-foreground">Stuck pending <strong className="text-foreground">{health.stuckPendingCount}</strong></span>
-          <span className="text-muted-foreground">Subscription <strong className="text-foreground">{health.subscriptionStatus ?? "none"}</strong></span>
         </CardContent>
       </Card>
 

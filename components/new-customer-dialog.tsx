@@ -79,20 +79,6 @@ export function NewCustomerDialog() {
                 />
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="price">Per-print price (USD)</Label>
-              <Input
-                id="price"
-                name="price"
-                type="number"
-                step="0.005"
-                min="0"
-                defaultValue="0.04"
-              />
-              <p className="text-xs text-muted-foreground">
-                Charged per digital document issued.
-              </p>
-            </div>
           </div>
 
           <DialogFooter>

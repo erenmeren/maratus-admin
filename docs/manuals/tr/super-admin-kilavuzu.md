@@ -542,3 +542,265 @@ sağlandı"), "Credits granted" ("Kredi yüklendi"), "Device paused/resumed"
   panelinden istediği mağazaya atayabilmesini sağlar.
 - **Etkinlik (Activity)** listesi bu müşteriye özel en fazla **50** olayı
   gösterir; daha eski olaylar bu listede görünmeyebilir.
+
+## 7. Cihaz Filosu (Device Fleet)
+
+Bu bölüm, platformdaki **tüm cihazları (tüm yazıcıları), tüm müşteriler
+genelinde** tek bir tabloda listeleyen **Cihaz Filosu (Device Fleet)** ekranını
+ve bu ekrandan açılan **Cihaz Detayı (Device Detail)** ekranını anlatır. Bu
+ekranın adresi **`/admin/devices`**'tır.
+
+### Bu ekran ne işe yarar?
+
+Cihaz Filosu ekranının başlığı **"Device Fleet"**, alt açıklaması ise **"Every
+printer across every customer, in one place."** ("Her müşteriye ait her
+yazıcı, tek bir yerde.") biçimindedir. Bu ekran, Süper Admin'in platformdaki
+**tüm cihazları** — hangi müşteriye ve mağazaya ait olduklarından bağımsız
+olarak — tek bir listede görmesini, filtrelemesini ve her cihaz üzerinde
+işlem (duraklatma, yeniden adlandırma, taşıma, silme vb.) yapmasını sağlar.
+
+### Ekranda neler var?
+
+Ekranın üst kısmında dört **KPI kartı** yer alır:
+
+1. **Toplam cihaz (Total devices):** Platformdaki toplam cihaz sayısı.
+2. **Çevrimiçi (Online):** Şu anda çevrimiçi olan cihaz sayısı; ipucu metni
+   "ready to trigger" ("tetiklemeye hazır") yazar.
+3. **Duraklatılmış (Paused):** Duraklatılmış cihaz sayısı; ipucu metni
+   "temporarily off" ("geçici olarak kapalı") yazar.
+4. **Çevrimdışı (Offline):** Ulaşılamayan cihaz sayısı; ipucu metni
+   "unreachable" ("ulaşılamıyor") yazar.
+
+KPI kartlarının altında üç filtre kontrolü bulunur:
+
+- **Ara (Search):** Yer tutucu metni "Search by device, store, or customer…"
+  ("Cihaza, mağazaya veya müşteriye göre ara…") olan bir serbest metin
+  arama kutusu; cihaz kimliği, mağaza adı veya müşteri adına göre arama yapar.
+- **Müşteri (Customer):** Açılır liste (dropdown); varsayılan değeri
+  **"All customers"** ("Tüm müşteriler") olup, altında platformdaki her
+  müşteri ayrı bir seçenek olarak listelenir.
+- **Durum (Status):** Açılır liste; seçenekleri **"All statuses"** ("Tüm
+  durumlar"), **"Online"** (Çevrimiçi), **"Paused"** (Duraklatılmış) ve
+  **"Offline"** (Çevrimdışı) biçimindedir.
+
+Filtrelerin altında ana tablo yer alır; sütunları şunlardır:
+
+- **Device ID (Cihaz kimliği):** Tıklanabilir bir bağlantıdır; ilgili
+  cihazın **Cihaz Detayı (Device Detail)** sayfasına
+  (**`/admin/devices/{id}`**) götürür.
+- **Customer (Müşteri):** Cihazın bağlı olduğu müşteri (kiracı).
+- **Store (Mağaza):** Cihazın bağlı olduğu mağaza.
+- **Status (Durum):** Renkli bir nokta ile birlikte cihazın durumu
+  (Online/Paused/Offline).
+- **Last seen (Son görülme):** Cihazın en son ne zaman görüldüğü.
+- **Firmware (Ürün yazılımı):** `v{sürüm}` biçiminde geçerli ürün yazılımı
+  sürümü. Cihazın sürümünden daha yeni bir yayınlanmış sürüm varsa, sürümün
+  yanında **amber (turuncu-sarı) renkli bir "update" ("güncelleme")
+  rozeti** görünür.
+- **Activations (mo.) (Tetiklemeler (ay)):** Cihazın bu ayki toplam
+  tetikleme sayısı.
+- En sağda, satır işlemleri için bir menü düğmesi bulunur (aşağıya bakınız).
+
+Tablonun altında "Showing {n} of {total} devices." ("{total} cihazdan {n}
+tanesi gösteriliyor.") biçiminde bir sayaç metni yer alır. Filtrelere uyan
+hiçbir cihaz yoksa, tablo yerine "No devices match your filters." ("Filtrelerinize
+uyan cihaz yok.") mesajı görüntülenir.
+
+### Cihaz satır eylemleri (Row actions)
+
+Tablodaki her satırın en sağındaki **üç nokta (More)** menü düğmesine
+tıkladığınızda aşağıdaki eylemler açılır:
+
+- **Pause (Duraklat) / Activate (Etkinleştir):** Cihaz çevrimiçiyse **Pause**,
+  duraklatılmışsa **Activate** seçeneği görünür ve tıklandığında durum
+  karşılıklı olarak değişir (Duraklatılınca "Device paused" ["Cihaz
+  duraklatıldı"], etkinleştirilince "Device activated" ["Cihaz etkinleştirildi"]
+  bildirimi görünür). **Önemli:** Cihaz **çevrimdışı (offline)** ise bu seçenek
+  menüde hiç görünmez — çevrimdışı bir cihazın duraklatma/etkinleştirme durumu
+  değiştirilemez.
+- **Rename (Yeniden adlandır):** Açılan pencerede tek bir alan bulunur:
+  **Device name (Cihaz adı)**. Yeni adı girip **Save (Kaydet)** düğmesine
+  tıkladığınızda, işlem başarılı olursa "Device renamed" ("Cihaz yeniden
+  adlandırıldı") bildirimi görünür.
+- **Move to store (Mağazaya taşı):** Yalnızca bir mağaza listesi mevcut
+  olduğunda menüde görünür. Açılan pencerede **Store (Mağaza)** açılır listesinden
+  hedef mağazayı seçip **Move (Taşı)** düğmesine tıklarsınız; başarılı olursa
+  "Device moved" ("Cihaz taşındı") bildirimi görünür.
+- **Unassign (Atamayı kaldır):** Cihazın mağaza atamasını kaldırır ve cihazı
+  **çevrimdışı (offline)** durumuna getirir. Başarılı olursa "Device unassigned"
+  ("Cihaz ataması kaldırıldı") bildirimi görünür.
+- **Delete (Sil):** **Yıkıcı (destructive)** bir eylemdir; tıklandığında bir
+  onay penceresi açılır: başlık "Delete device?" ("Cihaz silinsin mi?"),
+  açıklama "This permanently removes {ad} and its document history. This
+  can't be undone." ("Bu, {ad} adlı cihazı ve belge geçmişini kalıcı olarak
+  kaldırır. Bu işlem geri alınamaz."). Onaylarsanız cihaz kalıcı olarak
+  silinir ve "Device deleted" ("Cihaz silindi") bildirimi görünür.
+
+### Cihaz Detayı (Device Detail)
+
+Cihaz Filosu tablosundaki **Device ID** bağlantısına tıkladığınızda, tek bir
+cihaza ait ayrıntıları gösteren **Cihaz Detayı (Device Detail)** ekranına
+gidersiniz; adresi **`/admin/devices/{deviceId}`**'dir. Belirtilen kimliğe
+sahip bir cihaz bulunamazsa ekran **404 (bulunamadı)** hatası döner.
+
+Ekranın en üstünde **Cihaz Filosu**'na dönmenizi sağlayan bir **"← Device
+Fleet"** geri bağlantısı bulunur. Başlık, cihazın adıdır; alt açıklama ise
+"Printer at {mağaza}" ("{mağaza}'daki yazıcı") biçimindedir.
+
+Ekranda şu bölümler yer alır:
+
+- **KPI kartları:** **Activations today** (Bugünkü tetiklemeler) ve
+  **Activations this month** (Bu ayki tetiklemeler).
+- **Cihaz ayrıntıları (Device details) kartı:** **Device ID** (cihaz
+  kimliği), **IP address** (IP adresi), **Connection** (bağlantı türü —
+  "Wi-Fi" veya "Ethernet") ve **Firmware** (`v{sürüm}`; daha yeni bir sürüm
+  varsa yanında "→ v{en yeni sürüm} available" ["→ v{en yeni sürüm}
+  mevcut"] ibaresi) bilgilerini gösterir.
+- **Durum ve yönetim (Status & management) kartı:** **Status** (etkin/efektif
+  durum), **Customer** (müşteriye giden bir bağlantı), **Store** (mağaza),
+  **Last seen** (son görülme) ve **Actions** (Cihaz Filosu tablosundakiyle
+  **aynı satır eylemleri menüsü** — Pause/Activate, Rename, Move to store,
+  Unassign, Delete) satırlarını içerir.
+
+> **Önemli — etkin durum (effective status) kuralı:** Bu ekranda gösterilen
+> **Status** değeri, aşağıdaki kurala göre hesaplanır:
+> 1. Cihaz **duraklatılmışsa (paused)**, durum her zaman **Paused**'dır
+>    (başka hiçbir koşul bunu değiştirmez — duraklatma önceliklidir).
+> 2. Duraklatılmamışsa ve cihaz **hiç görülmemişse** ya da **en son görülme
+>    zamanının üzerinden 15 dakikadan fazla** geçmişse, durum **Offline**
+>    olarak hesaplanır.
+> 3. Yukarıdaki iki koşuldan hiçbiri geçerli değilse, durum **Online**'dır.
+
+### Adım adım: Uzaktan komut gönderme
+
+Cihaz Detayı ekranındaki **Remote control** ("Uzaktan kontrol") bölümü, dört
+düğme içerir: **Reboot** (Yeniden başlat), **Refresh config** (Yapılandırmayı
+yenile), **Identify** (Tanımla) ve **Update firmware** (Ürün yazılımını
+güncelle).
+
+1. **Remote control** bölümünde, göndermek istediğiniz komuta karşılık gelen
+   düğmeye tıklayın: **Reboot**, **Refresh config**, **Identify** veya
+   **Update firmware**.
+2. Komut sıraya alınır (kuyruğa eklenir); ekranda "{komut} queued — the device
+   will pick it up on its next check-in." ("{komut} kuyruğa alındı — cihaz bir
+   sonraki bağlantı kontrolünde bunu alacak.") mesajı görünür. Yani komut
+   **anında** cihaza iletilmez; cihaz bir sonraki kez sunucuyu yokladığında
+   (poll ettiğinde) komutu alır.
+3. Gönderdiğiniz komut, bölümün altındaki **komut geçmişi (command history)**
+   tablosuna yeni bir satır olarak eklenir. Bu tablonun sütunları: **Command**
+   (komut türü), **Status** (durum) ve **Queued** (kuyruğa alınma zamanı).
+
+### İpuçları ve dikkat edilecekler
+
+- **Çevrimdışı (Offline)** bir cihazda **Pause/Activate** seçeneği menüde hiç
+  görünmez; bu tür bir cihazın duraklatma durumunu değiştirmek isterseniz,
+  önce cihazın çevrimiçi olmasını (görülmesini) beklemeniz gerekir.
+- **Move to store (Mağazaya taşı)** seçeneği yalnızca uygun bir mağaza listesi
+  varsa menüde görünür; hiç mağaza yoksa bu seçeneği göremezsiniz.
+- **Unassign (Atamayı kaldır)** işlemi cihazın mağaza bağlantısını kaldırır
+  **ve** cihazı çevrimdışı durumuna getirir; bu geri alınabilir bir işlemdir
+  (cihazı **Move to store** ile tekrar bir mağazaya atayabilirsiniz).
+- **Delete (Sil)** işlemi **kalıcıdır ve geri alınamaz**; her zaman bir onay
+  penceresi ister. Silmeden önce doğru cihazı seçtiğinizden emin olun.
+- Cihaz Detayı ekranındaki **etkin durum (effective status)** kuralında,
+  **duraklatma (paused) her zaman önceliklidir** — bir cihaz hem
+  duraklatılmış hem de 15 dakikadan uzun süredir görülmemiş olsa bile,
+  gösterilen durum yine **Paused**'dır, **Offline** değil.
+- **Remote control** düğmeleriyle gönderdiğiniz komutlar **anında
+  yürütülmez**; cihaz komutu ancak bir sonraki bağlantı kontrolünde (poll)
+  alır ve işler. Komutun ne zaman işlendiğini görmek için **komut geçmişi
+  (command history)** tablosundaki **Status** sütununu kontrol edin.
+
+## 8. Firmware
+
+Bu bölüm, cihazlara yüklenecek ürün yazılımı (firmware) sürümlerini yönetmek
+için kullanılan **Firmware (Ürün Yazılımı)** ekranını anlatır. Bu ekranın
+adresi **`/admin/firmware`**'dir.
+
+### Bu ekran ne işe yarar?
+
+Firmware ekranının başlığı **"Firmware"**, alt açıklaması ise **"Upload a
+build (its version must match the binary's CONFIG_DITTO_FW_VERSION). The
+newest release is what devices fetch via the OTA manifest."** ("Bir yapı
+(build) yükleyin — sürümü, ikili dosyanın CONFIG_DITTO_FW_VERSION değeriyle
+eşleşmelidir. En yeni yayın, cihazların OTA bildirimi üzerinden getirdiği
+sürümdür.") biçimindedir. Bu ekran, Süper Admin'in yeni bir ürün yazılımı
+sürümü **yayımlamasını (publish)**, yayınlanmış sürümleri bir tabloda
+görmesini ve gerektiğinde bir sürümü **silmesini** sağlar.
+
+### Ekranda neler var?
+
+Ekranın üst kısmında bir **yayımlama formu (Publish form)** yer alır; hemen
+altında ise yayınlanmış sürümleri listeleyen bir **tablo** bulunur (en yeni
+**50** sürüm gösterilir).
+
+Tablo sütunları:
+
+- **Version (Sürüm):** Sürüm numarası; en üstteki (en yeni) satırın yanında
+  **"(latest)"** ("(en yeni)") ibaresi eklenir.
+- **Size (Boyut):** Yayınlanan ikili dosyanın boyutu, KB (kilobayt) cinsinden.
+- **SHA-256:** Dosyanın SHA-256 özetinin (hash) ilk 12 karakteri, ardından
+  "…" ile kısaltılmış biçimde.
+- **Published (Yayınlanma tarihi):** Sürümün yayınlandığı tarih/saat.
+
+Hiç sürüm yayınlanmamışsa, tablo yerine "No releases yet." ("Henüz sürüm
+yok.") mesajı görüntülenir.
+
+### Adım adım: Firmware yayımlama
+
+1. Firmware ekranındaki yayımlama formunda **Version** ("Version (e.g.
+   0.3.0-m6b)" — "Sürüm (örn. 0.3.0-m6b)") alanına yayınlamak istediğiniz
+   sürüm numarasını girin. Bu alan **zorunludur**.
+2. **file** dosya seçme alanından yayınlamak istediğiniz **`.bin`** (ikili)
+   dosyasını seçin. Bu alan da **zorunludur**; boş bir dosya veya dosya
+   seçilmemesi kabul edilmez.
+3. **Publish firmware** ("Firmware yayımla") düğmesine tıklayın. İşlem
+   sürerken düğme metni **"Publishing…"** ("Yayımlanıyor…") olarak değişir.
+4. İşlem başarılı olursa "Published {sürüm}." ("{sürüm} yayınlandı.") mesajı
+   görünür ve form sıfırlanır; yeni sürüm tabloya eklenir.
+
+Yayımlama sırasında aşağıdaki kurallar uygulanır ve bunlardan herhangi biri
+karşılanmazsa yayımlama reddedilir (bir hata mesajıyla birlikte):
+
+- **Version** alanı **zorunludur** ve girilen sürüm numarasının, yüklenen
+  ikili dosyanın içindeki **CONFIG_DITTO_FW_VERSION** değeriyle **eşleşmesi**
+  gerekir.
+- Boş olmayan, geçerli bir **`.bin`** dosyası seçilmiş olmalıdır.
+- Dosya boyutu **8 MB'ı aşamaz**; aşarsa yayımlama reddedilir.
+- Aynı sürüm numarası **daha önce yayınlanmışsa**, yeni yayımlama girişimi
+  reddedilir — "Version {sürüm} is already published." ("{sürüm} sürümü
+  zaten yayınlanmış.") mesajı görünür; **yinelenen (duplicate) sürümler
+  kabul edilmez.**
+
+### Adım adım: Firmware sürümü silme
+
+1. Silmek istediğiniz sürümün satırındaki **Delete** ("Sil") düğmesine
+   tıklayın.
+2. Bir onay penceresi (tarayıcının kendi onay kutusu) açılır; gösterilen
+   uyarı, sildiğiniz sürümün **en yeni (latest)** sürüm olup olmamasına göre
+   **farklıdır:**
+   - Sildiğiniz sürüm **en yeni (latest)** ise: "Delete {sürüm}? It is the
+     LATEST release — devices will fall back to the previous release as
+     their OTA target." ("{sürüm} silinsin mi? Bu, EN YENİ sürümdür — cihazlar
+     OTA hedefi olarak bir önceki sürüme geri döner.")
+   - Sildiğiniz sürüm en yeni değilse: "Delete {sürüm}? This permanently
+     removes the binary and cannot be undone." ("{sürüm} silinsin mi? Bu,
+     ikili dosyayı kalıcı olarak kaldırır ve geri alınamaz.")
+3. Onayladığınızda sürüm kalıcı olarak silinir ve tablo satırı kaybolur.
+   Vazgeçerseniz onay penceresini iptal ederek işlemi durdurabilirsiniz.
+
+### İpuçları ve dikkat edilecekler
+
+- **En yeni (newest) yayınlanan sürüm, cihazların OTA (kablosuz güncelleme)
+  ile hedefleyeceği sürümdür** — yani cihazlar, güncelleme yaparken her
+  zaman en son yayımladığınız sürümü çekerler (bkz. Bölüm 2.7).
+- Yayımlamadan önce girdiğiniz **Version** değerinin, yüklediğiniz ikili
+  dosyanın **CONFIG_DITTO_FW_VERSION** değeriyle **birebir eşleştiğinden**
+  emin olun; eşleşmezse cihazlar üzerinde tutarsızlık oluşabilir.
+- Dosya boyutu sınırını (**8 MB**) aşan bir dosya yüklemeye çalışmayın —
+  reddedilir.
+- Aynı sürüm numarasını **iki kez** yayımlayamazsınız; her sürüm numarası
+  yalnızca bir kez kullanılabilir.
+- **En yeni (latest)** bir sürümü silerken dikkatli olun: bu sürümü
+  silmek, cihazların OTA hedefinin bir önceki sürüme **geri düşmesine**
+  neden olur — uyarı penceresi bunu size özellikle hatırlatır.

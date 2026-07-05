@@ -12,9 +12,9 @@ ilerler; hiçbir ön bilgi gerektirmez.
 Ditto Admin uygulamasının arayüzü **İngilizce**'dir; bu kılavuz Türkçe yazılmış
 olsa da uygulamanın kendisi Türkçeleştirilmemiştir. Bu nedenle bir ekran adı,
 düğme veya alan adı ilk kez geçtiğinde, "**Türkçe karşılığı (İngilizce arayüz
-metni)**" biçiminde verilir — örneğin **Genel Bakış (Overview)**. Uygulamada
-gördüğünüz metin her zaman İngilizce olan kısımdır; parantez içindeki, ekranda
-aynen o şekilde görmeyi beklemeyin.
+metni)**" biçiminde verilir — örneğin **Genel Bakış (Overview)**. Parantez
+içindeki İngilizce metin, ekranda aynen göreceğiniz metindir; parantezden önceki
+Türkçe kısım ise bunun açıklaması/çevirisidir.
 
 Kılavuzu okurken şu sırayı izlemenizi öneririz: önce **kavramları** öğrenin
 (Ditto nedir, kiracı/tenant ne demek, Süper Admin kimdir, cihaz-tetikleme akışı
@@ -91,7 +91,8 @@ Ditto, kullanım başına **ön ödemeli kredi** modeliyle ücretlendirilir: her
 başarılı tetikleme (yukarıdaki akışın tamamlanması) kiracıya **1 kredi**ye mal
 olur. Krediler önce rezerve edilir, işlem başarıyla tamamlanınca kesin olarak
 düşülür (settle), başarısız olursa serbest bırakılır (release). Yeni kaydolan
-her kiracıya başlangıçta **50 ücretsiz kredi** tanımlanır.
+her kiracıya başlangıçta **50 başlangıç kredisi (starter credits)**
+tanımlanır — bu krediler ücretsizdir.
 
 ### 2.7 Ürün yazılımı ve OTA güncellemeleri (Firmware/OTA)
 
@@ -119,13 +120,17 @@ olacaksınız.
 3. **Şifre (Password)** alanına şifrenizi girin.
 4. **Giriş Yap (Sign in)** düğmesine tıklayın.
 
-Deneme/demo amaçlı bir Süper Admin hesabı şu şekildedir:
+Giriş sayfasında bir **"Demo hesapları" (Demo accounts)** paneli bulunur; bu
+panel, şifresi ortak olan (`123456`) **iki** demo hesabı listeler:
 
-- **E-posta:** `admin@ditto.app`
-- **Şifre:** `123456`
+- **Kiracı sahibi (Tenant owner):** `dana@roastwell.co`
+- **Platform admin (Süper Admin):** `admin@ditto.app`
 
-Giriş sayfasında ayrıca bir **"Demo hesapları" (Demo accounts)** paneli
-bulunur; bu panel platform admin demo hesabını listeler.
+> **Dikkat:** Giriş formu, sayfa ilk açıldığında **varsayılan olarak kiracı
+> hesabıyla (`dana@roastwell.co`)** önceden doldurulmuş gelir. Siz bir Süper
+> Admin olarak giriş yapmak istediğinizde, **E-posta (Email)** alanını elle
+> `admin@ditto.app` olarak değiştirmeniz gerekir; **Şifre (Password)** alanı
+> her iki hesap için de aynıdır: `123456`.
 
 > **Önemli — çalışmayan bağlantılar:** Giriş sayfasındaki **"Şifremi unuttum?"
 > (Forgot password?)** ve **"SSO ile devam et" (Continue with SSO)**
@@ -178,4 +183,4 @@ Panelin üst kısmında, tüm ekranlarda ortak olarak bulunan iki kontrol yer al
 - **Tema geçişi (Theme toggle):** Açık/koyu tema arasında geçiş yapmanızı
   sağlar.
 - **Kullanıcı menüsü (User menu):** Oturum açmış kullanıcının adını,
-  e-posta adresini ve rolünü ("**Süper Admin / Super Admin**") gösterir.
+  e-posta adresini ve rolünü ("**Süper Admin (Super Admin)**") gösterir.

@@ -585,19 +585,19 @@ KPI kartlarının altında üç filtre kontrolü bulunur:
 
 Filtrelerin altında ana tablo yer alır; sütunları şunlardır:
 
-- **Device ID (Cihaz kimliği):** Tıklanabilir bir bağlantıdır; ilgili
+- **Cihaz kimliği (Device ID):** Tıklanabilir bir bağlantıdır; ilgili
   cihazın **Cihaz Detayı (Device Detail)** sayfasına
   (**`/admin/devices/{id}`**) götürür.
-- **Customer (Müşteri):** Cihazın bağlı olduğu müşteri (kiracı).
-- **Store (Mağaza):** Cihazın bağlı olduğu mağaza.
-- **Status (Durum):** Renkli bir nokta ile birlikte cihazın durumu
+- **Müşteri (Customer):** Cihazın bağlı olduğu müşteri (kiracı).
+- **Mağaza (Store):** Cihazın bağlı olduğu mağaza.
+- **Durum (Status):** Renkli bir nokta ile birlikte cihazın durumu
   (Online/Paused/Offline).
-- **Last seen (Son görülme):** Cihazın en son ne zaman görüldüğü.
-- **Firmware (Ürün yazılımı):** `v{sürüm}` biçiminde geçerli ürün yazılımı
+- **Son görülme (Last seen):** Cihazın en son ne zaman görüldüğü.
+- **Ürün yazılımı (Firmware):** `v{sürüm}` biçiminde geçerli ürün yazılımı
   sürümü. Cihazın sürümünden daha yeni bir yayınlanmış sürüm varsa, sürümün
-  yanında **amber (turuncu-sarı) renkli bir "update" ("güncelleme")
-  rozeti** görünür.
-- **Activations (mo.) (Tetiklemeler (ay)):** Cihazın bu ayki toplam
+  yanında **amber (turuncu-sarı) renkli bir güncelleme (update) rozeti**
+  görünür.
+- **Tetiklemeler (ay) (Activations (mo.)):** Cihazın bu ayki toplam
   tetikleme sayısı.
 - En sağda, satır işlemleri için bir menü düğmesi bulunur (aşağıya bakınız).
 
@@ -608,33 +608,36 @@ uyan cihaz yok.") mesajı görüntülenir.
 
 ### Cihaz satır eylemleri (Row actions)
 
-Tablodaki her satırın en sağındaki **üç nokta (More)** menü düğmesine
-tıkladığınızda aşağıdaki eylemler açılır:
+Tablodaki her satırın en sağındaki **üç nokta menüsü (satır işlemleri)**
+düğmesine tıkladığınızda aşağıdaki eylemler açılır:
 
-- **Pause (Duraklat) / Activate (Etkinleştir):** Cihaz çevrimiçiyse **Pause**,
-  duraklatılmışsa **Activate** seçeneği görünür ve tıklandığında durum
-  karşılıklı olarak değişir (Duraklatılınca "Device paused" ["Cihaz
-  duraklatıldı"], etkinleştirilince "Device activated" ["Cihaz etkinleştirildi"]
-  bildirimi görünür). **Önemli:** Cihaz **çevrimdışı (offline)** ise bu seçenek
-  menüde hiç görünmez — çevrimdışı bir cihazın duraklatma/etkinleştirme durumu
-  değiştirilemez.
-- **Rename (Yeniden adlandır):** Açılan pencerede tek bir alan bulunur:
-  **Device name (Cihaz adı)**. Yeni adı girip **Save (Kaydet)** düğmesine
-  tıkladığınızda, işlem başarılı olursa "Device renamed" ("Cihaz yeniden
-  adlandırıldı") bildirimi görünür.
-- **Move to store (Mağazaya taşı):** Yalnızca bir mağaza listesi mevcut
-  olduğunda menüde görünür. Açılan pencerede **Store (Mağaza)** açılır listesinden
-  hedef mağazayı seçip **Move (Taşı)** düğmesine tıklarsınız; başarılı olursa
-  "Device moved" ("Cihaz taşındı") bildirimi görünür.
-- **Unassign (Atamayı kaldır):** Cihazın mağaza atamasını kaldırır ve cihazı
-  **çevrimdışı (offline)** durumuna getirir. Başarılı olursa "Device unassigned"
-  ("Cihaz ataması kaldırıldı") bildirimi görünür.
-- **Delete (Sil):** **Yıkıcı (destructive)** bir eylemdir; tıklandığında bir
+- **Duraklat (Pause) / Etkinleştir (Activate):** Cihaz çevrimiçiyse **Duraklat
+  (Pause)**, duraklatılmışsa **Etkinleştir (Activate)** seçeneği görünür ve
+  tıklandığında cihaz duraklatılır veya yeniden etkinleştirilir (duraklatılınca
+  **Cihaz duraklatıldı (Device paused)**, etkinleştirilince **Cihaz
+  etkinleştirildi (Device activated)** bildirimi görünür). **Önemli:** Cihaz
+  **çevrimdışı (offline)** ise bu seçenek menüde hiç görünmez; bunun ötesinde,
+  bir cihaz çevrimdışıyken bu eylem yine de tetiklenmeye çalışılırsa sistem
+  işlemi reddeder ve "Device is offline and can't be changed." ("Cihaz
+  çevrimdışı ve değiştirilemez.") mesajını gösterir — çevrimdışı bir cihazın
+  duraklatma/etkinleştirme durumu değiştirilemez.
+- **Yeniden adlandır (Rename):** Açılan pencerede tek bir alan bulunur:
+  **Cihaz adı (Device name)**. Yeni adı girip **Kaydet (Save)** düğmesine
+  tıkladığınızda, işlem başarılı olursa **Cihaz yeniden adlandırıldı (Device
+  renamed)** bildirimi görünür.
+- **Mağazaya taşı (Move to store):** Yalnızca bir mağaza listesi mevcut
+  olduğunda menüde görünür. Açılan pencerede **Mağaza (Store)** açılır
+  listesinden hedef mağazayı seçip **Taşı (Move)** düğmesine tıklarsınız;
+  başarılı olursa **Cihaz taşındı (Device moved)** bildirimi görünür.
+- **Atamayı kaldır (Unassign):** Cihazın mağaza atamasını kaldırır ve cihazı
+  **çevrimdışı (offline)** durumuna getirir. Başarılı olursa **Cihaz ataması
+  kaldırıldı (Device unassigned)** bildirimi görünür.
+- **Sil (Delete):** **Yıkıcı (destructive)** bir eylemdir; tıklandığında bir
   onay penceresi açılır: başlık "Delete device?" ("Cihaz silinsin mi?"),
   açıklama "This permanently removes {ad} and its document history. This
   can't be undone." ("Bu, {ad} adlı cihazı ve belge geçmişini kalıcı olarak
   kaldırır. Bu işlem geri alınamaz."). Onaylarsanız cihaz kalıcı olarak
-  silinir ve "Device deleted" ("Cihaz silindi") bildirimi görünür.
+  silinir ve **Cihaz silindi (Device deleted)** bildirimi görünür.
 
 ### Cihaz Detayı (Device Detail)
 
@@ -649,18 +652,19 @@ Fleet"** geri bağlantısı bulunur. Başlık, cihazın adıdır; alt açıklama
 
 Ekranda şu bölümler yer alır:
 
-- **KPI kartları:** **Activations today** (Bugünkü tetiklemeler) ve
-  **Activations this month** (Bu ayki tetiklemeler).
-- **Cihaz ayrıntıları (Device details) kartı:** **Device ID** (cihaz
-  kimliği), **IP address** (IP adresi), **Connection** (bağlantı türü —
-  "Wi-Fi" veya "Ethernet") ve **Firmware** (`v{sürüm}`; daha yeni bir sürüm
-  varsa yanında "→ v{en yeni sürüm} available" ["→ v{en yeni sürüm}
-  mevcut"] ibaresi) bilgilerini gösterir.
-- **Durum ve yönetim (Status & management) kartı:** **Status** (etkin/efektif
-  durum), **Customer** (müşteriye giden bir bağlantı), **Store** (mağaza),
-  **Last seen** (son görülme) ve **Actions** (Cihaz Filosu tablosundakiyle
-  **aynı satır eylemleri menüsü** — Pause/Activate, Rename, Move to store,
-  Unassign, Delete) satırlarını içerir.
+- **KPI kartları:** **Bugünkü tetiklemeler (Activations today)** ve
+  **Bu ayki tetiklemeler (Activations this month)**.
+- **Cihaz ayrıntıları (Device details) kartı:** **Cihaz kimliği (Device
+  ID)**, **IP adresi (IP address)**, **Bağlantı (Connection)** (bağlantı
+  türü — "Wi-Fi" veya "Ethernet") ve **Ürün yazılımı (Firmware)**
+  (`v{sürüm}`; daha yeni bir sürüm varsa yanında "→ v{en yeni sürüm}
+  available" ("→ v{en yeni sürüm} mevcut") ibaresi) bilgilerini gösterir.
+- **Durum ve yönetim (Status & management) kartı:** **Durum (Status)**
+  (etkin/efektif durum), **Müşteri (Customer)** (müşteriye giden bir bağlantı),
+  **Mağaza (Store)**, **Son görülme (Last seen)** ve **İşlemler (Actions)**
+  (Cihaz Filosu tablosundakiyle **aynı satır eylemleri menüsü** — Duraklat/
+  Etkinleştir (Pause/Activate), Yeniden adlandır (Rename), Mağazaya taşı (Move
+  to store), Atamayı kaldır (Unassign), Sil (Delete)) satırlarını içerir.
 
 > **Önemli — etkin durum (effective status) kuralı:** Bu ekranda gösterilen
 > **Status** değeri, aşağıdaki kurala göre hesaplanır:
@@ -673,14 +677,15 @@ Ekranda şu bölümler yer alır:
 
 ### Adım adım: Uzaktan komut gönderme
 
-Cihaz Detayı ekranındaki **Remote control** ("Uzaktan kontrol") bölümü, dört
-düğme içerir: **Reboot** (Yeniden başlat), **Refresh config** (Yapılandırmayı
-yenile), **Identify** (Tanımla) ve **Update firmware** (Ürün yazılımını
-güncelle).
+Cihaz Detayı ekranındaki **Uzaktan kontrol (Remote control)** bölümü, dört
+düğme içerir: **Yeniden başlat (Reboot)**, **Yapılandırmayı yenile (Refresh
+config)**, **Tanımla (Identify)** ve **Ürün yazılımını güncelle (Update
+firmware)**.
 
-1. **Remote control** bölümünde, göndermek istediğiniz komuta karşılık gelen
-   düğmeye tıklayın: **Reboot**, **Refresh config**, **Identify** veya
-   **Update firmware**.
+1. **Uzaktan kontrol (Remote control)** bölümünde, göndermek istediğiniz
+   komuta karşılık gelen düğmeye tıklayın: **Yeniden başlat (Reboot)**,
+   **Yapılandırmayı yenile (Refresh config)**, **Tanımla (Identify)** veya
+   **Ürün yazılımını güncelle (Update firmware)**.
 2. Komut sıraya alınır (kuyruğa eklenir); ekranda "{komut} queued — the device
    will pick it up on its next check-in." ("{komut} kuyruğa alındı — cihaz bir
    sonraki bağlantı kontrolünde bunu alacak.") mesajı görünür. Yani komut
@@ -692,29 +697,33 @@ güncelle).
 
 ### İpuçları ve dikkat edilecekler
 
-- **Çevrimdışı (Offline)** bir cihazda **Pause/Activate** seçeneği menüde hiç
-  görünmez; bu tür bir cihazın duraklatma durumunu değiştirmek isterseniz,
-  önce cihazın çevrimiçi olmasını (görülmesini) beklemeniz gerekir.
-- **Move to store (Mağazaya taşı)** seçeneği yalnızca uygun bir mağaza listesi
+- **Çevrimdışı (Offline)** bir cihazda **Duraklat/Etkinleştir (Pause/Activate)**
+  seçeneği menüde hiç görünmez; ayrıca bu eylem yine de tetiklenmeye çalışılırsa
+  sistem "Device is offline and can't be changed." ("Cihaz çevrimdışı ve
+  değiştirilemez.") mesajıyla reddeder. Bu tür bir cihazın duraklatma durumunu
+  değiştirmek isterseniz, önce cihazın çevrimiçi olmasını (görülmesini)
+  beklemeniz gerekir.
+- **Mağazaya taşı (Move to store)** seçeneği yalnızca uygun bir mağaza listesi
   varsa menüde görünür; hiç mağaza yoksa bu seçeneği göremezsiniz.
-- **Unassign (Atamayı kaldır)** işlemi cihazın mağaza bağlantısını kaldırır
+- **Atamayı kaldır (Unassign)** işlemi cihazın mağaza bağlantısını kaldırır
   **ve** cihazı çevrimdışı durumuna getirir; bu geri alınabilir bir işlemdir
-  (cihazı **Move to store** ile tekrar bir mağazaya atayabilirsiniz).
-- **Delete (Sil)** işlemi **kalıcıdır ve geri alınamaz**; her zaman bir onay
+  (cihazı **Mağazaya taşı (Move to store)** ile tekrar bir mağazaya
+  atayabilirsiniz).
+- **Sil (Delete)** işlemi **kalıcıdır ve geri alınamaz**; her zaman bir onay
   penceresi ister. Silmeden önce doğru cihazı seçtiğinizden emin olun.
 - Cihaz Detayı ekranındaki **etkin durum (effective status)** kuralında,
   **duraklatma (paused) her zaman önceliklidir** — bir cihaz hem
   duraklatılmış hem de 15 dakikadan uzun süredir görülmemiş olsa bile,
   gösterilen durum yine **Paused**'dır, **Offline** değil.
-- **Remote control** düğmeleriyle gönderdiğiniz komutlar **anında
-  yürütülmez**; cihaz komutu ancak bir sonraki bağlantı kontrolünde (poll)
-  alır ve işler. Komutun ne zaman işlendiğini görmek için **komut geçmişi
-  (command history)** tablosundaki **Status** sütununu kontrol edin.
+- **Uzaktan kontrol (Remote control)** düğmeleriyle gönderdiğiniz komutlar
+  **anında yürütülmez**; cihaz komutu ancak bir sonraki bağlantı kontrolünde
+  (poll) alır ve işler. Komutun ne zaman işlendiğini görmek için **komut
+  geçmişi (command history)** tablosundaki **Status** sütununu kontrol edin.
 
 ## 8. Firmware
 
 Bu bölüm, cihazlara yüklenecek ürün yazılımı (firmware) sürümlerini yönetmek
-için kullanılan **Firmware (Ürün Yazılımı)** ekranını anlatır. Bu ekranın
+için kullanılan **Ürün yazılımı (Firmware)** ekranını anlatır. Bu ekranın
 adresi **`/admin/firmware`**'dir.
 
 ### Bu ekran ne işe yarar?
@@ -736,35 +745,35 @@ altında ise yayınlanmış sürümleri listeleyen bir **tablo** bulunur (en yen
 
 Tablo sütunları:
 
-- **Version (Sürüm):** Sürüm numarası; en üstteki (en yeni) satırın yanında
+- **Sürüm (Version):** Sürüm numarası; en üstteki (en yeni) satırın yanında
   **"(latest)"** ("(en yeni)") ibaresi eklenir.
-- **Size (Boyut):** Yayınlanan ikili dosyanın boyutu, KB (kilobayt) cinsinden.
+- **Boyut (Size):** Yayınlanan ikili dosyanın boyutu, KB (kilobayt) cinsinden.
 - **SHA-256:** Dosyanın SHA-256 özetinin (hash) ilk 12 karakteri, ardından
   "…" ile kısaltılmış biçimde.
-- **Published (Yayınlanma tarihi):** Sürümün yayınlandığı tarih/saat.
+- **Yayınlanma tarihi (Published):** Sürümün yayınlandığı tarih/saat.
 
 Hiç sürüm yayınlanmamışsa, tablo yerine "No releases yet." ("Henüz sürüm
 yok.") mesajı görüntülenir.
 
 ### Adım adım: Firmware yayımlama
 
-1. Firmware ekranındaki yayımlama formunda **Version** ("Version (e.g.
+1. Firmware ekranındaki yayımlama formunda **Sürüm (Version)** ("Version (e.g.
    0.3.0-m6b)" — "Sürüm (örn. 0.3.0-m6b)") alanına yayınlamak istediğiniz
    sürüm numarasını girin. Bu alan **zorunludur**.
 2. **file** dosya seçme alanından yayınlamak istediğiniz **`.bin`** (ikili)
    dosyasını seçin. Bu alan da **zorunludur**; boş bir dosya veya dosya
    seçilmemesi kabul edilmez.
-3. **Publish firmware** ("Firmware yayımla") düğmesine tıklayın. İşlem
+3. **Firmware yayımla (Publish firmware)** düğmesine tıklayın. İşlem
    sürerken düğme metni **"Publishing…"** ("Yayımlanıyor…") olarak değişir.
 4. İşlem başarılı olursa "Published {sürüm}." ("{sürüm} yayınlandı.") mesajı
    görünür ve form sıfırlanır; yeni sürüm tabloya eklenir.
 
-Yayımlama sırasında aşağıdaki kurallar uygulanır ve bunlardan herhangi biri
-karşılanmazsa yayımlama reddedilir (bir hata mesajıyla birlikte):
+Yayımlama sırasında aşağıdaki kurallar **sistem tarafından** uygulanır ve
+bunlardan herhangi biri karşılanmazsa yayımlama reddedilir (bir hata
+mesajıyla birlikte):
 
-- **Version** alanı **zorunludur** ve girilen sürüm numarasının, yüklenen
-  ikili dosyanın içindeki **CONFIG_DITTO_FW_VERSION** değeriyle **eşleşmesi**
-  gerekir.
+- **Sürüm (Version)** alanı **zorunludur**; boş bırakılırsa yayımlama
+  reddedilir.
 - Boş olmayan, geçerli bir **`.bin`** dosyası seçilmiş olmalıdır.
 - Dosya boyutu **8 MB'ı aşamaz**; aşarsa yayımlama reddedilir.
 - Aynı sürüm numarası **daha önce yayınlanmışsa**, yeni yayımlama girişimi
@@ -772,9 +781,18 @@ karşılanmazsa yayımlama reddedilir (bir hata mesajıyla birlikte):
   zaten yayınlanmış.") mesajı görünür; **yinelenen (duplicate) sürümler
   kabul edilmez.**
 
+> **Önemli — sürüm/CONFIG_DITTO_FW_VERSION eşleşmesi sistem tarafından
+> doğrulanmaz:** Girdiğiniz sürüm numarasını, yüklediğiniz `.bin` dosyasının
+> derlenmiş **CONFIG_DITTO_FW_VERSION** değeriyle aynı yazmanız gerekir; bunu
+> **sizin sağlamanız gerekir** — sistem, `.bin` dosyasının içeriğini
+> incelemez ve bu eşleşmeyi otomatik olarak **doğrulamaz**. Sistemin
+> yukarıdaki dört kuralın (Sürüm alanı boş olmama, dosya seçilmiş olma,
+> 8 MB sınırı, yinelenmeyen sürüm numarası) dışında yaptığı başka bir
+> otomatik denetim yoktur.
+
 ### Adım adım: Firmware sürümü silme
 
-1. Silmek istediğiniz sürümün satırındaki **Delete** ("Sil") düğmesine
+1. Silmek istediğiniz sürümün satırındaki **Sil (Delete)** düğmesine
    tıklayın.
 2. Bir onay penceresi (tarayıcının kendi onay kutusu) açılır; gösterilen
    uyarı, sildiğiniz sürümün **en yeni (latest)** sürüm olup olmamasına göre
@@ -794,9 +812,11 @@ karşılanmazsa yayımlama reddedilir (bir hata mesajıyla birlikte):
 - **En yeni (newest) yayınlanan sürüm, cihazların OTA (kablosuz güncelleme)
   ile hedefleyeceği sürümdür** — yani cihazlar, güncelleme yaparken her
   zaman en son yayımladığınız sürümü çekerler (bkz. Bölüm 2.7).
-- Yayımlamadan önce girdiğiniz **Version** değerinin, yüklediğiniz ikili
-  dosyanın **CONFIG_DITTO_FW_VERSION** değeriyle **birebir eşleştiğinden**
-  emin olun; eşleşmezse cihazlar üzerinde tutarsızlık oluşabilir.
+- Yayımlamadan önce girdiğiniz **Sürüm (Version)** değerinin, yüklediğiniz
+  ikili dosyanın **CONFIG_DITTO_FW_VERSION** değeriyle **birebir
+  eşleştiğinden** emin olun; bunu doğrulamak **sizin sorumluluğunuzdadır**
+  — sistem bu eşleşmeyi otomatik olarak denetlemez. Eşleşmezse cihazlar
+  üzerinde tutarsızlık oluşabilir.
 - Dosya boyutu sınırını (**8 MB**) aşan bir dosya yüklemeye çalışmayın —
   reddedilir.
 - Aynı sürüm numarasını **iki kez** yayımlayamazsınız; her sürüm numarası

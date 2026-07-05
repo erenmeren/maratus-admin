@@ -825,3 +825,343 @@ mesajıyla birlikte):
 - **En yeni (latest)** bir sürümü silerken dikkatli olun: bu sürümü
   silmek, cihazların OTA hedefinin bir önceki sürüme **geri düşmesine**
   neden olur — uyarı penceresi bunu size özellikle hatırlatır.
+
+## 9. Sistem Sağlığı (Platform Health)
+
+Bu bölüm, platformun genel operasyonel sağlığını tek bir sayfada özetleyen
+**Sağlık (Health)** ekranını anlatır. Bu ekranın adresi **`/admin/health`**'tir.
+
+### Bu ekran ne işe yarar?
+
+Sağlık ekranının başlığı **"Platform health"**'tir. Bu ekran, Süper Admin'in
+platform genelinde bir sorun olup olmadığını — çevrimdışı kalan cihazlar,
+takılı kalmış işlemler, hareketsiz kiracılar gibi — hızlıca görebilmesi için
+tasarlanmıştır.
+
+> **Önemli — bu ekran tamamen salt izlemedir (read-only):** Sağlık ekranında
+> **hiçbir düğme, form veya düzenleme kontrolü bulunmaz**. Ekrandaki hiçbir
+> öğeye tıklayarak bir ayarı değiştiremez, bir cihazı duraklatamaz ya da bir
+> uyarıyı kapatamazsınız — bu ekran yalnızca izleme (monitoring) amaçlıdır.
+> Bir işlem yapmanız gerekiyorsa (örn. bir cihazı yeniden başlatmak), ilgili
+> işlemi **Cihaz Filosu (Device Fleet)** (Bölüm 7) veya **Müşteri Detayı**
+> (Bölüm 6) ekranlarından yapmanız gerekir.
+
+### Ekranda neler var?
+
+**Uyarılar şeridi (Alerts banner):** Ekranın en üstünde yer alır. Hiçbir aktif
+uyarı yoksa "**All systems nominal.**" ("Tüm sistemler normal.") mesajı
+görüntülenir. Aktif uyarı varsa, aşağıdaki uyarı türlerinden biri veya birkaçı
+listelenir:
+
+- **Cihaz tazeliği uyarısı (uyarı/warning rengi):** "**{n} device(s) not seen
+  in 15+ minutes**" ("{n} cihaz 15+ dakikadır görülmedi") — 15 dakikadan uzun
+  süredir kendini bildirmeyen (duraklatılmamış) cihaz sayısını gösterir.
+- **Takılı kalmış belge uyarısı (uyarı/warning rengi):** "**{n} document(s)
+  stuck pending 30+ minutes**" ("{n} belge 30+ dakikadır beklemede takılı
+  kaldı") — 30 dakikadan uzun süredir "pending" (beklemede) durumunda takılı
+  kalan işlem sayısını gösterir.
+- **Hareketsiz kiracı uyarısı (bilgi/info rengi):** Son 7 gündür hiç
+  aktivasyonu olmayan her kiracı için ayrı bir satır: "**{kiracı adı}: no
+  documents in 7 days**" ("{kiracı adı}: 7 gündür belge yok"). Hareketsiz
+  kiracı sayısı **5'ten fazla** ise, bu tek tek satırlar yerine tek bir özet
+  uyarıya **çöker (collapse)**: "**{n} tenants have no documents in 7 days**"
+  ("{n} kiracının 7 gündür belgesi yok") — bu, çok sayıda boş kiracısı olan
+  bir platformda uyarı şeridinin aşırı uzamasını önler.
+
+**Filo tazeliği (Fleet freshness):** Dört KPI kartı içerir: **Cihazlar
+(Devices)** (toplam cihaz sayısı), **Çevrimiçi (Online)**, **Duraklatılmış
+(Paused)** ve **Bayat (15dk+) (Stale (15m+))** (15 dakikadan uzun süredir
+görülmeyen cihaz sayısı). Bayat cihaz varsa, KPI kartlarının altında bir
+**bayat cihazlar tablosu** görünür; sütunları **Cihaz (Device)**, **Kiracı
+(Tenant)** ve **Son görülme (Last seen)**'dir. Hiç bayat cihaz yoksa bu tablo
+hiç görüntülenmez.
+
+**Tetikleme etkinliği (Trigger activity):** Üç KPI kartı içerir:
+**Tetiklemeler (1sa) (Activations (1h))**, **Tetiklemeler (24sa) (Activations
+(24h))** ve **Takılı kalmış bekleyenler (Stuck pending)**. Kartların altında
+bir alt satır bulunur: "**Last 24h: {n} acked · {n} pending · {n} failed**"
+("Son 24 saat: {n} onaylandı (acked) · {n} beklemede (pending) · {n}
+başarısız (failed)") — bu, son 24 saatteki tüm tetiklemelerin nihai durumlara
+göre dökümünü gösterir.
+
+**Kiracı bazlı kullanım (Per-tenant usage):** İki liste yan yana gösterilir:
+
+- **En çok kullanan kiracılar (24sa) (Top tenants (24h)):** Son 24 saatte en
+  çok aktivasyon yapan kiracıları listeler. Hiç aktivasyon yoksa "**No
+  activations in the last 24h.**" ("Son 24 saatte hiç aktivasyon yok.")
+  mesajı görüntülenir.
+- **Hareketsiz kiracılar (7g+) (Inactive (7d+)):** Son 7 gündür hiç
+  aktivasyonu olmayan kiracıları listeler. Tüm kiracılar aktifse "**All
+  tenants active.**" ("Tüm kiracılar aktif.") mesajı görüntülenir.
+
+**Uyarı geçmişi (Alert history):** İki liste içerir:
+
+- **Açık (Open):** Şu anda açık (çözülmemiş) uyarıları listeler. Hiç açık
+  uyarı yoksa "**No open alerts.**" ("Açık uyarı yok.") mesajı görüntülenir.
+- **Çözülenler (7g) (Resolved (7d)):** Son 7 gün içinde çözülmüş uyarıları
+  listeler. Hiç çözülmüş uyarı yoksa "**Nothing resolved recently.**" ("Son
+  zamanlarda hiçbir şey çözülmedi.") mesajı görüntülenir.
+
+### İpuçları ve dikkat edilecekler
+
+- Bu ekran **tamamen salt görüntülemedir**; herhangi bir düğme veya form
+  aramayın — burada hiçbiri yoktur.
+- Uyarı eşiklerini birbirinden ayırt edin: **cihaz tazeliği** 15 dakika,
+  **takılı kalmış belge/işlem** 30 dakika, **hareketsiz kiracı** 7 gün
+  eşiğini kullanır — üçü de farklı sürelerdir.
+- Hareketsiz kiracı sayısı **5'i aştığında**, uyarı şeridinde kiracı adları
+  tek tek görünmez; bunun yerine tek bir toplu sayı (örn. "7 tenants have no
+  documents in 7 days") gösterilir. Belirli bir kiracının durumunu görmek
+  isterseniz **Per-tenant usage** bölümündeki **Inactive (7d+)** listesine
+  veya **Müşteriler (Customers)** ekranına (Bölüm 5) bakın.
+- **Fleet freshness** altındaki bayat cihazlar tablosu, yalnızca bayat cihaz
+  **varsa** görünür; hiç bayat cihaz yoksa bu bölümde KPI kartlarının altında
+  hiçbir tablo görüntülenmez.
+
+## 10. Faturalandırma & Krediler (Billing & Credits)
+
+Bu bölüm, platform genelindeki ön ödemeli kredi satışlarını, tüketimini ve
+kiracı bazlı bakiyeleri gösteren ekranı anlatır. Bu ekranın adresi
+**`/admin/billing`**'dir.
+
+### Bu ekran ne işe yarar?
+
+> **Önemli — sol menü etiketi ile ekran başlığı farklıdır:** Sol taraftaki
+> gezinme menüsünde bu ekrana giden bağlantı **"Faturalandırma ve Gelir
+> (Billing & Revenue)"** olarak etiketlenir (bkz. Bölüm 3.4). Ancak bu
+> bağlantıya tıkladığınızda ulaştığınız ekranın **kendi başlığı farklıdır:
+> "Billing & Credits"**. Bu bir hata değildir, ama kılavuzu okurken kafanızın
+> karışmaması için baştan belirtiyoruz: sol menüdeki "**Billing & Revenue**"
+> ile ekranın üstünde gördüğünüz "**Billing & Credits**" başlığı, **aynı
+> ekranı** ifade eden iki farklı isimdir.
+
+Ekranın alt açıklaması **"Platform-wide prepaid credit sales, consumption,
+and per-tenant balances."** ("Platform genelinde ön ödemeli kredi satışları,
+tüketimi ve kiracı bazlı bakiyeler.") biçimindedir. Bu ekran, Süper Admin'in
+platformdaki kredi ekonomisinin genel durumunu görmesini ve kiracı bazlı
+kredi verilerini dışa aktarmasını (export) sağlar.
+
+### Ekranda neler var?
+
+Ekranın sağ üst köşesinde bir **Kiracıları dışa aktar (Export tenants)**
+düğmesi bulunur (aşağıdaki adım adım bölümüne bakınız).
+
+Üç **KPI kartı** yer alır:
+
+1. **Satılan krediler (Credits sold):** İpucu metni "lifetime, all tenants"
+   ("tüm zamanlar, tüm kiracılar") — platform genelinde bugüne kadar satılan
+   toplam kredi miktarı.
+2. **Tüketilen krediler (Credits consumed):** İpucu metni "lifetime, all
+   tenants" — platform genelinde bugüne kadar harcanan toplam kredi miktarı.
+3. **Ödenmemiş yükümlülük (Outstanding liability):** İpucu metni "unspent
+   credits owed to tenants" ("kiracılara borçlu olunan harcanmamış
+   krediler") — henüz harcanmamış, kiracıların hâlâ kullanabileceği toplam
+   kredi miktarı.
+
+KPI kartlarının altında **Kiracı bazlı krediler (Per-tenant credits)**
+başlıklı bir tablo kartı bulunur; açıklaması "Balance, consumption this
+month, and lifetime purchases" ("Bakiye, bu ayki tüketim ve tüm zamanlar
+satın alımlar") biçimindedir. Sütunları:
+
+- **Müşteri (Customer):** Tıklanabilir bir bağlantıdır; ilgili müşterinin
+  ayrıntı sayfasına (**`/admin/customers/{id}`**, bkz. Bölüm 6) götürür.
+- **Bakiye (Balance):** Kiracının o anki kullanılabilir kredi bakiyesi.
+- **Tüketilen (ay) (Consumed (mo.)):** Kiracının bu ay tükettiği kredi
+  miktarı.
+- **Tüm zamanlar satın alınan (Lifetime purchased):** Kiracının bugüne
+  kadar satın aldığı toplam kredi miktarı.
+
+Kredi hareketi olan hiçbir kiracı yoksa, tablo yerine "**No tenants with
+credit activity yet.**" ("Henüz kredi hareketi olan kiracı yok.") mesajı
+görüntülenir.
+
+### Adım adım: Kiracı kredilerini dışa aktarma (Export)
+
+1. Faturalandırma & Krediler ekranının sağ üst köşesindeki **Kiracıları
+   dışa aktar (Export tenants)** düğmesine tıklayın.
+2. Düğmeye tıklandığı anda, herhangi bir onay penceresi açılmadan, tarayıcınız
+   **`ditto-credits.csv`** adlı bir CSV dosyasını doğrudan indirir. Dosyanın
+   sütun başlıkları sırasıyla **Customer**, **Balance**, **Consumed (mo.)**
+   ve **Lifetime purchased**'dır; her satır, o anda **Kiracı bazlı krediler
+   (Per-tenant credits)** tablosunda görünen bir kiracıya karşılık gelir.
+3. İndirme tamamlandığında ekranda "**Export ready**" ("Dışa aktarma hazır")
+   başlıklı bir bildirim (toast) belirir; açıklama satırında "**{n} rows →
+   ditto-credits.csv**" ("{n} satır → ditto-credits.csv") biçiminde kaç
+   satırın dışa aktarıldığı gösterilir.
+4. İndirilen `ditto-credits.csv` dosyasını, bilgisayarınızdaki bir tablolama
+   programıyla (örn. Excel, Google E-Tablolar) açarak inceleyebilirsiniz.
+
+### İpuçları ve dikkat edilecekler
+
+- Sol menüdeki **"Billing & Revenue"** bağlantısı ile bu ekranın kendi
+  başlığı olan **"Billing & Credits"** arasındaki isim farkını unutmayın —
+  ikisi de aynı ekranı işaret eder.
+- **Bakiye (Balance)**, **Tüketilen (ay) (Consumed (mo.))** ve **Tüm zamanlar
+  satın alınan (Lifetime purchased)** sütunlarını birbirine karıştırmayın:
+  Bakiye o anki kullanılabilir miktardır, Consumed (mo.) yalnızca bu ayki
+  tüketimdir, Lifetime purchased ise kiracının bugüne kadar satın aldığı
+  toplam miktardır.
+- **Müşteri (Customer)** sütunundaki isimler birer bağlantıdır; bir kiracının
+  ayrıntılarına (kredi yükleme dahil, bkz. Bölüm 6) hızlıca gitmek için
+  bunlara tıklayabilirsiniz.
+- **Kiracıları dışa aktar (Export tenants)** düğmesi, ekranda o an görünen
+  **Kiracı bazlı krediler** tablosunun tam bir kopyasını indirir; ekranda
+  herhangi bir filtre bulunmadığından, dışa aktarılan dosya her zaman kredi
+  hareketi olan **tüm** kiracıları içerir.
+
+## 11. Rozetler ve Göstergeler (Referans)
+
+Bu bölüm, kılavuz boyunca karşınıza çıkan renkli rozet ve göstergeleri tek
+bir referans tablosunda toplar. Her rozetin nerede kullanıldığı, önceki
+bölümlerde (5, 6, 7, 10) ayrıca anlatılmıştır; burada yalnızca hızlı bir
+başvuru kaynağı olarak özetlenir.
+
+### 11.1 Kiracı durumu (Tenant status)
+
+Bu rozet **Müşteriler (Customers)** (Bölüm 5) ve **Müşteri Detayı**
+(Bölüm 6) ekranlarında görünür:
+
+| Değer | Renk | Anlamı |
+|---|---|---|
+| **Aktif (Active)** | Yeşil | Kiracının hesabı normal şekilde aktif kullanımdadır. |
+| **Deneme (Trial)** | Mor | Kiracı, deneme (trial) süreci içindedir. |
+| **Askıya alınmış (Suspended)** | Kırmızı | Kiracının hesabı askıya alınmıştır. |
+
+> **Önemli — askıya alma/yeniden etkinleştirme düğmesi yoktur:** **Askıya
+> alınmış (Suspended)** durumu ekranlarda bir rozet olarak **görüntülenir**,
+> ancak Ditto Admin arayüzünün **hiçbir yerinde** bir kiracıyı askıya almak
+> (Suspend) veya askıdan çıkarıp yeniden etkinleştirmek (Reactivate) için bir
+> **düğme veya işlem bulunmaz**. Bir kiracı denetim (Activity) geçmişinde
+> "askıya alındı"/"yeniden etkinleştirildi" türü kayıtlar görülebilir, ancak
+> bunlar yalnızca geçmiş kayıtlardır — bu durumu Süper Admin panelinden siz
+> **tetikleyemezsiniz**. Bu, eksik bir özellik değil, mevcut arayüzün bir
+> sınırıdır; bu kılavuzda var olmayan bir düğmeyi aramayın.
+
+### 11.2 Cihaz durumu (Device status)
+
+Bu rozet **Cihaz Filosu** (Bölüm 7), **Cihaz Detayı** (Bölüm 7) ve **Müşteri
+Detayı**'ndaki (Bölüm 6) atanmış cihazlar tablosunda görünür:
+
+| Değer | Renk | Anlamı |
+|---|---|---|
+| **Çevrimiçi (Online)** | Yeşil (bazı yerlerde nabız/pulse animasyonlu) | Cihaz şu anda ulaşılabilir ve tetiklemeye hazırdır. |
+| **Çevrimdışı (Offline)** | Gri | Cihaza ulaşılamıyor. |
+| **Duraklatılmış (Paused)** | Amber (turuncu-sarı) | Cihaz kasıtlı olarak duraklatılmıştır. |
+
+**Etkin durum (effective status)** aşağıdaki öncelik sırasına göre
+hesaplanır (bkz. Bölüm 7, Cihaz Detayı):
+
+1. Cihaz **duraklatılmışsa (paused)**, gösterilen durum her zaman
+   **Duraklatılmış (Paused)**'dır — bu her koşulda önceliklidir.
+2. Duraklatılmamışsa ve cihaz hiç görülmemişse ya da son görülmesinin
+   üzerinden **15 dakikadan fazla** geçmişse, durum **Çevrimdışı
+   (Offline)** olur.
+3. Yukarıdaki iki durum da geçerli değilse, durum **Çevrimiçi (Online)**'dır.
+
+### 11.3 Müşteri sağlığı (Customer/tenant health)
+
+Bu gösterge **Müşteriler** (Bölüm 5) ve **Müşteri Detayı**'nda (Bölüm 6)
+görünür; her zaman çevrimiçi/toplam cihaz sayısıyla (`online/total`, örn.
+"(4/6)") birlikte gösterilir:
+
+| Değer | Renk | Anlamı |
+|---|---|---|
+| **Sağlıklı (Healthy)** | Yeşil | Kiracının cihaz filosu sorunsuz çalışıyor. |
+| **Uyarı (Warning)** | Amber (turuncu-sarı) | Filoda kısmi bir sorun var (örn. bazı cihazlar çevrimdışı, takılı kalmış işlemler veya uzun süredir hareketsizlik). |
+| **Kritik (Critical)** | Kırmızı | Filodaki hiçbir cihaza ulaşılamıyor. |
+
+### 11.4 Ürün yazılımı güncelleme rozeti (Firmware update pill)
+
+Bu **amber (turuncu-sarı)** renkli küçük rozet, **Cihaz Filosu** (Bölüm 7)
+tablosunda ve **Cihaz Detayı**'ndaki (Bölüm 7) ürün yazılımı bilgisinin
+yanında görünür. Bir cihazın o an çalıştırdığı ürün yazılımı sürümü,
+**Ürün Yazılımı (Firmware)** ekranında (Bölüm 8) yayınlanmış **en yeni
+(latest)** sürümden farklıysa görüntülenir; cihazın yeni bir sürüme OTA ile
+güncellenebileceğini belirtir.
+
+### İpuçları ve dikkat edilecekler
+
+- **Kiracı durumu (Tenant status)** ile **Müşteri sağlığı (Customer health)**
+  farklı kavramlardır: biri hesabın ticari/idari durumunu, diğeri cihaz
+  filosunun teknik durumunu gösterir (bkz. Bölüm 5).
+- **Askıya alınmış (Suspended)** rozetini gördüğünüzde, bunu değiştirebilecek
+  bir düğme aramayın — arayüzde böyle bir kontrol **yoktur** (bkz. 11.1).
+- **Etkin durum (effective status)** hesaplamasında **duraklatma her zaman
+  önceliklidir** — bir cihaz hem duraklatılmış hem de uzun süredir
+  görülmemiş olsa bile gösterilen durum **Paused**'dır, **Offline** değil.
+
+## 12. Sözlük (Terimler)
+
+Bu bölüm, kılavuz boyunca kullanılan temel terimleri kısaca tanımlar.
+
+- **Kiracı (Tenant / Organization):** Ditto'yu kullanan bir müşteri firma;
+  sistemde bir "organizasyon" olarak temsil edilir. Her kiracının kendi
+  mağazaları, cihazları ve kullanıcıları vardır (bkz. Bölüm 2.2).
+- **Süper Admin (platform_admin):** Herhangi bir kiracıya üye olmadan, tüm
+  platformu yönetme yetkisine sahip kullanıcı rolü; kullanıcının kendi
+  hesabında tanımlı, kiracıdan bağımsız bir yetkidir (bkz. Bölüm 2.3).
+- **Kredi (Credit):** Ditto'nun ön ödemeli ücretlendirme biriminde,
+  başarıyla tamamlanan her tetiklemenin (activation) kiracıya mal olduğu
+  birim; başarılı bir tetikleme 1 krediye mal olur (bkz. Bölüm 2.6).
+- **Tetikleme (Trigger):** Yetkilendirilmiş bir çağıran tarafın, bir cihazda
+  belirli bir URL'nin QR kodunun gösterilmesini istediği API isteği
+  (bkz. Bölüm 2.5).
+- **Aktivasyon (Activation):** Bir tetiklemenin cihaz tarafından başarıyla
+  işlenip müşteriye QR kodun gösterilmesiyle sonuçlanan tamamlanmış işlem;
+  KPI kartlarında ve grafiklerde sayılan birimdir.
+- **Cihaz / Yazıcı (Device / Printer):** Müşteriye taranacak QR kodu
+  ekranında gösteren fiziksel donanım; Ditto'da "cihaz" olarak anılsa da
+  aslında bir yazıcıdır (bkz. Bölüm 2.4).
+- **Eşleştirme kodu (Pairing code):** Yeni sağlanan bir cihaza fiziksel
+  olarak girilen, cihazı ilgili kiracı/mağazaya bağlayan tek kullanımlık
+  kod; cihaz bu kodla eşleşene kadar çevrimdışı (offline) görünür
+  (bkz. Bölüm 6, Cihaz sağlama).
+- **Ürün yazılımı / OTA (Firmware / OTA):** Cihazların çalıştırdığı,
+  uzaktan (kablosuz) güncellenebilen yazılım; OTA (Over-The-Air), bu
+  güncellemenin kablosuz olarak iletilmesi anlamına gelir (bkz. Bölüm 2.7,
+  Bölüm 8).
+- **Kredi defteri (Ledger):** Bir kiracının kredi hesabındaki her hareketin
+  (yükleme, rezervasyon, kesin düşüm, serbest bırakma) kaydedildiği hareket
+  dökümü tablosu (bkz. Bölüm 6, Krediler kartı).
+- **Etkin durum (Effective status):** Bir cihazın ham (kaydedilmiş)
+  durumundan bağımsız olarak, duraklatma ve son görülme zamanına göre
+  hesaplanan, o an ekranda gösterilen fiili durum (bkz. Bölüm 7 ve 11.2).
+- **Takılı kalmış, bekleyen (Stuck pending):** Belirlenen süre eşiğini
+  (30 dakika) aşmasına rağmen hâlâ "beklemede (pending)" durumunda kalmış,
+  tamamlanmamış bir işlem (bkz. Bölüm 9).
+
+## 13. Sık Sorulanlar / Sorun Giderme
+
+**Bir cihaz neden "Çevrimdışı (Offline)" görünüyor?**
+Bir cihaz, ya hiç görülmemişse ya da en son görülme zamanının üzerinden
+**15 dakikadan fazla** geçmişse "Çevrimdışı (Offline)" olarak gösterilir
+(bkz. Bölüm 7 ve 11.2, effective status kuralı). Cihaz ayrıca **duraklatılmış
+(Paused)** durumdaysa, kaç dakika görülmediğine bakılmaksızın durum her
+zaman "Paused" olarak gösterilir — "Paused" bir cihaz asla "Offline" olarak
+görünmez.
+
+**Bir kiracıya nasıl kredi yüklenir?**
+**Müşteriler (Customers)** ekranından (Bölüm 5) ilgili kiracıya tıklayarak
+**Müşteri Detayı (Customer Detail)** sayfasına gidin (Bölüm 6). Buradaki
+**Krediler (Credits)** kartındaki **Kredi yükleme formu (Grant credits)**
+alanına yüklemek istediğiniz miktarı (1 ile 1.000.000 arasında bir tam sayı)
+girip **Grant credits** düğmesine tıklayın (ayrıntılı adımlar için bkz.
+Bölüm 6, "Adım adım: Kredi yükleme").
+
+**Bir ürün yazılımı (firmware) güncellemesi cihaza ne zaman ulaşır?**
+Anında ulaşmaz. **Ürün Yazılımı (Firmware)** ekranında (Bölüm 8) yeni bir
+sürüm yayınladığınızda, bu sürüm yalnızca cihazların **bir sonraki bağlantı
+kontrolünde (check-in / poll)** OTA hedefi olarak görülür; cihaz kendi
+yoklama (polling) döngüsünde sunucuya bağlandığında yeni sürümü fark eder ve
+güncellemeyi indirir. Aynı şekilde, **Cihaz Detayı** ekranındaki (Bölüm 7)
+**Ürün yazılımını güncelle (Update firmware)** komutu da anında değil,
+cihazın bir sonraki check-in'inde işlenir.
+
+**Neden bir kiracıyı askıya alamıyorum (veya askıdan çıkaramıyorum)?**
+Çünkü Ditto Admin arayüzünde bunu yapacak bir düğme veya işlem
+**bulunmamaktadır**. **Askıya alınmış (Suspended)** durumu ekranlarda bir
+rozet olarak görüntülenir (bkz. Bölüm 11.1) ve denetim (Activity) geçmişinde
+bu yöndeki geçmiş kayıtlara rastlayabilirsiniz, ancak Süper Admin panelinden
+bir kiracının durumunu askıya alma veya yeniden etkinleştirme yönünde
+değiştirebileceğiniz herhangi bir kontrol yoktur. Bu, kılavuzun bir eksikliği
+değil, uygulamanın mevcut arayüzünün bir sınırıdır.

@@ -184,3 +184,192 @@ Panelin üst kısmında, tüm ekranlarda ortak olarak bulunan iki kontrol yer al
   sağlar.
 - **Kullanıcı menüsü (User menu):** Oturum açmış kullanıcının adını,
   e-posta adresini ve rolünü ("**Süper Admin (Super Admin)**") gösterir.
+
+## 4. Genel Bakış (Overview)
+
+Bu bölüm, Süper Admin girişinden sonra karşınıza çıkan ilk ekranı anlatır:
+**Genel Bakış (Overview)** ekranı, adresi **`/admin`** olan, platformun
+tamamına ait özet bilgileri gösteren ekrandır.
+
+#### Bu ekran ne işe yarar?
+
+Genel Bakış ekranının başlığı **"Overview"**, alt açıklaması ise **"Platform-wide
+performance across all Ditto customers."** ("Ditto'nun tüm müşterileri
+genelinde platform performansı") biçimindedir. Bu ekran, tek bir kiracıya değil,
+**platformdaki tüm kiracılara (müşterilere)** ait verilerin özetini bir arada
+gösterir; böylece Süper Admin, tek bir bakışta platformun genel durumunu
+görebilir.
+
+#### Ekranda neler var?
+
+Ekranın üst kısmında üç **KPI kartı (KPI cards — anahtar performans göstergesi
+kartları)** yer alır:
+
+1. **Bu ay yapılan tetiklemeler (Activations this month):** Bu ay platform
+   genelinde gerçekleşen toplam tetikleme (activation) sayısını gösterir; ipucu
+   metni "platform-wide" ("platform genelinde") yazar. Kartın yanında
+   **+12.1%** değerinde bir değişim rozeti (delta badge) görünür.
+
+   > **Önemli — bu rakam sabittir:** Karttaki **+12.1%** değişim rozeti,
+   > uygulama kodunda **sabit (hardcoded)** bir değer olarak yazılmıştır;
+   > herhangi bir gerçek/canlı (live) veriden hesaplanmaz. Bu ekranı ne zaman
+   > açarsanız açın, önceki ayla karşılaştırma olarak her zaman aynı **+12.1%**
+   > değerini görürsünüz. Bu rakamı gerçek bir büyüme/aylık karşılaştırma
+   > yüzdesi olarak yorumlamayın — yalnızca görsel bir yer tutucudur.
+   > (Karşılaştırma için: aşağıdaki **Aktif cihazlar** ve **Müşteriler**
+   > kartlarında böyle bir rozet yoktur; bu rozet yalnızca bu karta özeldir.)
+
+2. **Aktif cihazlar (Active devices):** Şu anda çevrimiçi olan cihaz sayısını,
+   toplam cihaz sayısına oranla `aktif/toplam` (`active/total`) biçiminde
+   (örn. "5/6") gösterir; ipucu metni "printers online" ("çevrimiçi
+   yazıcılar") yazar. Bu kartta değişim rozeti bulunmaz.
+
+3. **Müşteriler (Customers):** Platformdaki toplam müşteri (kiracı) sayısını
+   gösterir; ipucu metni ilgili müşterilerin toplam mağaza sayısını "{N}
+   stores" ("{N} mağaza") biçiminde belirtir. Bu kartta da değişim rozeti
+   bulunmaz.
+
+KPI kartlarının altında bir **grafik kartı (chart card)** yer alır: **Zaman
+içinde tetiklemeler (Activations over time)**. Bu kart "Monthly activations,
+all customers" ("Tüm müşteriler için aylık tetiklemeler") açıklamasıyla, bir
+**alan grafiği (area chart)** üzerinde tetiklemelerin zaman içindeki seyrini
+gösterir.
+
+Grafiğin altında iki **tablo kartı (table card)** bulunur:
+
+- **En çok tetikleme yapan müşteriler (Top customers):** "By activations this
+  month" ("Bu ayki tetiklemelere göre") açıklamasıyla, en çok tetikleme yapan
+  müşterileri listeler. Sütunları: **Müşteri (Customer)**, **Mağazalar
+  (Stores)**, **Cihazlar (Devices)**, **Tetiklemeler (Activations)**. Tablodaki
+  müşteri adları tıklanabilir birer bağlantıdır ve ilgili müşterinin ayrıntı
+  sayfasına (**`/admin/customers/{id}`**) götürür; her satırda ayrıca, Bölüm
+  5'te ayrıntılı anlatılan bir **durum rozeti (status badge)** bulunur.
+  Kartın sağ üst köşesinde **Tüm müşteriler (All customers)** bağlantısı yer
+  alır; bu bağlantı sizi **`/admin/customers`** adresindeki tam müşteri
+  listesine götürür.
+
+- **Şirkete göre krediler (Credits by company):** "Trigger credits spent this
+  month" ("Bu ay harcanan tetikleme kredileri") açıklamasıyla, kredi
+  harcamasını şirket bazında listeler. Sütunları: **Şirket (Company)**,
+  **Harcanan kredi (Credits spent)**, **Tetiklemeler (Triggers)**. Bu tabloda
+  en fazla **ilk 10 (top 10)** şirket gösterilir. Bu ay hiç kredi
+  harcanmamışsa, tablo yerine "No credit usage yet this month." ("Bu ay henüz
+  kredi kullanımı yok.") mesajı görüntülenir.
+
+#### Adım adım: Bir müşterinin ayrıntısına gitme
+
+Genel Bakış ekranında herhangi bir veriyi değiştirebileceğiniz bir kontrol
+yoktur; ekran tamamen **salt görüntülemedir (read-only)** ve yalnızca
+bağlantılar içerir. Bir müşterinin ayrıntılarına gitmek isterseniz:
+
+1. **En çok tetikleme yapan müşteriler (Top customers)** kartındaki listede,
+   gitmek istediğiniz müşterinin adına tıklayın; bu sizi doğrudan o
+   müşterinin ayrıntı sayfasına götürür.
+2. Aradığınız müşteri bu kısa listede yoksa, kartın üzerindeki **Tüm
+   müşteriler (All customers)** bağlantısına tıklayarak tam müşteri listesine
+   (**Müşteriler (Customers)** ekranı, bkz. Bölüm 5) gidin ve müşteriyi orada
+   arayın.
+
+#### İpuçları ve dikkat edilecekler
+
+- Genel Bakış ekranında **hiçbir düğme veya form yoktur**; bu ekran yalnızca
+  bilgi görüntülemek ve diğer ekranlara bağlantı vermek içindir (salt
+  görüntüleme + linkler). Bir ayar değiştirmek veya kayıt oluşturmak
+  istiyorsanız ilgili diğer ekranlara (**Müşteriler**, **Cihaz Filosu**, vb.)
+  gitmeniz gerekir.
+- **Bu ay yapılan tetiklemeler (Activations this month)** kartındaki
+  **+12.1%** rozetinin **sabit (hardcoded)** bir değer olduğunu unutmayın —
+  bu, gerçek bir aylık karşılaştırma değildir; canlı veri değildir.
+- **Şirkete göre krediler (Credits by company)** tablosu yalnızca ilk 10
+  şirketi gösterir; platformda 10'dan fazla şirket kredi harcamışsa, bu
+  listede yer almayan şirketler olabilir.
+
+## 5. Müşteriler (Customers)
+
+Bu bölüm, platformdaki tüm müşteri firmalarını (kiracıları) listeleyen
+**Müşteriler (Customers)** ekranını ve yeni bir müşteri oluşturma işlemini
+anlatır. Bu ekranın adresi **`/admin/customers`**'dır.
+
+#### Bu ekran ne işe yarar?
+
+Müşteriler ekranının başlığı **"Customers"**, alt açıklaması ise platformdaki
+toplam mağaza zinciri sayısını gösteren "{N} store chains on Ditto" ("Ditto'da
+{N} mağaza zinciri") biçimindedir — buradaki {N} sayısı, o an platformdaki
+toplam müşteri sayısına göre otomatik güncellenir. Bu ekran, Süper Admin'in
+platformdaki **tüm müşterileri (kiracıları)** tek bir tabloda görmesini ve
+gerektiğinde **yeni bir müşteri (yeni bir kiracı)** oluşturmasını sağlar.
+
+#### Ekranda neler var?
+
+Ekranın sağ üst köşesinde bir **Yeni müşteri (New customer)** düğmesi bulunur;
+bu düğme yeni bir müşteri oluşturma penceresini (dialog) açar.
+
+Ekranın ana kısmında bir tablo yer alır; sütunları şunlardır:
+
+- **Müşteri (Customer):** Müşteri firmanın adı.
+- **Mağazalar (Stores):** Müşterinin sahip olduğu mağaza sayısı.
+- **Cihazlar (Devices):** Müşterinin sahip olduğu cihaz (yazıcı) sayısı.
+- **Sağlık (Health):** Müşterinin cihaz filosunun genel sağlık durumunu
+  gösterir. Bu hücrede renkli bir nokta, bir durum etiketi ve çevrimiçi/toplam
+  cihaz sayısı (`online/total`, örn. "(4/6)") birlikte gösterilir. Alabileceği
+  değerler:
+  - **Sağlıklı (Healthy)** — yeşil nokta,
+  - **Uyarı (Warning)** — amber (turuncu-sarı) nokta,
+  - **Kritik (Critical)** — kırmızı nokta.
+- **Tetiklemeler (ay) (Activations (mo.)):** O müşterinin bu ayki toplam
+  tetikleme sayısı.
+- **Durum (Status):** Müşterinin hesap durumunu gösteren bir rozet (badge).
+  Alabileceği değerler:
+  - **Aktif (Active)** — yeşil rozet,
+  - **Deneme (Trial)** — mor rozet,
+  - **Askıya alınmış (Suspended)** — kırmızı rozet.
+- Satırın en sağında bir **ok işareti (chevron)** bulunur; bu, satırın
+  tıklanabilir olduğunu ve bir ayrıntı sayfasına götürdüğünü belirtir.
+
+Tablodaki herhangi bir satıra tıkladığınızda, o müşterinin ayrıntı sayfasına
+(**`/admin/customers/{id}`**) yönlendirilirsiniz.
+
+#### Adım adım: Yeni müşteri oluşturma
+
+1. Müşteriler ekranının sağ üst köşesindeki **Yeni müşteri (New customer)**
+   düğmesine tıklayın.
+2. Karşınıza başlığı **"New customer"**, açıklaması **"Add a store chain to
+   the Ditto platform."** ("Ditto platformuna bir mağaza zinciri ekleyin.")
+   olan bir pencere (dialog) açılır. Bu pencerede üç alan bulunur:
+   - **Şirket adı (Company name)** — **zorunlu** bir alandır; örnek olarak
+     "e.g. Roastwell Coffee" ("örn. Roastwell Coffee") yer tutucusu
+     (placeholder) gösterilir.
+   - **İletişim adı (Contact name)** — isteğe bağlıdır; "Jane Doe" yer
+     tutucusu gösterilir.
+   - **İletişim e-postası (Contact email)** — isteğe bağlıdır; "jane@store.com"
+     yer tutucusu gösterilir.
+3. **Şirket adı (Company name)** alanını doldurun — bu alan zorunludur, boş
+   bırakırsanız müşteri oluşturulamaz. Dilerseniz **İletişim adı (Contact
+   name)** ve **İletişim e-postası (Contact email)** alanlarını da doldurun.
+4. Vazgeçmek isterseniz **İptal (Cancel)** düğmesine tıklayarak pencereyi
+   kapatabilirsiniz.
+5. Müşteriyi oluşturmak için **Müşteri oluştur (Create customer)** düğmesine
+   tıklayın. İşlem sürerken düğme metni **"Creating…"** ("Oluşturuluyor…")
+   olarak değişir.
+6. İşlem başarılı olursa ekranda **"Customer created"** ("Müşteri
+   oluşturuldu") başlıklı bir bildirim (toast) belirir; bildirimin alt
+   satırında "{isim} has been added to Ditto." ("{isim} Ditto'ya eklendi.")
+   açıklaması yer alır ve yeni müşteri tabloya eklenir. İşlem başarısız
+   olursa, **"Couldn't create customer"** ("Müşteri oluşturulamadı") başlıklı
+   bir hata bildirimi görünür; bildirimin açıklama kısmında sunucudan dönen
+   hata mesajı gösterilir.
+
+#### İpuçları ve dikkat edilecekler
+
+- **Şirket adı (Company name)** alanı zorunludur; bu alanı boş bırakırsanız
+  müşteri oluşturulamaz. **İletişim adı (Contact name)** ve **İletişim
+  e-postası (Contact email)** alanları isteğe bağlıdır, boş bırakılabilir.
+- **Sağlık (Health)** sütunu ile **Durum (Status)** sütununu birbirine
+  karıştırmayın: **Sağlık**, cihazların o an çevrimiçi olup olmadığını
+  (teknik/operasyonel durum) gösterirken; **Durum**, müşterinin hesap
+  durumunu (ticari/idari durum: aktif, deneme, askıya alınmış) gösterir. Bir
+  müşteri "Aktif (Active)" durumda olduğu halde cihazları "Kritik (Critical)"
+  sağlık durumunda olabilir, ya da tam tersi.
+- Tablodaki bir satıra tıklayarak o müşterinin ayrıntı sayfasına
+  gidebilirsiniz; bu sayfa bu kılavuzun ileriki bir bölümünde ayrıca ele
+  alınacaktır.

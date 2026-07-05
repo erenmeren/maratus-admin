@@ -692,8 +692,9 @@ firmware)**.
    **anında** cihaza iletilmez; cihaz bir sonraki kez sunucuyu yokladığında
    (poll ettiğinde) komutu alır.
 3. Gönderdiğiniz komut, bölümün altındaki **komut geçmişi (command history)**
-   tablosuna yeni bir satır olarak eklenir. Bu tablonun sütunları: **Command**
-   (komut türü), **Status** (durum) ve **Queued** (kuyruğa alınma zamanı).
+   tablosuna yeni bir satır olarak eklenir. Bu tablonun sütunları: **Komut
+   (Command)** (komut türü), **Durum (Status)** ve **Kuyruğa alınma (Queued)**
+   (kuyruğa alınma zamanı).
 
 ### İpuçları ve dikkat edilecekler
 
@@ -718,7 +719,7 @@ firmware)**.
 - **Uzaktan kontrol (Remote control)** düğmeleriyle gönderdiğiniz komutlar
   **anında yürütülmez**; cihaz komutu ancak bir sonraki bağlantı kontrolünde
   (poll) alır ve işler. Komutun ne zaman işlendiğini görmek için **komut
-  geçmişi (command history)** tablosundaki **Status** sütununu kontrol edin.
+  geçmişi (command history)** tablosundaki **Durum (Status)** sütununu kontrol edin.
 
 ## 8. Firmware
 

@@ -113,7 +113,7 @@ Bu bölümü tamamladığınızda, Ditto Admin'e giriş yapabilecek ve Süper Ad
 paneli içinde temel gezinmeyi (sol menü ve üst çubuk) yapabilecek durumda
 olacaksınız.
 
-#### Adım adım: Giriş yapma
+### Adım adım: Giriş yapma
 
 1. Tarayıcınızda uygulamanın giriş sayfasına, yani **`/login`** adresine gidin.
 2. **E-posta (Email)** alanına hesabınızın e-posta adresini girin.
@@ -205,8 +205,8 @@ görebilir.
 Ekranın üst kısmında üç **KPI kartı (KPI cards — anahtar performans göstergesi
 kartları)** yer alır:
 
-1. **Bu ay yapılan tetiklemeler (Activations this month):** Bu ay platform
-   genelinde gerçekleşen toplam tetikleme (activation) sayısını gösterir; ipucu
+1. **Bu ayki aktivasyonlar (Activations this month):** Bu ay platform
+   genelinde gerçekleşen toplam aktivasyon sayısını gösterir; ipucu
    metni "platform-wide" ("platform genelinde") yazar. Kartın yanında
    **+12.1%** değerinde bir değişim rozeti (delta badge) görünür.
 
@@ -230,17 +230,17 @@ kartları)** yer alır:
    bulunmaz.
 
 KPI kartlarının altında bir **grafik kartı (chart card)** yer alır: **Zaman
-içinde tetiklemeler (Activations over time)**. Bu kart "Monthly activations,
-all customers" ("Tüm müşteriler için aylık tetiklemeler") açıklamasıyla, bir
-**alan grafiği (area chart)** üzerinde tetiklemelerin zaman içindeki seyrini
+içinde aktivasyonlar (Activations over time)**. Bu kart "Monthly activations,
+all customers" ("Tüm müşteriler için aylık aktivasyonlar") açıklamasıyla, bir
+**alan grafiği (area chart)** üzerinde aktivasyonların zaman içindeki seyrini
 gösterir.
 
 Grafiğin altında iki **tablo kartı (table card)** bulunur:
 
-- **En çok tetikleme yapan müşteriler (Top customers):** "By activations this
-  month" ("Bu ayki tetiklemelere göre") açıklamasıyla, en çok tetikleme yapan
+- **En çok aktivasyon yapan müşteriler (Top customers):** "By activations this
+  month" ("Bu ayki aktivasyonlara göre") açıklamasıyla, en çok aktivasyon yapan
   müşterileri listeler. Sütunları: **Müşteri (Customer)**, **Mağazalar
-  (Stores)**, **Cihazlar (Devices)**, **Tetiklemeler (Activations)**. Tablodaki
+  (Stores)**, **Cihazlar (Devices)**, **Aktivasyonlar (Activations)**. Tablodaki
   müşteri adları tıklanabilir birer bağlantıdır ve ilgili müşterinin ayrıntı
   sayfasına (**`/admin/customers/{id}`**) götürür; her satırda ayrıca, Bölüm
   5'te ayrıntılı anlatılan bir **durum rozeti (status badge)** bulunur.
@@ -262,7 +262,7 @@ Genel Bakış ekranında herhangi bir veriyi değiştirebileceğiniz bir kontrol
 yoktur; ekran tamamen **salt görüntülemedir (read-only)** ve yalnızca
 bağlantılar içerir. Bir müşterinin ayrıntılarına gitmek isterseniz:
 
-1. **En çok tetikleme yapan müşteriler (Top customers)** kartındaki listede,
+1. **En çok aktivasyon yapan müşteriler (Top customers)** kartındaki listede,
    gitmek istediğiniz müşterinin adına tıklayın; bu sizi doğrudan o
    müşterinin ayrıntı sayfasına götürür.
 2. Aradığınız müşteri bu kısa listede yoksa, kartın üzerindeki **Tüm
@@ -277,7 +277,7 @@ bağlantılar içerir. Bir müşterinin ayrıntılarına gitmek isterseniz:
   görüntüleme + linkler). Bir ayar değiştirmek veya kayıt oluşturmak
   istiyorsanız ilgili diğer ekranlara (**Müşteriler**, **Cihaz Filosu**, vb.)
   gitmeniz gerekir.
-- **Bu ay yapılan tetiklemeler (Activations this month)** kartındaki
+- **Bu ayki aktivasyonlar (Activations this month)** kartındaki
   **+12.1%** rozetinin **sabit (hardcoded)** bir değer olduğunu unutmayın —
   bu, gerçek bir aylık karşılaştırma değildir; canlı veri değildir.
 - **Şirkete göre krediler (Credits by company)** tablosu yalnızca ilk 10
@@ -316,8 +316,8 @@ Ekranın ana kısmında bir tablo yer alır; sütunları şunlardır:
   - **Sağlıklı (Healthy)** — yeşil nokta,
   - **Uyarı (Warning)** — amber (turuncu-sarı) nokta,
   - **Kritik (Critical)** — kırmızı nokta.
-- **Tetiklemeler (ay) (Activations (mo.)):** O müşterinin bu ayki toplam
-  tetikleme sayısı.
+- **Aktivasyonlar (ay) (Activations (mo.)):** O müşterinin bu ayki toplam
+  aktivasyon sayısı.
 - **Durum (Status):** Müşterinin hesap durumunu gösteren bir rozet (badge).
   Alabileceği değerler:
   - **Aktif (Active)** — yeşil rozet,
@@ -396,12 +396,12 @@ geri bağlantısı bulunur.
 
 Ekran, yukarıdan aşağıya doğru şu kartlardan oluşur:
 
-**Başlık kartı (Header card):** Müşterinin adını ve hesap **durum rozetini
-(status badge** — bkz. Bölüm 5, **Durum (Status)** sütunu: Aktif/Deneme/
-Askıya alınmış) gösterir. Altında iki iletişim bilgisi yer alır: **e-posta
-adresi** (bir zarf simgesiyle, **Mail**) ve **telefon numarası** (bir ahize
-simgesiyle, **Phone**). Kartın sağında **Şube ekle (Add branch)** düğmesi
-bulunur.
+**Başlık kartı (Header card):** Müşterinin adını ve hesabın **durum rozetini
+(status badge)** gösterir — Aktif/Deneme/Askıya alınmış (bkz. Bölüm 5,
+**Durum (Status)** sütunu). Altında iki iletişim bilgisi yer alır: **e-posta
+adresi** (bir zarf simgesiyle, **E-posta (Mail)**) ve **telefon numarası**
+(bir ahize simgesiyle, **Telefon (Phone)**). Kartın sağında **Şube ekle
+(Add branch)** düğmesi bulunur.
 
 **Sağlık özeti şeridi (Health summary strip):** Renkli bir nokta ve bir
 seviye etiketiyle müşterinin cihaz filosunun genel sağlığını gösterir —
@@ -411,37 +411,38 @@ Bölüm 5). Bunun yanında dört sayaç yer alır: **Çevrimiçi (Online)**,
 bekleyen (Stuck pending)**.
 
 **KPI kartları:** Üç kart yer alır: **Mağazalar (Stores)**, **Cihazlar
-(Devices)** ve **Bu ay yapılan tetiklemeler (Activations this month)**.
+(Devices)** ve **Bu ayki aktivasyonlar (Activations this month)**.
 
-**Grafik kartı — Mağazaya göre tetiklemeler (Activations by store):** "This
+**Grafik kartı — Mağazaya göre aktivasyonlar (Activations by store):** "This
 month, per branch" ("Bu ay, şubeye göre") açıklamasıyla, her şubenin bu ayki
-tetikleme sayısını **yatay çubuk grafik (horizontal bar chart)** olarak
+aktivasyon sayısını **yatay çubuk grafik (horizontal bar chart)** olarak
 gösterir.
 
 **Krediler kartı (Credits card):** Başlığın altında müşterinin güncel kredi
 durumu özetlenir: **Available:** (kullanılabilir kredi) {n} ve **Held:**
 (rezerve/tutulan kredi) {n}. Bu kartın içinde iki bölüm bulunur:
 
-- **Kredi yükleme formu (Grant credits):** **Credits** (sayı, zorunlu, en az
-  1 en çok 1.000.000, yer tutucu "e.g. 100") ve **Note (optional)** (isteğe
-  bağlı not, yer tutucu "e.g. promotional grant") alanlarından oluşur;
-  gönder düğmesi **Grant credits** ("Granting…" durumuna geçer). Başarılı
-  olursa "Credits granted." ("Kredi yüklendi.") mesajı görünür; geçersiz bir
-  miktar girilirse "Enter a whole credit amount between 1 and 1,000,000."
-  ("1 ile 1.000.000 arasında tam sayı bir kredi miktarı girin.") hata mesajı
-  görünür.
+- **Kredi yükleme formu (Grant credits):** **Kredi (Credits)** (sayı,
+  zorunlu, en az 1 en çok 1.000.000, yer tutucu "e.g. 100") ve **Not (isteğe
+  bağlı) (Note (optional))** (yer tutucu "e.g. promotional grant")
+  alanlarından oluşur; gönder düğmesi **Kredi yükle (Grant credits)**
+  ("Granting…" durumuna geçer). Başarılı olursa "Credits granted." ("Kredi
+  yüklendi.") mesajı görünür; geçersiz bir miktar girilirse "Enter a whole
+  credit amount between 1 and 1,000,000." ("1 ile 1.000.000 arasında tam
+  sayı bir kredi miktarı girin.") hata mesajı görünür.
 - **Kredi hareket dökümü (ledger) tablosu:** Kayıt varsa şu sütunlarla
-  listelenir: **Kind** (hareket türü), **Credits** (miktar), **Device**
-  (ilgili cihaz varsa), **Note** (not) ve **Time** (zaman). Hiç kayıt yoksa
-  "No ledger entries yet." ("Henüz kredi hareketi yok.") mesajı gösterilir.
+  listelenir: **Hareket türü (Kind)**, **Kredi (Credits)**, **Cihaz
+  (Device)** (ilgili cihaz varsa), **Not (Note)** ve **Zaman (Time)**. Hiç
+  kayıt yoksa "No ledger entries yet." ("Henüz kredi hareketi yok.") mesajı
+  gösterilir.
 
 **Atanmış cihazlar kartı (Assigned devices card):** Başlığın altında "{N}
 printers across all stores" ("Tüm mağazalarda {N} yazıcı") açıklaması,
 sağ üstte ise **Cihaz ekle (Add device)** düğmesi bulunur. Tablo sütunları:
-**Device** (cihaz kimliği), **Store** (mağaza), **Status** (durum, bir renkli
-nokta ile), **Last seen** (son görülme), **Activations (mo.)** (bu ayki
-tetiklemeler) ve en sağda her satır için bir **satır işlemleri menüsü
-(row-actions menu)**.
+**Cihaz (Device)** (cihaz kimliği), **Mağaza (Store)**, **Durum (Status)**
+(bir renkli nokta ile), **Son görülme (Last seen)**, **Aktivasyonlar (ay)
+(Activations (mo.))** ve en sağda her satır için bir **satır işlemleri
+menüsü (row-actions menu)**.
 
 **Etkinlik (Activity) bölümü:** Bu müşteriye ait en fazla **50** denetim
 (audit) olayını, insan tarafından okunabilir etiketlerle listeler — örneğin
@@ -453,12 +454,13 @@ sağlandı"), "Credits granted" ("Kredi yüklendi"), "Device paused/resumed"
 ### Adım adım: Kredi yükleme (Grant credits)
 
 1. Müşteri Detayı ekranında **Krediler (Credits)** kartına gidin.
-2. **Credits** alanına yüklemek istediğiniz kredi miktarını girin — bu alan
-   **zorunludur** ve **1 ile 1.000.000 arasında bir tam sayı** olmalıdır
-   (yer tutucu: "e.g. 100").
-3. İsterseniz **Note (optional)** alanına bu yüklemeyle ilgili bir açıklama
-   yazın (örn. "promotional grant" — "promosyon amaçlı yükleme").
-4. **Grant credits** düğmesine tıklayın. İşlem sürerken düğme metni
+2. **Kredi (Credits)** alanına yüklemek istediğiniz kredi miktarını girin —
+   bu alan **zorunludur** ve **1 ile 1.000.000 arasında bir tam sayı**
+   olmalıdır (yer tutucu: "e.g. 100").
+3. İsterseniz **Not (isteğe bağlı) (Note (optional))** alanına bu yüklemeyle
+   ilgili bir açıklama yazın (örn. "promotional grant" — "promosyon amaçlı
+   yükleme").
+4. **Kredi yükle (Grant credits)** düğmesine tıklayın. İşlem sürerken düğme metni
    **"Granting…"** ("Yükleniyor…") olarak değişir.
 5. İşlem başarılı olursa "Credits granted." ("Kredi yüklendi.") mesajı
    görünür ve **Available** (kullanılabilir) bakiye güncellenir. Girdiğiniz
@@ -467,8 +469,8 @@ sağlandı"), "Credits granted" ("Kredi yüklendi"), "Device paused/resumed"
    yükleme gerçekleşmez.
 6. Başarılı her yükleme, kartın altındaki **kredi hareket dökümü (ledger)**
    tablosuna yeni bir satır olarak eklenir; bu satırda hareketin türü
-   (**Kind**), miktarı (**Credits**), ilişkili cihaz varsa **Device**,
-   yazdığınız not (**Note**) ve zamanı (**Time**) görüntülenir.
+   (**Kind**), miktarı (**Credits**), ilişkili cihaz varsa cihazı
+   (**Device**), yazdığınız not (**Note**) ve zamanı (**Time**) görüntülenir.
 
 ### Adım adım: Şube ekleme (Add branch)
 
@@ -597,8 +599,8 @@ Filtrelerin altında ana tablo yer alır; sütunları şunlardır:
   sürümü. Cihazın sürümünden daha yeni bir yayınlanmış sürüm varsa, sürümün
   yanında **amber (turuncu-sarı) renkli bir güncelleme (update) rozeti**
   görünür.
-- **Tetiklemeler (ay) (Activations (mo.)):** Cihazın bu ayki toplam
-  tetikleme sayısı.
+- **Aktivasyonlar (ay) (Activations (mo.)):** Cihazın bu ayki toplam
+  aktivasyon sayısı.
 - En sağda, satır işlemleri için bir menü düğmesi bulunur (aşağıya bakınız).
 
 Tablonun altında "Showing {n} of {total} devices." ("{total} cihazdan {n}
@@ -635,8 +637,9 @@ düğmesine tıkladığınızda aşağıdaki eylemler açılır:
 - **Sil (Delete):** **Yıkıcı (destructive)** bir eylemdir; tıklandığında bir
   onay penceresi açılır: başlık "Delete device?" ("Cihaz silinsin mi?"),
   açıklama "This permanently removes {ad} and its document history. This
-  can't be undone." ("Bu, {ad} adlı cihazı ve belge geçmişini kalıcı olarak
-  kaldırır. Bu işlem geri alınamaz."). Onaylarsanız cihaz kalıcı olarak
+  can't be undone." ("Bu, {ad} adlı cihazı ve belge geçmişini (cihazın
+  geçmiş aktivasyon kayıtları) kalıcı olarak kaldırır. Bu işlem geri
+  alınamaz."). Onaylarsanız cihaz kalıcı olarak
   silinir ve **Cihaz silindi (Device deleted)** bildirimi görünür.
 
 ### Cihaz Detayı (Device Detail)
@@ -652,8 +655,8 @@ Fleet"** geri bağlantısı bulunur. Başlık, cihazın adıdır; alt açıklama
 
 Ekranda şu bölümler yer alır:
 
-- **KPI kartları:** **Bugünkü tetiklemeler (Activations today)** ve
-  **Bu ayki tetiklemeler (Activations this month)**.
+- **KPI kartları:** **Bugünkü aktivasyonlar (Activations today)** ve
+  **Bu ayki aktivasyonlar (Activations this month)**.
 - **Cihaz ayrıntıları (Device details) kartı:** **Cihaz kimliği (Device
   ID)**, **IP adresi (IP address)**, **Bağlantı (Connection)** (bağlantı
   türü — "Wi-Fi" veya "Ethernet") ve **Ürün yazılımı (Firmware)**
@@ -856,29 +859,39 @@ listelenir:
 - **Cihaz tazeliği uyarısı (uyarı/warning rengi):** "**{n} device(s) not seen
   in 15+ minutes**" ("{n} cihaz 15+ dakikadır görülmedi") — 15 dakikadan uzun
   süredir kendini bildirmeyen (duraklatılmamış) cihaz sayısını gösterir.
-- **Takılı kalmış belge uyarısı (uyarı/warning rengi):** "**{n} document(s)
-  stuck pending 30+ minutes**" ("{n} belge 30+ dakikadır beklemede takılı
-  kaldı") — 30 dakikadan uzun süredir "pending" (beklemede) durumunda takılı
-  kalan işlem sayısını gösterir.
+- **Beklemede takılı işlem (tetikleme) uyarısı (uyarı/warning rengi):** "**{n}
+  document(s) stuck pending 30+ minutes**" ("{n} beklemede takılı işlem
+  (tetikleme), 30+ dakikadır bekliyor") — 30 dakikadan uzun süredir "pending"
+  (beklemede) durumunda takılı kalan tetikleme sayısını gösterir.
 - **Hareketsiz kiracı uyarısı (bilgi/info rengi):** Son 7 gündür hiç
   aktivasyonu olmayan her kiracı için ayrı bir satır: "**{kiracı adı}: no
-  documents in 7 days**" ("{kiracı adı}: 7 gündür belge yok"). Hareketsiz
-  kiracı sayısı **5'ten fazla** ise, bu tek tek satırlar yerine tek bir özet
-  uyarıya **çöker (collapse)**: "**{n} tenants have no documents in 7 days**"
-  ("{n} kiracının 7 gündür belgesi yok") — bu, çok sayıda boş kiracısı olan
-  bir platformda uyarı şeridinin aşırı uzamasını önler.
+  documents in 7 days**" ("{kiracı adı}: 7 gündür aktivasyon yok").
+  Hareketsiz kiracı sayısı **5'ten fazla** ise, bu tek tek satırlar yerine
+  tek bir özet uyarıya **çöker (collapse)**: "**{n} tenants have no documents
+  in 7 days**" ("{n} kiracının 7 gündür aktivasyonu yok") — bu, çok sayıda
+  boş kiracısı olan bir platformda uyarı şeridinin aşırı uzamasını önler.
 
-**Filo tazeliği (Fleet freshness):** Dört KPI kartı içerir: **Cihazlar
+> **Önemli — "document" kelimesi tarihsel bir kalıntıdır:** Yukarıdaki iki
+> uyarı örneğinde geçen İngilizce **"document"** kelimesi ("document(s)
+> stuck pending 30+ minutes" ve "no documents in 7 days"), sistemin eski
+> (belge tabanlı) mimarisinden kalma bir kalıntıdır ve arayüz metni olduğu
+> için değiştirilemez. Ditto artık yalnızca tetikleme-modeliyle
+> (trigger-only) çalıştığından ve belgeleri kendi sunucularında
+> barındırmadığından (bkz. Bölüm 2.1), bu mesajlar aslında depolanan bir
+> belgeyi değil, **beklemede takılı bir işlemi (tetikleme)** ya da
+> **eksik aktivasyonu** işaret eder.
+
+**Filo güncelliği (Fleet freshness):** Dört KPI kartı içerir: **Cihazlar
 (Devices)** (toplam cihaz sayısı), **Çevrimiçi (Online)**, **Duraklatılmış
-(Paused)** ve **Bayat (15dk+) (Stale (15m+))** (15 dakikadan uzun süredir
-görülmeyen cihaz sayısı). Bayat cihaz varsa, KPI kartlarının altında bir
-**bayat cihazlar tablosu** görünür; sütunları **Cihaz (Device)**, **Kiracı
-(Tenant)** ve **Son görülme (Last seen)**'dir. Hiç bayat cihaz yoksa bu tablo
-hiç görüntülenmez.
+(Paused)** ve **Eskimiş (15dk+) (Stale (15m+))** (15 dakikadan uzun süredir
+görülmeyen cihaz sayısı). Eskimiş cihaz varsa, KPI kartlarının altında bir
+**eskimiş cihazlar tablosu** görünür; sütunları **Cihaz (Device)**, **Kiracı
+(Tenant)** ve **Son görülme (Last seen)**'dir. Hiç eskimiş cihaz yoksa bu
+tablo hiç görüntülenmez.
 
 **Tetikleme etkinliği (Trigger activity):** Üç KPI kartı içerir:
-**Tetiklemeler (1sa) (Activations (1h))**, **Tetiklemeler (24sa) (Activations
-(24h))** ve **Takılı kalmış bekleyenler (Stuck pending)**. Kartların altında
+**Aktivasyonlar (1sa) (Activations (1h))**, **Aktivasyonlar (24sa)
+(Activations (24h))** ve **Takılı kalmış bekleyenler (Stuck pending)**. Kartların altında
 bir alt satır bulunur: "**Last 24h: {n} acked · {n} pending · {n} failed**"
 ("Son 24 saat: {n} onaylandı (acked) · {n} beklemede (pending) · {n}
 başarısız (failed)") — bu, son 24 saatteki tüm tetiklemelerin nihai durumlara
@@ -907,15 +920,15 @@ göre dökümünü gösterir.
 - Bu ekran **tamamen salt görüntülemedir**; herhangi bir düğme veya form
   aramayın — burada hiçbiri yoktur.
 - Uyarı eşiklerini birbirinden ayırt edin: **cihaz tazeliği** 15 dakika,
-  **takılı kalmış belge/işlem** 30 dakika, **hareketsiz kiracı** 7 gün
-  eşiğini kullanır — üçü de farklı sürelerdir.
+  **beklemede takılı işlem (tetikleme)** 30 dakika, **hareketsiz kiracı**
+  7 gün eşiğini kullanır — üçü de farklı sürelerdir.
 - Hareketsiz kiracı sayısı **5'i aştığında**, uyarı şeridinde kiracı adları
   tek tek görünmez; bunun yerine tek bir toplu sayı (örn. "7 tenants have no
   documents in 7 days") gösterilir. Belirli bir kiracının durumunu görmek
   isterseniz **Per-tenant usage** bölümündeki **Inactive (7d+)** listesine
   veya **Müşteriler (Customers)** ekranına (Bölüm 5) bakın.
-- **Fleet freshness** altındaki bayat cihazlar tablosu, yalnızca bayat cihaz
-  **varsa** görünür; hiç bayat cihaz yoksa bu bölümde KPI kartlarının altında
+- **Fleet freshness** altındaki eskimiş cihazlar tablosu, yalnızca eskimiş
+  cihaz **varsa** görünür; hiç eskimiş cihaz yoksa bu bölümde KPI kartlarının altında
   hiçbir tablo görüntülenmez.
 
 ## 10. Faturalandırma & Krediler (Billing & Credits)

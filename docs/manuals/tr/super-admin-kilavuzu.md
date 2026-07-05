@@ -373,3 +373,172 @@ Tablodaki herhangi bir satıra tıkladığınızda, o müşterinin ayrıntı say
 - Tablodaki bir satıra tıklayarak o müşterinin ayrıntı sayfasına
   gidebilirsiniz; bu sayfa bu kılavuzun ileriki bir bölümünde ayrıca ele
   alınacaktır.
+
+## 6. Müşteri Detayı (Customer Detail)
+
+Bu bölüm, **Müşteriler (Customers)** ekranındaki bir satıra tıkladığınızda
+açılan **Müşteri Detayı (Customer Detail)** ekranını anlatır. Bu ekranın
+adresi **`/admin/customers/{tenantId}`**'dir ve tek bir müşteriye (kiracıya)
+ait tüm ayrıntıları — sağlık durumu, KPI'lar, krediler, cihazlar ve
+etkinlik geçmişi — bir arada gösterir. Belirtilen kimliğe (`tenantId`) sahip
+bir müşteri bulunamazsa, ekran **404 (bulunamadı)** hatası döner.
+
+### Bu ekran ne işe yarar?
+
+Müşteri Detayı ekranı, Süper Admin'in **tek bir müşteriyi** derinlemesine
+incelemesini ve o müşteriyle ilgili üç temel işlemi yapmasını sağlar: müşteriye
+**kredi yüklemek**, müşteriye yeni bir **şube (branch)** eklemek ve müşteri
+için yeni bir **cihaz (printer) sağlamak (provision)**. Ekranın en üstünde,
+**Müşteriler (Customers)** ekranına dönmenizi sağlayan bir **"← Customers"**
+geri bağlantısı bulunur.
+
+### Ekranda neler var?
+
+Ekran, yukarıdan aşağıya doğru şu kartlardan oluşur:
+
+**Başlık kartı (Header card):** Müşterinin adını ve hesap **durum rozetini
+(status badge** — bkz. Bölüm 5, **Durum (Status)** sütunu: Aktif/Deneme/
+Askıya alınmış) gösterir. Altında iki iletişim bilgisi yer alır: **e-posta
+adresi** (bir zarf simgesiyle, **Mail**) ve **telefon numarası** (bir ahize
+simgesiyle, **Phone**). Kartın sağında **Şube ekle (Add branch)** düğmesi
+bulunur.
+
+**Sağlık özeti şeridi (Health summary strip):** Renkli bir nokta ve bir
+seviye etiketiyle müşterinin cihaz filosunun genel sağlığını gösterir —
+**Sağlıklı (Healthy)**, **Uyarı (Warning)** veya **Kritik (Critical)** (bkz.
+Bölüm 5). Bunun yanında dört sayaç yer alır: **Çevrimiçi (Online)**,
+**Çevrimdışı (Offline)**, **Duraklatılmış (Paused)** ve **Takılı kalmış,
+bekleyen (Stuck pending)**.
+
+**KPI kartları:** Üç kart yer alır: **Mağazalar (Stores)**, **Cihazlar
+(Devices)** ve **Bu ay yapılan tetiklemeler (Activations this month)**.
+
+**Grafik kartı — Mağazaya göre tetiklemeler (Activations by store):** "This
+month, per branch" ("Bu ay, şubeye göre") açıklamasıyla, her şubenin bu ayki
+tetikleme sayısını **yatay çubuk grafik (horizontal bar chart)** olarak
+gösterir.
+
+**Krediler kartı (Credits card):** Başlığın altında müşterinin güncel kredi
+durumu özetlenir: **Available:** (kullanılabilir kredi) {n} ve **Held:**
+(rezerve/tutulan kredi) {n}. Bu kartın içinde iki bölüm bulunur:
+
+- **Kredi yükleme formu (Grant credits):** **Credits** (sayı, zorunlu, en az
+  1 en çok 1.000.000, yer tutucu "e.g. 100") ve **Note (optional)** (isteğe
+  bağlı not, yer tutucu "e.g. promotional grant") alanlarından oluşur;
+  gönder düğmesi **Grant credits** ("Granting…" durumuna geçer). Başarılı
+  olursa "Credits granted." ("Kredi yüklendi.") mesajı görünür; geçersiz bir
+  miktar girilirse "Enter a whole credit amount between 1 and 1,000,000."
+  ("1 ile 1.000.000 arasında tam sayı bir kredi miktarı girin.") hata mesajı
+  görünür.
+- **Kredi hareket dökümü (ledger) tablosu:** Kayıt varsa şu sütunlarla
+  listelenir: **Kind** (hareket türü), **Credits** (miktar), **Device**
+  (ilgili cihaz varsa), **Note** (not) ve **Time** (zaman). Hiç kayıt yoksa
+  "No ledger entries yet." ("Henüz kredi hareketi yok.") mesajı gösterilir.
+
+**Atanmış cihazlar kartı (Assigned devices card):** Başlığın altında "{N}
+printers across all stores" ("Tüm mağazalarda {N} yazıcı") açıklaması,
+sağ üstte ise **Cihaz ekle (Add device)** düğmesi bulunur. Tablo sütunları:
+**Device** (cihaz kimliği), **Store** (mağaza), **Status** (durum, bir renkli
+nokta ile), **Last seen** (son görülme), **Activations (mo.)** (bu ayki
+tetiklemeler) ve en sağda her satır için bir **satır işlemleri menüsü
+(row-actions menu)**.
+
+**Etkinlik (Activity) bölümü:** Bu müşteriye ait en fazla **50** denetim
+(audit) olayını, insan tarafından okunabilir etiketlerle listeler — örneğin
+"Customer created" ("Müşteri oluşturuldu"), "Device provisioned" ("Cihaz
+sağlandı"), "Credits granted" ("Kredi yüklendi"), "Device paused/resumed"
+("Cihaz duraklatıldı/devam ettirildi"). Hiç etkinlik yoksa "No activity yet."
+("Henüz etkinlik yok.") mesajı gösterilir.
+
+### Adım adım: Kredi yükleme (Grant credits)
+
+1. Müşteri Detayı ekranında **Krediler (Credits)** kartına gidin.
+2. **Credits** alanına yüklemek istediğiniz kredi miktarını girin — bu alan
+   **zorunludur** ve **1 ile 1.000.000 arasında bir tam sayı** olmalıdır
+   (yer tutucu: "e.g. 100").
+3. İsterseniz **Note (optional)** alanına bu yüklemeyle ilgili bir açıklama
+   yazın (örn. "promotional grant" — "promosyon amaçlı yükleme").
+4. **Grant credits** düğmesine tıklayın. İşlem sürerken düğme metni
+   **"Granting…"** ("Yükleniyor…") olarak değişir.
+5. İşlem başarılı olursa "Credits granted." ("Kredi yüklendi.") mesajı
+   görünür ve **Available** (kullanılabilir) bakiye güncellenir. Girdiğiniz
+   miktar 1–1.000.000 aralığı dışındaysa veya tam sayı değilse, "Enter a
+   whole credit amount between 1 and 1,000,000." hata mesajı görünür ve
+   yükleme gerçekleşmez.
+6. Başarılı her yükleme, kartın altındaki **kredi hareket dökümü (ledger)**
+   tablosuna yeni bir satır olarak eklenir; bu satırda hareketin türü
+   (**Kind**), miktarı (**Credits**), ilişkili cihaz varsa **Device**,
+   yazdığınız not (**Note**) ve zamanı (**Time**) görüntülenir.
+
+### Adım adım: Şube ekleme (Add branch)
+
+1. Müşteri Detayı ekranının başlık kartındaki **Şube ekle (Add branch)**
+   düğmesine tıklayın.
+2. Karşınıza başlığı **"Add branch"**, açıklaması **"Create a new branch for
+   {customer}."** ("{müşteri} için yeni bir şube oluşturun.") olan bir
+   pencere (dialog) açılır. Bu pencerede üç alan bulunur:
+   - **Şube adı (Branch name)** — **zorunlu**dur; yer tutucu "e.g. Downtown
+     Flagship" ("örn. Downtown Flagship").
+   - **Adres (Address)** — isteğe bağlıdır; yer tutucu "412 Market St, San
+     Francisco, CA".
+   - **Saat dilimi (Timezone)** — açılır bir liste (dropdown); önceden
+     tanımlı bir varsayılan değerle gelir. Altında "Used for busiest-times
+     analytics." ("En yoğun saatler analizinde kullanılır.") açıklaması yer
+     alır.
+3. **Şube adı (Branch name)** alanını doldurun — bu alan zorunludur.
+   Dilerseniz **Adres (Address)** alanını doldurun ve **Saat dilimi
+   (Timezone)** seçimini değiştirin.
+4. Vazgeçmek isterseniz **İptal (Cancel)** düğmesine tıklayın.
+5. Şubeyi oluşturmak için **Add branch** düğmesine tıklayın. İşlem sürerken
+   düğme metni **"Adding…"** ("Ekleniyor…") olarak değişir.
+6. İşlem başarılı olursa "Branch added" ("Şube eklendi") başlıklı bir
+   bildirim (toast) görünür; alt satırında "{şube adı} added to {müşteri}."
+   ("{şube adı}, {müşteri}'ye eklendi.") açıklaması yer alır ve pencere
+   kapanır.
+
+### Adım adım: Cihaz sağlama (Add device)
+
+1. **Atanmış cihazlar (Assigned devices)** kartındaki **Cihaz ekle (Add
+   device)** düğmesine tıklayın.
+2. Karşınıza başlığı **"Add device"**, açıklaması **"Provision a new printer
+   for {customer}. You'll get a pairing code to enter on the device."**
+   ("{müşteri} için yeni bir yazıcı sağlayın. Cihaza girmeniz için bir
+   eşleştirme kodu alacaksınız.") olan bir pencere açılır. Bu pencerede iki
+   alan bulunur:
+   - **Cihaz adı (Device name)** — yer tutucu "e.g. Printer 1" ("örn.
+     Printer 1").
+   - **Mağaza (isteğe bağlı) (Store (optional))** — açılır bir liste;
+     varsayılan değeri **"Unassigned"** ("Atanmamış") olup, altında "Leave
+     unassigned to let the tenant claim it into a store." ("Kiracının
+     cihazı bir mağazaya kendi kendine bağlayabilmesi için atanmamış
+     bırakın.") açıklaması yer alır.
+3. İsterseniz **Cihaz adı (Device name)** alanını doldurun ve/veya **Mağaza
+   (Store)** açılır listesinden bir mağaza seçin; boş bırakırsanız cihaz
+   **"Unassigned" (Atanmamış)** olarak sağlanır.
+4. **Add device** düğmesine tıklayın. İşlem sürerken düğme metni
+   **"Adding…"** ("Ekleniyor…") olarak değişir.
+5. İşlem başarılı olursa pencere, başlığı **"Device provisioned"** ("Cihaz
+   sağlandı") olan bir başarı durumuna geçer. Burada bir uyarı kutusunda
+   **"The device stays 'offline' until it pairs with this code."** ("Cihaz,
+   bu kodla eşleşene kadar 'offline' (çevrimdışı) kalır.") metni ve bir
+   **Eşleştirme kodu (Pairing code)** görüntülenir; kodun yanındaki
+   **kopyala (copy)** düğmesiyle kodu panoya kopyalayabilirsiniz.
+6. Bu eşleştirme kodunu, ilgili fiziksel cihazın (yazıcının) kendisine
+   girmeniz gerekir; cihaz bu kodla başarıyla eşleşene kadar sistemde
+   **çevrimdışı (offline)** görünmeye devam eder. Pencereyi kapatmak için
+   **Done** ("Tamam") düğmesine tıklayın.
+
+### İpuçları ve dikkat edilecekler
+
+- **Grant credits** formundaki **Credits** alanı yalnızca **1 ile 1.000.000
+  arasında bir tam sayı** kabul eder; bu aralığın dışında bir değer girilirse
+  veya alan boş bırakılırsa yükleme reddedilir ve hata mesajı gösterilir.
+- Yeni sağladığınız bir cihaz, **eşleştirme kodu (pairing code)** ile
+  fiziksel cihaza girilip eşleştirilene kadar filoda **"offline"
+  (çevrimdışı)** görünür; bu kod yalnızca sağlama işlemi başarılı olduğunda,
+  bir kez gösterilir — kopyala düğmesiyle kopyalamayı unutmayın.
+- **Cihaz ekle (Add device)** penceresinde **Mağaza (Store)** alanını boş
+  (**Unassigned**) bırakmak sorun değildir; bu, kiracının cihazı kendi
+  panelinden istediği mağazaya atayabilmesini sağlar.
+- **Etkinlik (Activity)** listesi bu müşteriye özel en fazla **50** olayı
+  gösterir; daha eski olaylar bu listede görünmeyebilir.

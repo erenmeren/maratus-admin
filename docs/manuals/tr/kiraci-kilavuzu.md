@@ -353,3 +353,242 @@ kullanıcılar bu ekranı yalnızca **salt-okunur (read-only)** olarak görür.
 - **Saat dilimi (Timezone)** seçimi yalnızca kozmetik değildir — mağazanın
   en yoğun saat analitiğini doğru hesaplamak için kullanılır, bu nedenle
   mağazanın gerçek saat dilimini seçmeniz önerilir.
+
+## 6. Mağaza Detayı ve Cihaz Yönetimi
+
+### Bu ekran ne işe yarar?
+
+**Mağaza detayı** ekranı (adres: **`/tenant/stores/{storeId}`**), tek bir
+mağazanın (şubenin) ayrıntılı görünümüdür: o mağazadaki tüm **cihazları
+(yazıcıları)**, mağazaya özgü aktivasyon/eko istatistiklerini ve zaman içi
+grafiklerini bir arada gösterir. Bu ekran aynı zamanda yeni bir yazıcının
+mağazaya **sahiplenilmesi (claim)** ve mevcut yazıcıların **duraklatılıp
+etkinleştirilmesi** için giriş noktasıdır. **Sahip (Owner)** ve **Yönetici
+(Admin)** rolündeki kullanıcılar burada yazıcı sahiplenebilir ve mağaza
+bilgilerini düzenleyebilir; **Üye (Member)** rolündeki kullanıcılar ekranı
+yalnızca **görüntüleyebilir**.
+
+Bir mağazanın adına (Mağazalar tablosundan veya bir Panel döşemesinden)
+tıklayarak bu ekrana ulaşırsınız. Aradığınız mağaza kiracınıza ait değilse
+veya bulunamazsa, uygulama sizi bir **404 (bulunamadı)** sayfasına
+yönlendirir.
+
+### Ekranda neler var?
+
+- **Geri bağlantısı:** Ekranın en üstünde **"Stores"** yazan bir bağlantı
+  bulunur; bu bağlantı sizi **Mağazalar (Stores)** ekranına geri götürür.
+- **Başlık:** Mağazanın adı, yanında mağazanın genel durumunu özetleyen bir
+  **durum rozeti (status badge)** ile birlikte gösterilir — **Çevrimiçi
+  (Online)**, **Çevrimdışı (Offline)** veya **Duraklatılmış (Paused)**. Bu
+  rozet, mağazadaki cihazların **toplu (rollup)** durumunu yansıtır: en az
+  bir cihaz çevrimiçiyse rozet **Çevrimiçi**, çevrimiçi cihaz yoksa ama
+  duraklatılmış cihaz varsa **Duraklatılmış**, hiçbiri değilse
+  **Çevrimdışı** görünür.
+- **Sahip (Owner)/Yönetici (Admin)** rolündeki kullanıcılar için başlığın
+  yanında iki düğme daha bulunur: **Mağazayı düzenle (Edit store)** (bkz.
+  Bölüm 5) ve **Yazıcı sahiplen (Claim printer)** (aşağıda anlatılır). Üye
+  (Member) rolündeki kullanıcılar bu iki düğmeyi görmez.
+- Başlığın altında bir harita pini ikonuyla birlikte mağazanın **adresi**
+  yer alır.
+- **KPI (temel performans göstergesi) satır 1** — 4 kart:
+  - **Yazıcılar (Printers):** "**{çevrimiçi}/{toplam}**" biçiminde, altında
+    "**online**" ibaresi.
+  - **Bugünkü aktivasyonlar (Activations today).**
+  - **Bu ayki aktivasyonlar (Activations this month).**
+  - **Yazıcı başına ortalama (Avg / printer):** altında "**activations
+    this month**" ibaresi.
+- **KPI satır 2** — 4 kart daha:
+  - **Bu ayki aktivasyonlar (Activations this month):** bu kartta bir
+    **delta (değişim) rozeti** ve "**vs last month**" (geçen ayla
+    karşılaştırma) ibaresi bulunur. **Önemli:** Panel (Dashboard)
+    ekranındaki delta değerlerinin aksine (bkz. Bölüm 4), buradaki delta
+    **sabit değildir** — mağazanın gerçek geçen-ay verisiyle
+    karşılaştırılarak hesaplanan **gerçek** bir yüzdedir.
+  - **Kağıt tasarrufu (Paper saved):** "**{kg} kg**" biçiminde, altında
+    "**this month**" (bu ay) ibaresi.
+  - **En yoğun gün (Busiest day):** altında "**last 90 days**" (son 90 gün)
+    ibaresi.
+  - **Yoğunluk saati (Peak hour):** altında "**last 90 days**" (son 90 gün)
+    ibaresi.
+- **"Aktivasyonlar zaman içinde (Activations over time)" kartı:** açıklaması
+  "**Daily activations, last 30 days**" (son 30 günün günlük
+  aktivasyonları); bir alan grafiği (area chart) ile gösterilir.
+- **"Yoğun zamanlar (Busiest times)" kartı:** açıklaması "**Activations by
+  day of week and hour, last 90 days**" (haftanın günü ve saatine göre
+  aktivasyonlar, son 90 gün); bir **ısı haritası (heatmap)** ile gösterilir.
+- **"Bu mağazadaki yazıcılar (Printers in this store)" bölümü:** mağazaya
+  bağlı her cihaz için bir **DeviceCard** (cihaz kartı) gösteren bir ızgara
+  (grid). Mağazada henüz cihaz yoksa "**No printers here yet**" (henüz
+  buraya ait yazıcı yok) mesajı görünür; Sahip/Yönetici rolündeyseniz
+  altında ayrıca "**Claim a printer with its pairing code to start issuing
+  activations at this store.**" (bir yazıcıyı eşleştirme koduyla
+  sahiplenerek bu mağazada aktivasyon üretmeye başlayın) açıklaması
+  görünür.
+- **"Sahiplenilmemiş yazıcılar (Unclaimed printers)" kartı:** yalnızca
+  **Sahip (Owner)/Yönetici (Admin)** rolündeki kullanıcılara ve yalnızca
+  kiracınızda henüz bir mağazaya bağlanmamış (sahiplenilmemiş) cihaz
+  varsa görünür. Kart, kaç cihazın sahiplenilmeyi beklediğini belirtir ve
+  her cihaz için adını ve mono (eşit aralıklı) yazı tipiyle gösterilen
+  **eşleştirme kodunu (pairing code)** listeler.
+
+### Adım adım: Yazıcı sahiplenme (Claim printer)
+
+> Bu adımlar yalnızca **Sahip (Owner)** veya **Yönetici (Admin)**
+> rolündeki kullanıcılar için geçerlidir.
+
+1. Mağaza detayı ekranında başlığın yanındaki **"Yazıcı sahiplen (Claim
+   printer)"** düğmesine tıklayın.
+2. Açılan **"Bir yazıcı sahiplen (Claim a printer)"** diyaloğunda ("Enter
+   the pairing code shown on the printer screen to bind it to this store."
+   — yazıcının ekranında görünen eşleştirme kodunu girerek onu bu mağazaya
+   bağlayın), **Eşleştirme kodu (Pairing code)** alanına yazıcının
+   ekranında gördüğünüz kodu girin. Bu alan **zorunludur**; girdiğiniz
+   metin otomatik olarak **BÜYÜK HARFE** çevrilir ve yer tutucu biçimi
+   "**XXXX-XXXX**" şeklindedir. Alanın altında "**Find it under Settings →
+   Pairing on the device.**" (cihazda Settings → Pairing altında bulabilirsiniz)
+   yardım metni bulunur.
+3. Vazgeçmek isterseniz **İptal (Cancel)** düğmesine tıklayın; onaylamak
+   için **"Yazıcı sahiplen (Claim printer)"** düğmesine tıklayın (işlem
+   sürerken düğme metni "**Claiming…**" olarak değişir).
+4. İşlem başarılı olursa diyalog, "**{cihaz adı} claimed**" başlığıyla
+   birlikte "**It will activate automatically within a few seconds — watch
+   the printer screen return to the home screen.**" (birkaç saniye içinde
+   otomatik olarak etkinleşecektir — yazıcı ekranının ana ekrana dönmesini
+   izleyin) açıklamasını gösteren bir başarı görünümüne geçer.
+5. Bu başarı görünümünde, katlanabilir bir **"Manuel kurulum (gelişmiş)
+   (Manual setup (advanced))"** bölümü bulunur. Bu bölümü açtığınızda, o
+   cihaza ait **tek seferlik (one-time)** bir **Cihaz anahtarı (Device
+   key)** görürsünüz (mono yazı tipiyle, yanında bir **kopyala (copy)**
+   düğmesiyle). Bu bölümün üstünde şu **kritik uyarı** yer alır: "**Only
+   needed if the device doesn't activate on its own. This key is shown
+   once and can't be retrieved later — for security, Ditto only keeps a
+   hashed copy.**" (Yalnızca cihaz kendiliğinden etkinleşmezse gerekir. Bu
+   anahtar yalnızca bir kez gösterilir ve daha sonra tekrar alınamaz —
+   güvenlik nedeniyle Ditto yalnızca anahtarın hash'lenmiş (özetlenmiş) bir
+   kopyasını saklar.) **Bu anahtarı bu ekrandan ayrılmadan önce mutlaka
+   kopyalayıp güvenli bir yere kaydedin; diyaloğu kapattıktan sonra bir
+   daha görüntüleyemezsiniz.**
+6. İşlemi bitirmek için **Bitti (Done)** düğmesine tıklayın.
+
+**Olası hata mesajları:**
+
+- "**No device found with that pairing code.**" (bu eşleştirme koduyla
+  eşleşen bir cihaz bulunamadı) — kod yanlış girilmiş veya cihaz mevcut
+  değil.
+- "**That device has already been claimed.**" (bu cihaz zaten
+  sahiplenilmiş).
+- "**That device belongs to another account.**" (bu cihaz başka bir hesaba
+  ait).
+- "**Enter a pairing code.**" (bir eşleştirme kodu girin) — alan boş
+  bırakılırsa.
+- "**You don't have permission to claim devices.**" (cihaz sahiplenme
+  yetkiniz yok) — Üye (Member) rolündeyken bu işlemi denerseniz.
+
+### Adım adım: Cihazı duraklatma/etkinleştirme
+
+1. **"Bu mağazadaki yazıcılar (Printers in this store)"** ızgarasında,
+   durumunu değiştirmek istediğiniz cihazın kartını bulun. Kartın altında
+   bir **anahtar (switch)** ve yanında cihazın o anki durumunu gösteren bir
+   etiket bulunur: **Etkin (Active)**, **Duraklatıldı (Paused)** veya
+   **Erişilemez (Unreachable)**.
+2. Anahtarı açıp kapatarak cihazı **duraklatabilir** veya **yeniden
+   etkinleştirebilirsiniz**. **Önemli:** Cihaz **çevrimdışı (Unreachable)**
+   ise bu anahtar **devre dışıdır** — çevrimdışı bir cihazın durumu
+   değiştirilemez.
+3. İşlem başarılı olursa "**{cihaz adı} resumed**" (etkinleştirildiyse) veya
+   "**{cihaz adı} paused**" (duraklatıldıysa) biçiminde bir bildirim
+   görünür, açıklamasında da "**{cihaz id} is now {durum}.**" yazar.
+4. İşlem başarısız olursa anahtar **eski durumuna geri döner (rollback)** ve
+   "**Couldn't update device**" (cihaz güncellenemedi) hata bildirimi
+   görünür.
+
+Aynı anahtar, aşağıda anlatılan **Cihaz Detayı** ekranındaki **Duraklat
+kontrolü** kartında da (farklı bir görünümle, Pause/Activate düğmesi olarak)
+karşınıza çıkar.
+
+### Cihaz Detayı (Device Detail)
+
+Bir cihaz kartına tıkladığınızda, o cihaza ait **Cihaz Detayı (Device
+Detail)** ekranına gidersiniz (adres:
+**`/tenant/stores/{storeId}/{deviceId}`**). Cihaz kiracınıza ait değilse
+uygulama bir **404** sayfası gösterir.
+
+- **Geri bağlantısı:** mağazanın adını gösterir; tıklayınca mağaza detayına
+  döner.
+- **Başlık:** cihazın adı, altında "**Printer in {mağaza adı}**" (bu
+  mağazadaki yazıcı) açıklaması.
+- **2 KPI kartı:** **Bugünkü aktivasyonlar (Activations today)** ve **Bu
+  ayki aktivasyonlar (Activations this month)**.
+- **"Cihaz bilgileri (Device details)" kartı:** dört alan listeler:
+  - **Cihaz kimliği (Device ID)** — mono yazı tipiyle.
+  - **IP adresi (IP address)** — mono yazı tipiyle.
+  - **Bağlantı (Connection)** — Wi-Fi veya Ethernet.
+  - **Ürün yazılımı (Firmware)** — "**v{sürüm}**" biçiminde; daha yeni bir
+    sürüm mevcutsa yanında "**→ v{en yeni sürüm} available**" (v{en yeni
+    sürüm} kullanılabilir) ibaresi eklenir.
+- **Duraklat kontrolü kartı:** solda bir durum noktası ve o anki durumu
+  ("**Active**"/"**Paused**"/"**Unreachable**" — cihaz kartındakiyle aynı
+  biçimde), altında durumu açıklayan bir alt metin: "**Accepting
+  documents**" (belge kabul ediyor — etkinken), "**Paused — not accepting
+  documents**" (duraklatıldı — belge kabul etmiyor) veya "**Device is
+  unreachable**" (cihaza ulaşılamıyor — çevrimdışıyken). Sağda bir **Pause
+  (Duraklat)/Activate (Etkinleştir)** düğmesi bulunur; bu düğme de cihaz
+  çevrimdışıyken **devre dışıdır**.
+- **"Bağlantı (Connectivity)" kartı:** üç satır listeler: **Son görülme
+  (Last seen)**, **Mağaza (Store)** ve **Ürün yazılımı (Firmware)**
+  (yalnızca sürüm numarası, güncelleme bilgisi olmadan).
+
+### Adım adım: Uzaktan komut gönderme
+
+Cihaz Detayı ekranının altında **"Uzaktan kontrol (Remote control)"**
+bölümü bulunur.
+
+1. Şu 4 düğmeden birine tıklayın: **Yeniden başlat (Reboot)**,
+   **Ayarları yenile (Refresh config)**, **Tanımla (Identify)** veya
+   **Ürün yazılımını güncelle (Update firmware)**.
+2. Komut gönderilir gönderilmez, düğmelerin altında "**{komut türü} queued
+   — the device will pick it up on its next check-in.**" ({komut türü}
+   kuyruğa alındı — cihaz bir sonraki bağlantı kontrolünde bunu alacak)
+   biçiminde bir bilgi mesajı görünür. Komut, cihaza **anında** iletilmez;
+   cihaz periyodik olarak sunucuya bağlanıp bekleyen komutları
+   yokladığında (poll) uygulanır.
+3. Bu işlem sırasında düğmeler geçici olarak **devre dışı** kalır (komut
+   gönderilirken).
+4. Bu bölümün altında, o cihaza daha önce gönderilmiş komutları listeleyen
+   bir tablo bulunur; sütunları **Komut (Command)**, **Durum (Status)** ve
+   **Kuyruğa alındı (Queued)** (tarih/saat) şeklindedir. **Önemli:** Bu
+   tablodaki **Komut (Command)** ve **Durum (Status)** sütunlarındaki
+   değerler **Türkçeleştirilmemiştir** — burada "reboot", "refresh",
+   "identify", "firmware-update" gibi ham (İngilizce, teknik) komut türü
+   metinleri ve "pending", "acked" gibi ham durum metinleri **olduğu gibi**
+   görünür; kılavuzun diğer bölümlerindeki gibi kullanıcı dostu Türkçe
+   etiketlere çevrilmemiştir.
+5. Bu düğmelere Üye (Member) rolündeyken tıklarsanız komut kuyruğa
+   alınmaz; mesaj alanında kısa bir "**Not allowed.**" (izin verilmiyor)
+   hata mesajı görürsünüz.
+
+### İpuçları
+
+- Bu bölümdeki tüm **yönetimsel** işlemler — **Yazıcı sahiplen (Claim
+  printer)**, **Mağazayı düzenle (Edit store)** ve **Uzaktan kontrol
+  (Remote control)** komutları — yalnızca **Sahip (Owner)** ve **Yönetici
+  (Admin)** rolündeki kullanıcılar için çalışır; Üye (Member) rolündeki
+  kullanıcılar bu düğmeleri ya hiç görmez (Claim printer/Edit store) ya da
+  tıklandığında bir izin hatası alır (Remote control).
+- Buna karşılık, cihaz kartındaki ve Cihaz Detayı ekranındaki **Duraklat
+  (Pause)/Etkinleştir (Activate)** anahtarını rolünüz ne olursa olsun
+  kullanabilirsiniz — bu kontrol için herhangi bir rol kısıtlaması
+  gözlenmemiştir; tek kısıtlama cihazın **çevrimdışı** olmamasıdır.
+- **Cihaz anahtarını (Device key)** kaybederseniz geri getirilemez — Ditto
+  yalnızca hash'lenmiş bir kopyasını saklar. Cihaz zaten kendiliğinden
+  etkinleşeceği için bu anahtara normal şartlarda ihtiyacınız olmaz;
+  yalnızca cihaz otomatik etkinleşmezse "Manuel kurulum (gelişmiş)"
+  bölümünden bakmanız gerekir.
+- Uzaktan gönderilen komutlar **anında** çalışmaz; cihaz bir sonraki
+  bağlantı kontrolünde (check-in) komutu alıp uygular — bu nedenle bir
+  komutun etkisini görmek biraz zaman alabilir.
+- Komut geçmişi tablosundaki İngilizce ham `type`/`status` değerlerini
+  yorumlarken şunu unutmayın: **"reboot"** = yeniden başlatma, **"refresh"**
+  = ayarları yenileme, **"identify"** = tanımlama, **"firmware-update"** =
+  ürün yazılımı güncelleme; durum olarak genellikle **"pending"**
+  (bekliyor) veya **"acked"** (onaylandı) görürsünüz.

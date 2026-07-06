@@ -417,7 +417,7 @@ yönlendirir.
   day of week and hour, last 90 days**" (haftanın günü ve saatine göre
   aktivasyonlar, son 90 gün); bir **ısı haritası (heatmap)** ile gösterilir.
 - **"Bu mağazadaki yazıcılar (Printers in this store)" bölümü:** mağazaya
-  bağlı her cihaz için bir **DeviceCard** (cihaz kartı) gösteren bir ızgara
+  bağlı her cihaz için bir **cihaz kartı** gösteren bir ızgara
   (grid). Mağazada henüz cihaz yoksa "**No printers here yet**" (henüz
   buraya ait yazıcı yok) mesajı görünür; Sahip/Yönetici rolündeyseniz
   altında ayrıca "**Claim a printer with its pairing code to start issuing
@@ -527,13 +527,16 @@ uygulama bir **404** sayfası gösterir.
     sürüm mevcutsa yanında "**→ v{en yeni sürüm} available**" (v{en yeni
     sürüm} kullanılabilir) ibaresi eklenir.
 - **Duraklat kontrolü kartı:** solda bir durum noktası ve o anki durumu
-  ("**Active**"/"**Paused**"/"**Unreachable**" — cihaz kartındakiyle aynı
-  biçimde), altında durumu açıklayan bir alt metin: "**Accepting
-  documents**" (belge kabul ediyor — etkinken), "**Paused — not accepting
-  documents**" (duraklatıldı — belge kabul etmiyor) veya "**Device is
-  unreachable**" (cihaza ulaşılamıyor — çevrimdışıyken). Sağda bir **Pause
-  (Duraklat)/Activate (Etkinleştir)** düğmesi bulunur; bu düğme de cihaz
-  çevrimdışıyken **devre dışıdır**.
+  ("**Çevrimiçi (Online)**"/"**Duraklatıldı (Paused)**"/"**Çevrimdışı
+  (Offline)**" — cihaz kartındaki **Etkin (Active)/Duraklatıldı
+  (Paused)/Erişilemez (Unreachable)** etiketinden **farklı olarak**, bu
+  kartta cihazın durumu doğrudan gösterilir), altında durumu açıklayan bir
+  alt metin: "**Accepting documents**" (belge kabul ediyor —
+  çevrimiçiyken), "**Paused — not accepting documents**" (duraklatıldı —
+  belge kabul etmiyor) veya "**Device is unreachable**" (cihaza
+  ulaşılamıyor — çevrimdışıyken). Sağda bir **Duraklat (Pause)/Etkinleştir
+  (Activate)** düğmesi bulunur; bu düğme de cihaz çevrimdışıyken **devre
+  dışıdır**.
 - **"Bağlantı (Connectivity)" kartı:** üç satır listeler: **Son görülme
   (Last seen)**, **Mağaza (Store)** ve **Ürün yazılımı (Firmware)**
   (yalnızca sürüm numarası, güncelleme bilgisi olmadan).

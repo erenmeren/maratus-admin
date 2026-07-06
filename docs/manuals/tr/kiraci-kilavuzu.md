@@ -188,7 +188,7 @@ yap (Sign out)**.
 Giriş yaptıktan sonra kiracı kullanıcısı olarak indiğiniz ilk ekran, **Panel
 (Dashboard)** ekranıdır (adres: **`/tenant`**). Bu ekran, kiracınızın
 (mağaza zincirinizin) o günkü ve son 30 günkü **kağıtsız ödeme/QR akışı**
-performansını tek bakışta özetler: kaç tetikleme yapıldığını, kaç yazıcının
+performansını tek bakışta özetler: kaç aktivasyon yapıldığını, kaç yazıcının
 çevrimiçi olduğunu, çevresel etkiyi ve hangi mağazaların en yoğun olduğunu
 gösterir. **Bu ekranda herhangi bir işlem yapılmaz** — yalnızca bilgi
 kartları ve bağlantılar (linkler) bulunur; veri ekleyen, değiştiren veya
@@ -207,15 +207,15 @@ silen hiçbir kontrol yoktur.
   değerlendirmeyin; gerçek tarih için bilgisayarınızın/tarayıcınızın kendi
   saatine bakın.
 - **3 KPI (temel performans göstergesi) kartı:**
-  - **Bugünkü aktivasyonlar (Activations today):** O güne ait tetikleme
-    sayısı. Kartta bir de "**+6,4%**" delta (değişim) rozeti ve "**vs.
+  - **Bugünkü aktivasyonlar (Activations today):** O güne ait aktivasyon
+    sayısı. Kartta bir de "**+6.4%**" delta (değişim) rozeti ve "**vs.
     yesterday**" (dünle karşılaştırma) ibaresi görünür. **Önemli:** Bu
-    **+6,4% değeri sabittir (hardcoded)** — gerçek bir "dünle
+    **+6.4% değeri sabittir (hardcoded)** — gerçek bir "dünle
     karşılaştırma" hesaplaması **değildir**, ekranı her açtığınızda aynı
     rakamı görürsünüz.
   - **Bu ayki aktivasyonlar (Activations this month):** O aya ait toplam
-    tetikleme sayısı. Delta rozeti "**+12,1%**", ibare "**vs. last
-    month**" (geçen ayla karşılaştırma). **Önemli:** Bu **+12,1% değeri
+    aktivasyon sayısı. Delta rozeti "**+12.1%**", ibare "**vs. last
+    month**" (geçen ayla karşılaştırma). **Önemli:** Bu **+12.1% değeri
     de sabittir (hardcoded)**, gerçek zamanlı bir hesap değildir.
   - **Aktif cihazlar (Active devices):** "**{çevrimiçi sayısı}/{toplam
     sayı}**" biçiminde gösterilir, altında "**printers online now**"
@@ -287,9 +287,9 @@ kullanıcılar bu ekranı yalnızca **salt-okunur (read-only)** olarak görür.
   - Son sütun, satıra özel **işlem (actions)** alanıdır.
 - **Satır işlemleri:**
   - **Sahip (Owner)/Yönetici (Admin)** rolündeki kullanıcılar için, satırın
-    sonunda bir **kebap menü (⋮)** bulunur; bu menüde **"Mağazayı aç (Open
+    sonunda bir **kebap menüsü (⋮)** bulunur; bu menüde **"Mağazayı aç (Open
     store)"** ve **"Mağazayı düzenle (Edit store)"** seçenekleri yer alır.
-  - **Üye (Member)** rolündeki kullanıcılar için bu kebap menü yerine,
+  - **Üye (Member)** rolündeki kullanıcılar için bu kebap menüsü yerine,
     satıra tıklandığında mağaza detayına götüren basit bir ok/bağlantı
     görünür — yani üyeler mağaza bilgisini **görüntüleyebilir** ama
     **düzenleyemez**.
@@ -329,7 +329,7 @@ kullanıcılar bu ekranı yalnızca **salt-okunur (read-only)** olarak görür.
 > rolündeki kullanıcılar için geçerlidir.
 
 1. **Mağazalar (Stores)** tablosunda düzenlemek istediğiniz mağazanın
-   satırındaki kebap menüyü (⋮) açın ve **"Mağazayı düzenle (Edit
+   satırındaki kebap menüsünü (⋮) açın ve **"Mağazayı düzenle (Edit
    store)"** seçeneğine tıklayın.
 2. Açılan **"Mağazayı düzenle (Edit store)"** diyaloğunda ("Update this
    branch's details." — bu şubenin bilgilerini güncelleyin), **Mağaza adı
@@ -639,8 +639,8 @@ Ekran iki ana sütuna ayrılır: solda düzenleme paneli, sağda **Canlı
     renk (preset)** karesi sıralanır.
   - **Gelişmiş tema (Advanced theme):** "leave as-is for the default
     look" (varsayılan görünüm için olduğu gibi bırakın) notuyla birlikte
-    üç ek renk alanı: **Background (Arka plan)**, **Text (Metin)** ve
-    **Muted text (Soluk metin)** — her biri kendi renk seçicisi ve hex
+    üç ek renk alanı: **Arka plan (Background)**, **Metin (Text)** ve
+    **Soluk metin (Muted text)** — her biri kendi renk seçicisi ve hex
     alanına sahiptir.
 - **Ekran (Screen) bölümü:** Yazıcı ekranındaki nesneleri (logo, metin, ikon,
   görsel gibi) düzenlediğiniz alandır. Nesneleri **sürükleyerek
@@ -665,13 +665,13 @@ Ekran iki ana sütuna ayrılır: solda düzenleme paneli, sağda **Canlı
   diyalog içinde, düzenleme araçları olmadan (temiz biçimde) gösterir.
 - **Ekran seçici (screen selector)** — açılır bir liste (dropdown) olarak,
   aşağıdaki **7 yazıcı ekranından** birini seçmenizi sağlar:
-  1. **Idle / ready**
-  2. **Processing**
-  3. **Document ready**
-  4. **Sent ✓**
-  5. **Error / offline**
-  6. **Paused**
-  7. **Setup / pairing**
+  1. **Boşta / hazır (Idle / ready)**
+  2. **İşleniyor (Processing)**
+  3. **Belge hazır (Document ready)**
+  4. **Gönderildi ✓ (Sent ✓)**
+  5. **Hata / çevrimdışı (Error / offline)**
+  6. **Duraklatıldı (Paused)**
+  7. **Kurulum / eşleştirme (Setup / pairing)**
 - **Yakınlaştırma (Zoom) kaydırıcısı:** eksi/artı düğmeleriyle veya
   kaydırıcının kendisiyle önizlemeyi büyütüp küçültebilirsiniz; yanında
   o anki yüzde değeri ("**{n}%**") görünür.
@@ -778,8 +778,9 @@ ekran **salt-okunur (read-only)**'dur.
   veya yeni bir belge geldiğinde uyanır) açıklaması bulunur. Bu anahtar
   **açıkken**, altında ek olarak **Şu süre sonra uykuya geç (Sleep
   after)** başlıklı bir açılır liste (dropdown) belirir; seçenekleri şöyledir:
-  **30 sn**, **1 dk**, **2 dk**, **5 dk**, **10 dk**, **15 dk**, **30 dk**,
-  **60 dk**.
+  **30 sn (30 seconds)**, **1 dk (1 minute)**, **2 dk (2 minutes)**,
+  **5 dk (5 minutes)**, **10 dk (10 minutes)**, **15 dk (15 minutes)**,
+  **30 dk (30 minutes)**, **60 dk (60 minutes)**.
 - **Cihaz Ayarları PIN'i (Device Settings PIN):** cihazın kendi ekranındaki
   Ayarlar sayfasını korumak için kullanılan, **4 ile 12 hane arası**
   sayısal bir PIN alanıdır (şifre tipinde giriş; yer tutucu, PIN daha önce
@@ -808,8 +809,8 @@ ekran **salt-okunur (read-only)**'dur.
 3. **Ekran parlaklığı (Screen brightness)** kaydırıcısını **%10–%100**
    arasında, %1'lik adımlarla ayarlayın.
 4. Gerekiyorsa **Ekran uykusu (Screen sleep)** anahtarını açın; açıldığında
-   beliren **"Sleep after"** açılır listesinden bir süre seçin (30 sn ile
-   60 dk arasındaki seçeneklerden biri).
+   beliren **"Sleep after"** açılır listesinden bir süre seçin (30 sn (30
+   seconds) ile 60 dk (60 minutes) arasındaki seçeneklerden biri).
 5. Cihazın kendi ekranındaki Ayarlar sayfasını korumak istiyorsanız
    **Cihaz Ayarları PIN'i (Device Settings PIN)** alanına **4 ile 12 hane
    arası** bir PIN girin. Zaten bir PIN ayarlıysa ve kaldırmak istiyorsanız
@@ -1321,7 +1322,7 @@ işlemini göremezler.
     bir **"Tamam (Done)"** düğmesi diyaloğu kapatır.
 - **"API anahtarını iptal et (Revoke API key)" diyaloğu** (Sahip/Yönetici,
   satırdaki çöp kutusu simgesine tıklanınca açılır):
-  - Başlık "**Revoke API key**", açıklama ""**{ad}**" will stop working
+  - Başlık "**Revoke API key**", açıklama "**{ad}**" will stop working
     immediately. This can't be undone." (bu anahtar hemen çalışmayı
     durduracak; bu işlem geri alınamaz).
   - **"Vazgeç (Cancel)"** ve **"İptal et (Revoke)"** düğmeleri; ikincisi

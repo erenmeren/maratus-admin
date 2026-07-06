@@ -1159,15 +1159,15 @@ kredi satın alma dahil aynı işlemleri yapabilir.
   kredi paketi varsa görünür; yukarıdaki notu bkz.):
   - "**Credits**" bölüm başlığı ve altında **Kullanılabilir (Available):**
     etiketiyle birlikte güncel kredi bakiyeniz.
-  - Yapılandırılan her kredi paketi için **"Buy {n} credits" ({n} kredi
-    satın al)** düğmesi (örn. "Buy 100 credits") — paketteki kredi sayısı
+  - Yapılandırılan her kredi paketi için **{n} kredi satın al (Buy {n}
+    credits)** düğmesi (örn. "Buy 100 credits") — paketteki kredi sayısı
     `{n}` yerine geçer. Bir satın alma işlemi sürerken tıklanan düğmenin
     metni geçici olarak "**Loading…**" olur ve diğer tüm paket düğmeleri
     devre dışı kalır.
   - Bir paket seçildiğinde düğmelerin yerini **"Purchasing {n} credits"**
     (satın alınmakta olan kredi miktarı) metni ve hemen altında Stripe'ın
     yerleşik (inline) ödeme formu alır: bir kart/ödeme bilgisi alanı, bir
-    **"Pay now" (Şimdi öde)** düğmesi (işlem sürerken metni
+    **Şimdi öde (Pay now)** düğmesi (işlem sürerken metni
     "**Processing…**" olur) ve altında küçük bir **"Vazgeç (Cancel)"**
     düğmesi (satın almadan vazgeçip paket seçim ekranına döner).
   - Ödeme başarılı olursa **sayfa otomatik olarak yeniden yüklenir**
@@ -1190,7 +1190,7 @@ kredi satın alma dahil aynı işlemleri yapabilir.
       miktarını gösterir; satırlar bu sütuna göre **çoktan aza** sıralanır.
     - **Tetikleme (Triggers)** sütunu o cihaz için bu ay yapılan tetikleme
       (trigger) sayısını gösterir.
-    - Tablonun en altında kalın yazılmış bir **Total** (toplam) satırı
+    - Tablonun en altında kalın yazılmış bir **Toplam (Total)** satırı
       bulunur; bu satır tüm cihazlardaki toplam kredi harcamasını gösterir
       (Tetikleme sütunu bu satırda boştur).
 
@@ -1203,12 +1203,12 @@ kredi satın alma dahil aynı işlemleri yapabilir.
 1. Sol menüden **Faturalandırma (Billing)** ekranına gidin.
 2. **"Krediler (Credits)"** bölümünde, **Kullanılabilir (Available):**
    etiketinin yanında güncel kredi bakiyenizi görün.
-3. Satın almak istediğiniz paketin **"Buy {n} credits" ({n} kredi satın
-   al)** düğmesine tıklayın (örn. "Buy 100 credits").
+3. Satın almak istediğiniz paketin **{n} kredi satın al (Buy {n}
+   credits)** düğmesine tıklayın (örn. "Buy 100 credits").
 4. Düğme kısa süreliğine "**Loading…**" gösterir, ardından yerini
    **"Purchasing {n} credits"** metni ve Stripe'ın yerleşik ödeme formuna
    bırakır.
-5. Ödeme bilgilerinizi girin ve **"Pay now" (Şimdi öde)** düğmesine
+5. Ödeme bilgilerinizi girin ve **Şimdi öde (Pay now)** düğmesine
    tıklayın (işlem sürerken düğme metni "**Processing…**" olur).
 6. Ödeme başarılı olursa sayfa otomatik olarak yeniden yüklenir ve güncel
    bakiyeniz **Kullanılabilir (Available):** etiketinin yanında görünür.
@@ -1284,7 +1284,7 @@ işlemini göremezler.
     sütunda yalnızca anahtarın kısa bir **öneki** ve ardından "**…**"
     görünür (örn. `dk_live_ab12…`), gerçek anahtar değeri değil.
   - **Son kullanım (Last used):** anahtarın en son kullanıldığı tarih, veya
-    hiç kullanılmadıysa "**Never**" (hiç).
+    hiç kullanılmadıysa **Hiç (Never)**.
   - **Oluşturuldu (Created):** anahtarın oluşturulduğu tarih.
   - Yalnızca Sahip/Yönetici rolündeki kullanıcılar için, her satırın sonunda
     bir çöp kutusu simgeli **İptal et (Revoke)** düğmesi bulunur (yalnızca
@@ -1311,13 +1311,14 @@ işlemini göremezler.
   - Anahtar adı boş bırakılırsa (veya sunucu başka bir doğrulama hatası
     döndürürse) örneğin "**Key name is required.**" (anahtar adı zorunlu)
     gibi bir hata mesajı görünür ve diyalog açık kalır.
-  - Anahtar başarıyla oluşturulunca diyalog içeriği değişir: başlık "**API
-    key created**", açıklama "**Copy it now — you won't be able to see it
-    again.**" (şimdi kopyalayın — bir daha göremeyeceksiniz) olur; altında
-    anahtarın **tam değeri** kod biçiminde bir kutuda gösterilir, yanında
-    bir kopyala simgesi düğmesi bulunur (kopyalandığında simge kısa süre
-    bir onay işaretine döner ve "**Copied to clipboard**" bildirimi
-    çıkar). En altta bir **"Tamam (Done)"** düğmesi diyaloğu kapatır.
+  - Anahtar başarıyla oluşturulunca diyalog içeriği değişir: başlık
+    **API anahtarı oluşturuldu (API key created)**, açıklama "**Copy it
+    now — you won't be able to see it again.**" (şimdi kopyalayın — bir
+    daha göremeyeceksiniz) olur; altında anahtarın **tam değeri** kod
+    biçiminde bir kutuda gösterilir, yanında bir kopyala simgesi düğmesi
+    bulunur (kopyalandığında simge kısa süre bir onay işaretine döner ve
+    **Panoya kopyalandı (Copied to clipboard)** bildirimi çıkar). En altta
+    bir **"Tamam (Done)"** düğmesi diyaloğu kapatır.
 - **"API anahtarını iptal et (Revoke API key)" diyaloğu** (Sahip/Yönetici,
   satırdaki çöp kutusu simgesine tıklanınca açılır):
   - Başlık "**Revoke API key**", açıklama ""**{ad}**" will stop working
@@ -1326,8 +1327,8 @@ işlemini göremezler.
   - **"Vazgeç (Cancel)"** ve **"İptal et (Revoke)"** düğmeleri; ikincisi
     kırmızı (yıkıcı) renktedir ve işlem sürerken bir dönen simge ile
     birlikte "**Revoking…**" gösterir.
-  - İşlem başarılı olunca diyalog kapanır, bir "**Key revoked**" (anahtar
-    iptal edildi) başarı bildirimi (toast) görünür ve anahtar listeden
+  - İşlem başarılı olunca diyalog kapanır, bir **Anahtar iptal edildi (Key
+    revoked)** başarı bildirimi (toast) görünür ve anahtar listeden
     kaybolur.
 
 ### Adım adım: API anahtarı oluşturma
@@ -1367,7 +1368,7 @@ işlemini göremezler.
    doğru olduğunu kontrol edin.
 4. **"İptal et (Revoke)"** düğmesine tıklayın (işlem sürerken düğme metni
    "**Revoking…**" olur).
-5. İşlem tamamlanınca "**Key revoked**" başarı bildirimi görünür ve anahtar
+5. İşlem tamamlanınca **Anahtar iptal edildi (Key revoked)** başarı bildirimi görünür ve anahtar
    listeden kaybolur; bu anahtarla yapılan API çağrıları **hemen** başarısız
    olmaya başlar.
 6. Vazgeçmek isterseniz, işlemi onaylamadan **"Vazgeç (Cancel)"** düğmesine

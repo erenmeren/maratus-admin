@@ -840,3 +840,281 @@ ekran **salt-okunur (read-only)**'dur.
   olan herkes ayarlara ulaşabilir.
 - **Üye (Member)** rolündeyseniz bu ekranın tamamı salt-okunurdur; kaydet
   çubuğunda her zaman "**Read only**" görürsünüz.
+
+## 9. Üyeler (Members)
+
+### Bu ekran ne işe yarar?
+
+**Üyeler (Members)** ekranı (adres: **`/tenant/members`**, başlığı
+"**Members**") kiracınızda (organizasyonunuzda) çalışan kullanıcıları
+yönetmenizi sağlar: yeni bir kişiyi e-posta ile davet etmek, mevcut
+üyelerin **rolünü** değiştirmek, bir üyeyi kiracıdan çıkarmak ve bekleyen
+davetleri iptal etmek. **Sahip (Owner)** ve **Yönetici (Admin)** rolündeki
+kullanıcılar bu ekranı yönetebilir; **Üye (Member)** rolündeki kullanıcılar
+için ekran tamamen **salt-okunur (read-only)**'dur — davet formunu ve hiçbir
+işlem düğmesini görmezler, yalnızca üye ve davet listelerini görüntüleyebilirler.
+
+### Ekranda neler var?
+
+- **Başlık:** "**Members**" — bu ekranda ayrıca bir alt açıklama metni
+  bulunmaz.
+- **Davet formu** (yalnızca Sahip/Yönetici rolündeki kullanıcılara görünür):
+  - **E-posta (Email)** alanı — **zorunlu**, yer tutucu metni
+    "**teammate@company.com**".
+  - **Rol (Role)** açılır listesi (dropdown) — iki seçenek sunar: **Üye
+    (Member)** (varsayılan seçili değer) ve **Yönetici (Admin)**. Bir davet
+    yalnızca bu iki rolden biriyle verilebilir; **Sahip (Owner)** rolü davet
+    yoluyla **hiçbir zaman** atanamaz.
+  - **Davet et (Invite)** düğmesi — form gönderilirken (işlem sürerken)
+    devre dışı kalır; düğme metni değişmez.
+  - Form gönderiminde bir hata oluşursa (örn. geçersiz e-posta), formun
+    altında kırmızı bir hata metni görünür: "**Enter a valid email.**"
+    (geçerli bir e-posta girin).
+  - **Önemli:** Davet başarıyla gönderildiğinde ekranda herhangi bir başarı
+    bildirimi (toast) **görünmez** — yalnızca **E-posta (Email)** alanı
+    otomatik olarak temizlenir. Davet e-postası alıcıya gönderilir ve yeni
+    davet, aşağıda anlatılan **"Bekleyen davetler (Pending invitations)"**
+    listesinde görünür.
+- **Üyeler tablosu:** tablonun üstünde "**Members**" başlıklı bir bölüm
+  başlığı bulunur (sayfa başlığıyla aynı metni tekrarlar). Tablonun kendisi
+  ise **sütun başlığı satırı içermez** — her satırda sırasıyla şu bilgiler
+  yer alır:
+  - Üyenin **adı**,
+  - Üyenin **e-postası**,
+  - Üyenin **rolü** — **Önemli:** bu değer **Türkçeleştirilmemiştir**;
+    ekranda ham (İngilizce) "**owner**", "**admin**" veya "**member**"
+    metni olduğu gibi görünür.
+  - Sahip (Owner)/Yönetici (Admin) rolündeki kullanıcılar için, **owner
+    olmayan** her satırın sonunda iki bağlantı-düğme bulunur: **"Yönetici
+    yap (Make admin)"** (satırdaki kişi şu an üye ise) veya **"Üye yap (Make
+    member)"** (satırdaki kişi şu an yönetici ise), ve yanında **"Kaldır
+    (Remove)"** (kırmızı renkte). **Owner (sahip) rolündeki satırda bu iki
+    düğme hiç görünmez** — bu, sahibin kazayla rolünün değiştirilmesini veya
+    kiracıdan çıkarılmasını engelleyen bir korumadır. (Arka planda sunucu
+    tarafında da aynı koruma vardır: bu işlemler owner'a zorlanmaya
+    çalışılırsa sırasıyla "**Cannot remove the owner.**" (sahip
+    kaldırılamaz) ve "**Cannot change the owner's role.**" (sahibin rolü
+    değiştirilemez) hatalarını döndürür.)
+- **Bekleyen davetler (Pending invitations)** bölümü — yalnızca bekleyen en
+  az bir davet varsa görünür. Bölüm başlığı "**Pending invitations**".
+  Tablo, üyeler tablosu gibi **sütun başlığı satırı içermez**; her satırda
+  sırasıyla: davet edilen kişinin **e-postası**, verilen **rolü** (yine
+  **Türkçeleştirilmemiş** ham "admin"/"member" metni) ve — yalnızca Sahip/
+  Yönetici rolündeki kullanıcılar için — bir **"İptal (Cancel)"** bağlantı-
+  düğmesi (kırmızı renkte) yer alır.
+
+### Adım adım: Üye davet etme
+
+> Bu adımlar yalnızca **Sahip (Owner)** veya **Yönetici (Admin)** rolündeki
+> kullanıcılar için geçerlidir; **Üye (Member)** rolündeyseniz davet formunu
+> hiç görmezsiniz.
+
+1. Sol menüden **Üyeler (Members)** ekranına gidin.
+2. **E-posta (Email)** alanına davet etmek istediğiniz kişinin e-posta
+   adresini girin.
+3. **Rol (Role)** açılır listesinden **Üye (Member)** veya **Yönetici
+   (Admin)** seçin (varsayılan **Üye (Member)**'dir).
+4. **Davet et (Invite)** düğmesine tıklayın.
+5. Girdiğiniz e-posta geçerli bir biçimde değilse "**Enter a valid
+   email.**" hatası alırsınız ve davet gönderilmez.
+6. İşlem başarılı olursa **E-posta (Email)** alanı otomatik olarak
+   temizlenir (herhangi bir başarı bildirimi görünmez); davet edilen kişiye
+   bir davet e-postası gider ve yeni davet **"Bekleyen davetler (Pending
+   invitations)"** listesinde görünür.
+
+### Adım adım: Rol değiştirme / üye kaldırma
+
+> Bu adımlar yalnızca **Sahip (Owner)** veya **Yönetici (Admin)** rolündeki
+> kullanıcılar için geçerlidir; **owner** rolündeki satırlar için bu
+> işlemlerin ikisi de kullanılamaz (düğmeler görünmez).
+
+1. **Üyeler tablosunda**, rolünü değiştirmek veya kaldırmak istediğiniz
+   **owner olmayan** üyenin satırını bulun.
+2. Rolünü değiştirmek için **"Yönetici yap (Make admin)"** veya **"Üye yap
+   (Make member)"** bağlantı-düğmesine tıklayın; değişiklik anında
+   uygulanır — onay diyaloğu veya başarı bildirimi çıkmaz, tablo doğrudan
+   güncellenir.
+3. Üyeyi kiracıdan çıkarmak için **"Kaldır (Remove)"** bağlantı-düğmesine
+   tıklayın; kaldırma işlemi de anında uygulanır, onay diyaloğu çıkmaz.
+4. İşlem başarısız olursa, form alanının üstünde kırmızı bir hata metni
+   görünür (örn. yetkiniz yoksa "**Not allowed.**").
+5. Bekleyen bir daveti iptal etmek için, **"Bekleyen davetler (Pending
+   invitations)"** listesindeki ilgili satırda **"İptal (Cancel)"**
+   bağlantı-düğmesine tıklayın; davet anında iptal edilir ve listeden
+   kaldırılır.
+
+### İpuçları
+
+- Üyeler ve bekleyen davetler tablolarının **sütun başlığı satırı yoktur**;
+  her satırdaki bilgilerin sırasını (ad → e-posta → rol / e-posta → rol)
+  takip ederek okuyun.
+- Tablolardaki **rol (role)** değerleri ("owner"/"admin"/"member")
+  **Türkçeleştirilmemiştir**; ham İngilizce metin olarak görünür — Bölüm
+  6'daki komut geçmişi tablosuna benzer bir istisnadır.
+- Bu ekranda hiçbir işlem (davet gönderme, rol değiştirme, üye kaldırma,
+  davet iptali) bir **onay diyaloğu** göstermez ve çoğu başarılı işlem bir
+  **başarı bildirimi (toast)** de göstermez — sonucu doğrudan tablonun
+  güncellenmesinden anlarsınız.
+- **Sahip (Owner)** rolü ne davetle verilebilir ne de sonradan
+  değiştirilebilir/kaldırılabilir — bu rol her zaman korunur.
+- **Üye (Member)** rolündeyseniz bu ekran sizin için tamamen
+  salt-okunurdur: davet formunu göremez, hiçbir satırda işlem düğmesi
+  göremezsiniz.
+
+## 10. Raporlar (Reports)
+
+### Bu ekran ne işe yarar?
+
+**Raporlar (Reports)** ekranı (adres: **`/tenant/reports`**) — başlığı
+"**Reports**", açıklaması "**Activations, breakdowns, and eco savings across
+your fleet.**" (filonuz genelinde aktivasyonlar, kırılımlar ve eko
+tasarruflar) — kiracınızın tüm mağaza ve cihazları genelindeki aktivasyon
+verilerini zaman içinde, mağazaya göre ve cihaza göre kırılımlarla birlikte
+gösterir; ayrıca eko (çevresel) tasarruf verilerini sunar ve tüm bu verileri
+tek bir CSV dosyası olarak dışa aktarmanızı sağlar. **Bu ekranda herhangi bir
+düzenleme kontrolü yoktur** — salt bilgilendirme ve dışa aktarma amaçlıdır;
+**Sahip (Owner)**, **Yönetici (Admin)** ve **Üye (Member)** rolündeki tüm
+kullanıcılar bu ekranı **aynı şekilde** görür, rol kısıtlaması yoktur.
+
+### Ekranda neler var?
+
+- **Başlık ve açıklama:** "**Reports**" / "**Activations, breakdowns, and
+  eco savings across your fleet.**"; sağ üstte **"Raporu dışa aktar (Export
+  report)"** düğmesi (bir indirme simgesiyle birlikte).
+- **"Aktivasyonlar zaman içinde (Activations over time)" kartı:** açıklaması
+  "**Monthly activations, last 9 months**" (son 9 ayın aylık
+  aktivasyonları); bir alan grafiği (area chart) ile gösterilir.
+- İki sütunlu bir ızgara:
+  - **"Mağazaya göre (By store)" kartı:** açıklaması "**Activations this
+    month, per branch**" (bu ay, şube bazında aktivasyonlar); yatay bir çubuk
+    grafiği (bar chart) ile gösterilir. Mağazalar, bu ayki aktivasyon
+    sayısına göre **çoktan aza** sıralanır.
+  - **"Cihaza göre (By device)" kartı:** açıklaması "**Top printers by
+    activations this month**" (bu ay en çok aktivasyon yapan yazıcılar); yine
+    çubuk grafiği ile, bu ayki aktivasyona göre en yoğun **en fazla 8 cihaz**
+    listelenir. Her çubuğun etiketi "**{mağaza adının ilk kelimesi} ·
+    {cihaz adı}**" biçimindedir.
+- 3 sütunlu bir ızgara (ilk kart 2 sütun kaplar):
+  - **"Zaman içinde eko tasarruf (Eco savings over time)" kartı:** açıklaması
+    "**Paper saved per month (kg)**" (ay bazında tasarruf edilen kağıt, kg);
+    bir alan grafiği ile gösterilir.
+  - **"Eko etki (Eco impact)" kartı:** Panel (Dashboard) ekranındaki (bkz.
+    Bölüm 4) aynı karttır — "**From {n} paperless documents {dönem}.**"
+    açıklaması ve **Ağaç (trees)**, **Kâğıt (paper)**, **Su (water)**, **CO₂e**
+    istatistik kutuları. **Fark:** burada dönem metni "**last 9 months**"
+    (son 9 ay) yazar — Panel ekranındaki "this month" (bu ay) yerine, son 9
+    aylık toplam aktivasyona göre hesaplanır.
+- **QUIRK — düşük öncelikli not:** **"Mağazaya göre (By store)"** kartında
+  (ve dışa aktarılan CSV'nin "By store" bölümünde) mağaza adlarının
+  başındaki sabit "**Roastwell **" öneki otomatik olarak kırpılır. Bu, bir
+  demo kalıntısıdır ve yalnızca bu tam metinle başlayan mağaza adlarını
+  etkiler; "Cihaza göre (By device)" kartındaki etiketler bu kırpmadan
+  etkilenmez.
+
+### Adım adım: Raporu dışa aktarma (CSV)
+
+1. Sol menüden **Raporlar (Reports)** ekranına gidin.
+2. Sağ üstteki **"Raporu dışa aktar (Export report)"** düğmesine tıklayın.
+3. Tarayıcınız herhangi bir diyalog göstermeden anında bir **CSV** dosyası
+   indirir; dosya adı **`{kiracı-adının-küçük-harfli-tireli-hali}-report.csv`**
+   biçimindedir (örnek: "Roastwell Coffee" adlı bir kiracı için
+   "**roastwell-coffee-report.csv**").
+4. CSV dosyasının sütunları **Section**, **Label**, **Activations**'tır; tek
+   dosya içinde 3 bölüm art arda yer alır: **"Monthly"** (Aktivasyonlar zaman
+   içinde kartındaki 9 aylık veriyle eşleşir), **"By store"** (Mağazaya göre
+   kartıyla eşleşir, "Roastwell " öneki kırpılmış olarak) ve **"By device"**
+   (Cihaza göre kartındaki en fazla 8 satırla eşleşir).
+5. İndirme tamamlandığında ekranın altında **"Export ready"** (dışa aktarma
+   hazır) başlıklı bir başarı bildirimi görünür; açıklamasında "**{n} rows →
+   {dosya adı}**" (kaç satırın hangi dosyaya aktarıldığı) yazar.
+
+### İpuçları
+
+- Bu ekranda **hiçbir rol kısıtlaması yoktur** — Sahip, Yönetici ve Üye
+  rolündeki herkes aynı kartları görür ve raporu aynı şekilde dışa aktarabilir.
+- Dışa aktarma tamamen tarayıcı içinde (istemci tarafında) gerçekleşir;
+  sunucuya ayrı bir istek gitmez, indirme anında başlar.
+- **"Eko etki (Eco impact)"** kartındaki 4 istatistik kutusunun (Ağaç/Kâğıt/
+  Su/CO₂e) ayrıntılı açıklaması için Bölüm 4'e bakın; buradaki tek fark
+  dönemin "son 9 ay" olmasıdır.
+- "Roastwell " önek kırpma davranışı yalnızca kozmetik bir demo kalıntısıdır;
+  bir hata olarak yorumlamayın.
+
+## 11. Analitik (Analytics)
+
+### Bu ekran ne işe yarar?
+
+**Analitik (Analytics)** ekranı (adres: **`/tenant/analytics`**) — başlığı
+"**Analytics**", açıklaması "**Compare activation volume and trends across
+your stores.**" (mağazalarınız arasındaki aktivasyon hacmini ve eğilimlerini
+karşılaştırın) — kiracınıza bağlı **mağazaları birbiriyle karşılaştırmanızı**
+sağlar: her mağazanın bu ayki aktivasyon sayısı, geçen aya göre eğilimi
+(artış/azalış/yeni) ve son 9 aylık aylık seyri (trajectory). Raporlar
+ekranı gibi bu ekran da **salt bilgilendirme ve dışa aktarma** amaçlıdır;
+**Sahip (Owner)**, **Yönetici (Admin)** ve **Üye (Member)** rolündeki tüm
+kullanıcılar aynı görünümü görür, rol kısıtlaması yoktur.
+
+### Ekranda neler var?
+
+- **Başlık ve açıklama:** "**Analytics**" / "**Compare activation volume
+  and trends across your stores.**"; sağ üstte **"Analitiği dışa aktar
+  (Export analytics)"** düğmesi — bu düğme, aşağıda anlatılan boş durumda
+  bile her zaman görünür.
+- **Boş durum:** kiracınızda hiç mağaza yoksa, ortalanmış bir kart içinde
+  "**No store data yet**" (henüz mağaza verisi yok) başlığı ve altında
+  "**Once your stores start showing QR codes, comparisons show up here.**"
+  (mağazalarınız QR kod göstermeye başladığında karşılaştırmalar burada
+  görünür) açıklaması gösterilir.
+- Mağazanız varsa, sırasıyla 3 kart görünür (tüm kartlarda mağazalar bu ayki
+  aktivasyon sayısına göre **çoktan aza** sıralanır):
+  - **"Mağazaya göre aktivasyonlar (Activations by store)" kartı:**
+    açıklaması "**This month, highest first**" (bu ay, en yüksekten
+    başlayarak); çubuk grafiği (bar chart) ile gösterilir.
+  - **"Mağaza karşılaştırması (Store comparison)" kartı:** açıklaması
+    "**This month vs last, per store**" (mağaza bazında bu ay - geçen ay
+    karşılaştırması); her mağaza için bir satır listeler. Her satırda solda
+    mağaza adı ve altında "**{n} activations**" (bu ayki aktivasyon sayısı)
+    yer alır; sağda bir **eğilim (trend)** etiketi bulunur:
+    - Mağazanın **geçen ay** hiç aktivasyonu yoksa (sayı 0 ise; bu, yeni
+      eklenmiş bir mağaza için de geçerli olabilir ya da geçen ay basitçe
+      hiç aktivasyon üretmemiş olabilir), etiket gri renkte **"yeni
+      (new)"** yazar.
+    - Aksi halde, bu ayki sayı geçen aya göre **artmışsa** yeşil renkte bir
+      **▲** oku ile birlikte yüzde değişim ("**▲ {n}%**") gösterilir;
+      **azalmışsa** kırmızı renkte bir **▼** oku ile birlikte yüzde
+      değişimin mutlak değeri ("**▼ {n}%**") gösterilir.
+  - **"Yörüngeler (Trajectories)" kartı:** açıklaması "**Monthly activations
+    per store, last 9 months**" (mağaza bazında son 9 ayın aylık
+    aktivasyonları); her mağaza için ayrı bir çizgiyle son 9 aylık seyri
+    gösteren bir grafikle sunulur.
+
+### Adım adım: Analitiği dışa aktarma (CSV)
+
+1. Sol menüden **Analitik (Analytics)** ekranına gidin.
+2. Sağ üstteki **"Analitiği dışa aktar (Export analytics)"** düğmesine
+   tıklayın.
+3. Tarayıcınız anında sabit adlı bir **CSV** dosyası indirir: **`store-
+   analytics.csv`** — Raporlar ekranının aksine, bu dosya adı kiracınıza
+   göre değişmez, her zaman aynıdır.
+4. CSV dosyasının sütunları **Store**, **Activations (this month)**, **Trend
+   %** ve **Paper saved (kg)**'dır; her mağaza için bir satır bulunur. Bir
+   mağaza "yeni (new)" durumundaysa (geçen ay verisi yoksa), **Trend %**
+   sütununda bir yüzde yerine tire ("**—**") görünür.
+5. İndirme tamamlandığında "**Export ready**" başarı bildirimi görünür;
+   açıklamasında "**{n} rows → store-analytics.csv**" yazar. Boş durumda
+   (hiç mağaza yoksa) bu işlem yine de çalışır ama **0 satır** içeren bir
+   dosya indirir.
+
+### İpuçları
+
+- Eğilim rozetlerini yorumlarken şunu unutmayın: gri **"yeni (new)"**
+  etiketi yalnızca "yeni açılmış mağaza" anlamına gelmez — mağazanın **geçen
+  ay** hiç aktivasyonu olmadığı her durumda görünür.
+- **"Mağazaya göre aktivasyonlar"** ve **"Mağaza karşılaştırması"**
+  kartlarındaki mağaza sıralaması aynıdır: bu ayki aktivasyon sayısına göre
+  çoktan aza.
+- **"Analitiği dışa aktar (Export analytics)"** düğmesi, hiç mağaza
+  verisi olmasa (boş durumda) bile her zaman görünür ve tıklanabilir.
+- Bu ekranda da hiçbir düzenleme kontrolü yoktur; rolünüz ne olursa olsun
+  (Sahip/Yönetici/Üye) aynı verileri görür ve aynı şekilde dışa
+  aktarabilirsiniz.

@@ -1458,3 +1458,163 @@ kısıtlaması yoktur.
 - Rolünüz ne olursa olsun (Sahip/Yönetici/Üye) bu ekranı aynı şekilde
   görürsünüz; hiçbir işlem düğmesi veya düzenleme kontrolü hiçbir role
   görünmez.
+
+## 15. Rozetler ve Terimler (Sözlük)
+
+Bu bölüm, kılavuz boyunca karşınıza çıkan durum rozetlerini ve rolleri tek
+bir referans tablosunda toplar, ardından sık kullanılan terimleri kısaca
+tanımlar. Her rozetin/rolün nerede ve nasıl kullanıldığı önceki bölümlerde
+(özellikle Bölüm 2, 5, 6) ayrıntılı olarak anlatılmıştır; burada yalnızca
+hızlı bir başvuru kaynağı sunulur.
+
+### 15.1 Cihaz durumu (Device status)
+
+Bu durum, **Cihaz Detayı** ekranındaki (Bölüm 6) Duraklat kontrolü kartında
+doğrudan gösterilir ve **Mağaza detayı**'ndaki (Bölüm 6) cihaz kartlarının
+altında **Etkin (Active)/Duraklatıldı (Paused)/Erişilemez (Unreachable)**
+etiketiyle farklı bir görünümde de karşınıza çıkar (bkz. Bölüm 6):
+
+| Değer | Renk | Anlamı |
+|---|---|---|
+| **Çevrimiçi (Online)** | Yeşil | Cihaza ulaşılabilir; belge (QR) kabul eder — tetiklemeye hazırdır. |
+| **Çevrimdışı (Offline)** | Gri | Cihaza ulaşılamıyor; duraklat/etkinleştir kontrolü **devre dışıdır** — "Device is offline and can't be changed." (cihaz çevrimdışı ve durumu değiştirilemez). |
+| **Duraklatıldı (Paused)** | Amber (turuncu-sarı) | Cihaz çevrimiçidir ama kasıtlı olarak duraklatılmıştır — belge (QR) kabul **etmez**. |
+
+**Öncelik kuralı:** Bir cihaz hem duraklatılmış hem de uzun süredir
+görülmemiş olsa bile, gösterilen durum her zaman **Duraklatıldı
+(Paused)**'dır — duraklatma her koşulda önceliklidir; "Duraklatıldı" bir
+cihaz asla "Çevrimdışı" olarak görünmez.
+
+### 15.2 Mağaza durumu (rollup)
+
+**Mağazalar (Stores)** tablosundaki (Bölüm 5) ve **Mağaza detayı**
+başlığındaki (Bölüm 6) durum rozeti, aynı üç değeri (**Çevrimiçi (Online)**
+/ **Çevrimdışı (Offline)** / **Duraklatılmış (Paused)**) kullanır, ancak bu
+değer tek bir cihazın değil, mağazadaki **tüm cihazların toplu (rollup)**
+durumundan türetilir:
+
+1. Mağazadaki cihazlardan **en az biri çevrimiçiyse**, mağaza rozeti
+   **Çevrimiçi**'dir.
+2. Çevrimiçi cihaz **yoksa** ama **en az bir cihaz duraklatılmışsa**, mağaza
+   rozeti **Duraklatılmış**'tır.
+3. Yukarıdaki iki durum da geçerli değilse (yani tüm cihazlar çevrimdışıysa
+   veya mağazada hiç cihaz yoksa), mağaza rozeti **Çevrimdışı**'dır.
+
+### 15.3 Roller (Owner / Admin / Member)
+
+| Rol | Yetkiler |
+|---|---|
+| **Sahip (Owner)** | Kiracıdaki tüm yönetimsel işlemleri yapabilir. Bu rol **silinemez** ve **davet/rol değiştirme yoluyla asla düşürülemez** — sunucu tarafında da korunur (bkz. Bölüm 9). |
+| **Yönetici (Admin)** | Sahip (Owner) ile **aynı yönetimsel yetkilere** sahiptir: mağaza ekleme/düzenleme, yazıcı sahiplenme, marka/cihaz ayarlarını düzenleme, üye davet etme/rol değiştirme/kaldırma, API anahtarı oluşturma/iptal etme. |
+| **Üye (Member)** | Çoğu ekranda **salt-okunur (read-only)**'dur: mağaza ekleyemez/düzenleyemez, marka veya cihaz ayarlarını düzenleyemez, üye yönetemez, API anahtarı oluşturamaz/iptal edemez, uzaktan komut gönderemez. **Aşağıdaki önemli istisnaya bakın.** |
+
+> **Önemli istisna — Üye (Member) de cihazı duraklatabilir/etkinleştirebilir:**
+> "Üye (Member) rolü salt-okunurdur" kuralının **tek istisnası**, cihaz
+> kartındaki ve Cihaz Detayı ekranındaki **Duraklat (Pause)/Etkinleştir
+> (Activate)** kontrolüdür (bkz. Bölüm 6). Bu işlem **rol bazında
+> kısıtlanmamıştır** — Üye (Member) rolündeki bir kullanıcı da, tıpkı Sahip
+> (Owner) veya Yönetici (Admin) gibi, çevrimiçi bir cihazı duraklatabilir
+> veya yeniden etkinleştirebilir. Buna karşılık aynı Üye, aynı ekranda
+> **mağaza eklemek/düzenlemek**, **yazıcı sahiplenmek (Claim printer)**,
+> **marka veya cihaz ayarlarını düzenlemek**, **üye yönetmek** ya da
+> **uzaktan komut göndermek** gibi diğer tüm işlemleri **yapamaz**. Tek
+> kısıtlama, cihazın **çevrimdışı** olmamasıdır — çevrimdışı bir cihazın
+> durumu hiçbir rol tarafından değiştirilemez (bkz. 15.1).
+
+### 15.4 Sözlük (Terimler)
+
+- **Kiracı (Tenant / Organization):** Ditto Admin'de sizin firmanızı temsil
+  eden organizasyon; tipik olarak bir mağaza zincirinin tamamını kapsar
+  (bkz. Bölüm 2.2).
+- **Mağaza (Store / Branch):** Kiracıya bağlı tek bir şube/lokasyon; kendi
+  adresi, cihazları ve aktivasyon istatistikleri vardır (bkz. Bölüm 5).
+- **Cihaz / Yazıcı (Device / Printer):** Müşteriye taranacak QR kodu
+  ekranında gösteren fiziksel donanım; "cihaz" olarak anılsa da aslında bir
+  yazıcıdır (bkz. Bölüm 2.3).
+- **Tetikleme (Trigger):** Yetkilendirilmiş bir çağıran tarafın, bir cihazda
+  belirli bir URL'nin QR kodunun gösterilmesini istediği **API isteğinin
+  kendisi** — henüz tamamlanmamış olabilir (bkz. Bölüm 2.4).
+- **Aktivasyon (Activation):** Bir tetiklemenin cihaz tarafından başarıyla
+  işlenip müşteriye QR kodun gösterilmesiyle sonuçlanan **tamamlanmış ve
+  sayılan** işlem; KPI kartlarında ve grafiklerde ("Activations today/this
+  month", vb.) gösterilen sayı budur. **Kısaca:** Tetikleme = istek,
+  Aktivasyon = bu isteğin başarıyla tamamlanıp sayılan hâli.
+- **Kredi (Credit — ön ödemeli/prepaid):** Ditto'nun ücretlendirme birimi;
+  her tetikleme kiracının bakiyesinden 1 kredi rezerve eder, işlem
+  başarıyla tamamlanınca (ack ile) bu kredi kesin olarak düşülür
+  (bkz. Bölüm 2.5, Bölüm 12).
+- **Eşleştirme kodu (Pairing code):** Sahiplenilmemiş bir cihazın ekranında
+  görünen, o cihazı bir mağazaya bağlamak (claim) için kullanılan kod
+  (bkz. Bölüm 6, Yazıcı sahiplenme).
+- **Cihaz anahtarı (Device key):** Bir cihaz sahiplenildiğinde yalnızca
+  **bir kez** gösterilen anahtar; Ditto yalnızca bunun hash'lenmiş bir
+  kopyasını saklar, kaybedilirse tekrar görüntülenemez (bkz. Bölüm 6).
+- **Ürün yazılımı (Firmware):** Cihazın çalıştırdığı, uzaktan
+  güncellenebilen yazılım; Cihaz Detayı ekranında sürüm numarasıyla
+  gösterilir (bkz. Bölüm 6).
+- **Uzaktan komut (Remote command):** Cihaz Detayı ekranındaki "Uzaktan
+  kontrol (Remote control)" bölümünden gönderilen (Reboot/Refresh
+  config/Identify/Update firmware) komutlardan biri; cihaza anında değil,
+  cihazın bir sonraki bağlantı kontrolünde (check-in) ulaşır (bkz. Bölüm 6).
+- **Eko etki (Eco impact):** Kağıtsız aktivasyonların tahmini çevresel
+  karşılığı; Ağaç (trees), Kâğıt (paper), Su (water) ve CO₂e istatistik
+  kutularıyla Panel ve Raporlar ekranlarında gösterilir (bkz. Bölüm 4,
+  Bölüm 10).
+
+## 16. Sık Sorulanlar / Sorun Giderme
+
+**Bir cihaz neden "Çevrimdışı (Offline)" görünüyor?**
+Bir cihaz, ya hiç görülmemişse ya da son görülme zamanının üzerinden
+**15 dakikadan fazla** geçmişse "Çevrimdışı (Offline)" olarak gösterilir.
+Cihaz ayrıca **duraklatılmış (Paused)** durumdaysa, kaç dakikadır
+görülmediğine bakılmaksızın durum her zaman "Duraklatıldı (Paused)" olarak
+gösterilir — duraklatma her koşulda önceliklidir, "Duraklatıldı" bir cihaz
+asla "Çevrimdışı" görünmez (bkz. Bölüm 15.1).
+
+**Kredi nasıl satın alınır?**
+**Faturalandırma (Billing)** ekranına gidin (Bölüm 12) ve **"Krediler
+(Credits)"** bölümündeki paketlerden birinin **"{n} kredi satın al (Buy {n}
+credits)"** düğmesine tıklayın. **Önemli:** Kurulumunuzda Stripe
+yapılandırılmamışsa veya hiç kredi paketi tanımlanmamışsa, bu satın alma
+bölümü ekranda **hiç görünmez** — bu bir hata değildir, bu durumda krediler
+yalnızca platform tarafından manuel olarak tanımlanabilir (bkz. Bölüm 12'deki
+"Önemli" notu).
+
+**Bir yazıcıyı nasıl eklerim?**
+Yazıcılar **Mağazalar (Stores)** ekranından değil, ilgili mağazanın **Mağaza
+detayı** ekranından eklenir (Bölüm 6). **Sahip (Owner)** veya **Yönetici
+(Admin)** rolündeyseniz, mağaza detayında **"Yazıcı sahiplen (Claim
+printer)"** düğmesine tıklayın ve yazıcının kendi ekranında gördüğünüz
+**eşleştirme kodunu (pairing code)** girin. Cihaz birkaç saniye içinde
+otomatik olarak etkinleşir (bkz. Bölüm 6, "Adım adım: Yazıcı sahiplenme").
+**Üye (Member)** rolündeyseniz bu düğmeyi göremezsiniz.
+
+**Markadaki logo metni neden kaydedilmiyor?**
+**Marka (Branding)** ekranındaki **Logo metni (Logo text — "Logo text
+(preview fallback)")** alanı, tasarım gereği **yalnızca sağdaki canlı
+önizleme içindir**. **"Markayı kaydet (Save branding)"** düğmesine bassanız
+bile bu değer kalıcı olarak saklanmaz; sayfa yeniden yüklendiğinde eski
+haline sıfırlanır. Kalıcı bir marka adı/logosu göstermek için **Screen**
+bölümündeki nesneleri (metin/logo/görsel) kullanmanız gerekir (bkz.
+Bölüm 7).
+
+**API anahtarı "read-only" deniyor ama neden cihaz tetikleyip kredi
+harcayabiliyor?**
+**API anahtarları (API keys)** ekranının açıklaması "**Read-only keys**"
+dese de, bu tam olarak doğru değildir: bir anahtara **`devices:trigger`**
+kapsamı (izni) verilirse, bu anahtar `POST
+/api/v1/devices/{deviceId}/trigger` uç noktası üzerinden gerçekten bir
+cihazı tetikleyebilir ve bu işlem kiracınızın **kredi bakiyesinden kredi
+harcar** — yani "salt-okunur" değil, gerçek bir **yazma (write)** eylemidir.
+Bu kapsamı yalnızca gerçekten cihaz tetiklemesi gereken entegrasyonlara
+verin (bkz. Bölüm 13'teki "Önemli" notu).
+
+**Bir üyeyi neden admin yapamıyorum / kaldıramıyorum?**
+İki olası neden vardır: (1) Rol değiştirme ve kaldırma işlemlerini yalnızca
+**Sahip (Owner)** veya **Yönetici (Admin)** rolündeki kullanıcılar
+yapabilir — **Üye (Member)** rolündeyseniz bu işlemleri hiç göremezsiniz.
+(2) Değiştirmeye/kaldırmaya çalıştığınız kişi **Sahip (Owner)**
+rolündeyse, bu işlem **hiçbir zaman** yapılamaz — owner rolü hem davetle
+verilemez hem de sonradan değiştirilemez/kaldırılamaz; bu ekranda o satırda
+işlem düğmeleri hiç görünmez, sunucu tarafında da aynı koruma vardır
+(bkz. Bölüm 9).

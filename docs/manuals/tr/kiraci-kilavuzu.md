@@ -1005,7 +1005,8 @@ kullanıcılar bu ekranı **aynı şekilde** görür, rol kısıtlaması yoktur.
     (son 9 ay) yazar — Panel ekranındaki "this month" (bu ay) yerine, son 9
     aylık toplam aktivasyona göre hesaplanır.
 - **QUIRK — düşük öncelikli not:** **"Mağazaya göre (By store)"** kartında
-  (ve dışa aktarılan CSV'nin "By store" bölümünde) mağaza adlarının
+  (ve dışa aktarılan CSV'nin **"Mağazaya göre (By store)"** bölümünde) mağaza
+  adlarının
   başındaki sabit "**Roastwell **" öneki otomatik olarak kırpılır. Bu, bir
   demo kalıntısıdır ve yalnızca bu tam metinle başlayan mağaza adlarını
   etkiler; "Cihaza göre (By device)" kartındaki etiketler bu kırpmadan
@@ -1019,11 +1020,12 @@ kullanıcılar bu ekranı **aynı şekilde** görür, rol kısıtlaması yoktur.
    indirir; dosya adı **`{kiracı-adının-küçük-harfli-tireli-hali}-report.csv`**
    biçimindedir (örnek: "Roastwell Coffee" adlı bir kiracı için
    "**roastwell-coffee-report.csv**").
-4. CSV dosyasının sütunları **Section**, **Label**, **Activations**'tır; tek
-   dosya içinde 3 bölüm art arda yer alır: **"Monthly"** (Aktivasyonlar zaman
-   içinde kartındaki 9 aylık veriyle eşleşir), **"By store"** (Mağazaya göre
-   kartıyla eşleşir, "Roastwell " öneki kırpılmış olarak) ve **"By device"**
-   (Cihaza göre kartındaki en fazla 8 satırla eşleşir).
+4. CSV dosyasının sütunları **Bölüm (Section)**, **Etiket (Label)**,
+   **Aktivasyonlar (Activations)**'tır; tek dosya içinde 3 bölüm art arda yer
+   alır: **Aylık (Monthly)** (Aktivasyonlar zaman içinde kartındaki 9 aylık
+   veriyle eşleşir), **Mağazaya göre (By store)** (Mağazaya göre kartıyla
+   eşleşir, "Roastwell " öneki kırpılmış olarak) ve **Cihaza göre (By
+   device)** (Cihaza göre kartındaki en fazla 8 satırla eşleşir).
 5. İndirme tamamlandığında ekranın altında **"Export ready"** (dışa aktarma
    hazır) başlıklı bir başarı bildirimi görünür; açıklamasında "**{n} rows →
    {dosya adı}**" (kaç satırın hangi dosyaya aktarıldığı) yazar.
@@ -1096,10 +1098,11 @@ kullanıcılar aynı görünümü görür, rol kısıtlaması yoktur.
 3. Tarayıcınız anında sabit adlı bir **CSV** dosyası indirir: **`store-
    analytics.csv`** — Raporlar ekranının aksine, bu dosya adı kiracınıza
    göre değişmez, her zaman aynıdır.
-4. CSV dosyasının sütunları **Store**, **Activations (this month)**, **Trend
-   %** ve **Paper saved (kg)**'dır; her mağaza için bir satır bulunur. Bir
-   mağaza "yeni (new)" durumundaysa (geçen ay verisi yoksa), **Trend %**
-   sütununda bir yüzde yerine tire ("**—**") görünür.
+4. CSV dosyasının sütunları **Mağaza (Store)**, **Aktivasyonlar (bu ay)
+   (Activations (this month))**, **Trend yüzdesi (Trend %)** ve **Kâğıt
+   tasarrufu (kg) (Paper saved (kg))**'dır; her mağaza için bir satır bulunur.
+   Bir mağaza "yeni (new)" durumundaysa (geçen ay verisi yoksa), **Trend
+   yüzdesi** sütununda bir yüzde yerine tire ("**—**") görünür.
 5. İndirme tamamlandığında "**Export ready**" başarı bildirimi görünür;
    açıklamasında "**{n} rows → store-analytics.csv**" yazar. Boş durumda
    (hiç mağaza yoksa) bu işlem yine de çalışır ama **0 satır** içeren bir

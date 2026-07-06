@@ -1121,3 +1121,339 @@ kullanıcılar aynı görünümü görür, rol kısıtlaması yoktur.
 - Bu ekranda da hiçbir düzenleme kontrolü yoktur; rolünüz ne olursa olsun
   (Sahip/Yönetici/Üye) aynı verileri görür ve aynı şekilde dışa
   aktarabilirsiniz.
+
+## 12. Faturalandırma & Krediler (Billing)
+
+### Bu ekran ne işe yarar?
+
+**Faturalandırma (Billing)** ekranı (adres: **`/tenant/billing`**, başlığı "**Billing**",
+açıklaması "**Manage your prepaid credit balance.**" — ön ödemeli kredi
+bakiyenizi yönetin) kiracınızın **kredi bakiyesini** görüntülemenizi, yeni
+kredi **satın almanızı** ve bu ayki kredi harcamasını **cihaz bazında**
+incelemenizi sağlar. Ditto'da faturalandırma tamamen **ön ödemeli krediye**
+dayanır: bu ekranda fatura (invoice), abonelik (subscription) veya kayıtlı
+ödeme yöntemi (payment method) gibi bir kavram **yoktur** — yalnızca
+bakiye, satın alma ve kullanım özeti bulunur. Sayfada herhangi bir rol
+kısıtlaması yoktur; **Sahip (Owner)**, **Yönetici (Admin)** ve **Üye
+(Member)** rolündeki tüm kullanıcılar bu ekranı aynı şekilde görür ve
+kredi satın alma dahil aynı işlemleri yapabilir.
+
+> **Önemli — kredi satın alma bölümü hiç görünmeyebilir:** Aşağıda
+> anlatılan **"Krediler (Credits)"** bölümü, kurulumunuzda **Stripe
+> yapılandırılmamışsa** ekranda **hiçbir şekilde görünmez** — ne başlığı ne
+> de satın alma düğmeleri çıkar, herhangi bir uyarı ya da boş-durum mesajı
+> da gösterilmez, bölüm sanki hiç yokmuş gibi tamamen atlanır. Bu, iki
+> durumdan **herhangi biri** gerçekleştiğinde olur: (1) Stripe'ın herkese
+> açık (yayın) anahtarı ortamda tanımlı değilse, **veya** (2) hiç kredi
+> paketi (fiyatlandırılmış paket) yapılandırılmamışsa. Kurulumunuzda kredi
+> satın alma düğmelerini göremiyorsanız, bu bir hata değildir — muhtemelen
+> kurulumunuzda Stripe henüz etkinleştirilmemiştir; bu durumda krediler
+> yalnızca platform tarafından manuel olarak tanımlanabilir (örn. kayıt
+> sırasında verilen başlangıç kredileri).
+
+### Ekranda neler var?
+
+- **Başlık ve açıklama:** "**Billing**" / "**Manage your prepaid credit
+  balance.**".
+- **"Krediler (Credits)" bölümü** (Stripe yapılandırılmışsa ve en az bir
+  kredi paketi varsa görünür; yukarıdaki notu bkz.):
+  - "**Credits**" bölüm başlığı ve altında **Kullanılabilir (Available):**
+    etiketiyle birlikte güncel kredi bakiyeniz.
+  - Yapılandırılan her kredi paketi için **"Buy {n} credits" ({n} kredi
+    satın al)** düğmesi (örn. "Buy 100 credits") — paketteki kredi sayısı
+    `{n}` yerine geçer. Bir satın alma işlemi sürerken tıklanan düğmenin
+    metni geçici olarak "**Loading…**" olur ve diğer tüm paket düğmeleri
+    devre dışı kalır.
+  - Bir paket seçildiğinde düğmelerin yerini **"Purchasing {n} credits"**
+    (satın alınmakta olan kredi miktarı) metni ve hemen altında Stripe'ın
+    yerleşik (inline) ödeme formu alır: bir kart/ödeme bilgisi alanı, bir
+    **"Pay now" (Şimdi öde)** düğmesi (işlem sürerken metni
+    "**Processing…**" olur) ve altında küçük bir **"Vazgeç (Cancel)"**
+    düğmesi (satın almadan vazgeçip paket seçim ekranına döner).
+  - Ödeme başarılı olursa **sayfa otomatik olarak yeniden yüklenir**
+    (herhangi bir başarı bildirimi/toast görünmez; güncel bakiyeyi yenilenen
+    sayfada görürsünüz). Ödeme başarısız olursa, formun altında kırmızı bir
+    hata metni görünür ve ödeme formunda kalırsınız.
+- **"Bu ayki kredi kullanımı (Credit usage this month)" bölümü:**
+  - Başlığın altında **Kullanılabilir {n} (Available {n})** yazar; eğer şu
+    anda **rezerve edilmiş (tutulan)** krediniz varsa (bir tetikleme işlemi
+    sonuçlanmayı beklerken), yanına **"· Tutulan {n} (Held {n})"** eklenir —
+    tutulan krediniz yoksa bu kısım hiç görünmez.
+  - Bu ay hiç kredi harcaması yoksa: "**No credit usage this month.**"
+    (bu ay kredi kullanımı yok) metni görünür.
+  - Aksi halde bir tablo görünür, sütunları **Cihaz (Device)**, **Kredi
+    (Credits)** ve **Tetikleme (Triggers)**'dır:
+    - **Cihaz (Device)** sütununda cihazın adı yazar; harcama hangi cihaza
+      ait olduğu belirlenemiyorsa (örn. cihaz sonradan silinmiş olabilir)
+      bu hücrede **"Unattributed"** (sahibi belirlenemeyen) yazar.
+    - **Kredi (Credits)** sütunu o cihaz için bu ay harcanan toplam kredi
+      miktarını gösterir; satırlar bu sütuna göre **çoktan aza** sıralanır.
+    - **Tetikleme (Triggers)** sütunu o cihaz için bu ay yapılan tetikleme
+      (trigger) sayısını gösterir.
+    - Tablonun en altında kalın yazılmış bir **Total** (toplam) satırı
+      bulunur; bu satır tüm cihazlardaki toplam kredi harcamasını gösterir
+      (Tetikleme sütunu bu satırda boştur).
+
+### Adım adım: Kredi satın alma
+
+> Bu adımlar yalnızca kurulumunuzda Stripe yapılandırılmışsa ve en az bir
+> kredi paketi tanımlıysa geçerlidir; aksi halde **"Krediler (Credits)"**
+> bölümünü hiç göremezsiniz (yukarıdaki nota bakın).
+
+1. Sol menüden **Faturalandırma (Billing)** ekranına gidin.
+2. **"Krediler (Credits)"** bölümünde, **Kullanılabilir (Available):**
+   etiketinin yanında güncel kredi bakiyenizi görün.
+3. Satın almak istediğiniz paketin **"Buy {n} credits" ({n} kredi satın
+   al)** düğmesine tıklayın (örn. "Buy 100 credits").
+4. Düğme kısa süreliğine "**Loading…**" gösterir, ardından yerini
+   **"Purchasing {n} credits"** metni ve Stripe'ın yerleşik ödeme formuna
+   bırakır.
+5. Ödeme bilgilerinizi girin ve **"Pay now" (Şimdi öde)** düğmesine
+   tıklayın (işlem sürerken düğme metni "**Processing…**" olur).
+6. Ödeme başarılı olursa sayfa otomatik olarak yeniden yüklenir ve güncel
+   bakiyeniz **Kullanılabilir (Available):** etiketinin yanında görünür.
+7. Ödeme sırasında bir hata oluşursa, formun altında kırmızı bir hata metni
+   görünür; isterseniz **"Vazgeç (Cancel)"** düğmesiyle işlemden vazgeçip
+   paket seçim ekranına dönebilirsiniz.
+
+### İpuçları
+
+- Kurulumunuzda kredi satın alma düğmelerini göremiyorsanız, bu bir arıza
+  değildir: Stripe yapılandırılmamış veya hiç kredi paketi tanımlanmamış
+  demektir (yukarıdaki nota bakın).
+- Bu ekranda fatura (invoice), abonelik (subscription) ya da kayıtlı ödeme
+  yöntemi (payment method) yönetimi **yoktur** — Ditto'da tek ödeme yolu
+  ön ödemeli krediler satın almaktır.
+- **"Bu ayki kredi kullanımı (Credit usage this month)"** tablosundaki
+  **"Unattributed"** satırı, hangi cihaza ait olduğu belirlenemeyen bir
+  harcamayı temsil eder; bunu bir hata olarak yorumlamayın.
+- Satın alma dahil bu ekrandaki tüm işlemler için rol kısıtlaması yoktur;
+  Sahip, Yönetici ve Üye rolündeki herkes aynı bakiyeyi görür ve kredi satın
+  alabilir.
+- **"Tutulan {n} (Held {n})"** ifadesi, henüz sonuçlanmamış (bekleyen) bir
+  tetikleme işlemi için geçici olarak rezerve edilmiş krediyi gösterir;
+  işlem sonuçlandığında (başarı ya da hata) bu tutar serbest kalır veya
+  kesin olarak harcanır.
+
+## 13. API
+
+### Bu ekran ne işe yarar?
+
+**API anahtarları (API keys)** ekranı (adres: **`/tenant/api`**, başlığı "**API keys**",
+açıklaması "**Read-only keys for the Ditto public API.**" — Ditto genel
+API'si için salt-okunur anahtarlar) kiracınız adına Ditto'nun genel (public)
+API'sine erişim için **API anahtarları (API keys)** oluşturmanızı,
+listelemenizi ve iptal etmenizi sağlar. Anahtar oluşturma ve iptal etme
+işlemleri yalnızca **Sahip (Owner)** ve **Yönetici (Admin)** rolündeki
+kullanıcılara açıktır; **Üye (Member)** rolündeki kullanıcılar bu ekranı
+**salt-okunur** olarak görür — anahtar listesini görebilirler ama
+**"API anahtarı oluştur (Create API key)"** düğmesini ve satırlardaki iptal
+işlemini göremezler.
+
+> **Önemli — başlıktaki "Read-only" ifadesi yanıltıcıdır:** Ekranın
+> açıklaması "**Read-only keys**" (salt-okunur anahtarlar) dese de, bu
+> **tam olarak doğru değildir**. Bir API anahtarına **`devices:trigger`**
+> kapsamı (izni) verilirse, bu anahtar yalnızca veri **okumakla**
+> kalmaz — gerçekten bir **cihazı tetikleyebilir** (`POST
+> /api/v1/devices/{deviceId}/trigger` uç noktası üzerinden) ve bu işlem
+> kiracınızın **kredi bakiyesinden kredi harcar**. Yani `devices:trigger`
+> kapsamına sahip bir anahtar aslında bir **yazma (write)** eylemi
+> gerçekleştirir ve gerçek para/kredi karşılığı olan bir işlemi tetikler —
+> ekran başlığındaki "Read-only" (salt-okunur) ifadesiyle çelişir. Bu
+> kapsamı hangi anahtarlara verdiğinize dikkat edin.
+
+### Ekranda neler var?
+
+- **Başlık ve açıklama:** "**API keys**" / "**Read-only keys for the Ditto
+  public API.**"; yalnızca Sahip/Yönetici rolündeki kullanıcılar için sağ
+  üstte bir **"API anahtarı oluştur (Create API key)"** düğmesi bulunur
+  (Üye rolündeyseniz bu düğme hiç görünmez).
+- **"API'yi kullanma (Using the API)" kartı:** API'yi nasıl çağıracağınızı
+  özetler:
+  - Temel URL (base URL): `/api/v1` (kod olarak, olduğu gibi kullanılır).
+  - Kimlik doğrulama: her istekte `Authorization: Bearer <key>` başlığı
+    (header) gönderilir (`<key>` yerine kendi API anahtarınızı yazarsınız).
+  - Örnek uç noktalar (endpoints): `GET /usage` (kredi kullanım özeti) ve
+    `POST /api/v1/devices/{deviceId}/trigger` (bir cihaz eylemini tetikler,
+    örn. kendi barındırdığınız bir URL için QR kod gösterme).
+  - Tam şema (schema) için bir bağlantı: **`/api/v1/openapi.json`**.
+- **Anahtarlar tablosu**, sütunları **Ad (Name)**, **Anahtar (Key)**, **Son
+  kullanım (Last used)** ve **Oluşturuldu (Created)**'dur:
+  - **Ad (Name):** anahtara verdiğiniz isim.
+  - **Anahtar (Key):** anahtarın tamamı **asla** yeniden gösterilmez; bu
+    sütunda yalnızca anahtarın kısa bir **öneki** ve ardından "**…**"
+    görünür (örn. `dk_live_ab12…`), gerçek anahtar değeri değil.
+  - **Son kullanım (Last used):** anahtarın en son kullanıldığı tarih, veya
+    hiç kullanılmadıysa "**Never**" (hiç).
+  - **Oluşturuldu (Created):** anahtarın oluşturulduğu tarih.
+  - Yalnızca Sahip/Yönetici rolündeki kullanıcılar için, her satırın sonunda
+    bir çöp kutusu simgeli **İptal et (Revoke)** düğmesi bulunur (yalnızca
+    simge, görünür metin yoktur; erişilebilirlik için gizli etiketi
+    "Revoke {ad}" biçimindedir).
+  - Hiç API anahtarı yoksa: "**No API keys yet.**" (henüz API anahtarı yok)
+    metni görünür.
+- **"API anahtarı oluştur (Create API key)" diyaloğu** (Sahip/Yönetici):
+  - Başlık "**Create API key**", açıklama "**Create an API key scoped to
+    this organization. Choose its permissions below.**" (bu organizasyona
+    özel bir API anahtarı oluşturun; izinlerini aşağıdan seçin).
+  - **Ad (Name)** alanı — **zorunlu**, en fazla 100 karakter, yer tutucu
+    metni "**e.g. Analytics export**".
+  - **"İzinler (Permissions)"** bölümü — iki onay kutusu (checkbox)
+    sunar, her ikisi de kod biçiminde (literal) gösterilir:
+    - **`usage:read`** — varsayılan olarak **işaretlidir**.
+    - **`devices:trigger`** — varsayılan olarak **işaretli değildir**; hemen
+      altında bir uyarı metni bulunur: "**devices:trigger lets this key
+      trigger devices and spend credits.**" (devices:trigger bu anahtarın
+      cihazları tetiklemesine ve kredi harcamasına izin verir).
+  - Alt kısımda **"İptal (Cancel)"** ve **"Anahtar oluştur (Create key)"**
+    düğmeleri (ikincisi işlem sürerken bir dönen simge ile birlikte
+    "**Creating…**" gösterir).
+  - Anahtar adı boş bırakılırsa (veya sunucu başka bir doğrulama hatası
+    döndürürse) örneğin "**Key name is required.**" (anahtar adı zorunlu)
+    gibi bir hata mesajı görünür ve diyalog açık kalır.
+  - Anahtar başarıyla oluşturulunca diyalog içeriği değişir: başlık "**API
+    key created**", açıklama "**Copy it now — you won't be able to see it
+    again.**" (şimdi kopyalayın — bir daha göremeyeceksiniz) olur; altında
+    anahtarın **tam değeri** kod biçiminde bir kutuda gösterilir, yanında
+    bir kopyala simgesi düğmesi bulunur (kopyalandığında simge kısa süre
+    bir onay işaretine döner ve "**Copied to clipboard**" bildirimi
+    çıkar). En altta bir **"Tamam (Done)"** düğmesi diyaloğu kapatır.
+- **"API anahtarını iptal et (Revoke API key)" diyaloğu** (Sahip/Yönetici,
+  satırdaki çöp kutusu simgesine tıklanınca açılır):
+  - Başlık "**Revoke API key**", açıklama ""**{ad}**" will stop working
+    immediately. This can't be undone." (bu anahtar hemen çalışmayı
+    durduracak; bu işlem geri alınamaz).
+  - **"Vazgeç (Cancel)"** ve **"İptal et (Revoke)"** düğmeleri; ikincisi
+    kırmızı (yıkıcı) renktedir ve işlem sürerken bir dönen simge ile
+    birlikte "**Revoking…**" gösterir.
+  - İşlem başarılı olunca diyalog kapanır, bir "**Key revoked**" (anahtar
+    iptal edildi) başarı bildirimi (toast) görünür ve anahtar listeden
+    kaybolur.
+
+### Adım adım: API anahtarı oluşturma
+
+> Bu adımlar yalnızca **Sahip (Owner)** veya **Yönetici (Admin)** rolündeki
+> kullanıcılar için geçerlidir.
+
+1. Sol menüden **API anahtarları (API keys)** ekranına gidin.
+2. Sağ üstteki **"API anahtarı oluştur (Create API key)"** düğmesine
+   tıklayın.
+3. Açılan diyalogda **Ad (Name)** alanına anahtar için tanımlayıcı bir isim
+   girin (örn. "Analytics export"); bu alan zorunludur.
+4. **"İzinler (Permissions)"** bölümünde hangi kapsamların (scope) bu
+   anahtara verileceğini seçin: `usage:read` varsayılan olarak işaretlidir;
+   anahtarın cihazları tetikleyip **kredi harcamasına** izin vermek
+   istiyorsanız `devices:trigger` kutusunu da işaretleyin (bu izin
+   varsayılan olarak kapalıdır ve dikkatli kullanılmalıdır).
+5. **"Anahtar oluştur (Create key)"** düğmesine tıklayın.
+6. Ad alanı boşsa veya başka bir doğrulama hatası olursa (örn. "Key name is
+   required."), hatayı düzeltip tekrar deneyin.
+7. Anahtar oluşturulunca, gösterilen **tam anahtar değerini** hemen
+   kopyalayın ("**Copy it now — you won't be able to see it again.**")
+   — kopyala simgesine tıklayarak panoya alabilirsiniz.
+8. **"Tamam (Done)"** düğmesine tıklayarak diyaloğu kapatın; yeni anahtar
+   artık tabloda görünür (yalnızca öneki + "…" olarak; tam değeri bir daha
+   gösterilmez).
+
+### Adım adım: API anahtarını iptal etme
+
+> Bu adımlar yalnızca **Sahip (Owner)** veya **Yönetici (Admin)** rolündeki
+> kullanıcılar için geçerlidir.
+
+1. Sol menüden **API anahtarları (API keys)** ekranına gidin.
+2. İptal etmek istediğiniz anahtarın satırında, sağ uçtaki çöp kutusu
+   simgesine tıklayın.
+3. Açılan diyalogda anahtar adının ve "bu işlem geri alınamaz" uyarısının
+   doğru olduğunu kontrol edin.
+4. **"İptal et (Revoke)"** düğmesine tıklayın (işlem sürerken düğme metni
+   "**Revoking…**" olur).
+5. İşlem tamamlanınca "**Key revoked**" başarı bildirimi görünür ve anahtar
+   listeden kaybolur; bu anahtarla yapılan API çağrıları **hemen** başarısız
+   olmaya başlar.
+6. Vazgeçmek isterseniz, işlemi onaylamadan **"Vazgeç (Cancel)"** düğmesine
+   tıklayın; anahtar değişmeden kalır.
+
+### İpuçları
+
+- Ekran başlığındaki "Read-only" (salt-okunur) ifadesine güvenmeyin:
+  `devices:trigger` kapsamı verilen bir anahtar hem cihaz tetikleyebilir hem
+  de kredi harcayabilir — bu kapsamı yalnızca gerçekten cihaz tetiklemesi
+  gereken entegrasyonlara verin.
+- Bir anahtarın tam değerini yalnızca **oluşturulduğu anda** görebilirsiniz;
+  kapattıktan sonra bir daha gösterilmez — kaybederseniz eski anahtarı iptal
+  edip yenisini oluşturmanız gerekir.
+- **Üye (Member)** rolündeyseniz bu ekranda hiçbir işlem yapamazsınız;
+  yalnızca mevcut anahtarların listesini (Ad/Anahtar öneki/Son kullanım/
+  Oluşturuldu) görüntüleyebilirsiniz.
+- Anahtarlar tablosundaki **Anahtar (Key)** sütununda gördüğünüz değer
+  yalnızca bir **önektir**; güvenlik nedeniyle anahtarın tamamı hiçbir zaman
+  yeniden görüntülenmez.
+- API'nin tam şeması (tüm uç noktalar, parametreler ve yanıt biçimleri)
+  için **"API'yi kullanma (Using the API)"** kartındaki **`/api/v1/openapi.json`** bağlantısını
+  kullanın.
+
+## 14. Etkinlik (Activity)
+
+### Bu ekran ne işe yarar?
+
+**Etkinlik (Activity)** ekranı (adres: **`/tenant/activity`**, başlığı "**Activity**")
+kiracınızda gerçekleşen önemli işlemlerin **kronolojik denetim günlüğünü
+(audit log)** gösterir — kim, ne zaman, hangi eylemi yaptı ve bu eylem
+hangi kayda uygulandı. Bu ekran tamamen **salt-okunurdur**; hiçbir
+düzenleme/silme kontrolü içermez ve **Sahip (Owner)**, **Yönetici (Admin)**
+ve **Üye (Member)** rolündeki tüm kullanıcılar aynı listeyi görür, rol
+kısıtlaması yoktur.
+
+### Ekranda neler var?
+
+- **Başlık:** "**Activity**" — bu ekranda ayrıca bir alt açıklama metni
+  bulunmaz.
+- **Etkinlik tablosu**, sütunları **Ne zaman (When)**, **İşlem (Action)**,
+  **Yapan (Actor)** ve **Hedef (Target)**'tir:
+  - **Ne zaman (When):** olayın ne kadar süre önce gerçekleştiğini gösteren
+    göreli bir zaman ifadesi (örn. "3 hours ago" gibi; tam tarih değil).
+  - **İşlem (Action):** olayı açıklayan insan-okur bir etiket. **Önemli:**
+    bu etiketler uygulama tarafından üretilen **İngilizce** metinlerdir ve
+    **Türkçeleştirilmemiştir** — ekranda olduğu gibi İngilizce görünürler.
+    Görebileceğiniz örnek etiketlerden bazıları: **"Store created"**,
+    **"Store updated"**, **"Device claimed"**, **"Device paused"**,
+    **"Device resumed"**, **"Command sent to device"**, **"Device went
+    offline"**, **"API key created"**, **"API key revoked"**, **"Branding
+    updated"**, **"Device settings updated"**, **"Member invited"**,
+    **"Member added"**, **"Member removed"**, **"Member role changed"**,
+    **"Invitation canceled"**, **"Credits purchased"** ve **"Credits
+    granted"**. (Bu listede yer almayan bir eylem türü için ekran, eylem
+    adından otomatik türetilmiş genel bir etiket gösterir.)
+  - **Yapan (Actor):** eylemi gerçekleştiren kişi veya sistemin adı; eylemi
+    yapan bir **kullanıcı değilse** (örn. bir cihaz veya otomatik bir
+    sistem süreci ise), adın yanında küçük, büyük harfli bir rozet
+    görünür — örn. "**device**" veya "**system**" (bu rozet metinleri de
+    **Türkçeleştirilmemiştir**, olduğu gibi görünür). Eylemi bir kullanıcı
+    yaptıysa herhangi bir rozet görünmez.
+  - **Hedef (Target):** eylemin uygulandığı kaydın kısa (mono/eş aralıklı
+    yazı tipiyle gösterilen) kimliği; eylemin belirli bir hedefi yoksa bu
+    hücrede tire ("**—**") görünür.
+  - Hiç etkinlik kaydı yoksa: "**No activity yet.**" (henüz etkinlik yok)
+    metni görünür.
+- **Sayfalama (pagination):** tablonun altında solda "**Page {p} of
+  {n}**" (kaçıncı sayfada olduğunuzu ve toplam sayfa sayısını gösterir)
+  yazar; sağda **"Önceki (Previous)"** ve **"Sonraki (Next)"** bağlantıları
+  bulunur. İlk sayfadaysanız **"Önceki (Previous)"** tıklanamaz hale gelir
+  (gri, bağlantı değildir); son sayfadaysanız aynı şekilde **"Sonraki
+  (Next)"** tıklanamaz hale gelir. Sayfa numarası adres çubuğunda
+  `?page={n}` sorgu parametresi olarak tutulur.
+
+### İpuçları
+
+- **İşlem (Action)** sütunundaki etiketler ve **Yapan (Actor)** sütunundaki
+  rozet metinleri (device/system) **Türkçeleştirilmemiştir**; Bölüm 6'daki
+  komut geçmişi tablosuna ve Bölüm 9'daki rol değerlerine benzer bir
+  istisnadır.
+- **Hedef (Target)** sütunundaki tire ("—") bir hata değildir; yalnızca o
+  eylemin belirli bir kayda uygulanmadığını gösterir (örn. bazı
+  organizasyon geneli ayar değişiklikleri).
+- Bu ekranda arama veya filtreleme kontrolü yoktur; kayıtları yalnızca
+  sayfa sayfa (**Önceki/Sonraki**) gezerek inceleyebilirsiniz.
+- Rolünüz ne olursa olsun (Sahip/Yönetici/Üye) bu ekranı aynı şekilde
+  görürsünüz; hiçbir işlem düğmesi veya düzenleme kontrolü hiçbir role
+  görünmez.

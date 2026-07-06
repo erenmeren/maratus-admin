@@ -623,7 +623,7 @@ Ekran iki ana sütuna ayrılır: solda düzenleme paneli, sağda **Canlı
 **Sol panel — akordeon (üç bölüm; sayfa açıldığında varsayılan olarak
 "Screen" bölümü açık gelir):**
 
-- **Brand bölümü:**
+- **Marka (Brand) bölümü:**
   - **Logo metni (Logo text) — "Logo text (preview fallback)"** alanı, yer
     tutucu metni "**Your brand**". **Önemli — bu alan yalnızca önizleme
     içindir, KAYDEDİLMEZ:** buraya yazdığınız metin yalnızca sağdaki canlı
@@ -637,22 +637,22 @@ Ekran iki ana sütuna ayrılır: solda düzenleme paneli, sağda **Canlı
     bir metin alanı bulunur; geçersiz bir hex değeri girerseniz alanın
     kenarlığı **kırmızı** olur. Altında, tek tıkla seçilebilen **7 hazır
     renk (preset)** karesi sıralanır.
-  - **Advanced theme (gelişmiş tema):** "leave as-is for the default
+  - **Gelişmiş tema (Advanced theme):** "leave as-is for the default
     look" (varsayılan görünüm için olduğu gibi bırakın) notuyla birlikte
     üç ek renk alanı: **Background (Arka plan)**, **Text (Metin)** ve
     **Muted text (Soluk metin)** — her biri kendi renk seçicisi ve hex
     alanına sahiptir.
-- **Screen bölümü:** Yazıcı ekranındaki nesneleri (logo, metin, ikon,
+- **Ekran (Screen) bölümü:** Yazıcı ekranındaki nesneleri (logo, metin, ikon,
   görsel gibi) düzenlediğiniz alandır. Nesneleri **sürükleyerek
   taşıyabilir**, bir metin nesnesine **çift tıklayarak** içeriğini
   düzenleyebilirsiniz. Bir ikon veya görsel yüklemek isterseniz **yükleme
   (upload)** kontrolünü kullanın. **Sınır:** yüklediğiniz dosya **görsel
   (image) türünde** olmalı ve **2 MB'ın altında** olmalıdır; aksi halde
-  sırasıyla "**Icon must be an image file.**" (ikon bir görsel dosyası
-  olmalı) / "**Icon must be under 2 MB.**" (ikon 2 MB'ın altında olmalı)
+  sırasıyla "**Icon must be an image.**" (ikon bir görsel olmalı)
+  / "**Icon must be under 2 MB.**" (ikon 2 MB'ın altında olmalı)
   ya da görsel nesneleri için "**Image must be an image file.**" /
   "**Image must be under 2 MB.**" hata mesajlarını alırsınız.
-- **Security bölümü:** **Personel PIN'i (Staff PIN)** alanı — yalnızca
+- **Güvenlik (Security) bölümü:** **Personel PIN'i (Staff PIN)** alanı — yalnızca
   rakam kabul eder, **en çok 6 hane** uzunluğundadır, yanındaki göz
   simgesiyle (Eye/EyeOff) PIN'i **göster/gizle**yebilirsiniz.
 
@@ -672,7 +672,7 @@ Ekran iki ana sütuna ayrılır: solda düzenleme paneli, sağda **Canlı
   5. **Error / offline**
   6. **Paused**
   7. **Setup / pairing**
-- **Zoom (yakınlaştırma) kaydırıcısı:** eksi/artı düğmeleriyle veya
+- **Yakınlaştırma (Zoom) kaydırıcısı:** eksi/artı düğmeleriyle veya
   kaydırıcının kendisiyle önizlemeyi büyütüp küçültebilirsiniz; yanında
   o anki yüzde değeri ("**{n}%**") görünür.
 - Yalnızca **Idle / ready** ekranı seçiliyken önizlemenin altında "**Drag
@@ -776,17 +776,17 @@ ekran **salt-okunur (read-only)**'dur.
   online and wakes on touch or when a new document prints.**" (hareketsizlik
   sonrası ekranı kapatır; cihaz çevrimiçi kalmaya devam eder ve dokunuşla
   veya yeni bir belge geldiğinde uyanır) açıklaması bulunur. Bu anahtar
-  **açıkken**, altında ek olarak **"Sleep after" (şu süre sonra uykuya
-  geç)** başlıklı bir açılır liste (dropdown) belirir; seçenekleri şöyledir:
+  **açıkken**, altında ek olarak **Şu süre sonra uykuya geç (Sleep
+  after)** başlıklı bir açılır liste (dropdown) belirir; seçenekleri şöyledir:
   **30 sn**, **1 dk**, **2 dk**, **5 dk**, **10 dk**, **15 dk**, **30 dk**,
   **60 dk**.
 - **Cihaz Ayarları PIN'i (Device Settings PIN):** cihazın kendi ekranındaki
   Ayarlar sayfasını korumak için kullanılan, **4 ile 12 hane arası**
   sayısal bir PIN alanıdır (şifre tipinde giriş; yer tutucu, PIN daha önce
   ayarlanmışsa "**Enter new PIN to change**", ayarlanmamışsa "**Set a
-  PIN**"). Halihazırda bir PIN ayarlıysa, alanın altında **"Remove PIN
-  (leave Settings page unlocked)"** (PIN'i kaldır — Ayarlar sayfasını
-  kilitsiz bırak) onay kutusu (checkbox) da görünür.
+  PIN**"). Halihazırda bir PIN ayarlıysa, alanın altında **PIN'i kaldır
+  (Remove PIN — leave Settings page unlocked)** onay kutusu (checkbox) da
+  görünür.
 - **Kaydet çubuğu (sticky, ekranın altına yapışık):** solda bir renkli
   nokta ve durum metni — düzenleme yetkiniz yoksa **"Read only"** (salt
   okunur), varsa **"Unsaved changes"** (kaydedilmemiş değişiklikler) veya

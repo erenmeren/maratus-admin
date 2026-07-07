@@ -3,6 +3,7 @@ import { requireTenant } from "@/lib/session";
 import { getOrgAuditPage } from "@/lib/data";
 import { actionLabel } from "@/lib/audit-labels";
 import { timeAgo } from "@/lib/format";
+import { PageHeader } from "@/components/page-header";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -24,8 +25,8 @@ export default async function ActivityPage({
   const { rows, page, pageCount } = await getOrgAuditPage(organizationId, requested);
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Activity</h1>
+    <>
+      <PageHeader title="Activity" />
 
       <Card className="overflow-hidden py-0">
         <Table>
@@ -79,6 +80,6 @@ export default async function ActivityPage({
           )}
         </span>
       </div>
-    </div>
+    </>
   );
 }

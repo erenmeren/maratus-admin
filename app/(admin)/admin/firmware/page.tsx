@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { firmwareRelease } from "@/lib/db/schema";
 import { PublishForm } from "./publish-form";
 import { DeleteReleaseButton } from "./delete-release-button";
+import { PageHeader } from "@/components/page-header";
 
 export default async function FirmwarePage() {
   await requirePlatformAdmin();
@@ -14,14 +15,11 @@ export default async function FirmwarePage() {
     .limit(50);
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-xl font-medium">Firmware</h1>
-        <p className="text-sm text-muted-foreground">
-          Upload a build (its version must match the binary&apos;s CONFIG_DITTO_FW_VERSION). The newest
-          release is what devices fetch via the OTA manifest.
-        </p>
-      </div>
+    <>
+      <PageHeader
+        title="Firmware"
+        description="Upload a build (its version must match the binary's CONFIG_DITTO_FW_VERSION). The newest release is what devices fetch via the OTA manifest."
+      />
       <PublishForm />
       <table className="text-sm">
         <thead>
@@ -48,6 +46,6 @@ export default async function FirmwarePage() {
           )}
         </tbody>
       </table>
-    </div>
+    </>
   );
 }

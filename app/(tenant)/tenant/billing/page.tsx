@@ -4,6 +4,8 @@ import { getCreditUsageByDevice, deviceNamesForOrg, currentMonthStart } from "@/
 import { BuyCreditsSection } from "@/components/billing/buy-credits-form";
 import { creditPacks } from "@/lib/billing/credit-packs";
 import { getBalance } from "@/lib/credits";
+import { PageHeader } from "@/components/page-header";
+import { PageSection } from "@/components/page-section";
 
 export default async function TenantBillingPage() {
   const { organizationId } = await requireTenant();
@@ -15,16 +17,12 @@ export default async function TenantBillingPage() {
   const packs = creditPacks();
 
   return (
-    <div className="flex flex-col gap-8 p-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">Billing</h1>
-        <p className="text-muted-foreground">Manage your prepaid credit balance.</p>
-      </header>
+    <>
+      <PageHeader title="Billing" description="Manage your prepaid credit balance." />
 
       <BuyCreditsSection packs={packs} availableCredits={balance.available} />
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Credit usage this month</h2>
+      <PageSection title="Credit usage this month">
         <p className="text-sm text-muted-foreground">
           Available <span className="font-medium text-foreground tabular-nums">{balance.available}</span>
           {balance.held > 0 ? (
@@ -63,7 +61,7 @@ export default async function TenantBillingPage() {
             </tbody>
           </table>
         )}
-      </section>
-    </div>
+      </PageSection>
+    </>
   );
 }

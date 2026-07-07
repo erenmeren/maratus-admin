@@ -3,6 +3,8 @@ import { getPlatformHealth, getAlertHistory } from "@/lib/data";
 import { KpiCard } from "@/components/kpi-card";
 import { AlertsBanner } from "@/components/health/alerts-banner";
 import { AlertHistory } from "@/components/health/alert-history";
+import { PageHeader } from "@/components/page-header";
+import { PageSection } from "@/components/page-section";
 
 export default async function HealthPage() {
   await requirePlatformAdmin();
@@ -10,13 +12,12 @@ export default async function HealthPage() {
   const now = Date.now();
 
   return (
-    <div className="flex flex-col gap-8 p-6">
-      <h1 className="text-2xl font-semibold tracking-tight">Platform health</h1>
+    <>
+      <PageHeader title="Platform health" />
 
       <AlertsBanner alerts={h.alerts} />
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Fleet freshness</h2>
+      <PageSection title="Fleet freshness">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard label="Devices" value={String(h.fleet.total)} />
           <KpiCard label="Online" value={String(h.fleet.online)} />
@@ -39,10 +40,9 @@ export default async function HealthPage() {
             </tbody>
           </table>
         )}
-      </section>
+      </PageSection>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Trigger activity</h2>
+      <PageSection title="Trigger activity">
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard label="Activations (1h)" value={String(h.activity.last1h)} />
           <KpiCard label="Activations (24h)" value={String(h.activity.last24h)} />
@@ -51,10 +51,9 @@ export default async function HealthPage() {
         <p className="text-sm text-muted-foreground">
           Last 24h: {h.activity.acked} acked · {h.activity.pending} pending · {h.activity.failed} failed
         </p>
-      </section>
+      </PageSection>
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Per-tenant usage</h2>
+      <PageSection title="Per-tenant usage">
         <div className="grid gap-6 sm:grid-cols-2">
           <div>
             <h3 className="mb-2 text-sm font-medium text-muted-foreground">Top tenants (24h)</h3>
@@ -84,9 +83,9 @@ export default async function HealthPage() {
             )}
           </div>
         </div>
-      </section>
+      </PageSection>
 
       <AlertHistory open={history.open} resolved={history.resolved} now={now} />
-    </div>
+    </>
   );
 }

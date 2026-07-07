@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, CalendarClock, Clock, Cpu, MapPin, FileText, Router, TrendingUp,  } from "lucide-react";
+import { CalendarClock, Clock, Cpu, MapPin, FileText, Router, TrendingUp } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { PageSection } from "@/components/page-section";
 import { KpiCard } from "@/components/kpi-card";
 import { DeviceCard } from "@/components/device-card";
 import { StatusBadge } from "@/components/status-badge";
@@ -46,16 +46,18 @@ export default async function StoreDetailPage({
 
   return (
     <>
-      <Link
-        href="/tenant/stores"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+      <PageHeader
+        title={store.name}
+        backHref="/tenant/stores"
+        backLabel="Stores"
+        badge={<StatusBadge status={rollup} />}
+        description={
+          <span className="flex items-center gap-1.5">
+            <MapPin className="size-3.5" />
+            {store.address}
+          </span>
+        }
       >
-        <ArrowLeft className="size-4" />
-        Stores
-      </Link>
-
-      <PageHeader title={store.name}>
-        <StatusBadge status={rollup} />
         {canClaim && (
           <StoreEditButton
             store={{
@@ -68,10 +70,6 @@ export default async function StoreDetailPage({
         )}
         {canClaim && <ClaimDeviceDialog storeId={store.id} />}
       </PageHeader>
-      <p className="-mt-2 flex items-center gap-1.5 text-sm text-muted-foreground">
-        <MapPin className="size-3.5" />
-        {store.address}
-      </p>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
@@ -146,10 +144,7 @@ export default async function StoreDetailPage({
         </CardContent>
       </Card>
 
-      <div>
-        <h2 className="mb-3 text-sm font-semibold text-muted-foreground">
-          Printers in this store
-        </h2>
+      <PageSection title="Printers in this store">
         {store.devices.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {store.devices.map((d) => (
@@ -172,7 +167,7 @@ export default async function StoreDetailPage({
             </CardContent>
           </Card>
         )}
-      </div>
+      </PageSection>
 
       {/* Devices awaiting provisioning for this account */}
       {canClaim && unclaimed.length > 0 && (

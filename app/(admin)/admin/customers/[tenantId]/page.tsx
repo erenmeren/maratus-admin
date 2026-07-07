@@ -1,13 +1,7 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  Cpu,
-  Mail,
-  Phone,
-  FileText,
-  Store,
-} from "lucide-react";
+import { Cpu, Mail, Phone, FileText, Store } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
+import { SectionHeader } from "@/components/section-header";
 import { KpiCard } from "@/components/kpi-card";
 import { BreakdownBarChart } from "@/components/charts";
 import { StatusDot } from "@/components/status-badge";
@@ -69,46 +63,29 @@ export default async function CustomerDetailPage({
 
   return (
     <>
-      <Link
-        href="/admin/customers"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Customers
-      </Link>
-
-      {/* Header card */}
-      <Card>
-        <CardContent className="flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <span className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 font-display text-2xl font-bold text-primary">
-              {tenant.name.slice(0, 1)}
+      <PageHeader
+        title={tenant.name}
+        backHref="/admin/customers"
+        backLabel="Customers"
+        leading={
+          <span className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 font-display text-2xl font-bold text-primary">
+            {tenant.name.slice(0, 1)}
+          </span>
+        }
+        badge={<TenantStatusBadge status={tenant.status} />}
+        description={
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            <span className="flex items-center gap-1.5">
+              <Mail className="size-3.5" /> {tenant.contact.email}
             </span>
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <h1 className="font-display text-2xl font-bold tracking-tight">
-                  {tenant.name}
-                </h1>
-                <TenantStatusBadge status={tenant.status} />
-              </div>
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <Mail className="size-3.5" /> {tenant.contact.email}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Phone className="size-3.5" /> {tenant.contact.phone}
-                </span>
-              </div>
-            </div>
+            <span className="flex items-center gap-1.5">
+              <Phone className="size-3.5" /> {tenant.contact.phone}
+            </span>
           </div>
-          <div className="flex items-center gap-3">
-            <AddBranchDialog
-              organizationId={tenant.id}
-              customerName={tenant.name}
-            />
-          </div>
-        </CardContent>
-      </Card>
+        }
+      >
+        <AddBranchDialog organizationId={tenant.id} customerName={tenant.name} />
+      </PageHeader>
 
       {/* Health summary */}
       <Card>
@@ -253,7 +230,7 @@ export default async function CustomerDetailPage({
       </Card>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Activity</h2>
+        <SectionHeader title="Activity" />
         {activity.length === 0 ? (
           <p className="text-sm text-muted-foreground">No activity yet.</p>
         ) : (

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Cable, Cpu, Globe, HardDrive, FileText, Wifi } from "lucide-react";
+import { Cable, Cpu, Globe, HardDrive, FileText, Wifi } from "lucide-react";
 import { desc } from "drizzle-orm";
 import { PageHeader } from "@/components/page-header";
+import { SectionHeader } from "@/components/section-header";
 import { KpiCard } from "@/components/kpi-card";
 import { StatusDot } from "@/components/status-badge";
 import { DeviceRowActions } from "@/components/device-row-actions";
@@ -59,15 +60,12 @@ export default async function AdminDeviceDetailPage({
 
   return (
     <>
-      <Link
-        href="/admin/devices"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="size-4" />
-        Device Fleet
-      </Link>
-
-      <PageHeader title={device.name} description={`Printer at ${store.name}`} />
+      <PageHeader
+        title={device.name}
+        description={`Printer at ${store.name}`}
+        backHref="/admin/devices"
+        backLabel="Device Fleet"
+      />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
@@ -133,7 +131,7 @@ export default async function AdminDeviceDetailPage({
       </div>
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Remote control</h2>
+        <SectionHeader title="Remote control" />
         <CommandBar deviceId={device.id} />
         {commands.length > 0 && (
           <table className="w-full text-sm">

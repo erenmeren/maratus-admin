@@ -44,8 +44,6 @@ import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-const PRESETS = ["#B4541F", "#3F9D4E", "#1F5C8B", "#E5484D", "#7C5CFC", "#0F766E", "#111827"];
-
 const eq = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 export function BrandingStudio(props: BrandingVariantProps) {
@@ -396,23 +394,6 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
               aria-label="Accent color hex"
             />
           </div>
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {PRESETS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              disabled={draft.disabled}
-              onClick={() => draft.setAccent(c)}
-              className={cn(
-                "size-7 rounded-md ring-1 ring-border transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-60",
-                eq(draft.color, c) &&
-                  "ring-2 ring-foreground ring-offset-2 ring-offset-card",
-              )}
-              style={{ background: c }}
-              aria-label={`Use ${c}`}
-            />
-          ))}
         </div>
         <div className="space-y-3 pt-1">
           <ColorField label="Background" value={draft.bg} onChange={draft.setBg} disabled={draft.disabled} />

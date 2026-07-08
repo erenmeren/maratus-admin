@@ -61,7 +61,6 @@ export interface BrandingDraft {
   screen: PrinterScreen;
   setScreen: (s: PrinterScreen) => void;
   editor: PrinterEditor;
-  onIconUpload: (objectId: string, file: File) => void;
   onImageUpload: (objectId: string, file: File) => void;
   // Preview
   printerBrand: PrinterBrand;
@@ -103,15 +102,6 @@ export function useBrandingDraft({
     disabled: !canEdit,
   });
 
-  const [iconFiles, setIconFiles] = React.useState<Record<string, File>>({});
-  const onIconUpload = (objectId: string, file: File) => {
-    if (!file.type.startsWith("image/")) { toast.error("Icon must be an image."); return; }
-    if (file.size > 2 * 1024 * 1024) { toast.error("Icon must be under 2 MB."); return; }
-    setIconFiles((m) => ({ ...m, [objectId]: file }));
-    const cur = editor.config.screens[screen].objects.find((o) => o.id === objectId)?.icon ?? { source: "preset" as const };
-    editor.patch(objectId, { icon: { ...cur, source: "upload", url: `pending:${objectId}`, signedUrl: URL.createObjectURL(file) } });
-  };
-
   const [imageFiles, setImageFiles] = React.useState<Record<string, File>>({});
   const onImageUpload = (objectId: string, file: File) => {
     if (!file.type.startsWith("image/")) { toast.error("Image must be an image."); return; }
@@ -122,7 +112,7 @@ export function useBrandingDraft({
 
   // After router.refresh() re-fetches branding, adopt the server truth (real R2
   // keys + presigned signedUrl), replacing pending blob URLs and clearing dirty.
-  React.useEffect(() => { setConfig(initialConfig); setIconFiles({}); setImageFiles({}); }, [initialConfig]);
+  React.useEffect(() => { setConfig(initialConfig); setImageFiles({}); }, [initialConfig]);
 
   const dirty =
     color !== initialColor ||
@@ -130,7 +120,6 @@ export function useBrandingDraft({
     fg !== initialFg ||
     muted !== initialMuted ||
     JSON.stringify(config) !== JSON.stringify(initialConfig) ||
-    Object.keys(iconFiles).length > 0 ||
     Object.keys(imageFiles).length > 0;
 
   function setAccent(hex: string) {
@@ -157,7 +146,6 @@ export function useBrandingDraft({
     setFg(initialFg);
     setMuted(initialMuted);
     setConfig(initialConfig);
-    setIconFiles({});
     setImageFiles({});
     setLogoText(initialLogoText);
   }
@@ -174,7 +162,6 @@ export function useBrandingDraft({
     fd.set("brandFg", fg);
     fd.set("brandMuted", muted);
     fd.set("printerScreens", JSON.stringify(config));
-    for (const [objectId, file] of Object.entries(iconFiles)) fd.set(`icon:${objectId}`, file);
     for (const [objectId, file] of Object.entries(imageFiles)) fd.set(`image:${objectId}`, file);
 
     const res = await saveBranding(fd);
@@ -185,7 +172,6 @@ export function useBrandingDraft({
       return;
     }
     toast.success("Branding saved", { description: "Your printers will update on next sync." });
-    setIconFiles({});
     setImageFiles({});
     router.refresh();
   }
@@ -208,7 +194,6 @@ export function useBrandingDraft({
     screen,
     setScreen,
     editor,
-    onIconUpload,
     onImageUpload,
     printerBrand: { brandColor: color, brandBg: bg, brandFg: fg, brandMuted: muted, logoText, storeName },
     dirty,

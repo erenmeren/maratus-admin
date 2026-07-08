@@ -32,7 +32,7 @@ const CANVAS_REF_PX = 720;
 
 /** Object list + a type-aware properties panel for the selected object.
  *  Styled narrow-first: it lives in the Branding studio's ~19rem control rail. */
-export function PrinterControls({ editor, onIconUpload, onImageUpload }: { editor: PrinterEditor; onIconUpload: (objectId: string, file: File) => void; onImageUpload: (objectId: string, file: File) => void }) {
+export function PrinterControls({ editor, onImageUpload }: { editor: PrinterEditor; onImageUpload: (objectId: string, file: File) => void }) {
   const { ordered, disabled, selectedId, setSelectedId, selected, atCustomCap } = editor;
 
   const addButtons: { label: string; onClick: () => void; capped: boolean; show: boolean }[] = [
@@ -104,7 +104,7 @@ export function PrinterControls({ editor, onIconUpload, onImageUpload }: { edito
         })}
       </div>
 
-      {selected && <Properties key={selected.id} object={selected} editor={editor} onIconUpload={onIconUpload} onImageUpload={onImageUpload} />}
+      {selected && <Properties key={selected.id} object={selected} editor={editor} onImageUpload={onImageUpload} />}
 
       <button
         type="button"
@@ -119,7 +119,7 @@ export function PrinterControls({ editor, onIconUpload, onImageUpload }: { edito
 }
 
 /** Type-aware properties for the selected object. */
-function Properties({ object, editor, onIconUpload, onImageUpload }: { object: PrinterObject; editor: PrinterEditor; onIconUpload: (objectId: string, file: File) => void; onImageUpload: (objectId: string, file: File) => void }) {
+function Properties({ object, editor, onImageUpload }: { object: PrinterObject; editor: PrinterEditor; onImageUpload: (objectId: string, file: File) => void }) {
   const { disabled } = editor;
   const set = (p: Partial<PrinterObject>) => editor.patch(object.id, p);
 
@@ -170,7 +170,6 @@ function Properties({ object, editor, onIconUpload, onImageUpload }: { object: P
             icon={object.icon ?? { source: "preset", preset: "check", tint: "accent" }}
             disabled={disabled}
             onChange={(next) => set({ icon: next })}
-            onUpload={(file) => onIconUpload(object.id, file)}
           />
         </div>
       )}

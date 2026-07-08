@@ -334,7 +334,6 @@ function ControlPanel({ draft }: { draft: BrandingDraft }) {
             </div>
             <PrinterControls
               editor={draft.editor}
-              onIconUpload={draft.onIconUpload}
               onImageUpload={draft.onImageUpload}
             />
           </TabsContent>

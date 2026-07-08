@@ -1,8 +1,6 @@
 "use client";
 
-import * as React from "react";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { ICON_PRESETS, type PrinterIcon, type IconPreset, type IconTint } from "@/lib/printer-layout";
 import { ICON_COMPONENTS } from "@/lib/printer-icons";
@@ -19,70 +17,43 @@ export function PrinterIconPicker({
   icon,
   disabled,
   onChange,
-  onUpload,
 }: {
   icon: PrinterIcon;
   disabled?: boolean;
   onChange: (next: PrinterIcon) => void;
-  onUpload: (file: File) => void;
 }) {
-  const fileRef = React.useRef<HTMLInputElement>(null);
   const Active = ICON_COMPONENTS[(icon.preset ?? "check") as IconPreset];
 
   return (
     <Popover>
       <PopoverTrigger asChild>
         <Button type="button" variant="outline" size="sm" disabled={disabled} className="gap-2">
+          {/* Legacy layouts may still carry an uploaded icon; picking a preset replaces it. */}
           {icon.source === "upload" ? <span className="text-xs">Custom image</span> : <Active className="size-4" />}
           Choose icon
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 space-y-3">
-        <Tabs defaultValue="library">
-          <TabsList className="w-full">
-            <TabsTrigger value="library" className="flex-1">Library</TabsTrigger>
-            <TabsTrigger value="upload" className="flex-1">Upload</TabsTrigger>
-          </TabsList>
-          <TabsContent value="library">
-            <div className="grid grid-cols-6 gap-1.5 pt-2">
-              {ICON_PRESETS.map((name) => {
-                const Glyph = ICON_COMPONENTS[name];
-                const active = icon.source === "preset" && icon.preset === name;
-                return (
-                  <button
-                    key={name}
-                    type="button"
-                    aria-label={name}
-                    onClick={() => onChange({ ...icon, source: "preset", preset: name })}
-                    className={cn(
-                      "flex aspect-square items-center justify-center rounded-md border text-muted-foreground hover:bg-accent",
-                      active && "border-foreground text-foreground ring-1 ring-foreground",
-                    )}
-                  >
-                    <Glyph className="size-4" />
-                  </button>
-                );
-              })}
-            </div>
-          </TabsContent>
-          <TabsContent value="upload">
-            <div className="pt-2">
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/svg+xml,image/png"
-                className="hidden"
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) onUpload(f);
-                }}
-              />
-              <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => fileRef.current?.click()} disabled={disabled}>
-                Upload SVG or PNG (≤2 MB)
-              </Button>
-            </div>
-          </TabsContent>
-        </Tabs>
+        <div className="grid grid-cols-6 gap-1.5">
+          {ICON_PRESETS.map((name) => {
+            const Glyph = ICON_COMPONENTS[name];
+            const active = icon.source === "preset" && icon.preset === name;
+            return (
+              <button
+                key={name}
+                type="button"
+                aria-label={name}
+                onClick={() => onChange({ ...icon, source: "preset", preset: name })}
+                className={cn(
+                  "flex aspect-square items-center justify-center rounded-md border text-muted-foreground hover:bg-accent",
+                  active && "border-foreground text-foreground ring-1 ring-foreground",
+                )}
+              >
+                <Glyph className="size-4" />
+              </button>
+            );
+          })}
+        </div>
 
         <div className="space-y-1.5">
           <p className="text-xs font-medium text-muted-foreground">Tint</p>

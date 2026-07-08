@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/page-header";
-import { BrandingEditor } from "@/components/branding-editor";
+import { BrandingStudio } from "@/components/branding-studio/branding-studio";
 import { getTenant, getTenantBranding } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
 
@@ -19,7 +19,7 @@ export default async function BrandingPage() {
         title="Branding"
         description="Customize how your printers look to customers. Changes preview live."
       />
-      <BrandingEditor
+      <BrandingStudio
         initialColor={branding.brandColor}
         initialConfig={branding.printerConfig}
         initialBg={branding.brandBg}

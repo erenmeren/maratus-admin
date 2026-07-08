@@ -42,12 +42,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
 
 const PRESETS = ["#B4541F", "#3F9D4E", "#1F5C8B", "#E5484D", "#7C5CFC", "#0F766E", "#111827"];
@@ -368,9 +362,116 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
 
   return (
     <>
-      {/* Curated themes */}
+      {/* Custom brand colors — first-class, nothing hidden */}
+      <section className="space-y-2.5">
+        <div className="space-y-1">
+          <PanelLabel>Brand colors</PanelLabel>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            Every color is yours to set — build your own look, or start from a
+            preset below and fine-tune.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <label
+            className="relative size-10 shrink-0 cursor-pointer overflow-hidden rounded-xl ring-1 ring-border transition-transform hover:scale-105"
+            style={{ background: draft.color }}
+          >
+            <input
+              type="color"
+              value={draft.color}
+              onChange={(e) => draft.setAccent(e.target.value)}
+              disabled={draft.disabled}
+              className="absolute inset-0 cursor-pointer opacity-0"
+              aria-label="Pick accent color"
+            />
+          </label>
+          <div className="flex-1 space-y-1">
+            <Label className="text-xs text-muted-foreground">Accent</Label>
+            <Input
+              value={draft.hexInput}
+              onChange={(e) => draft.commitHex(e.target.value)}
+              disabled={draft.disabled}
+              className="h-8 font-mono text-xs"
+              aria-invalid={!isValidHex(draft.hexInput)}
+              aria-label="Accent color hex"
+            />
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {PRESETS.map((c) => (
+            <button
+              key={c}
+              type="button"
+              disabled={draft.disabled}
+              onClick={() => draft.setAccent(c)}
+              className={cn(
+                "size-7 rounded-md ring-1 ring-border transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-60",
+                eq(draft.color, c) &&
+                  "ring-2 ring-foreground ring-offset-2 ring-offset-card",
+              )}
+              style={{ background: c }}
+              aria-label={`Use ${c}`}
+            />
+          ))}
+        </div>
+        <div className="space-y-3 pt-1">
+          <ColorField label="Background" value={draft.bg} onChange={draft.setBg} disabled={draft.disabled} />
+          <ColorField label="Text" value={draft.fg} onChange={draft.setFg} disabled={draft.disabled} />
+          <ColorField label="Muted text" value={draft.muted} onChange={draft.setMuted} disabled={draft.disabled} />
+        </div>
+      </section>
+
+      {/* Auto palettes derived from the accent */}
       <section className="space-y-2">
-        <PanelLabel>Themes</PanelLabel>
+        <div className="space-y-1">
+          <PanelLabel>Suggested palettes</PanelLabel>
+          <p className="text-[11px] text-muted-foreground">
+            Background &amp; text combos derived from your accent.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          {palettes.map((p) => {
+            const active = eq(p.bg, draft.bg) && eq(p.fg, draft.fg) && eq(p.muted, draft.muted);
+            return (
+              <button
+                key={p.id}
+                type="button"
+                disabled={draft.disabled}
+                onClick={() => draft.applyTheme({ bg: p.bg, fg: p.fg, muted: p.muted })}
+                className={cn(
+                  "flex flex-1 flex-col items-center gap-1.5 rounded-lg border py-2.5 ring-offset-2 ring-offset-card transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm disabled:pointer-events-none disabled:opacity-60",
+                  active && "ring-2",
+                )}
+                style={
+                  active
+                    ? ({ "--tw-ring-color": draft.color } as React.CSSProperties)
+                    : undefined
+                }
+              >
+                <span className="flex -space-x-1">
+                  {[p.bg, p.fg, p.muted].map((c, i) => (
+                    <span
+                      key={i}
+                      className="size-4 rounded-full ring-1 ring-border"
+                      style={{ background: c }}
+                    />
+                  ))}
+                </span>
+                <span className="text-[10px] font-medium text-muted-foreground">{p.name}</span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Curated preset themes — optional shortcuts */}
+      <section className="space-y-2">
+        <div className="space-y-1">
+          <PanelLabel>Preset themes</PanelLabel>
+          <p className="text-[11px] text-muted-foreground">
+            Optional shortcuts — applying one just fills in the colors above.
+          </p>
+        </div>
         <div className="grid grid-cols-2 gap-2">
           {BRAND_THEMES.map((t) => {
             const active = themeMatches(t, current);
@@ -413,103 +514,6 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
           })}
         </div>
       </section>
-
-      {/* Accent color */}
-      <section className="space-y-2.5">
-        <PanelLabel>Accent color</PanelLabel>
-        <div className="flex items-center gap-3">
-          <label
-            className="relative size-10 shrink-0 cursor-pointer overflow-hidden rounded-xl ring-1 ring-border transition-transform hover:scale-105"
-            style={{ background: draft.color }}
-          >
-            <input
-              type="color"
-              value={draft.color}
-              onChange={(e) => draft.setAccent(e.target.value)}
-              disabled={draft.disabled}
-              className="absolute inset-0 cursor-pointer opacity-0"
-              aria-label="Pick accent color"
-            />
-          </label>
-          <Input
-            value={draft.hexInput}
-            onChange={(e) => draft.commitHex(e.target.value)}
-            disabled={draft.disabled}
-            className="h-9 font-mono text-sm"
-            aria-invalid={!isValidHex(draft.hexInput)}
-            aria-label="Accent color hex"
-          />
-        </div>
-        <div className="flex flex-wrap gap-1.5">
-          {PRESETS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              disabled={draft.disabled}
-              onClick={() => draft.setAccent(c)}
-              className={cn(
-                "size-7 rounded-md ring-1 ring-border transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-60",
-                eq(draft.color, c) &&
-                  "ring-2 ring-foreground ring-offset-2 ring-offset-card",
-              )}
-              style={{ background: c }}
-              aria-label={`Use ${c}`}
-            />
-          ))}
-        </div>
-      </section>
-
-      {/* Auto palettes derived from the accent */}
-      <section className="space-y-2">
-        <PanelLabel>Auto palettes</PanelLabel>
-        <div className="flex gap-2">
-          {palettes.map((p) => {
-            const active = eq(p.bg, draft.bg) && eq(p.fg, draft.fg) && eq(p.muted, draft.muted);
-            return (
-              <button
-                key={p.id}
-                type="button"
-                disabled={draft.disabled}
-                onClick={() => draft.applyTheme({ bg: p.bg, fg: p.fg, muted: p.muted })}
-                className={cn(
-                  "flex flex-1 flex-col items-center gap-1.5 rounded-lg border py-2.5 ring-offset-2 ring-offset-card transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm disabled:pointer-events-none disabled:opacity-60",
-                  active && "ring-2",
-                )}
-                style={
-                  active
-                    ? ({ "--tw-ring-color": draft.color } as React.CSSProperties)
-                    : undefined
-                }
-              >
-                <span className="flex -space-x-1">
-                  {[p.bg, p.fg, p.muted].map((c, i) => (
-                    <span
-                      key={i}
-                      className="size-4 rounded-full ring-1 ring-border"
-                      style={{ background: c }}
-                    />
-                  ))}
-                </span>
-                <span className="text-[10px] font-medium text-muted-foreground">{p.name}</span>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Advanced — individual theme tokens */}
-      <Accordion type="single" collapsible>
-        <AccordionItem value="advanced" className="border-none">
-          <AccordionTrigger className="py-2 text-xs font-medium text-muted-foreground hover:no-underline">
-            Advanced — individual colors
-          </AccordionTrigger>
-          <AccordionContent className="space-y-3 pt-1">
-            <ColorField label="Background" value={draft.bg} onChange={draft.setBg} disabled={draft.disabled} />
-            <ColorField label="Text" value={draft.fg} onChange={draft.setFg} disabled={draft.disabled} />
-            <ColorField label="Muted text" value={draft.muted} onChange={draft.setMuted} disabled={draft.disabled} />
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
 
       {/* Logo text */}
       <section className="space-y-2">

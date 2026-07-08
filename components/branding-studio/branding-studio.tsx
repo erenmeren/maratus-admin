@@ -11,6 +11,8 @@ import {
   LayoutGrid,
   Loader2,
   Lock,
+  Maximize2,
+  Minimize2,
   Minus,
   Palette,
   Plus,
@@ -55,8 +57,24 @@ const eq = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLower
 export function BrandingStudio(props: BrandingVariantProps) {
   const draft = useBrandingDraft(props);
   const [zoom, setZoom] = React.useState(ZOOM_DEFAULT);
+  const [fullscreen, setFullscreen] = React.useState(false);
   const previewPx = zoomToPx(zoom);
   const activeScreen = SCREENS.find((s) => s.value === draft.screen);
+
+  // Full-screen mode: lock page scroll behind the overlay, exit on Escape.
+  React.useEffect(() => {
+    if (!fullscreen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setFullscreen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [fullscreen]);
 
   return (
     <div className="relative space-y-6">
@@ -67,15 +85,33 @@ export function BrandingStudio(props: BrandingVariantProps) {
         </div>
       )}
 
-      <div className="relative">
+      <div
+        className={cn(
+          "relative",
+          fullscreen &&
+            "fixed inset-0 z-50 overflow-y-auto bg-zinc-950 lg:overflow-hidden",
+        )}
+      >
         {/* FLOATING CONTROL RAIL — in-flow above the stage on mobile; a
             full-height panel floating over the stage's left edge on lg+. */}
-        <div className="relative z-30 mb-4 lg:absolute lg:inset-auto lg:bottom-4 lg:left-4 lg:top-[4.25rem] lg:mb-0 lg:w-[19.5rem]">
+        <div
+          className={cn(
+            "relative z-30 mb-4 lg:absolute lg:inset-auto lg:bottom-4 lg:left-4 lg:top-[4.25rem] lg:mb-0 lg:w-[19.5rem]",
+            fullscreen && "p-3 pb-0 lg:p-0",
+          )}
+        >
           <ControlPanel draft={draft} />
         </div>
 
         {/* THE STAGE */}
-        <div className="relative flex min-h-[calc(100vh-14rem)] flex-col overflow-hidden rounded-2xl bg-zinc-950 shadow-xl ring-1 ring-zinc-800/80">
+        <div
+          className={cn(
+            "relative flex flex-col overflow-hidden bg-zinc-950",
+            fullscreen
+              ? "min-h-dvh lg:h-full lg:min-h-0"
+              : "min-h-[calc(100vh-14rem)] rounded-2xl shadow-xl ring-1 ring-zinc-800/80",
+          )}
+        >
           {/* Dot-grid texture + accent-tinted glow */}
           <div
             aria-hidden
@@ -94,7 +130,11 @@ export function BrandingStudio(props: BrandingVariantProps) {
             }}
           />
 
-          <StageHeader draft={draft} />
+          <StageHeader
+            draft={draft}
+            fullscreen={fullscreen}
+            onToggleFullscreen={() => setFullscreen((f) => !f)}
+          />
 
           {/* CANVAS — the active screen, editable, centered on the surface */}
           <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-6 sm:p-10 lg:pl-[21.5rem]">
@@ -202,7 +242,15 @@ export function BrandingStudio(props: BrandingVariantProps) {
 /* Stage header — title, store name, dirty indicator, Reset + Save           */
 /* ------------------------------------------------------------------------ */
 
-function StageHeader({ draft }: { draft: BrandingDraft }) {
+function StageHeader({
+  draft,
+  fullscreen,
+  onToggleFullscreen,
+}: {
+  draft: BrandingDraft;
+  fullscreen: boolean;
+  onToggleFullscreen: () => void;
+}) {
   return (
     <div className="relative z-20 flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 sm:px-5">
       <div className="flex min-w-0 items-baseline gap-2">
@@ -220,6 +268,19 @@ function StageHeader({ draft }: { draft: BrandingDraft }) {
           />
           {draft.dirty ? "Unsaved changes" : "All changes saved"}
         </span>
+        <button
+          type="button"
+          onClick={onToggleFullscreen}
+          aria-label={fullscreen ? "Exit full screen" : "Enter full screen"}
+          title={fullscreen ? "Exit full screen (Esc)" : "Full screen"}
+          className="inline-flex size-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-zinc-200 transition-colors hover:bg-white/10"
+        >
+          {fullscreen ? (
+            <Minimize2 className="size-3.5" />
+          ) : (
+            <Maximize2 className="size-3.5" />
+          )}
+        </button>
         <button
           type="button"
           onClick={draft.reset}

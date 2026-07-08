@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/select";
 import { TIMEZONES } from "@/lib/timezones";
 import { cn } from "@/lib/utils";
-import { PrinterIconPicker } from "@/components/device-preview/printer-icon-picker";
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 const CANVAS_REF_PX = 720;
@@ -37,7 +36,6 @@ export function PrinterControls({ editor, onImageUpload }: { editor: PrinterEdit
 
   const addButtons: { label: string; onClick: () => void; capped: boolean; show: boolean }[] = [
     { label: "Text", onClick: editor.addText, capped: atCustomCap, show: true },
-    { label: "Icon", onClick: editor.addIcon, capped: atCustomCap, show: true },
     { label: "Image", onClick: editor.addImage, capped: atCustomCap, show: true },
     { label: "Brand name", onClick: editor.addBrandName, capped: false, show: !editor.hasBrandName },
   ];
@@ -161,17 +159,6 @@ function Properties({ object, editor, onImageUpload }: { object: PrinterObject; 
             </div>
           </div>
         </>
-      )}
-
-      {object.type === "icon" && (
-        <div className="space-y-1.5">
-          <Label className="text-xs text-muted-foreground">Icon</Label>
-          <PrinterIconPicker
-            icon={object.icon ?? { source: "preset", preset: "check", tint: "accent" }}
-            disabled={disabled}
-            onChange={(next) => set({ icon: next })}
-          />
-        </div>
       )}
 
       {object.type === "image" && (

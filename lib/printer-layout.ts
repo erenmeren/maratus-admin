@@ -27,7 +27,7 @@ export const WIDGET_TYPES = ["logo", "clock", "wifi", "qr", "spinner", "countdow
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
 // v3 user-addable/duplicable types.
-export const ADDABLE_TYPES = ["text", "icon", "image"] as const;
+export const ADDABLE_TYPES = ["text", "image"] as const;
 export type AddableType = (typeof ADDABLE_TYPES)[number];
 
 export const TYPE_LABEL: Record<PrinterObjectType, string> = {
@@ -178,18 +178,6 @@ export function createTextObject(text: string, z: number): PrinterObject {
     text: text.slice(0, MAX_TEXT_LEN),
     fontSize: 24,
     align: "center",
-  };
-}
-
-/** A fresh custom icon object, centered, on top (`z`). */
-export function createIconObject(z: number): PrinterObject {
-  return {
-    id: `icon-${genIdSuffix()}`,
-    type: "icon",
-    x: 0.4, y: 0.4, w: 0.2, h: 0.2,
-    visible: true,
-    z,
-    icon: { source: "preset", preset: DEFAULT_ICON_PRESET, tint: "accent", circle: false },
   };
 }
 

@@ -6,7 +6,6 @@ import {
   defaultLayout,
   DEFAULT_PRINTER_LAYOUT,
   FIXED_TYPES,
-  FONT_MIN,
   FONT_MAX,
   MAX_CUSTOM,
 } from "./printer-layout";
@@ -84,14 +83,13 @@ describe("objectLabel", () => {
   });
 });
 
-// ─── Task 1: v3 types, seededScreen, createIconObject ────────────────────────
+// ─── Task 1: v3 types, seededScreen ──────────────────────────────────────────
 
 import {
   PRINTER_SCREENS,
   ICON_PRESETS,
   DEFAULT_ICON_PRESET,
   seededScreen,
-  createIconObject,
   type PrinterObject,
 } from "./printer-layout";
 
@@ -133,17 +131,6 @@ describe("seededScreen", () => {
     expect(idle.some((o) => o.type === "clock")).toBe(true);
     expect(idle.some((o) => o.type === "wifi")).toBe(true);
     expect(idle.filter((o) => o.type === "text").length).toBe(0);
-  });
-});
-
-describe("createIconObject", () => {
-  it("creates a centered preset icon on top", () => {
-    const o = createIconObject(5);
-    expect(o.type).toBe("icon");
-    expect(o.z).toBe(5);
-    expect(o.icon).toMatchObject({ source: "preset", preset: DEFAULT_ICON_PRESET, tint: "accent" });
-    expect(o.id.startsWith("icon-")).toBe(true);
-    expect(createIconObject(5).id).not.toBe(o.id);
   });
 });
 

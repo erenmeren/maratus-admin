@@ -3,7 +3,6 @@
 import * as React from "react";
 import {
   createTextObject,
-  createIconObject,
   createImageObject,
   createBrandNameObject,
   seededScreen,
@@ -45,7 +44,6 @@ export interface PrinterEditor {
   onPointerUp: (e: React.PointerEvent) => void;
   onCanvasPointerDown: () => void;
   addText: () => void;
-  addIcon: () => void;
   addImage: () => void;
   addBrandName: () => void;
   hasBrandName: boolean;
@@ -159,14 +157,6 @@ export function usePrinterEditor({
     setSelectedId(o.id);
   }
 
-  function addIcon() {
-    if (disabled || atCustomCap) return;
-    const z = objects.reduce((m, o) => Math.max(m, o.z), 0) + 1;
-    const newIcon = createIconObject(z);
-    setObjects([...objects, newIcon]);
-    setSelectedId(newIcon.id);
-  }
-
   function addImage() {
     if (disabled || atCustomCap) return;
     const z = objects.reduce((m, o) => Math.max(m, o.z), 0) + 1;
@@ -235,7 +225,6 @@ export function usePrinterEditor({
     onPointerUp,
     onCanvasPointerDown,
     addText,
-    addIcon,
     addImage,
     addBrandName,
     hasBrandName,

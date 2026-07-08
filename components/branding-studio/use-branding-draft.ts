@@ -25,7 +25,6 @@ export interface BrandingVariantProps {
   initialFg: string;
   initialMuted: string;
   initialLogoText: string;
-  initialStaffPin: string;
   storeName: string;
   canEdit: boolean;
 }
@@ -57,8 +56,6 @@ export interface BrandingDraft {
   // Identity / security
   logoText: string;
   setLogoText: (v: string) => void;
-  pin: string;
-  setPin: (v: string) => void;
   // Layout config + editor
   config: PrinterConfig;
   screen: PrinterScreen;
@@ -85,7 +82,6 @@ export function useBrandingDraft({
   initialFg,
   initialMuted,
   initialLogoText,
-  initialStaffPin,
   storeName,
   canEdit,
 }: BrandingVariantProps): BrandingDraft {
@@ -97,7 +93,6 @@ export function useBrandingDraft({
   const [muted, setMuted] = React.useState(initialMuted);
   const [config, setConfig] = React.useState<PrinterConfig>(initialConfig);
   const [logoText, setLogoText] = React.useState(initialLogoText);
-  const [pin, setPin] = React.useState(initialStaffPin);
   const [screen, setScreen] = React.useState<PrinterScreen>("idle");
   const [saving, setSaving] = React.useState(false);
 
@@ -136,8 +131,7 @@ export function useBrandingDraft({
     muted !== initialMuted ||
     JSON.stringify(config) !== JSON.stringify(initialConfig) ||
     Object.keys(iconFiles).length > 0 ||
-    Object.keys(imageFiles).length > 0 ||
-    pin !== initialStaffPin;
+    Object.keys(imageFiles).length > 0;
 
   function setAccent(hex: string) {
     setColor(hex);
@@ -166,7 +160,6 @@ export function useBrandingDraft({
     setIconFiles({});
     setImageFiles({});
     setLogoText(initialLogoText);
-    setPin(initialStaffPin);
   }
 
   async function save() {
@@ -183,7 +176,6 @@ export function useBrandingDraft({
     fd.set("printerScreens", JSON.stringify(config));
     for (const [objectId, file] of Object.entries(iconFiles)) fd.set(`icon:${objectId}`, file);
     for (const [objectId, file] of Object.entries(imageFiles)) fd.set(`image:${objectId}`, file);
-    fd.set("staffPin", pin);
 
     const res = await saveBranding(fd);
     setSaving(false);
@@ -212,8 +204,6 @@ export function useBrandingDraft({
     applyTheme,
     logoText,
     setLogoText,
-    pin,
-    setPin,
     config,
     screen,
     setScreen,

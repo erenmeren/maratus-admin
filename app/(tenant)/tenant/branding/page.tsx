@@ -26,7 +26,6 @@ export default async function BrandingPage() {
         initialFg={branding.brandFg}
         initialMuted={branding.brandMuted}
         initialLogoText={tenant.logoText}
-        initialStaffPin={branding.staffPin}
         storeName={tenant.name}
         canEdit={canEdit}
       />

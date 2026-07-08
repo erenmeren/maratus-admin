@@ -30,73 +30,62 @@ import { PrinterIconPicker } from "@/components/device-preview/printer-icon-pick
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
 const CANVAS_REF_PX = 720;
 
-/** Object list + a type-aware properties panel for the selected object. */
+/** Object list + a type-aware properties panel for the selected object.
+ *  Styled narrow-first: it lives in the Branding studio's ~19rem control rail. */
 export function PrinterControls({ editor, onIconUpload, onImageUpload }: { editor: PrinterEditor; onIconUpload: (objectId: string, file: File) => void; onImageUpload: (objectId: string, file: File) => void }) {
   const { ordered, disabled, selectedId, setSelectedId, selected, atCustomCap } = editor;
 
+  const addButtons: { label: string; onClick: () => void; capped: boolean; show: boolean }[] = [
+    { label: "Text", onClick: editor.addText, capped: atCustomCap, show: true },
+    { label: "Icon", onClick: editor.addIcon, capped: atCustomCap, show: true },
+    { label: "Image", onClick: editor.addImage, capped: atCustomCap, show: true },
+    { label: "Brand name", onClick: editor.addBrandName, capped: false, show: !editor.hasBrandName },
+  ];
+
   return (
     <div className="space-y-4">
-      <div className="space-y-2 rounded-xl border p-3">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">Objects</span>
-          <div className="flex gap-1">
-            <button
-              type="button"
-              disabled={disabled || atCustomCap}
-              onClick={editor.addText}
-              title={atCustomCap ? `Limit of ${MAX_CUSTOM} custom objects reached` : undefined}
-              className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
-            >
-              <Plus className="size-3.5" /> Add text
-            </button>
-            <button
-              type="button"
-              disabled={disabled || atCustomCap}
-              onClick={editor.addIcon}
-              title={atCustomCap ? `Limit of ${MAX_CUSTOM} custom objects reached` : undefined}
-              className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
-            >
-              <Plus className="size-3.5" /> Add icon
-            </button>
-            <button
-              type="button"
-              disabled={disabled || atCustomCap}
-              onClick={editor.addImage}
-              title={atCustomCap ? `Limit of ${MAX_CUSTOM} custom objects reached` : undefined}
-              className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
-            >
-              <Plus className="size-3.5" /> Add image
-            </button>
-            {!editor.hasBrandName && (
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={editor.addBrandName}
-                className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
-              >
-                <Plus className="size-3.5" /> Add brand name
-              </button>
-            )}
-          </div>
-        </div>
-        {ordered.map((o) => {
+      {/* Add objects */}
+      <div className="grid grid-cols-2 gap-1.5">
+        {addButtons.filter((b) => b.show).map((b) => (
+          <button
+            key={b.label}
+            type="button"
+            disabled={disabled || b.capped}
+            onClick={b.onClick}
+            title={b.capped ? `Limit of ${MAX_CUSTOM} custom objects reached` : undefined}
+            className="flex h-8 min-w-0 items-center justify-center gap-1 rounded-md border text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
+          >
+            <Plus className="size-3.5 shrink-0" />
+            <span className="truncate">{b.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Object list */}
+      <div className="overflow-hidden rounded-lg border">
+        {ordered.map((o, i) => {
           const active = selectedId === o.id;
           return (
             <div
               key={o.id}
               onClick={() => o.visible && setSelectedId(o.id)}
-              className={cn("flex items-center gap-3 rounded-lg px-2 py-1.5 transition-colors", active && "bg-accent", o.visible && "cursor-pointer")}
+              className={cn(
+                "flex items-center gap-2.5 px-2.5 py-2 transition-colors",
+                i > 0 && "border-t border-border/60",
+                active ? "bg-accent" : o.visible && "hover:bg-accent/50",
+                o.visible && "cursor-pointer",
+              )}
             >
               <button
                 type="button"
                 disabled={disabled}
                 onClick={(ev) => { ev.stopPropagation(); editor.patch(o.id, { visible: !o.visible }); }}
-                className="text-muted-foreground hover:text-foreground disabled:opacity-50"
+                className="text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
                 aria-label={o.visible ? `Hide ${objectLabel(o)}` : `Show ${objectLabel(o)}`}
               >
                 {o.visible ? <Eye className="size-4" /> : <EyeOff className="size-4" />}
               </button>
-              <span className={cn("flex-1 text-sm font-medium", !o.visible && "text-muted-foreground line-through")}>
+              <span className={cn("min-w-0 flex-1 truncate text-[13px] font-medium", !o.visible && "text-muted-foreground line-through")}>
                 {objectLabel(o)}
               </span>
               {(o.type === "text" || o.type === "icon" || o.type === "image" || o.type === "logo") && (
@@ -104,7 +93,7 @@ export function PrinterControls({ editor, onIconUpload, onImageUpload }: { edito
                   type="button"
                   disabled={disabled}
                   onClick={(ev) => { ev.stopPropagation(); editor.removeObject(o.id); }}
-                  className="text-muted-foreground hover:text-destructive disabled:opacity-50"
+                  className="text-muted-foreground transition-colors hover:text-destructive disabled:opacity-50"
                   aria-label={`Delete ${objectLabel(o)}`}
                 >
                   <Trash2 className="size-4" />
@@ -121,9 +110,9 @@ export function PrinterControls({ editor, onIconUpload, onImageUpload }: { edito
         type="button"
         disabled={disabled}
         onClick={editor.resetLayout}
-        className="flex w-full items-center justify-center gap-2 rounded-lg border py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+        className="flex h-8 w-full items-center justify-center gap-1.5 rounded-md border text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
       >
-        <RotateCcw className="size-4" /> Reset layout to default
+        <RotateCcw className="size-3.5" /> Reset layout to default
       </button>
     </div>
   );
@@ -135,10 +124,12 @@ function Properties({ object, editor, onIconUpload, onImageUpload }: { object: P
   const set = (p: Partial<PrinterObject>) => editor.patch(object.id, p);
 
   return (
-    <div className="space-y-3 rounded-xl border p-3">
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium">{objectLabel(object)}</span>
-        <button type="button" disabled={disabled} onClick={() => editor.bringToFront(object.id)} className="text-xs text-muted-foreground hover:text-foreground disabled:opacity-50">
+    <div className="space-y-3 rounded-lg bg-muted/50 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {objectLabel(object)}
+        </span>
+        <button type="button" disabled={disabled} onClick={() => editor.bringToFront(object.id)} className="shrink-0 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50">
           Bring to front
         </button>
       </div>

@@ -153,9 +153,6 @@ export async function saveBranding(
       }
     : undefined;
 
-  const staffPinRaw = String(formData.get("staffPin") ?? "").trim();
-  const staffPin = staffPinRaw.replace(/\D/g, "").slice(0, 6);
-
   // Capture current state for cleanup (previous icon keys and image keys).
   const previousIconKeys = new Set<string>();
   const previousImageKeys = new Set<string>();
@@ -194,7 +191,6 @@ export async function saveBranding(
       brandBg,
       brandFg,
       brandMuted,
-      staffPin,
       // Write both v3 (printerScreens) and derived v2 (printerLayout) for rollback safety.
       ...(printerConfig !== undefined ? { printerScreens: printerConfig, printerLayout } : {}),
     })
@@ -205,7 +201,6 @@ export async function saveBranding(
         brandBg,
         brandFg,
         brandMuted,
-        staffPin,
         updatedAt: now,
         ...(printerConfig !== undefined ? { printerScreens: printerConfig, printerLayout } : {}),
       },

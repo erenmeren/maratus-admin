@@ -4,12 +4,10 @@
 // the page (Figma-style), with a floating control rail on the left, a live
 // filmstrip of all screens along the bottom, and save chrome in the stage
 // header. Pure layout over useBrandingDraft — no state of its own beyond
-// zoom / tab / PIN visibility.
+// zoom and the active tab.
 
 import * as React from "react";
 import {
-  Eye,
-  EyeOff,
   LayoutGrid,
   Loader2,
   Lock,
@@ -18,7 +16,6 @@ import {
   Plus,
   RotateCcw,
   Save,
-  ShieldCheck,
 } from "lucide-react";
 import { PrinterPreview } from "@/components/device-preview/printer-preview";
 import { PrinterStage } from "@/components/device-preview/printer-editor/printer-stage";
@@ -265,9 +262,6 @@ function ControlPanel({ draft }: { draft: BrandingDraft }) {
             <TabsTrigger value="screen">
               <LayoutGrid className="size-3.5" /> Screen
             </TabsTrigger>
-            <TabsTrigger value="security">
-              <ShieldCheck className="size-3.5" /> Security
-            </TabsTrigger>
           </TabsList>
         </div>
 
@@ -277,23 +271,19 @@ function ControlPanel({ draft }: { draft: BrandingDraft }) {
           </TabsContent>
 
           <TabsContent value="screen" className="mt-0 space-y-4">
-            <div>
+            <div className="flex items-baseline justify-between gap-2">
               <PanelLabel>
                 {SCREENS.find((s) => s.value === draft.screen)?.label ?? "Screen"}
               </PanelLabel>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Layout for the selected screen — pick another in the filmstrip below the canvas.
-              </p>
+              <span className="text-[10px] text-muted-foreground">
+                switch in the filmstrip
+              </span>
             </div>
             <PrinterControls
               editor={draft.editor}
               onIconUpload={draft.onIconUpload}
               onImageUpload={draft.onImageUpload}
             />
-          </TabsContent>
-
-          <TabsContent value="security" className="mt-0 space-y-4">
-            <SecurityPanel draft={draft} />
           </TabsContent>
         </div>
       </Tabs>
@@ -475,40 +465,6 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
         />
       </section>
     </>
-  );
-}
-
-/* ---- Security tab -------------------------------------------------------- */
-
-function SecurityPanel({ draft }: { draft: BrandingDraft }) {
-  const [showPin, setShowPin] = React.useState(false);
-  return (
-    <div className="space-y-2">
-      <Label htmlFor="studio-staffPin">Staff PIN</Label>
-      <div className="relative">
-        <Input
-          id="studio-staffPin"
-          value={draft.pin}
-          onChange={(e) => draft.setPin(e.target.value.replace(/\D/g, "").slice(0, 6))}
-          type={showPin ? "text" : "password"}
-          inputMode="numeric"
-          disabled={draft.disabled}
-          className="pr-10 font-mono tracking-[0.3em]"
-          placeholder="••••"
-        />
-        <button
-          type="button"
-          onClick={() => setShowPin((s) => !s)}
-          className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-          aria-label={showPin ? "Hide PIN" : "Show PIN"}
-        >
-          {showPin ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-        </button>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Staff enter this PIN on the device to open its settings.
-      </p>
-    </div>
   );
 }
 

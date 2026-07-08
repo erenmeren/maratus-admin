@@ -355,20 +355,11 @@ describe("image objects", () => {
   });
 });
 
-// ─── Task 1: Brand name widget (relabel logo + factory) ─────────────────────────
+// ─── Brand name (logo) widget ────────────────────────────────────────────────
 
-import { createBrandNameObject, TYPE_LABEL } from "./printer-layout";
+import { TYPE_LABEL } from "./printer-layout";
 
 describe("brand-name (logo) widget", () => {
-  it("createBrandNameObject returns a logo object with the default box", () => {
-    const o = createBrandNameObject(7);
-    expect(o.type).toBe("logo");
-    expect(o.id).toBe("logo");
-    expect(o.visible).toBe(true);
-    expect(o.z).toBe(7);
-    expect({ x: o.x, y: o.y, w: o.w, h: o.h }).toEqual({ x: 0.25, y: 0.32, w: 0.5, h: 0.16 });
-  });
-
   it("is labelled 'Brand name'", () => {
     expect(TYPE_LABEL.logo).toBe("Brand name");
   });

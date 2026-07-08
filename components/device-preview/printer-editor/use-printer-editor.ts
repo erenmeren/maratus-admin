@@ -4,7 +4,6 @@ import * as React from "react";
 import {
   createTextObject,
   createImageObject,
-  createBrandNameObject,
   seededScreen,
   MAX_CUSTOM,
   type PrinterObject,
@@ -45,8 +44,6 @@ export interface PrinterEditor {
   onCanvasPointerDown: () => void;
   addText: () => void;
   addImage: () => void;
-  addBrandName: () => void;
-  hasBrandName: boolean;
   setShared: (p: Partial<Pick<PrinterConfig, "clockTimezone" | "clock24h" | "wifiLevel" | "qrTimeoutSeconds">>) => void;
   removeObject: (id: string) => void;
   bringToFront: (id: string) => void;
@@ -82,7 +79,6 @@ export function usePrinterEditor({
   const selBox = selected && selected.visible ? toBox(selected) : null;
   const addableCount = objects.filter((o) => o.type === "text" || o.type === "icon" || o.type === "image").length;
   const atCustomCap = addableCount >= MAX_CUSTOM;
-  const hasBrandName = objects.some((o) => o.type === "logo");
 
   function patch(id: string, p: Partial<PrinterObject>) {
     setObjects(objects.map((o) => (o.id === id ? { ...o, ...p } : o)));
@@ -165,14 +161,6 @@ export function usePrinterEditor({
     setSelectedId(newImage.id);
   }
 
-  function addBrandName() {
-    if (disabled || hasBrandName) return;
-    const z = objects.reduce((m, o) => Math.max(m, o.z), 0) + 1;
-    const o = createBrandNameObject(z);
-    setObjects([...objects, o]);
-    setSelectedId(o.id);
-  }
-
   const setShared = (p: Partial<Pick<PrinterConfig, "clockTimezone" | "clock24h" | "wifiLevel" | "qrTimeoutSeconds">>) =>
     onChange({ ...config, ...p });
 
@@ -226,8 +214,6 @@ export function usePrinterEditor({
     onCanvasPointerDown,
     addText,
     addImage,
-    addBrandName,
-    hasBrandName,
     setShared,
     removeObject,
     bringToFront,

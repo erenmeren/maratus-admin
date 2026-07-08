@@ -193,17 +193,6 @@ export function createImageObject(z: number): PrinterObject {
   };
 }
 
-/** A fresh brand-name (logo) widget that renders the org wordmark. Singleton per screen. */
-export function createBrandNameObject(z: number): PrinterObject {
-  return {
-    id: "logo",
-    type: "logo",
-    x: 0.25, y: 0.32, w: 0.5, h: 0.16,
-    visible: true,
-    z,
-  };
-}
-
 // Internal helper: build an object with sane defaults.
 function obj(o: Partial<PrinterObject> & Pick<PrinterObject, "id" | "type" | "x" | "y" | "w" | "h" | "z">): PrinterObject {
   return { visible: true, ...o };

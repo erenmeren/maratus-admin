@@ -37,7 +37,6 @@ export function PrinterControls({ editor, onImageUpload }: { editor: PrinterEdit
   const addButtons: { label: string; onClick: () => void; capped: boolean; show: boolean }[] = [
     { label: "Text", onClick: editor.addText, capped: atCustomCap, show: true },
     { label: "Image", onClick: editor.addImage, capped: atCustomCap, show: true },
-    { label: "Brand name", onClick: editor.addBrandName, capped: false, show: !editor.hasBrandName },
   ];
 
   return (
@@ -86,7 +85,8 @@ export function PrinterControls({ editor, onImageUpload }: { editor: PrinterEdit
               <span className={cn("min-w-0 flex-1 truncate text-[13px] font-medium", !o.visible && "text-muted-foreground line-through")}>
                 {objectLabel(o)}
               </span>
-              {(o.type === "text" || o.type === "icon" || o.type === "image" || o.type === "logo") && (
+              {/* Brand name (logo) is hide-only: with no add button it couldn't be re-added. */}
+              {(o.type === "text" || o.type === "icon" || o.type === "image") && (
                 <button
                   type="button"
                   disabled={disabled}

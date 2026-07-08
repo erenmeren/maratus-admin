@@ -50,3 +50,4 @@ next-env.d.ts
 
 # Better Auth parity-check output (regenerate with `npm run auth:generate`)
 lib/db/auth-schema.generated.ts
+.superpowers/

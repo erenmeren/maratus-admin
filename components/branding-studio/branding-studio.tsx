@@ -55,7 +55,7 @@ const PRESETS = ["#B4541F", "#3F9D4E", "#1F5C8B", "#E5484D", "#7C5CFC", "#0F766E
 
 const eq = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
-export function BrandingStudioVariant(props: BrandingVariantProps) {
+export function BrandingStudio(props: BrandingVariantProps) {
   const draft = useBrandingDraft(props);
   const [zoom, setZoom] = React.useState(ZOOM_DEFAULT);
   const previewPx = zoomToPx(zoom);

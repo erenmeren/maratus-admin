@@ -480,6 +480,7 @@ export const schema = {
   tenantSettings,
   store,
   device,
+  factoryDevice,
   deviceCommand,
   apiKey,
   creditBalance,

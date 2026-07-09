@@ -12,6 +12,7 @@ import {
   KeyRound,
   HardDriveDownload,
   MonitorCog,
+  Boxes,
 } from "lucide-react";
 
 export interface NavItem {
@@ -24,6 +25,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Overview", href: "/admin", icon: LayoutDashboard },
   { label: "Customers", href: "/admin/customers", icon: Users },
   { label: "Device Fleet", href: "/admin/devices", icon: Cpu },
+  { label: "Inventory", href: "/admin/inventory", icon: Boxes },
   { label: "Health", href: "/admin/health", icon: Activity },
   { label: "Firmware", href: "/admin/firmware", icon: HardDriveDownload },
   { label: "Billing & Revenue", href: "/admin/billing", icon: Wallet },

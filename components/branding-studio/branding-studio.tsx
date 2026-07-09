@@ -21,7 +21,14 @@ import {
 } from "lucide-react";
 import { PrinterPreview } from "@/components/device-preview/printer-preview";
 import { PrinterStage } from "@/components/device-preview/printer-editor/printer-stage";
-import { PrinterControls } from "@/components/device-preview/printer-editor/printer-controls";
+import {
+  PrinterControls,
+  type PropsVariant,
+} from "@/components/device-preview/printer-editor/printer-controls";
+import {
+  FloatingProperties,
+  BottomBarProperties,
+} from "@/components/device-preview/printer-editor/printer-properties";
 import {
   useBrandingDraft,
   SCREENS,
@@ -50,6 +57,8 @@ export function BrandingStudio(props: BrandingVariantProps) {
   const draft = useBrandingDraft(props);
   const [zoom, setZoom] = React.useState(ZOOM_DEFAULT);
   const [fullscreen, setFullscreen] = React.useState(false);
+  // PROTOTYPE: switchable properties-display bake-off (pick one, then hardcode it).
+  const [propsVariant, setPropsVariant] = React.useState<PropsVariant>("panel");
   const previewPx = zoomToPx(zoom);
   const activeScreen = SCREENS.find((s) => s.value === draft.screen);
 
@@ -92,7 +101,7 @@ export function BrandingStudio(props: BrandingVariantProps) {
             fullscreen && "p-3 pb-0 lg:p-0",
           )}
         >
-          <ControlPanel draft={draft} />
+          <ControlPanel draft={draft} propsVariant={propsVariant} />
         </div>
 
         {/* THE STAGE */}
@@ -130,12 +139,22 @@ export function BrandingStudio(props: BrandingVariantProps) {
 
           {/* CANVAS — the active screen, editable, centered on the surface */}
           <div className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-center gap-4 p-6 sm:p-10 lg:pl-[21.5rem]">
+            {/* PROTOTYPE: properties-display variant switcher */}
+            <PropsVariantSwitcher value={propsVariant} onChange={setPropsVariant} />
+
             <div
-              className="max-w-full transition-[width] duration-200 ease-out"
+              className="relative max-w-full transition-[width] duration-200 ease-out"
               style={{ width: previewPx }}
             >
               <PrinterStage editor={draft.editor} brand={draft.printerBrand} />
+              {propsVariant === "floating" && (
+                <FloatingProperties editor={draft.editor} onImageUpload={draft.onImageUpload} />
+              )}
             </div>
+
+            {propsVariant === "bar" && (
+              <BottomBarProperties editor={draft.editor} onImageUpload={draft.onImageUpload} />
+            )}
             <p className="text-center text-xs text-zinc-500">
               {draft.screen === "idle"
                 ? "Drag to arrange — double-click any text to edit it."
@@ -300,10 +319,53 @@ function StageHeader({
 }
 
 /* ------------------------------------------------------------------------ */
+/* PROTOTYPE: properties-display variant switcher (bake-off — remove after)  */
+/* ------------------------------------------------------------------------ */
+
+const PROPS_VARIANTS: { value: PropsVariant; label: string }[] = [
+  { value: "panel", label: "Current" },
+  { value: "inline", label: "Inline" },
+  { value: "drill", label: "Drill-in" },
+  { value: "floating", label: "Floating" },
+  { value: "bar", label: "Bottom bar" },
+];
+
+function PropsVariantSwitcher({
+  value,
+  onChange,
+}: {
+  value: PropsVariant;
+  onChange: (v: PropsVariant) => void;
+}) {
+  return (
+    <div className="absolute right-4 top-4 z-30 flex items-center gap-1 rounded-full border border-white/10 bg-zinc-900/80 p-1 shadow-lg backdrop-blur">
+      <span className="hidden pl-2 pr-1 text-[10px] font-medium uppercase tracking-wider text-zinc-500 xl:block">
+        Properties
+      </span>
+      {PROPS_VARIANTS.map((v) => (
+        <button
+          key={v.value}
+          type="button"
+          onClick={() => onChange(v.value)}
+          className={cn(
+            "rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors",
+            v.value === value
+              ? "bg-white text-zinc-900"
+              : "text-zinc-400 hover:bg-white/10 hover:text-zinc-100",
+          )}
+        >
+          {v.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------------ */
 /* Floating control panel — Theme / Screen / Security                        */
 /* ------------------------------------------------------------------------ */
 
-function ControlPanel({ draft }: { draft: BrandingDraft }) {
+function ControlPanel({ draft, propsVariant }: { draft: BrandingDraft; propsVariant: PropsVariant }) {
   return (
     <div className="flex flex-col overflow-hidden rounded-xl border bg-card shadow-2xl lg:h-full dark:border-white/10">
       <Tabs defaultValue="theme" className="flex min-h-0 flex-1 flex-col gap-0">
@@ -335,6 +397,7 @@ function ControlPanel({ draft }: { draft: BrandingDraft }) {
             <PrinterControls
               editor={draft.editor}
               onImageUpload={draft.onImageUpload}
+              propsVariant={propsVariant}
             />
           </TabsContent>
         </div>

@@ -2,8 +2,8 @@
 // serial operations (one-shot auto-claim + serial stamping). Pure decision
 // logic lives in lib/provisioning.ts / lib/factory-registry-csv.ts.
 
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
-import { db } from "./db";
+import { and, eq, inArray, isNull, sql, TransactionRollbackError } from "drizzle-orm";
+import { db, dbTx } from "./db";
 import {
   device as deviceTable,
   factoryDevice,
@@ -170,66 +170,77 @@ export async function setRegistryStatus(
 }
 
 /**
- * One-shot zero-touch claim for a pre-allocated serial. The registry row is
- * claim-locked FIRST (atomic allocated→claimed conditional update) so a racing
- * second poll gets 0 rows and falls back to pending. Returns null (→ caller
- * responds "pending") on any race/collision; per spec the key is delivered and
- * consumed in this same response, so pendingDeviceKey is never persisted.
+ * One-shot zero-touch claim for a pre-allocated serial. The claim-lock UPDATE
+ * on `factory_device` (allocated→claimed), the new `device` INSERT, and the
+ * deviceId link-back UPDATE all run inside one `dbTx` transaction, so the
+ * three writes commit or roll back together — a racing second poll gets 0
+ * rows and falls back to pending, and any failure (insert collision or
+ * otherwise) restores the registry row to `allocated` via rollback instead of
+ * a manual compensating update. Returns null (→ caller responds "pending") on
+ * any race/collision; per spec the key is delivered and consumed in this same
+ * response, so pendingDeviceKey is never persisted.
  */
 export async function autoClaimDevice(
   serial: string,
   pairingCode: string,
 ): Promise<{ deviceKey: string } | null> {
-  const [locked] = await db
-    .update(factoryDevice)
-    .set({ status: "claimed", claimedAt: new Date() })
-    .where(and(eq(factoryDevice.serial, serial), eq(factoryDevice.status, "allocated")))
-    .returning({
-      organizationId: factoryDevice.allocatedOrganizationId,
-      storeId: factoryDevice.allocatedStoreId,
-    });
-  if (!locked) return null;
-  if (!locked.organizationId || !locked.storeId) {
-    // Incomplete allocation should have been filtered by shouldAutoClaim;
-    // release the lock and fall back to the human path.
-    await db
-      .update(factoryDevice)
-      .set({ status: "allocated", claimedAt: null })
-      .where(eq(factoryDevice.serial, serial));
-    return null;
-  }
-
   const { key, hash } = generateDeviceKey();
   const deviceId = id("dev");
+  let claimedOrganizationId: string | null = null;
+
   try {
-    await db.insert(deviceTable).values({
-      id: deviceId,
-      organizationId: locked.organizationId,
-      storeId: locked.storeId,
-      name: `Printer ${serial.slice(-4)}`,
-      status: "offline",
-      connectionType: "wifi",
-      firmwareVersion: "2.4.1",
-      pairingCode, // kept, mirrors claimDevice — the code stays pollable
-      serial,
-      deviceKeyHash: hash,
-      pendingDeviceKey: null, // delivered + consumed in this same response
-      claimedAt: new Date(),
-      createdAt: new Date(),
+    await dbTx.transaction(async (tx) => {
+      const [locked] = await tx
+        .update(factoryDevice)
+        .set({ status: "claimed", claimedAt: new Date() })
+        .where(and(eq(factoryDevice.serial, serial), eq(factoryDevice.status, "allocated")))
+        .returning({
+          organizationId: factoryDevice.allocatedOrganizationId,
+          storeId: factoryDevice.allocatedStoreId,
+        });
+      if (!locked || !locked.organizationId || !locked.storeId) {
+        // No row hijacked (already claimed/raced), or an incomplete
+        // allocation that shouldAutoClaim should have filtered — either way,
+        // abort so the rollback restores `allocated` and fall back to the
+        // human path.
+        tx.rollback();
+        return;
+      }
+
+      await tx.insert(deviceTable).values({
+        id: deviceId,
+        organizationId: locked.organizationId,
+        storeId: locked.storeId,
+        name: `Printer ${serial.slice(-4)}`,
+        status: "offline",
+        connectionType: "wifi",
+        firmwareVersion: "2.4.1",
+        pairingCode, // kept, mirrors claimDevice — the code stays pollable
+        serial,
+        deviceKeyHash: hash,
+        pendingDeviceKey: null, // delivered + consumed in this same response
+        claimedAt: new Date(),
+        createdAt: new Date(),
+      });
+      // A pairing-code or serial unique collision throws here, which rolls
+      // back the lock update above along with the failed insert.
+
+      await tx.update(factoryDevice).set({ deviceId }).where(eq(factoryDevice.serial, serial));
+
+      claimedOrganizationId = locked.organizationId;
     });
   } catch (err) {
-    // pairing-code or serial unique collision → release the claim-lock.
-    await db
-      .update(factoryDevice)
-      .set({ status: "allocated", claimedAt: null })
-      .where(eq(factoryDevice.serial, serial));
+    if (err instanceof TransactionRollbackError) return null;
     if (isUniqueViolation(err)) return null;
     throw err;
   }
 
-  await db.update(factoryDevice).set({ deviceId }).where(eq(factoryDevice.serial, serial));
+  if (!claimedOrganizationId) return null; // defensive; unreachable in practice
+
+  // Best-effort by design: audit failures must not unwind a claim that has
+  // already committed, so this runs after (never inside) the transaction.
   await recordAudit({
-    organizationId: locked.organizationId,
+    organizationId: claimedOrganizationId,
     actor: { type: "system" },
     action: AUDIT.deviceAutoClaimed,
     target: { type: "device", id: deviceId },

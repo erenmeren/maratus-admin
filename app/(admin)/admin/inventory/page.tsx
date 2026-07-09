@@ -3,13 +3,14 @@ import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { InventoryTable } from "@/components/inventory/inventory-table";
 import { getFactoryDevices } from "@/lib/factory-registry";
-import { getTenants } from "@/lib/data";
 import { db } from "@/lib/db";
-import { store } from "@/lib/db/schema";
+import { organization, store } from "@/lib/db/schema";
 
 export default async function InventoryPage() {
   const rows = await getFactoryDevices();
-  const customers = (await getTenants()).map((t) => ({ id: t.id, name: t.name }));
+  const customers = await db
+    .select({ id: organization.id, name: organization.name })
+    .from(organization);
   const stores = await db
     .select({ id: store.id, name: store.name, organizationId: store.organizationId })
     .from(store);

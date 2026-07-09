@@ -86,6 +86,12 @@ export function InventoryTable({
     }
   }
 
+  function closeAllocateDialog() {
+    setAllocating(null);
+    setAllocOrg("");
+    setAllocStore("none");
+  }
+
   async function onAllocate() {
     if (!allocating || !allocOrg) return;
     setBusy(true);
@@ -97,9 +103,7 @@ export function InventoryTable({
       else toast.error(result.error ?? "Allocation failed.");
     } finally {
       setBusy(false);
-      setAllocating(null);
-      setAllocOrg("");
-      setAllocStore("none");
+      closeAllocateDialog();
     }
   }
 
@@ -197,6 +201,7 @@ export function InventoryTable({
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="size-8">
                       <MoreHorizontal className="size-4" />
+                      <span className="sr-only">Actions for {r.serial}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -208,8 +213,16 @@ export function InventoryTable({
                     {r.status === "allocated" && (
                       <DropdownMenuItem
                         onSelect={async () => {
-                          const res = await deallocateSerialsAction([r.serial]);
-                          if (res.ok) toast.success("Allocation removed.");
+                          try {
+                            const res = await deallocateSerialsAction([r.serial]);
+                            if (res.ok && res.updated > 0) {
+                              toast.success("Allocation removed.");
+                            } else {
+                              toast.info("Nothing to deallocate — row already changed.");
+                            }
+                          } catch {
+                            toast.error("Failed to remove allocation.");
+                          }
                         }}
                       >
                         Remove allocation
@@ -222,8 +235,13 @@ export function InventoryTable({
                       <DropdownMenuItem
                         variant="destructive"
                         onSelect={async () => {
-                          const res = await setRegistryStatusAction(r.serial, "rma");
-                          if (res.ok) toast.success("Marked as RMA.");
+                          try {
+                            const res = await setRegistryStatusAction(r.serial, "rma");
+                            if (res.ok) toast.success("Marked as RMA.");
+                            else toast.error("Failed to mark as RMA.");
+                          } catch {
+                            toast.error("Failed to mark as RMA.");
+                          }
                         }}
                       >
                         Mark as RMA
@@ -244,7 +262,7 @@ export function InventoryTable({
         </TableBody>
       </Table>
 
-      <Dialog open={allocating !== null} onOpenChange={(o) => !o && setAllocating(null)}>
+      <Dialog open={allocating !== null} onOpenChange={(o) => !o && closeAllocateDialog()}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Allocate {allocating}</DialogTitle>
@@ -273,7 +291,7 @@ export function InventoryTable({
             </Select>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setAllocating(null)}>Cancel</Button>
+            <Button variant="outline" onClick={closeAllocateDialog}>Cancel</Button>
             <Button disabled={!allocOrg || busy} onClick={onAllocate}>Allocate</Button>
           </DialogFooter>
         </DialogContent>

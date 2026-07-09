@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Cable, Cpu, Globe, HardDrive, FileText, Wifi } from "lucide-react";
-import { desc } from "drizzle-orm";
+import { Cable, Cpu, Globe, HardDrive, FileText, Wifi, Tag } from "lucide-react";
+import { desc, eq } from "drizzle-orm";
 import { PageHeader } from "@/components/page-header";
 import { SectionHeader } from "@/components/section-header";
 import { KpiCard } from "@/components/kpi-card";
@@ -9,9 +9,10 @@ import { StatusDot } from "@/components/status-badge";
 import { DeviceRowActions } from "@/components/device-row-actions";
 import { CommandBar } from "@/components/devices/command-bar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { getDevice, getDeviceCommands } from "@/lib/data";
 import { db } from "@/lib/db";
-import { firmwareRelease } from "@/lib/db/schema";
+import { device as deviceTable, factoryDevice, firmwareRelease } from "@/lib/db/schema";
 import { requirePlatformAdmin } from "@/lib/session";
 import { effectiveDeviceStatus, firmwareUpdateAvailable, type DeviceStatus } from "@/lib/device-status";
 import { formatNumber, timeAgo } from "@/lib/format";
@@ -36,6 +37,17 @@ export default async function AdminDeviceDetailPage({
     .limit(1);
   const updateAvailable = firmwareUpdateAvailable(device.firmwareVersion, latestFw?.version ?? null);
 
+  const [serialInfo] = await db
+    .select({
+      serial: deviceTable.serial,
+      serialConflict: deviceTable.serialConflict,
+      unregistered: factoryDevice.unregistered,
+    })
+    .from(deviceTable)
+    .leftJoin(factoryDevice, eq(factoryDevice.deviceId, deviceTable.id))
+    .where(eq(deviceTable.id, device.id))
+    .limit(1);
+
   const status: DeviceStatus = effectiveDeviceStatus(
     device.status,
     device.lastSeenAt ? new Date(device.lastSeenAt) : null,
@@ -56,6 +68,7 @@ export default async function AdminDeviceDetailPage({
       value: `v${device.firmwareVersion}${updateAvailable ? ` → v${latestFw!.version} available` : ""}`,
       mono: true,
     },
+    { icon: Tag, label: "Serial", value: serialInfo?.serial ?? "—", mono: true },
   ];
 
   return (
@@ -121,6 +134,16 @@ export default async function AdminDeviceDetailPage({
                 <span className="text-muted-foreground">Last seen</span>
                 <span className="font-medium">{timeAgo(device.lastSeen)}</span>
               </div>
+              {serialInfo?.serialConflict && (
+                <Badge variant="destructive" className="w-full justify-center">
+                  Duplicate serial detected — this row's serial was left unset
+                </Badge>
+              )}
+              {serialInfo?.unregistered && (
+                <Badge variant="outline" className="w-full justify-center">
+                  Not in factory registry
+                </Badge>
+              )}
               <div className="flex items-center justify-between pt-1">
                 <span className="text-muted-foreground">Actions</span>
                 <DeviceRowActions deviceId={device.id} deviceName={device.name} status={status} />

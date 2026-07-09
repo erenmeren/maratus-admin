@@ -5,6 +5,7 @@ import { relations } from "drizzle-orm";
 import {
   account,
   device,
+  factoryDevice,
   invitation,
   member,
   organization,
@@ -76,4 +77,23 @@ export const deviceRelations = relations(device, ({ one }) => ({
     references: [organization.id],
   }),
   store: one(store, { fields: [device.storeId], references: [store.id] }),
+  factoryDevice: one(factoryDevice, {
+    fields: [device.id],
+    references: [factoryDevice.deviceId],
+  }),
+}));
+
+export const factoryDeviceRelations = relations(factoryDevice, ({ one }) => ({
+  allocatedOrganization: one(organization, {
+    fields: [factoryDevice.allocatedOrganizationId],
+    references: [organization.id],
+  }),
+  allocatedStore: one(store, {
+    fields: [factoryDevice.allocatedStoreId],
+    references: [store.id],
+  }),
+  device: one(device, {
+    fields: [factoryDevice.deviceId],
+    references: [device.id],
+  }),
 }));

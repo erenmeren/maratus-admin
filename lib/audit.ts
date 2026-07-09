@@ -47,6 +47,10 @@ export const AUDIT = {
   invitationCanceled: "invitation.canceled",
   creditsGranted: "credits.granted",
   creditsPurchased: "credits.purchased",
+  deviceAutoClaimed: "device.auto_claimed",
+  deviceSerialConflict: "device.serial_conflict",
+  registryAllocated: "registry.allocated",
+  registryDeallocated: "registry.deallocated",
 } as const;
 
 export async function recordAudit(input: {

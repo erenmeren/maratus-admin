@@ -38,6 +38,10 @@ export const AUDIT_LABELS: Record<string, string> = {
   "invitation.canceled": "Invitation canceled",
   "credits.granted": "Credits granted",
   "credits.purchased": "Credits purchased",
+  "device.auto_claimed": "Device auto-claimed",
+  "device.serial_conflict": "Duplicate device serial detected",
+  "registry.allocated": "Inventory allocated",
+  "registry.deallocated": "Inventory allocation removed",
 };
 
 function cap(s: string): string {

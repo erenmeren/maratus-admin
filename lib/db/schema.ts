@@ -255,6 +255,12 @@ export const device = pgTable(
     // nulled on delivery (we otherwise store only deviceKeyHash). M6a provisioning.
     pendingDeviceKey: text("pending_device_key"),
     claimedAt: timestamp("claimed_at"),
+    // Normalized eFuse-MAC serial (12 lowercase hex chars), stamped at claim.
+    // NOT a credential — matching/inventory only.
+    serial: text("serial"),
+    // A second physical device tried to claim this serial (unique-index hit);
+    // this row's serial stayed null and the admin UI shows a warning.
+    serialConflict: boolean("serial_conflict").default(false).notNull(),
     createdAt: timestamp("created_at")
       .$defaultFn(() => new Date())
       .notNull(),
@@ -264,10 +270,53 @@ export const device = pgTable(
     index("device_store_id_idx").on(t.storeId),
     uniqueIndex("device_pairing_code_idx").on(t.pairingCode),
     index("device_key_hash_idx").on(t.deviceKeyHash),
+    uniqueIndex("device_serial_idx").on(t.serial),
   ],
 );
 
 export type DeviceRowT = typeof device.$inferSelect;
+
+// Factory inventory: every manufactured unit, keyed by its eFuse-MAC serial.
+// Lifecycle: manufactured → allocated → claimed (one-way); rma/retired from any
+// state. `allocated` with BOTH org and store arms one-shot auto-claim.
+export const factoryDevice = pgTable(
+  "factory_device",
+  {
+    serial: text("serial").primaryKey(), // normalized: 12 lowercase hex chars
+    batchCode: text("batch_code"),
+    hardwareRevision: text("hardware_revision"),
+    status: text("status", {
+      enum: ["manufactured", "allocated", "claimed", "rma", "retired"],
+    })
+      .default("manufactured")
+      .notNull(),
+    allocatedOrganizationId: text("allocated_organization_id").references(
+      () => organization.id,
+      { onDelete: "set null" },
+    ),
+    allocatedStoreId: text("allocated_store_id").references(() => store.id, {
+      onDelete: "set null",
+    }),
+    // Live device row linked at claim.
+    deviceId: text("device_id").references(() => device.id, { onDelete: "set null" }),
+    // Row auto-created at claim time (serial was never imported).
+    unregistered: boolean("unregistered").default(false).notNull(),
+    manufacturedAt: timestamp("manufactured_at"),
+    importedAt: timestamp("imported_at")
+      .$defaultFn(() => new Date())
+      .notNull(),
+    allocatedAt: timestamp("allocated_at"),
+    claimedAt: timestamp("claimed_at"),
+    notes: text("notes"),
+  },
+  (t) => [
+    index("factory_device_status_idx").on(t.status),
+    index("factory_device_allocated_org_idx").on(t.allocatedOrganizationId),
+    index("factory_device_device_id_idx").on(t.deviceId),
+  ],
+);
+
+export type FactoryDeviceRowT = typeof factoryDevice.$inferSelect;
 
 export const deviceCommand = pgTable(
   "device_command",

@@ -85,3 +85,28 @@ export async function __resetRateLimit(): Promise<void> {
     console.error("[rate-limit] reset failed", err);
   }
 }
+
+/**
+ * Purge fixed-window rows whose window closed long ago, so the table doesn't
+ * grow unbounded (one row per distinct limiter key ever seen). Run from the
+ * daily health cron — see lib/alerts-sync.ts.
+ *
+ * Pure SQL-side interval, no JS `Date` parameter: per the driver trap
+ * documented above `checkRateLimit`, a raw `Date` interpolated into a `sql`
+ * template is serialized using the *local* wall-clock offset by the
+ * neon-http driver, which would make this comparison wrong on any box whose
+ * local TZ isn't UTC. `now() - interval '24 hours'` is computed entirely in
+ * Postgres, so there's no client-side Date to get that wrong.
+ */
+export async function purgeStaleRateLimitRows(): Promise<number> {
+  try {
+    const deleted = await db
+      .delete(rateLimit)
+      .where(sql`${rateLimit.windowStart} < now() - interval '24 hours'`)
+      .returning({ key: rateLimit.key });
+    return deleted.length;
+  } catch (err) {
+    console.error("[rate-limit] purge failed", err);
+    return 0;
+  }
+}

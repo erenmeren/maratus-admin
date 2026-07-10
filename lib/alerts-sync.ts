@@ -12,6 +12,7 @@ import { computeAlerts } from "./health";
 import { getAlertInputs } from "./data";
 import { diffAlerts, alertEmail, type OpenAlert } from "./alerts";
 import { sendEmail } from "./email";
+import { purgeStaleRateLimitRows } from "./rate-limit";
 import { id } from "./ids";
 
 /** Reconcile stored device status: flip "online" rows that have gone stale to
@@ -79,6 +80,7 @@ export async function evaluateAndPersistAlerts(): Promise<{
   opened: number;
   resolved: number;
   stillOpen: number;
+  purgedRateLimitRows: number;
 }> {
   await reconcileOfflineDevices(new Date());
   const current = computeAlerts(await getAlertInputs());
@@ -152,9 +154,14 @@ export async function evaluateAndPersistAlerts(): Promise<{
     }
   }
 
+  // Housekeeping, not health evaluation — run after alerts so a purge failure
+  // (best-effort, fails to 0) never affects the alert diff above.
+  const purgedRateLimitRows = await purgeStaleRateLimitRows();
+
   return {
     opened: diff.toOpen.length,
     resolved: diff.toResolve.length,
     stillOpen: diff.stillOpen.length,
+    purgedRateLimitRows,
   };
 }

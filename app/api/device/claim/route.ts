@@ -10,10 +10,10 @@
 // The serial is public (box label) and NEVER authenticates by itself; auto-claim
 // is the one-shot allocated→claimed transition only (hijack guard).
 
-import { NextResponse } from "next/server";
+import { NextResponse, after } from "next/server";
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { device as deviceTable } from "@/lib/db/schema";
+import { device as deviceTable, organization as orgTable, user as userTable } from "@/lib/db/schema";
 import { checkRateLimit } from "@/lib/rate-limit";
 import {
   classifyClaimPoll,
@@ -26,6 +26,8 @@ import {
   getRegistryBySerial,
   stampDeviceSerial,
 } from "@/lib/factory-registry";
+import { sendEmail } from "@/lib/email";
+import { autoClaimEmail } from "@/lib/registry-emails";
 
 export const runtime = "nodejs";
 
@@ -66,6 +68,34 @@ export async function GET(req: Request) {
     if (shouldAutoClaim(false, registry)) {
       const auto = await autoClaimDevice(serial, code);
       if (auto) {
+        // Best-effort platform-admin notification — a zero-touch auto-claim
+        // is the exact event the hijack-recovery runbook is written around,
+        // so admins need a signal to notice an unexpected one. Deferred via
+        // after() so a slow/failed email never delays or fails key delivery.
+        after(async () => {
+          try {
+            const [org] = await db
+              .select({ name: orgTable.name })
+              .from(orgTable)
+              .where(eq(orgTable.id, auto.organizationId))
+              .limit(1);
+            const admins = await db
+              .select({ email: userTable.email })
+              .from(userTable)
+              .where(eq(userTable.role, "platform_admin"));
+            const mail = autoClaimEmail({
+              serial,
+              orgName: org?.name ?? "(unknown org)",
+              deviceId: auto.deviceId,
+              claimedAt: new Date(),
+            });
+            await Promise.all(admins.map((adm) => sendEmail(adm.email, mail.subject, mail.html)));
+          } catch (err) {
+            // Never let a notification failure surface anywhere — the claim
+            // already committed and its response already went out.
+            console.error("[claim] auto-claim admin email failed (non-fatal)", err);
+          }
+        });
         return NextResponse.json({ status: "claimed", deviceKey: auto.deviceKey });
       }
     }

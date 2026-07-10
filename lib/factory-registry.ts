@@ -289,7 +289,7 @@ export async function setRegistryStatus(
 export async function autoClaimDevice(
   serial: string,
   pairingCode: string,
-): Promise<{ deviceKey: string } | null> {
+): Promise<{ deviceKey: string; deviceId: string; organizationId: string } | null> {
   const { key, hash } = generateDeviceKey();
   const deviceId = id("dev");
   let claimedOrganizationId: string | null = null;
@@ -352,7 +352,7 @@ export async function autoClaimDevice(
     target: { type: "device", id: deviceId },
     metadata: { serial },
   });
-  return { deviceKey: key };
+  return { deviceKey: key, deviceId, organizationId: claimedOrganizationId };
 }
 
 /**

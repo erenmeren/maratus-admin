@@ -9,7 +9,6 @@ import { parseRegistryCsv } from "@/lib/factory-registry-csv";
 import {
   allocateSerials,
   deallocateSerials,
-  getRegistryBySerial,
   importFactoryDevices,
   revertRegistryClaim,
   setRegistryStatus,
@@ -175,16 +174,18 @@ export async function revertRegistryClaimAction(
   if (!parsed.success) return { ok: false, error: "Invalid input." };
 
   const result = await revertRegistryClaim(parsed.data.serial);
-  if (!result.ok) return result;
+  if (!result.ok) return { ok: false, error: result.error };
 
-  // Attribute the audit event to the org whose pending install this re-arms.
-  // If the row has no allocated org (it landed on the human-claim path),
-  // recordAudit has nothing sensible to scope to — skip auditing rather than
-  // force a bogus organizationId (recordAudit requires one).
-  const row = await getRegistryBySerial(parsed.data.serial);
-  if (row?.allocatedOrganizationId) {
+  // Attribute the audit event to the org whose pending install this re-arms —
+  // organizationId was read under the revert's own FOR UPDATE lock, so it's
+  // the org the row belonged to at revert time (no post-commit re-read that a
+  // concurrent reallocation could skew). If the row has no allocated org (it
+  // landed on the human-claim path), recordAudit has nothing sensible to
+  // scope to — skip auditing rather than force a bogus organizationId
+  // (recordAudit requires one).
+  if (result.organizationId) {
     await recordAudit({
-      organizationId: row.allocatedOrganizationId,
+      organizationId: result.organizationId,
       actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
       action: AUDIT.registryClaimReverted,
       target: { type: "registry", id: parsed.data.serial },

@@ -292,13 +292,22 @@ export async function setRegistryStatus(
  * FOR UPDATE` to lock the row before deciding, then the UPDATE. Allocation
  * columns (`allocatedOrganizationId`/`allocatedStoreId`) are left untouched —
  * that's what re-arms the pending install for the same customer/store.
+ *
+ * On success, `organizationId` is the row's `allocatedOrganizationId` read
+ * under the same FOR UPDATE lock (null when the row has no allocation), so
+ * the caller can attribute the audit event without a post-commit re-read —
+ * same reason deallocateSerials returns `byOrg` from inside its transaction.
  */
 export async function revertRegistryClaim(
   serial: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{ ok: boolean; error?: string; organizationId?: string | null }> {
   return dbTx.transaction(async (tx) => {
     const [row] = await tx
-      .select({ status: factoryDevice.status, deviceId: factoryDevice.deviceId })
+      .select({
+        status: factoryDevice.status,
+        deviceId: factoryDevice.deviceId,
+        allocatedOrganizationId: factoryDevice.allocatedOrganizationId,
+      })
       .from(factoryDevice)
       .where(eq(factoryDevice.serial, serial))
       .for("update");
@@ -315,7 +324,7 @@ export async function revertRegistryClaim(
       .set({ status: "allocated", claimedAt: null })
       .where(eq(factoryDevice.serial, serial));
 
-    return { ok: true };
+    return { ok: true, organizationId: row.allocatedOrganizationId };
   });
 }
 

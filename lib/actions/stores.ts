@@ -10,6 +10,7 @@ import { requirePlatformAdmin, requireTenant } from "@/lib/session";
 import { id } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { normalizeTimezone } from "@/lib/timezones";
+import { isOrgArchived } from "@/lib/archived-guard";
 
 export interface CreateStoreResult {
   ok: boolean;
@@ -72,6 +73,9 @@ export async function createStoreForOrg(
     .where(eq(orgTable.id, organizationId))
     .limit(1);
   if (!org) return { ok: false, error: "Customer not found." };
+  if (await isOrgArchived(organizationId)) {
+    return { ok: false, error: "Customer is archived." };
+  }
 
   const name = String(formData.get("name") ?? "").trim();
   const address = String(formData.get("address") ?? "").trim();

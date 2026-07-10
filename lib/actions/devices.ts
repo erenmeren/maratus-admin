@@ -15,6 +15,7 @@ import { requirePlatformAdmin, requireTenant } from "@/lib/session";
 import { id, pairingCode } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import type { DeviceStatus } from "@/lib/types";
+import { isOrgArchived } from "@/lib/archived-guard";
 
 export interface ActionResult {
   ok: boolean;
@@ -82,6 +83,9 @@ export async function setDeviceActiveAdmin(
   if (device.status === "offline") {
     return { ok: false, error: "Device is offline and can't be changed." };
   }
+  if (await isOrgArchived(device.organizationId)) {
+    return { ok: false, error: "Customer is archived." };
+  }
   const next: DeviceStatus = active ? "online" : "paused";
   await db
     .update(deviceTable)
@@ -115,6 +119,9 @@ export async function renameDevice(
     .where(eq(deviceTable.id, deviceId))
     .limit(1);
   if (!device) return { ok: false, error: "Device not found." };
+  if (await isOrgArchived(device.organizationId)) {
+    return { ok: false, error: "Customer is archived." };
+  }
 
   await db
     .update(deviceTable)
@@ -148,6 +155,9 @@ export async function reassignDevice(
     .where(eq(deviceTable.id, deviceId))
     .limit(1);
   if (!device) return { ok: false, error: "Device not found." };
+  if (await isOrgArchived(device.organizationId)) {
+    return { ok: false, error: "Customer is archived." };
+  }
 
   const [store] = await db
     .select({ organizationId: storeTable.organizationId })
@@ -192,6 +202,9 @@ export async function deleteDevice(deviceId: string): Promise<ActionResult> {
     .where(eq(deviceTable.id, deviceId))
     .limit(1);
   if (!device) return { ok: false, error: "Device not found." };
+  if (await isOrgArchived(device.organizationId)) {
+    return { ok: false, error: "Customer is archived." };
+  }
 
   await db.delete(deviceTable).where(eq(deviceTable.id, deviceId));
 
@@ -233,6 +246,9 @@ export async function provisionDevice(
     .where(eq(orgTable.id, organizationId))
     .limit(1);
   if (!org) return { ok: false, error: "Customer not found." };
+  if (await isOrgArchived(organizationId)) {
+    return { ok: false, error: "Customer is archived." };
+  }
 
   // If a store is given, it must belong to this organization.
   if (storeId) {
@@ -286,6 +302,9 @@ export async function unassignDevice(deviceId: string): Promise<ActionResult> {
     .where(eq(deviceTable.id, deviceId))
     .limit(1);
   if (!device) return { ok: false, error: "Device not found." };
+  if (await isOrgArchived(device.organizationId)) {
+    return { ok: false, error: "Customer is archived." };
+  }
 
   await db
     .update(deviceTable)

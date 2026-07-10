@@ -3,6 +3,7 @@ import { requirePlatformAdmin } from "@/lib/session";
 import { grantCredits } from "@/lib/credits";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
+import { isOrgArchived } from "@/lib/archived-guard";
 
 export type GrantState = { ok: boolean; error?: string };
 
@@ -24,6 +25,9 @@ export async function grantCreditsAction(
       ok: false,
       error: "Enter a whole credit amount between 1 and 1,000,000.",
     };
+  }
+  if (await isOrgArchived(orgId)) {
+    return { ok: false, error: "Customer is archived." };
   }
   await grantCredits({
     organizationId: orgId,

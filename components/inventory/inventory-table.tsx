@@ -125,6 +125,8 @@ export function InventoryTable({
       } else {
         result.errors.forEach((e) => toast.error(e));
       }
+    } catch {
+      toast.error("Import failed — try again.");
     } finally {
       setBusy(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -166,6 +168,8 @@ export function InventoryTable({
       );
       if (result.ok) toast.success(`Allocated ${result.updated} serial.`);
       else toast.error(result.error ?? "Allocation failed.");
+    } catch {
+      toast.error("Allocation failed — try again.");
     } finally {
       setBusy(false);
       closeAllocateDialog();

@@ -216,11 +216,29 @@ export async function allocateSerials(
   return { updated: updated.length };
 }
 
-/** Revert unclaimed allocations back to `manufactured`. */
+/**
+ * Revert unclaimed allocations back to `manufactured`. Also returns `byOrg`
+ * (previous `allocatedOrganizationId` → serials actually deallocated) so the
+ * caller can audit-log per org — `RETURNING` only ever exposes POST-update
+ * values, so the previous owner is snapshotted with a SELECT before the
+ * UPDATE runs, then intersected with the rows the UPDATE actually touched.
+ * Race-tolerant: a row that changes between the SELECT and the UPDATE (e.g.
+ * claimed concurrently) simply won't appear in `updated`, and is excluded
+ * from `byOrg` by the intersection rather than reported incorrectly.
+ */
 export async function deallocateSerials(
   serials: string[],
-): Promise<{ updated: number }> {
-  if (serials.length === 0) return { updated: 0 };
+): Promise<{ updated: number; byOrg: Record<string, string[]> }> {
+  if (serials.length === 0) return { updated: 0, byOrg: {} };
+
+  const before = await db
+    .select({
+      serial: factoryDevice.serial,
+      allocatedOrganizationId: factoryDevice.allocatedOrganizationId,
+    })
+    .from(factoryDevice)
+    .where(and(inArray(factoryDevice.serial, serials), eq(factoryDevice.status, "allocated")));
+
   const updated = await db
     .update(factoryDevice)
     .set({
@@ -233,7 +251,15 @@ export async function deallocateSerials(
       and(inArray(factoryDevice.serial, serials), eq(factoryDevice.status, "allocated")),
     )
     .returning({ serial: factoryDevice.serial });
-  return { updated: updated.length };
+
+  const updatedSerials = new Set(updated.map((r) => r.serial));
+  const byOrg: Record<string, string[]> = {};
+  for (const row of before) {
+    if (!row.allocatedOrganizationId || !updatedSerials.has(row.serial)) continue;
+    (byOrg[row.allocatedOrganizationId] ??= []).push(row.serial);
+  }
+
+  return { updated: updated.length, byOrg };
 }
 
 export async function setRegistryStatus(

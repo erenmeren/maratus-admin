@@ -47,7 +47,23 @@ export async function checkRateLimit(
         target: rateLimit.key,
         set: {
           // Single atomic statement: same window → increment, else reset to 1.
-          count: sql`CASE WHEN ${rateLimit.windowStart} = ${windowStartDate} THEN ${rateLimit.count} + 1 ELSE 1 END`,
+          //
+          // DRIVER TRAP: `windowStart` below goes through Drizzle's typed column
+          // mapper, which stringifies a Date via `.toISOString()` before handing
+          // it to the neon-http driver as a parameter — Postgres then casts that
+          // UTC string straight into the (timezone-less) `timestamp` column. But
+          // a raw JS `Date` interpolated directly into a `sql\`...\`` template
+          // (as `${windowStartDate}` used to be here) is serialized by the
+          // neon-http driver using the *local* wall-clock offset, not UTC. On a
+          // box whose local TZ isn't UTC, that produced different digits than
+          // what the typed `.values()` insert had just written for the exact
+          // same instant, so `windowStart = param` was never true — every hit
+          // looked like a new window and the counter reset to 1 forever. Fix:
+          // hand the raw-sql side the same `.toISOString()` string the typed
+          // path uses (not the Date object), with an explicit cast so Postgres
+          // parses it identically (ignoring the trailing `Z`, per timestamp
+          // literal parsing rules) instead of letting the driver reinterpret it.
+          count: sql`CASE WHEN ${rateLimit.windowStart} = ${windowStartDate.toISOString()}::timestamp THEN ${rateLimit.count} + 1 ELSE 1 END`,
           windowStart: windowStartDate,
         },
       })

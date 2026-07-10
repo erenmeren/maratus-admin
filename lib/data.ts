@@ -203,9 +203,15 @@ async function loadOrg(organizationId: string): Promise<OrgBundle | null> {
   };
 }
 
-async function loadAllOrgs(): Promise<OrgBundle[]> {
-  const orgs = await db.select({ id: orgTable.id }).from(orgTable);
-  const bundles = await Promise.all(orgs.map((o) => loadOrg(o.id)));
+async function loadAllOrgs(opts?: { includeArchived?: boolean }): Promise<OrgBundle[]> {
+  const rows = await db
+    .select({ id: orgTable.id, archivedAt: settingsTable.archivedAt })
+    .from(orgTable)
+    .leftJoin(settingsTable, eq(settingsTable.organizationId, orgTable.id));
+  const ids = rows
+    .filter((r) => opts?.includeArchived || r.archivedAt === null)
+    .map((r) => r.id);
+  const bundles = await Promise.all(ids.map((id) => loadOrg(id)));
   return bundles.filter((b): b is OrgBundle => b !== null);
 }
 
@@ -667,6 +673,8 @@ export interface CustomerDetail {
     stuckPendingCount: number;
   };
   eco: ReturnType<typeof computeEcoSavings>;
+  archivedAt: string | null;
+  archivedNote: string | null;
 }
 
 export async function getCustomerDetail(
@@ -732,7 +740,26 @@ export async function getCustomerDetail(
     devices,
     health: { level, online, offline, paused, stuckPendingCount: stuck },
     eco: computeEcoSavings(summary.activationsThisMonth),
+    archivedAt: b.settings?.archivedAt ? b.settings.archivedAt.toISOString() : null,
+    archivedNote: b.settings?.archivedNote ?? null,
   };
+}
+
+/** Devices for an org, in the shape offboarding needs to present disposition
+ *  choices (id/name/serial/status) — no view-model conversions applied. */
+export async function getOrgDevicesForOffboard(
+  organizationId: string,
+): Promise<{ id: string; name: string; serial: string | null; status: string }[]> {
+  return db
+    .select({
+      id: deviceTable.id,
+      name: deviceTable.name,
+      serial: deviceTable.serial,
+      status: deviceTable.status,
+    })
+    .from(deviceTable)
+    .where(eq(deviceTable.organizationId, organizationId))
+    .orderBy(deviceTable.name);
 }
 
 // ============================================================================

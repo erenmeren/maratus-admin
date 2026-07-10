@@ -414,6 +414,67 @@ export async function autoClaimDevice(
  * serial claimed twice: the new row keeps serial=null, gets serialConflict,
  * and the event is audited — nothing is silently overwritten.
  */
+/**
+ * Offboarding "return to stock": delete the device row (commands cascade; the
+ * key hash dies with it) and, if the device carried a serial, revert that
+ * registry row to `manufactured` clearing all allocation/claim linkage — the
+ * serial becomes re-allocatable. One transaction; idempotent (missing device →
+ * ok with null serial). Audit is recorded by the caller (needs the org id).
+ */
+export async function returnDeviceToStock(
+  deviceId: string,
+): Promise<{ ok: boolean; serial: string | null; deviceName: string | null }> {
+  return dbTx.transaction(async (tx) => {
+    const [dev] = await tx
+      .select({ id: deviceTable.id, name: deviceTable.name, serial: deviceTable.serial })
+      .from(deviceTable)
+      .where(eq(deviceTable.id, deviceId))
+      .for("update");
+    if (!dev) return { ok: true, serial: null, deviceName: null };
+
+    if (dev.serial) {
+      await tx
+        .update(factoryDevice)
+        .set({
+          status: "manufactured",
+          allocatedOrganizationId: null,
+          allocatedStoreId: null,
+          deviceId: null,
+          claimedAt: null,
+        })
+        .where(eq(factoryDevice.deviceId, deviceId));
+    }
+    await tx.delete(deviceTable).where(eq(deviceTable.id, deviceId));
+    return { ok: true, serial: dev.serial, deviceName: dev.name };
+  });
+}
+
+/**
+ * Offboarding "leave with customer": pause the device and mark its registry row
+ * `retired` (deviceId kept, for traceability). Idempotent.
+ */
+export async function retireDeviceWithCustomer(
+  deviceId: string,
+): Promise<{ ok: boolean; serial: string | null; deviceName: string | null }> {
+  return dbTx.transaction(async (tx) => {
+    const [dev] = await tx
+      .select({ id: deviceTable.id, name: deviceTable.name, serial: deviceTable.serial })
+      .from(deviceTable)
+      .where(eq(deviceTable.id, deviceId))
+      .for("update");
+    if (!dev) return { ok: true, serial: null, deviceName: null };
+
+    await tx.update(deviceTable).set({ status: "paused" }).where(eq(deviceTable.id, deviceId));
+    if (dev.serial) {
+      await tx
+        .update(factoryDevice)
+        .set({ status: "retired" })
+        .where(eq(factoryDevice.deviceId, deviceId));
+    }
+    return { ok: true, serial: dev.serial, deviceName: dev.name };
+  });
+}
+
 export async function stampDeviceSerial(
   deviceId: string,
   organizationId: string,

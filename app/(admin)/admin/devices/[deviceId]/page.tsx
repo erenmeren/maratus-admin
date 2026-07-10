@@ -136,7 +136,7 @@ export default async function AdminDeviceDetailPage({
               </div>
               {serialInfo?.serialConflict && (
                 <Badge variant="destructive" className="w-full justify-center">
-                  Duplicate serial detected — this row's serial was left unset
+                  Duplicate serial detected — this row&apos;s serial was left unset
                 </Badge>
               )}
               {serialInfo?.unregistered && (

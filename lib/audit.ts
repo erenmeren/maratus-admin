@@ -51,6 +51,8 @@ export const AUDIT = {
   deviceSerialConflict: "device.serial_conflict",
   registryAllocated: "registry.allocated",
   registryDeallocated: "registry.deallocated",
+  registryClaimReverted: "registry.claim_reverted",
+  registryAllocationConflict: "registry.allocation_conflict",
 } as const;
 
 export async function recordAudit(input: {

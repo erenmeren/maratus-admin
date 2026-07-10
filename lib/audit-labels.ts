@@ -42,6 +42,8 @@ export const AUDIT_LABELS: Record<string, string> = {
   "device.serial_conflict": "Duplicate device serial detected",
   "registry.allocated": "Inventory allocated",
   "registry.deallocated": "Inventory allocation removed",
+  "registry.claim_reverted": "Inventory claim reverted",
+  "registry.allocation_conflict": "Inventory allocation conflict",
 };
 
 function cap(s: string): string {

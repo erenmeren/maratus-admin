@@ -9,7 +9,9 @@ import { parseRegistryCsv } from "@/lib/factory-registry-csv";
 import {
   allocateSerials,
   deallocateSerials,
+  getRegistryBySerial,
   importFactoryDevices,
+  revertRegistryClaim,
   setRegistryStatus,
 } from "@/lib/factory-registry";
 import { normalizeSerial } from "@/lib/provisioning";
@@ -56,6 +58,7 @@ const setStatusInputSchema = z.object({
   serial: serialSchema,
   status: z.enum(["rma", "retired"]),
 });
+const revertClaimInputSchema = z.object({ serial: serialSchema });
 
 export async function importRegistryCsvAction(
   csvText: string,
@@ -156,6 +159,38 @@ export async function setRegistryStatusAction(
   const parsed = setStatusInputSchema.safeParse({ serial, status });
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   await setRegistryStatus(parsed.data.serial, parsed.data.status);
+  revalidatePath("/admin/inventory");
+  return { ok: true };
+}
+
+/** Revert a claimed serial back to `allocated`, re-arming zero-touch
+ *  auto-claim (RMA-return / hijack-recovery re-provisioning) — see
+ *  docs/runbooks/factory-registry-hijack-recovery.md. Platform-admin only,
+ *  gated by revertRegistryClaim on the linked device already being deleted. */
+export async function revertRegistryClaimAction(
+  serial: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const ctx = await requirePlatformAdmin();
+  const parsed = revertClaimInputSchema.safeParse({ serial });
+  if (!parsed.success) return { ok: false, error: "Invalid input." };
+
+  const result = await revertRegistryClaim(parsed.data.serial);
+  if (!result.ok) return result;
+
+  // Attribute the audit event to the org whose pending install this re-arms.
+  // If the row has no allocated org (it landed on the human-claim path),
+  // recordAudit has nothing sensible to scope to — skip auditing rather than
+  // force a bogus organizationId (recordAudit requires one).
+  const row = await getRegistryBySerial(parsed.data.serial);
+  if (row?.allocatedOrganizationId) {
+    await recordAudit({
+      organizationId: row.allocatedOrganizationId,
+      actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+      action: AUDIT.registryClaimReverted,
+      target: { type: "registry", id: parsed.data.serial },
+      metadata: { serial: parsed.data.serial },
+    });
+  }
   revalidatePath("/admin/inventory");
   return { ok: true };
 }

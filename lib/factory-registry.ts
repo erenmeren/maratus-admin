@@ -282,6 +282,44 @@ export async function setRegistryStatus(
 }
 
 /**
+ * Revert a `claimed` registry row back to `allocated`, re-arming zero-touch
+ * auto-claim for this serial — the RMA-return / hijack-recovery
+ * re-provisioning path (see docs/runbooks/factory-registry-hijack-recovery.md).
+ * This is deliberately gated: it refuses while a live `device` row is still
+ * linked (the runbook's step order — delete the device first, then revert),
+ * so re-arming can never race a device that's still using the old key. Mirrors
+ * `deallocateSerials`'s transaction shape: one `dbTx` transaction, `SELECT ...
+ * FOR UPDATE` to lock the row before deciding, then the UPDATE. Allocation
+ * columns (`allocatedOrganizationId`/`allocatedStoreId`) are left untouched —
+ * that's what re-arms the pending install for the same customer/store.
+ */
+export async function revertRegistryClaim(
+  serial: string,
+): Promise<{ ok: boolean; error?: string }> {
+  return dbTx.transaction(async (tx) => {
+    const [row] = await tx
+      .select({ status: factoryDevice.status, deviceId: factoryDevice.deviceId })
+      .from(factoryDevice)
+      .where(eq(factoryDevice.serial, serial))
+      .for("update");
+
+    if (!row || row.status !== "claimed") {
+      return { ok: false, error: "Serial is not currently claimed." };
+    }
+    if (row.deviceId) {
+      return { ok: false, error: "Delete the linked device first." };
+    }
+
+    await tx
+      .update(factoryDevice)
+      .set({ status: "allocated", claimedAt: null })
+      .where(eq(factoryDevice.serial, serial));
+
+    return { ok: true };
+  });
+}
+
+/**
  * One-shot zero-touch claim for a pre-allocated serial. The claim-lock UPDATE
  * on `factory_device` (allocated→claimed), the new `device` INSERT, and the
  * deviceId link-back UPDATE all run inside one `dbTx` transaction, so the
@@ -398,19 +436,58 @@ export async function stampDeviceSerial(
   }
 
   const [existing] = await db
-    .select({ serial: factoryDevice.serial })
+    .select({
+      status: factoryDevice.status,
+      allocatedOrganizationId: factoryDevice.allocatedOrganizationId,
+      notes: factoryDevice.notes,
+    })
     .from(factoryDevice)
     .where(eq(factoryDevice.serial, serial))
     .limit(1);
   if (existing) {
-    await db
-      .update(factoryDevice)
-      .set({
-        status: "claimed",
-        deviceId,
-        claimedAt: sql`coalesce(${factoryDevice.claimedAt}, now())`,
-      })
-      .where(eq(factoryDevice.serial, serial));
+    if (existing.status === "retired") {
+      // A retired serial stays retired and visible as such: link the device
+      // for traceability, but do NOT flip status back to "claimed" — that
+      // would hide the retirement from the inventory view.
+      await db
+        .update(factoryDevice)
+        .set({ deviceId, claimedAt: sql`coalesce(${factoryDevice.claimedAt}, now())` })
+        .where(eq(factoryDevice.serial, serial));
+    } else {
+      await db
+        .update(factoryDevice)
+        .set({
+          status: "claimed",
+          deviceId,
+          claimedAt: sql`coalesce(${factoryDevice.claimedAt}, now())`,
+        })
+        .where(eq(factoryDevice.serial, serial));
+    }
+
+    // Cross-org claim: this serial was allocated to one org's pending
+    // install but a different org's device just consumed it (silent
+    // allocation consumption). Flag it against the org that lost the pending
+    // install — best-effort, wrapped so a failure here can never unwind the
+    // stamp that already committed above.
+    if (existing.allocatedOrganizationId && existing.allocatedOrganizationId !== organizationId) {
+      try {
+        await recordAudit({
+          organizationId: existing.allocatedOrganizationId,
+          actor: { type: "system" },
+          action: AUDIT.registryAllocationConflict,
+          target: { type: "device", id: deviceId },
+          metadata: { serial, claimingOrganizationId: organizationId, deviceId },
+        });
+        const conflictNote = `claimed by another organization (${organizationId}) on ${new Date().toISOString()}`;
+        const nextNotes = existing.notes ? `${existing.notes}\n${conflictNote}` : conflictNote;
+        await db
+          .update(factoryDevice)
+          .set({ notes: nextNotes })
+          .where(eq(factoryDevice.serial, serial));
+      } catch (err) {
+        console.error("[factory-registry] cross-org claim audit failed", serial, err);
+      }
+    }
   } else {
     // Self-registration: serial was never imported (registry works even empty).
     try {

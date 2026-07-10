@@ -26,7 +26,7 @@ import type { InventoryRow } from "@/lib/factory-registry";
 import type { RegistryStatus } from "@/lib/provisioning";
 import {
   addSerialAction, allocateSerialsAction, deallocateSerialsAction,
-  importRegistryCsvAction, setRegistryStatusAction,
+  importRegistryCsvAction, revertRegistryClaimAction, setRegistryStatusAction,
 } from "@/lib/actions/inventory";
 
 // Filters are debounced on the client but always resolved server-side —
@@ -139,6 +139,10 @@ export function InventoryTable({
   const [qrSerial, setQrSerial] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
+  // Revert-claim confirm dialog state
+  const [reverting, setReverting] = useState<string | null>(null); // serial
+  const [revertBusy, setRevertBusy] = useState(false);
+
   async function onImportFile(file: File) {
     setBusy(true);
     try {
@@ -204,6 +208,25 @@ export function InventoryTable({
   async function onShowQr(serial: string) {
     setQrSerial(serial);
     setQrDataUrl(await QRCode.toDataURL(serial, { width: 240, margin: 1 }));
+  }
+
+  function closeRevertDialog() {
+    setReverting(null);
+  }
+
+  async function onRevertClaim() {
+    if (!reverting) return;
+    setRevertBusy(true);
+    try {
+      const res = await revertRegistryClaimAction(reverting);
+      if (res.ok) toast.success("Claim reverted — serial back to allocated.");
+      else toast.error(res.error ?? "Failed to revert claim.");
+    } catch {
+      toast.error("Failed to revert claim — try again.");
+    } finally {
+      setRevertBusy(false);
+      closeRevertDialog();
+    }
   }
 
   const orgStores = stores.filter((s) => s.organizationId === allocOrg);
@@ -370,6 +393,11 @@ export function InventoryTable({
                         Remove allocation
                       </DropdownMenuItem>
                     )}
+                    {r.status === "claimed" && (
+                      <DropdownMenuItem onSelect={() => setReverting(r.serial)}>
+                        Revert claim…
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onSelect={() => onShowQr(r.serial)}>
                       <QrCode className="size-4" /> Show label QR
                     </DropdownMenuItem>
@@ -457,6 +485,24 @@ export function InventoryTable({
           <DialogFooter>
             <Button variant="outline" onClick={closeAllocateDialog}>Cancel</Button>
             <Button disabled={!allocOrg || busy} onClick={onAllocate}>Allocate</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={reverting !== null} onOpenChange={(o) => !o && closeRevertDialog()}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Revert claim for {reverting}?</DialogTitle>
+            <DialogDescription>
+              This re-arms zero-touch auto-claim for this serial. The linked device
+              must be deleted first.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={closeRevertDialog}>Cancel</Button>
+            <Button variant="destructive" disabled={revertBusy} onClick={onRevertClaim}>
+              Revert
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

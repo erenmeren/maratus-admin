@@ -330,6 +330,7 @@ function summarize(b: OrgBundle): TenantSummary {
     offlineCount,
     activationsThisMonth,
     health,
+    archivedAt: b.settings?.archivedAt ? b.settings.archivedAt.toISOString() : null,
   };
 }
 
@@ -590,8 +591,10 @@ export async function tenantMonthly(organizationId: string): Promise<TimePoint[]
 // Super-admin panel
 // ============================================================================
 
-export async function getTenantSummaries(): Promise<TenantSummary[]> {
-  const bundles = await loadAllOrgs();
+export async function getTenantSummaries(opts?: {
+  includeArchived?: boolean;
+}): Promise<TenantSummary[]> {
+  const bundles = await loadAllOrgs(opts);
   return bundles.map(summarize);
 }
 

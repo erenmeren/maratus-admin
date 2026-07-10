@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Cpu, Mail, Phone, FileText, Store } from "lucide-react";
+import { Archive, Cpu, Mail, Phone, FileText, Store } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { SectionHeader } from "@/components/section-header";
 import { KpiCard } from "@/components/kpi-card";
@@ -9,6 +9,8 @@ import { TenantStatusBadge } from "@/components/tenant-status-badge";
 import { AddBranchDialog } from "@/components/add-branch-dialog";
 import { ProvisionDeviceDialog } from "@/components/provision-device-dialog";
 import { DeviceRowActions } from "@/components/device-row-actions";
+import { OffboardWizard } from "@/components/customers/offboard-wizard";
+import { RestoreCustomerButton } from "@/components/customers/restore-customer-button";
 import {
   Card,
   CardContent,
@@ -24,11 +26,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getCustomerDetail, getOrgAuditLog, getCreditLedger } from "@/lib/data";
+import {
+  getCustomerDetail,
+  getOrgAuditLog,
+  getCreditLedger,
+  getOrgDevicesForOffboard,
+} from "@/lib/data";
 import { getBalance } from "@/lib/credits";
 import { GrantCreditsForm } from "@/components/grant-credits-form";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { actionLabel } from "@/lib/audit-labels";
+import { AUDIT } from "@/lib/audit";
+import { deriveArchivedStatus, type OffboardSummary } from "@/lib/offboarding";
 
 const HEALTH_UI: Record<"healthy" | "warning" | "critical", { dot: string; label: string }> = {
   healthy: { dot: "bg-emerald-500", label: "Healthy" },
@@ -61,6 +70,17 @@ export default async function CustomerDetailPage({
     }))
     .sort((a, b) => b.value - a.value);
 
+  const archivedStatus = deriveArchivedStatus(detail.archivedAt);
+  const isArchived = archivedStatus === "archived";
+  const offboardDevices = isArchived
+    ? []
+    : await getOrgDevicesForOffboard(tenantId);
+  const archiveEntry = activity.find((e) => e.action === AUDIT.orgArchived);
+  const archiveSummary = archiveEntry?.metadata as
+    | (Partial<OffboardSummary> & { note?: string })
+    | null
+    | undefined;
+
   return (
     <>
       <PageHeader
@@ -84,8 +104,26 @@ export default async function CustomerDetailPage({
           </div>
         }
       >
-        <AddBranchDialog organizationId={tenant.id} customerName={tenant.name} />
+        {!isArchived && (
+          <AddBranchDialog organizationId={tenant.id} customerName={tenant.name} />
+        )}
       </PageHeader>
+
+      {isArchived && (
+        <Card className="border-muted-foreground/30 bg-muted/40">
+          <CardContent className="flex items-center gap-3 p-4 text-sm">
+            <Archive className="size-4 shrink-0 text-muted-foreground" />
+            <p>
+              <span className="font-medium">
+                Archived on {detail.archivedAt ? new Date(detail.archivedAt).toLocaleDateString() : "—"}
+              </span>
+              {detail.archivedNote && (
+                <span className="text-muted-foreground"> — {detail.archivedNote}</span>
+              )}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Health summary */}
       <Card>
@@ -139,7 +177,7 @@ export default async function CustomerDetailPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <GrantCreditsForm organizationId={tenantId} />
+          {!isArchived && <GrantCreditsForm organizationId={tenantId} />}
 
           {creditLedger.length > 0 && (
             <Table>
@@ -184,11 +222,13 @@ export default async function CustomerDetailPage({
             <CardTitle>Assigned devices</CardTitle>
             <CardDescription>{devices.length} printers across all stores</CardDescription>
           </div>
-          <ProvisionDeviceDialog
-            organizationId={tenant.id}
-            customerName={tenant.name}
-            stores={storeOptions}
-          />
+          {!isArchived && (
+            <ProvisionDeviceDialog
+              organizationId={tenant.id}
+              customerName={tenant.name}
+              stores={storeOptions}
+            />
+          )}
         </CardHeader>
         <CardContent className="px-0 pb-0">
           <Table>
@@ -220,7 +260,9 @@ export default async function CustomerDetailPage({
                     {formatNumber(d.activationsThisMonth)}
                   </TableCell>
                   <TableCell className="pr-4">
-                    <DeviceRowActions deviceId={d.id} status={d.status} />
+                    {!isArchived && (
+                      <DeviceRowActions deviceId={d.id} status={d.status} />
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -251,6 +293,72 @@ export default async function CustomerDetailPage({
           </ul>
         )}
       </section>
+
+      {isArchived ? (
+        <section className="flex flex-col gap-3">
+          <SectionHeader title="Offboarding summary" />
+          <Card>
+            <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
+              <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
+                <span className="text-muted-foreground">
+                  Returned to stock{" "}
+                  <strong className="text-foreground">
+                    {archiveSummary?.returnedToStock ?? 0}
+                  </strong>
+                </span>
+                <span className="text-muted-foreground">
+                  Left with customer{" "}
+                  <strong className="text-foreground">
+                    {archiveSummary?.leftWithCustomer ?? 0}
+                  </strong>
+                </span>
+                <span className="text-muted-foreground">
+                  Keys revoked{" "}
+                  <strong className="text-foreground">
+                    {archiveSummary?.revokedKeys ?? 0}
+                  </strong>
+                </span>
+                <span className="text-muted-foreground">
+                  Allocations swept{" "}
+                  <strong className="text-foreground">
+                    {archiveSummary?.sweptAllocations ?? 0}
+                  </strong>
+                </span>
+                <span className="text-muted-foreground">
+                  Frozen credits{" "}
+                  <strong className="text-foreground">
+                    {formatNumber(archiveSummary?.frozenCreditsAvailable ?? 0)} available
+                    {" · "}
+                    {formatNumber(archiveSummary?.frozenCreditsHeld ?? 0)} held
+                  </strong>
+                </span>
+              </div>
+              <RestoreCustomerButton organizationId={tenant.id} />
+            </CardContent>
+          </Card>
+        </section>
+      ) : (
+        <section className="flex flex-col gap-3">
+          <SectionHeader title="Danger zone" />
+          <Card className="border-destructive/30">
+            <CardContent className="flex flex-wrap items-center justify-between gap-4 p-5">
+              <div>
+                <p className="font-medium">Offboard this customer</p>
+                <p className="text-sm text-muted-foreground">
+                  Archives the customer, deciding each device&apos;s fate and
+                  revoking access. Reversible via Restore, but revoked keys and
+                  device dispositions don&apos;t come back.
+                </p>
+              </div>
+              <OffboardWizard
+                organizationId={tenant.id}
+                organizationName={tenant.name}
+                devices={offboardDevices}
+              />
+            </CardContent>
+          </Card>
+        </section>
+      )}
     </>
   );
 }

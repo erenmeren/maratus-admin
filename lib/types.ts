@@ -65,6 +65,7 @@ export interface TenantSummary {
   offlineCount: number;
   health: HealthLevel;
   activationsThisMonth: number;
+  archivedAt: string | null;
 }
 
 export interface DeviceRow extends Device {

@@ -9,6 +9,7 @@ const HEALTH_UI: Record<"healthy" | "warning" | "critical", { dot: string; label
 import { PageHeader } from "@/components/page-header";
 import { NewCustomerDialog } from "@/components/new-customer-dialog";
 import { TenantStatusBadge } from "@/components/tenant-status-badge";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -18,11 +19,31 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import { getTenantSummaries } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
 
-export default async function CustomersPage() {
-  const customers = await getTenantSummaries();
+type ViewFilter = "active" | "archived" | "all";
+
+const VIEWS: { value: ViewFilter; label: string }[] = [
+  { value: "active", label: "Active" },
+  { value: "archived", label: "Archived" },
+  { value: "all", label: "All" },
+];
+
+export default async function CustomersPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const raw = await searchParams;
+  const rawView = Array.isArray(raw.view) ? raw.view[0] : raw.view;
+  const view: ViewFilter =
+    rawView === "archived" || rawView === "all" ? rawView : "active";
+
+  const all = await getTenantSummaries({ includeArchived: view !== "active" });
+  const customers =
+    view === "archived" ? all.filter((c) => c.archivedAt !== null) : all;
 
   return (
     <>
@@ -32,6 +53,23 @@ export default async function CustomersPage() {
       >
         <NewCustomerDialog />
       </PageHeader>
+
+      <div className="flex w-fit items-center gap-1 rounded-lg border p-1">
+        {VIEWS.map((v) => (
+          <Link
+            key={v.value}
+            href={v.value === "active" ? "/admin/customers" : `/admin/customers?view=${v.value}`}
+            className={cn(
+              "rounded-md px-3 py-1 text-sm font-medium transition-colors",
+              view === v.value
+                ? "bg-muted text-foreground"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {v.label}
+          </Link>
+        ))}
+      </div>
 
       <Card className="overflow-hidden py-0">
         <Table>
@@ -57,7 +95,19 @@ export default async function CustomersPage() {
                     <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 font-display text-sm font-bold text-primary">
                       {c.name.slice(0, 1)}
                     </span>
-                    <p className="font-medium">{c.name}</p>
+                    <div>
+                      <p className="font-medium">{c.name}</p>
+                      {c.archivedAt && (
+                        <span className="flex items-center gap-1.5">
+                          <Badge variant="secondary" className="text-muted-foreground">
+                            Archived
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(c.archivedAt).toLocaleDateString()}
+                          </span>
+                        </span>
+                      )}
+                    </div>
                   </Link>
                 </TableCell>
                 <TableCell className="text-center tabular-nums">

@@ -35,9 +35,12 @@ export async function importFactoryDevices(
       .onConflictDoUpdate({
         target: factoryDevice.serial,
         set: {
-          batchCode: row.batchCode,
-          hardwareRevision: row.hardwareRevision,
-          manufacturedAt: row.manufacturedAt,
+          // Coalesce against the incoming (EXCLUDED) row so a serial-only
+          // re-import (no batch metadata in that CSV) doesn't null out
+          // batch/revision/manufacture data set by an earlier import.
+          batchCode: sql`coalesce(excluded.batch_code, ${factoryDevice.batchCode})`,
+          hardwareRevision: sql`coalesce(excluded.hardware_revision, ${factoryDevice.hardwareRevision})`,
+          manufacturedAt: sql`coalesce(excluded.manufactured_at, ${factoryDevice.manufacturedAt})`,
         },
       });
   }
@@ -301,12 +304,19 @@ export async function stampDeviceSerial(
       .where(eq(factoryDevice.serial, serial));
   } else {
     // Self-registration: serial was never imported (registry works even empty).
-    await db.insert(factoryDevice).values({
-      serial,
-      status: "claimed",
-      unregistered: true,
-      deviceId,
-      claimedAt: new Date(),
-    });
+    try {
+      await db.insert(factoryDevice).values({
+        serial,
+        status: "claimed",
+        unregistered: true,
+        deviceId,
+        claimedAt: new Date(),
+      });
+    } catch (err) {
+      if (!isUniqueViolation(err)) throw err;
+      // Two concurrent polls self-registering the same serial: the other
+      // request's insert already created the row. Treat as success — the
+      // row exists, which is all this branch is trying to guarantee.
+    }
   }
 }

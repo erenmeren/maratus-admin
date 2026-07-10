@@ -79,7 +79,14 @@ export async function GET(req: Request) {
       .set({ pendingDeviceKey: null, pairingCode: null })
       .where(eq(deviceTable.id, device.id));
     if (serial) {
-      await stampDeviceSerial(device.id, device.organizationId, serial);
+      try {
+        await stampDeviceSerial(device.id, device.organizationId, serial);
+      } catch (err) {
+        // Stamping is enrichment; it must never gate key delivery — the key
+        // was already consumed above, so a stamping failure here must not
+        // 500 the response and strand the raw key in the call stack.
+        console.error("[claim] serial stamping failed (key still delivered)", err);
+      }
     }
   }
 

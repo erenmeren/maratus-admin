@@ -1,17 +1,19 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   tenantSettings,
   apiKey as apiKeyTable,
   invitation as invitationTable,
   factoryDevice,
+  auditLog,
 } from "@/lib/db/schema";
 import { requirePlatformAdmin } from "@/lib/session";
 import { AUDIT, recordAudit } from "@/lib/audit";
 import { getBalance } from "@/lib/credits";
+import { getOrgDevicesForOffboard } from "@/lib/data";
 import {
   returnDeviceToStock,
   retireDeviceWithCustomer,
@@ -23,6 +25,17 @@ import {
   type DeviceChoice,
   type OffboardSummary,
 } from "@/lib/offboarding";
+
+/** Count of this org's audit rows for a given action — used to report
+ *  END-STATE device-disposition totals (not just this run's delta), so a
+ *  recovery re-run still shows the true cumulative counts. */
+async function countOrgAuditAction(organizationId: string, action: string): Promise<number> {
+  const [row] = await db
+    .select({ total: count() })
+    .from(auditLog)
+    .where(and(eq(auditLog.organizationId, organizationId), eq(auditLog.action, action)));
+  return row?.total ?? 0;
+}
 
 export async function offboardCustomerAction(
   organizationId: string,
@@ -54,14 +67,33 @@ export async function offboardCustomerAction(
     };
   }
 
-  const { returnIds, leaveIds } = partitionDispositions(choices);
+  // `choices` is client-trusted input — re-validate against the org's real
+  // devices before touching anything:
+  //  - a deviceId that doesn't belong to this org is refused outright.
+  //  - a device that DOES belong to the org but is missing from `choices`
+  //    (added between wizard render and confirm) defaults to
+  //    return_to_stock, so no device is silently left behind.
+  const orgDevices = await getOrgDevicesForOffboard(organizationId);
+  const orgDeviceIds = new Set(orgDevices.map((d) => d.id));
+  if (choices.some((c) => !orgDeviceIds.has(c.deviceId))) {
+    return { ok: false, error: "Invalid device in offboarding request." };
+  }
+  const choiceIds = new Set(choices.map((c) => c.deviceId));
+  const effectiveChoices: DeviceChoice[] = [
+    ...choices,
+    ...orgDevices
+      .filter((d) => !choiceIds.has(d.id))
+      .map((d) => ({ deviceId: d.id, disposition: "return_to_stock" as const })),
+  ];
 
-  // Step 1: device dispositions (each helper is idempotent).
-  let returnedToStock = 0;
+  const { returnIds, leaveIds } = partitionDispositions(effectiveChoices);
+
+  // Step 1: device dispositions (each helper is idempotent). Per-run counts
+  // aren't tracked here — the summary below counts END-STATE audit rows so a
+  // recovery re-run still reports true totals (see Step 3).
   for (const id of returnIds) {
     const r = await returnDeviceToStock(id);
     if (r.ok && r.changed) {
-      returnedToStock++;
       await recordAudit({
         organizationId,
         actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
@@ -71,11 +103,9 @@ export async function offboardCustomerAction(
       });
     }
   }
-  let leftWithCustomer = 0;
   for (const id of leaveIds) {
     const r = await retireDeviceWithCustomer(id);
     if (r.ok && r.changed) {
-      leftWithCustomer++;
       await recordAudit({
         organizationId,
         actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
@@ -99,11 +129,10 @@ export async function offboardCustomerAction(
   const sweep = await deallocateSerials(orgAllocatedSerials.map((r) => r.serial));
 
   // Step 2: access shutdown — revoke keys, cancel pending invitations.
-  const revoked = await db
+  await db
     .update(apiKeyTable)
     .set({ revokedAt: new Date() })
-    .where(and(eq(apiKeyTable.organizationId, organizationId), isNull(apiKeyTable.revokedAt)))
-    .returning({ id: apiKeyTable.id });
+    .where(and(eq(apiKeyTable.organizationId, organizationId), isNull(apiKeyTable.revokedAt)));
   await db
     .update(invitationTable)
     .set({ status: "canceled" })
@@ -111,10 +140,27 @@ export async function offboardCustomerAction(
 
   // Step 3: freeze credits (read only) + archive stamp (LAST).
   const balance = await getBalance(organizationId);
+  // Summary reflects END STATE at archive time, not just this run's delta —
+  // a recovery re-run (after a partial failure left archivedAt null) must
+  // still report the true cumulative totals, or the archived-detail summary
+  // card would show zeros on the run that actually completes the archive.
+  const [returnedToStockTotal, leftWithCustomerTotal, revokedKeysTotal] = await Promise.all([
+    countOrgAuditAction(organizationId, AUDIT.deviceReturnedToStock),
+    countOrgAuditAction(organizationId, AUDIT.deviceLeftWithCustomer),
+    db
+      .select({ total: count() })
+      .from(apiKeyTable)
+      .where(and(eq(apiKeyTable.organizationId, organizationId), isNotNull(apiKeyTable.revokedAt)))
+      .then(([row]) => row?.total ?? 0),
+  ]);
   const summary: OffboardSummary = {
-    returnedToStock,
-    leftWithCustomer,
-    revokedKeys: revoked.length,
+    returnedToStock: returnedToStockTotal,
+    leftWithCustomer: leftWithCustomerTotal,
+    revokedKeys: revokedKeysTotal,
+    // Run-scoped (best-effort): the sweep only ever touches this run's
+    // still-allocated serials, so there's no meaningful cumulative total to
+    // recompute — unlike the counters above, a re-run legitimately reports 0
+    // here once the prior run already swept everything.
     sweptAllocations: sweep.updated,
     frozenCreditsAvailable: balance.available,
     frozenCreditsHeld: balance.held,
@@ -142,6 +188,19 @@ export async function restoreCustomerAction(
   organizationId: string,
 ): Promise<{ ok: boolean; error?: string }> {
   const ctx = await requirePlatformAdmin();
+
+  // No-op guard: if the org is already active (or has no tenantSettings row
+  // at all), there's nothing to restore — return early WITHOUT writing a
+  // spurious org.restored audit row.
+  const [existing] = await db
+    .select({ archivedAt: tenantSettings.archivedAt })
+    .from(tenantSettings)
+    .where(eq(tenantSettings.organizationId, organizationId))
+    .limit(1);
+  if (!existing?.archivedAt) {
+    return { ok: true };
+  }
+
   await db
     .update(tenantSettings)
     .set({ archivedAt: null, archivedNote: null })

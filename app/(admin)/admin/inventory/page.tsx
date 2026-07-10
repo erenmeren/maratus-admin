@@ -2,10 +2,11 @@ import { Boxes } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { InventoryTable } from "@/components/inventory/inventory-table";
+import { eq, isNull } from "drizzle-orm";
 import { getFactoryDevicePage, getFactoryStatusCounts } from "@/lib/factory-registry";
 import type { RegistryStatus } from "@/lib/provisioning";
 import { db } from "@/lib/db";
-import { organization, store } from "@/lib/db/schema";
+import { organization, store, tenantSettings } from "@/lib/db/schema";
 
 const REGISTRY_STATUSES: RegistryStatus[] = [
   "manufactured", "allocated", "claimed", "rma", "retired",
@@ -36,7 +37,14 @@ export default async function InventoryPage({
   const [devicePage, counts, customers, stores] = await Promise.all([
     getFactoryDevicePage({ page: requestedPage, status, batch }),
     getFactoryStatusCounts(),
-    db.select({ id: organization.id, name: organization.name }).from(organization),
+    // Archived orgs must not be allocation targets (would re-arm zero-touch
+    // auto-claim for an offboarded customer) — exclude them from the picker,
+    // mirroring the loadAllOrgs left-join+filter pattern in lib/data.ts.
+    db
+      .select({ id: organization.id, name: organization.name })
+      .from(organization)
+      .leftJoin(tenantSettings, eq(tenantSettings.organizationId, organization.id))
+      .where(isNull(tenantSettings.archivedAt)),
     db
       .select({ id: store.id, name: store.name, organizationId: store.organizationId })
       .from(store),

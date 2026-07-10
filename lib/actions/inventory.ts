@@ -5,6 +5,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requirePlatformAdmin } from "@/lib/session";
+import { isOrgArchived } from "@/lib/archived-guard";
 import { parseRegistryCsv } from "@/lib/factory-registry-csv";
 import {
   allocateSerials,
@@ -107,6 +108,12 @@ export async function allocateSerialsAction(
   const ctx = await requirePlatformAdmin();
   const parsed = allocateInputSchema.safeParse({ serials, organizationId, storeId });
   if (!parsed.success) return { ok: false, updated: 0, error: "Invalid input." };
+  // An archived org must never be re-armed for zero-touch auto-claim — the
+  // picker already excludes archived orgs, but a stale tab / direct call
+  // must be refused server-side too.
+  if (await isOrgArchived(parsed.data.organizationId)) {
+    return { ok: false, updated: 0, error: "Customer is archived." };
+  }
   const result = await allocateSerials(
     parsed.data.serials,
     parsed.data.organizationId,

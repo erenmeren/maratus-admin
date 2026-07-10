@@ -32,13 +32,35 @@ export async function offboardCustomerAction(
   const ctx = await requirePlatformAdmin();
   const normalizedNote = note || null;
 
+  // Idempotency gate: if the org is already archived, do NOT re-run the
+  // dispositions/sweep/revoke or re-stamp/re-audit. archivedAt is written LAST
+  // in a successful run, so a non-null value means a prior run fully completed.
+  const [existing] = await db
+    .select({ archivedAt: tenantSettings.archivedAt })
+    .from(tenantSettings)
+    .where(eq(tenantSettings.organizationId, organizationId))
+    .limit(1);
+  if (existing?.archivedAt) {
+    return {
+      ok: true,
+      summary: {
+        returnedToStock: 0,
+        leftWithCustomer: 0,
+        revokedKeys: 0,
+        sweptAllocations: 0,
+        frozenCreditsAvailable: 0,
+        frozenCreditsHeld: 0,
+      },
+    };
+  }
+
   const { returnIds, leaveIds } = partitionDispositions(choices);
 
   // Step 1: device dispositions (each helper is idempotent).
   let returnedToStock = 0;
   for (const id of returnIds) {
     const r = await returnDeviceToStock(id);
-    if (r.ok && r.deviceName !== null) {
+    if (r.ok && r.changed) {
       returnedToStock++;
       await recordAudit({
         organizationId,
@@ -52,7 +74,7 @@ export async function offboardCustomerAction(
   let leftWithCustomer = 0;
   for (const id of leaveIds) {
     const r = await retireDeviceWithCustomer(id);
-    if (r.ok && r.deviceName !== null) {
+    if (r.ok && r.changed) {
       leftWithCustomer++;
       await recordAudit({
         organizationId,

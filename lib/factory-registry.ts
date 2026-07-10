@@ -423,14 +423,15 @@ export async function autoClaimDevice(
  */
 export async function returnDeviceToStock(
   deviceId: string,
-): Promise<{ ok: boolean; serial: string | null; deviceName: string | null }> {
+): Promise<{ ok: boolean; changed: boolean; serial: string | null; deviceName: string | null }> {
   return dbTx.transaction(async (tx) => {
     const [dev] = await tx
       .select({ id: deviceTable.id, name: deviceTable.name, serial: deviceTable.serial })
       .from(deviceTable)
       .where(eq(deviceTable.id, deviceId))
       .for("update");
-    if (!dev) return { ok: true, serial: null, deviceName: null };
+    // Missing device row → already returned (or never existed): idempotent no-op.
+    if (!dev) return { ok: true, changed: false, serial: null, deviceName: null };
 
     if (dev.serial) {
       await tx
@@ -445,7 +446,7 @@ export async function returnDeviceToStock(
         .where(eq(factoryDevice.deviceId, deviceId));
     }
     await tx.delete(deviceTable).where(eq(deviceTable.id, deviceId));
-    return { ok: true, serial: dev.serial, deviceName: dev.name };
+    return { ok: true, changed: true, serial: dev.serial, deviceName: dev.name };
   });
 }
 
@@ -455,14 +456,30 @@ export async function returnDeviceToStock(
  */
 export async function retireDeviceWithCustomer(
   deviceId: string,
-): Promise<{ ok: boolean; serial: string | null; deviceName: string | null }> {
+): Promise<{ ok: boolean; changed: boolean; serial: string | null; deviceName: string | null }> {
   return dbTx.transaction(async (tx) => {
     const [dev] = await tx
-      .select({ id: deviceTable.id, name: deviceTable.name, serial: deviceTable.serial })
+      .select({ id: deviceTable.id, name: deviceTable.name, serial: deviceTable.serial, status: deviceTable.status })
       .from(deviceTable)
       .where(eq(deviceTable.id, deviceId))
       .for("update");
-    if (!dev) return { ok: true, serial: null, deviceName: null };
+    // Missing device row → nothing to retire: idempotent no-op.
+    if (!dev) return { ok: true, changed: false, serial: null, deviceName: null };
+
+    // The row is never deleted, so distinguish "already retired" from a real
+    // transition by inspecting current state: device paused AND (no serial, or
+    // registry row already `retired`) means a prior run already did this work.
+    let registryRetired = true;
+    if (dev.serial) {
+      const [reg] = await tx
+        .select({ status: factoryDevice.status })
+        .from(factoryDevice)
+        .where(eq(factoryDevice.deviceId, deviceId));
+      registryRetired = reg?.status === "retired";
+    }
+    if (dev.status === "paused" && registryRetired) {
+      return { ok: true, changed: false, serial: dev.serial, deviceName: dev.name };
+    }
 
     await tx.update(deviceTable).set({ status: "paused" }).where(eq(deviceTable.id, deviceId));
     if (dev.serial) {
@@ -471,7 +488,7 @@ export async function retireDeviceWithCustomer(
         .set({ status: "retired" })
         .where(eq(factoryDevice.deviceId, deviceId));
     }
-    return { ok: true, serial: dev.serial, deviceName: dev.name };
+    return { ok: true, changed: true, serial: dev.serial, deviceName: dev.name };
   });
 }
 

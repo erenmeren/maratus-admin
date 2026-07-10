@@ -221,13 +221,14 @@ export async function allocateSerials(
  * (previous `allocatedOrganizationId` → serials actually deallocated) so the
  * caller can audit-log per org — `RETURNING` only ever exposes POST-update
  * values, so the previous owner must be read separately. The SELECT and the
- * UPDATE run inside one transaction with the SELECT taking `FOR UPDATE` row
- * locks, so a concurrent reallocation (allocated→allocated moves are legal in
- * allocateSerials) blocks until this commits and can never make `byOrg`
- * attribute a serial to a stale org: the locked snapshot's org ids ARE the
- * org ids at deallocation time. Rows that left `allocated` before we lock
- * simply don't match the locked SELECT's predicate and are excluded from
- * both `updated` and `byOrg`.
+ * UPDATE run inside one transaction, with the SELECT taking `FOR UPDATE` row
+ * locks and the UPDATE scoped to exactly the serials that SELECT locked (not
+ * the caller's raw `serials` list), so a concurrent reallocation (allocated→
+ * allocated moves are legal in allocateSerials) blocks until this commits and
+ * the UPDATE can never touch a row outside the locked snapshot: `byOrg` is
+ * always attributed to the org each updated row belonged to at lock time.
+ * Rows that left `allocated` before we lock simply don't appear in the locked
+ * snapshot and are excluded from both `updated` and `byOrg`.
  */
 export async function deallocateSerials(
   serials: string[],
@@ -244,6 +245,9 @@ export async function deallocateSerials(
       .where(and(inArray(factoryDevice.serial, serials), eq(factoryDevice.status, "allocated")))
       .for("update");
 
+    if (before.length === 0) return { updated: 0, byOrg: {} };
+
+    const lockedSerials = before.map((r) => r.serial);
     const updated = await tx
       .update(factoryDevice)
       .set({
@@ -253,7 +257,7 @@ export async function deallocateSerials(
         allocatedAt: null,
       })
       .where(
-        and(inArray(factoryDevice.serial, serials), eq(factoryDevice.status, "allocated")),
+        and(inArray(factoryDevice.serial, lockedSerials), eq(factoryDevice.status, "allocated")),
       )
       .returning({ serial: factoryDevice.serial });
 

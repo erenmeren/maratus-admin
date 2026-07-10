@@ -34,10 +34,13 @@ const serialSchema = z.string().transform((raw, ctx) => {
   return normalized;
 });
 
-const serialsSchema = z.array(serialSchema).min(1, "At least one serial is required.");
-const nullableString = z.string().nullable().optional();
+const serialsSchema = z
+  .array(serialSchema)
+  .min(1, "At least one serial is required.")
+  .max(10000);
+const nullableString = z.string().max(120).nullable().optional();
 
-const importCsvInputSchema = z.object({ csvText: z.string() });
+const importCsvInputSchema = z.object({ csvText: z.string().max(MAX_CSV_BYTES) });
 const addSerialInputSchema = z.object({
   serial: serialSchema,
   batchCode: nullableString,

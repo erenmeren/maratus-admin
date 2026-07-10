@@ -62,13 +62,26 @@ export function InventoryTable({
   const [batchFilter, setBatchFilter] = useState(batch);
   const [busy, setBusy] = useState(false);
   const batchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Tracks whether the batch input is currently focused so the prop-sync
+  // effect below doesn't stomp keystrokes typed during a slow RSC round-trip.
+  const isBatchFocusedRef = useRef(false);
 
   // Keep the controls in sync with the URL (e.g. browser back/forward).
   useEffect(() => setStatusFilter(status), [status]);
-  useEffect(() => setBatchFilter(batch), [batch]);
+  useEffect(() => {
+    if (isBatchFocusedRef.current) return;
+    setBatchFilter(batch);
+  }, [batch]);
   useEffect(() => () => {
     if (batchDebounceRef.current) clearTimeout(batchDebounceRef.current);
   }, []);
+
+  function clearBatchDebounce() {
+    if (batchDebounceRef.current) {
+      clearTimeout(batchDebounceRef.current);
+      batchDebounceRef.current = null;
+    }
+  }
 
   function navigate(next: { status?: string; batch?: string; page?: number }) {
     const params = new URLSearchParams();
@@ -83,19 +96,25 @@ export function InventoryTable({
   }
 
   function onStatusFilterChange(value: string) {
+    // A pending batch-debounce timer holds a stale closure over the OLD
+    // statusFilter — left to fire, its navigate() would revert this change.
+    clearBatchDebounce();
     setStatusFilter(value);
     navigate({ status: value, page: 1 });
   }
 
   function onBatchFilterChange(value: string) {
     setBatchFilter(value);
-    if (batchDebounceRef.current) clearTimeout(batchDebounceRef.current);
+    clearBatchDebounce();
     batchDebounceRef.current = setTimeout(() => {
       navigate({ batch: value, page: 1 });
     }, BATCH_FILTER_DEBOUNCE_MS);
   }
 
   function goToPage(p: number) {
+    // Same stale-closure hazard as onStatusFilterChange: a pending batch
+    // debounce must not fire with a page number this navigation just changed.
+    clearBatchDebounce();
     navigate({ page: p });
   }
 
@@ -255,6 +274,8 @@ export function InventoryTable({
           placeholder="Filter by batch…"
           value={batchFilter}
           onChange={(e) => onBatchFilterChange(e.target.value)}
+          onFocus={() => { isBatchFocusedRef.current = true; }}
+          onBlur={() => { isBatchFocusedRef.current = false; }}
           className="w-48"
         />
         <span className="text-sm text-muted-foreground">{rows.length} of {total}</span>
@@ -328,7 +349,9 @@ export function InventoryTable({
                         onSelect={async () => {
                           try {
                             const res = await deallocateSerialsAction([r.serial]);
-                            if (res.ok && res.updated > 0) {
+                            if (!res.ok) {
+                              toast.error(res.error ?? "Deallocation failed.");
+                            } else if (res.updated > 0) {
                               toast.success("Allocation removed.");
                             } else {
                               toast.info("Nothing to deallocate — row already changed.");

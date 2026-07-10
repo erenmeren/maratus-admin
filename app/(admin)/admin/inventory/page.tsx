@@ -11,18 +11,27 @@ const REGISTRY_STATUSES: RegistryStatus[] = [
   "manufactured", "allocated", "claimed", "rma", "retired",
 ];
 
+// Next delivers repeated query params (e.g. `?batch=a&batch=b`) as an array,
+// not a single string — normalize first-value-wins before any `.trim()`/
+// `.includes()` call downstream, or a repeated param 500s the page.
+const first = (v: string | string[] | undefined): string | undefined =>
+  Array.isArray(v) ? v[0] : v;
+
 export default async function InventoryPage({
   searchParams,
 }: {
-  searchParams: Promise<Record<string, string | undefined>>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const raw = await searchParams;
-  const requestedPage = Math.max(1, Number(raw.page) || 1);
+  const rawPage = first(raw.page);
+  const rawStatus = first(raw.status);
+  const rawBatch = first(raw.batch);
+  const requestedPage = Math.max(1, Number(rawPage) || 1);
   const status: RegistryStatus | "all" =
-    raw.status && (REGISTRY_STATUSES as string[]).includes(raw.status)
-      ? (raw.status as RegistryStatus)
+    rawStatus && (REGISTRY_STATUSES as string[]).includes(rawStatus)
+      ? (rawStatus as RegistryStatus)
       : "all";
-  const batch = raw.batch ?? "";
+  const batch = rawBatch ?? "";
 
   const [devicePage, counts, customers, stores] = await Promise.all([
     getFactoryDevicePage({ page: requestedPage, status, batch }),

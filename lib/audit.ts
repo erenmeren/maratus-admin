@@ -53,6 +53,10 @@ export const AUDIT = {
   registryDeallocated: "registry.deallocated",
   registryClaimReverted: "registry.claim_reverted",
   registryAllocationConflict: "registry.allocation_conflict",
+  orgArchived: "org.archived",
+  orgRestored: "org.restored",
+  deviceReturnedToStock: "device.returned_to_stock",
+  deviceLeftWithCustomer: "device.left_with_customer",
 } as const;
 
 export async function recordAudit(input: {

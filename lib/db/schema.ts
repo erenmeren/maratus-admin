@@ -201,6 +201,10 @@ export const tenantSettings = pgTable("tenant_settings", {
   status: text("status", { enum: ["active", "paused"] })
     .default("active")
     .notNull(),
+  // Customer-offboarding lifecycle: non-null once archived (soft delete).
+  // Independent of `status` (operational pause) above.
+  archivedAt: timestamp("archived_at"),
+  archivedNote: text("archived_note"),
   createdAt: timestamp("created_at")
     .$defaultFn(() => new Date())
     .notNull(),

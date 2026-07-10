@@ -9,7 +9,7 @@ import { redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { auth } from "./auth";
 import { db } from "./db";
-import { member, organization } from "./db/schema";
+import { member, organization, tenantSettings } from "./db/schema";
 
 export interface OrgRef {
   id: string;
@@ -29,19 +29,32 @@ export async function getContext(): Promise<AppContext | null> {
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) return null;
 
-  const organizations = await db
+  const memberships = await db
     .select({
       id: organization.id,
       name: organization.name,
       slug: organization.slug,
       role: member.role,
+      archivedAt: tenantSettings.archivedAt,
     })
     .from(member)
     .innerJoin(organization, eq(member.organizationId, organization.id))
+    .leftJoin(tenantSettings, eq(tenantSettings.organizationId, organization.id))
     .where(eq(member.userId, session.user.id));
 
-  const activeOrganizationId =
-    session.session.activeOrganizationId ?? organizations[0]?.id ?? null;
+  // Archived orgs never appear in the switcher and can never become active.
+  const activeOrgs = memberships.filter((o) => o.archivedAt === null);
+  const organizations: OrgRef[] = activeOrgs.map(({ id, name, slug, role }) => ({
+    id,
+    name,
+    slug,
+    role,
+  }));
+
+  const sessionActiveId = session.session.activeOrganizationId ?? null;
+  const activeOrganizationId = activeOrgs.some((o) => o.id === sessionActiveId)
+    ? sessionActiveId
+    : (activeOrgs[0]?.id ?? null);
 
   return {
     user: {
@@ -64,7 +77,7 @@ export async function requireTenant(): Promise<{
   const ctx = await getContext();
   if (!ctx) redirect("/login");
   if (!ctx.activeOrganizationId) {
-    redirect(ctx.user.role === "platform_admin" ? "/admin" : "/login");
+    redirect(ctx.user.role === "platform_admin" ? "/admin" : "/archived");
   }
   return { ctx, organizationId: ctx.activeOrganizationId };
 }

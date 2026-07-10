@@ -220,46 +220,52 @@ export async function allocateSerials(
  * Revert unclaimed allocations back to `manufactured`. Also returns `byOrg`
  * (previous `allocatedOrganizationId` → serials actually deallocated) so the
  * caller can audit-log per org — `RETURNING` only ever exposes POST-update
- * values, so the previous owner is snapshotted with a SELECT before the
- * UPDATE runs, then intersected with the rows the UPDATE actually touched.
- * Race-tolerant: a row that changes between the SELECT and the UPDATE (e.g.
- * claimed concurrently) simply won't appear in `updated`, and is excluded
- * from `byOrg` by the intersection rather than reported incorrectly.
+ * values, so the previous owner must be read separately. The SELECT and the
+ * UPDATE run inside one transaction with the SELECT taking `FOR UPDATE` row
+ * locks, so a concurrent reallocation (allocated→allocated moves are legal in
+ * allocateSerials) blocks until this commits and can never make `byOrg`
+ * attribute a serial to a stale org: the locked snapshot's org ids ARE the
+ * org ids at deallocation time. Rows that left `allocated` before we lock
+ * simply don't match the locked SELECT's predicate and are excluded from
+ * both `updated` and `byOrg`.
  */
 export async function deallocateSerials(
   serials: string[],
 ): Promise<{ updated: number; byOrg: Record<string, string[]> }> {
   if (serials.length === 0) return { updated: 0, byOrg: {} };
 
-  const before = await db
-    .select({
-      serial: factoryDevice.serial,
-      allocatedOrganizationId: factoryDevice.allocatedOrganizationId,
-    })
-    .from(factoryDevice)
-    .where(and(inArray(factoryDevice.serial, serials), eq(factoryDevice.status, "allocated")));
+  return dbTx.transaction(async (tx) => {
+    const before = await tx
+      .select({
+        serial: factoryDevice.serial,
+        allocatedOrganizationId: factoryDevice.allocatedOrganizationId,
+      })
+      .from(factoryDevice)
+      .where(and(inArray(factoryDevice.serial, serials), eq(factoryDevice.status, "allocated")))
+      .for("update");
 
-  const updated = await db
-    .update(factoryDevice)
-    .set({
-      status: "manufactured",
-      allocatedOrganizationId: null,
-      allocatedStoreId: null,
-      allocatedAt: null,
-    })
-    .where(
-      and(inArray(factoryDevice.serial, serials), eq(factoryDevice.status, "allocated")),
-    )
-    .returning({ serial: factoryDevice.serial });
+    const updated = await tx
+      .update(factoryDevice)
+      .set({
+        status: "manufactured",
+        allocatedOrganizationId: null,
+        allocatedStoreId: null,
+        allocatedAt: null,
+      })
+      .where(
+        and(inArray(factoryDevice.serial, serials), eq(factoryDevice.status, "allocated")),
+      )
+      .returning({ serial: factoryDevice.serial });
 
-  const updatedSerials = new Set(updated.map((r) => r.serial));
-  const byOrg: Record<string, string[]> = {};
-  for (const row of before) {
-    if (!row.allocatedOrganizationId || !updatedSerials.has(row.serial)) continue;
-    (byOrg[row.allocatedOrganizationId] ??= []).push(row.serial);
-  }
+    const updatedSerials = new Set(updated.map((r) => r.serial));
+    const byOrg: Record<string, string[]> = {};
+    for (const row of before) {
+      if (!row.allocatedOrganizationId || !updatedSerials.has(row.serial)) continue;
+      (byOrg[row.allocatedOrganizationId] ??= []).push(row.serial);
+    }
 
-  return { updated: updated.length, byOrg };
+    return { updated: updated.length, byOrg };
+  });
 }
 
 export async function setRegistryStatus(

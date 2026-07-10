@@ -2,7 +2,7 @@
 // serial operations (one-shot auto-claim + serial stamping). Pure decision
 // logic lives in lib/provisioning.ts / lib/factory-registry-csv.ts.
 
-import { and, eq, inArray, isNull, sql, TransactionRollbackError } from "drizzle-orm";
+import { and, count, eq, ilike, inArray, isNull, sql, TransactionRollbackError } from "drizzle-orm";
 import { db, dbTx } from "./db";
 import {
   device as deviceTable,
@@ -13,7 +13,7 @@ import {
 import { AUDIT, recordAudit } from "./audit";
 import { chunk } from "./chunk";
 import { generateDeviceKey, id } from "./ids";
-import type { RegistryAllocationSnapshot } from "./provisioning";
+import type { RegistryAllocationSnapshot, RegistryStatus } from "./provisioning";
 import type { RegistryCsvRow } from "./factory-registry-csv";
 
 function isUniqueViolation(err: unknown): boolean {
@@ -65,6 +65,7 @@ export interface InventoryRow {
   allocatedOrganizationId: string | null;
   allocatedOrgName: string | null;
   allocatedStoreId: string | null;
+  allocatedStoreName: string | null;
   deviceId: string | null;
   deviceName: string | null;
   manufacturedAt: Date | null;
@@ -72,8 +73,42 @@ export interface InventoryRow {
   claimedAt: Date | null;
 }
 
-export async function getFactoryDevices(): Promise<InventoryRow[]> {
-  return db
+export interface InventoryPage {
+  rows: InventoryRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+}
+
+/**
+ * Server-paginated + server-filtered registry listing for the admin inventory
+ * table. Mirrors the getOrgAuditPage precedent (lib/data.ts): count first,
+ * clamp the requested page into range, then select that page's window.
+ */
+export async function getFactoryDevicePage(opts: {
+  page: number;
+  pageSize?: number;
+  status?: RegistryStatus | "all";
+  batch?: string;
+}): Promise<InventoryPage> {
+  const pageSize = opts.pageSize ?? 50;
+  const requestedPage = Math.max(1, Math.floor(opts.page) || 1);
+  const batch = opts.batch?.trim();
+
+  const conditions = [
+    opts.status && opts.status !== "all" ? eq(factoryDevice.status, opts.status) : undefined,
+    batch ? ilike(factoryDevice.batchCode, `%${batch}%`) : undefined,
+  ].filter((c) => c !== undefined);
+  const where = conditions.length ? and(...conditions) : undefined;
+
+  const [{ total }] = await db.select({ total: count() }).from(factoryDevice).where(where);
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  // Clamp into the valid range so an over-range ?page= shows the last page
+  // with data (not an empty table reading "Page 99 of 2").
+  const safePage = Math.min(requestedPage, pageCount);
+
+  const rows = await db
     .select({
       serial: factoryDevice.serial,
       batchCode: factoryDevice.batchCode,
@@ -83,6 +118,7 @@ export async function getFactoryDevices(): Promise<InventoryRow[]> {
       allocatedOrganizationId: factoryDevice.allocatedOrganizationId,
       allocatedOrgName: orgTable.name,
       allocatedStoreId: factoryDevice.allocatedStoreId,
+      allocatedStoreName: storeTable.name,
       deviceId: factoryDevice.deviceId,
       deviceName: deviceTable.name,
       manufacturedAt: factoryDevice.manufacturedAt,
@@ -91,8 +127,34 @@ export async function getFactoryDevices(): Promise<InventoryRow[]> {
     })
     .from(factoryDevice)
     .leftJoin(orgTable, eq(factoryDevice.allocatedOrganizationId, orgTable.id))
+    .leftJoin(storeTable, eq(factoryDevice.allocatedStoreId, storeTable.id))
     .leftJoin(deviceTable, eq(factoryDevice.deviceId, deviceTable.id))
-    .orderBy(factoryDevice.serial);
+    .where(where)
+    .orderBy(factoryDevice.serial)
+    .limit(pageSize)
+    .offset((safePage - 1) * pageSize);
+
+  return { rows, total, page: safePage, pageSize, pageCount };
+}
+
+const ALL_REGISTRY_STATUSES: RegistryStatus[] = [
+  "manufactured", "allocated", "claimed", "rma", "retired",
+];
+
+/** Cheap grouped count across the WHOLE registry (ignores filters) so the
+ *  inventory page's KPI tiles stay correct regardless of which page/filter
+ *  the table is currently showing. */
+export async function getFactoryStatusCounts(): Promise<Record<RegistryStatus, number>> {
+  const rows = await db
+    .select({ status: factoryDevice.status, total: count() })
+    .from(factoryDevice)
+    .groupBy(factoryDevice.status);
+  const counts = Object.fromEntries(ALL_REGISTRY_STATUSES.map((s) => [s, 0])) as Record<
+    RegistryStatus,
+    number
+  >;
+  for (const r of rows) counts[r.status] = r.total;
+  return counts;
 }
 
 export async function getRegistryBySerial(

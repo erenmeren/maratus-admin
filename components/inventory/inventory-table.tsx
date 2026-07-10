@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { MoreHorizontal, QrCode, Upload } from "lucide-react";
 import { toast } from "sonner";
@@ -22,10 +23,15 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import type { InventoryRow } from "@/lib/factory-registry";
+import type { RegistryStatus } from "@/lib/provisioning";
 import {
   addSerialAction, allocateSerialsAction, deallocateSerialsAction,
   importRegistryCsvAction, setRegistryStatusAction,
 } from "@/lib/actions/inventory";
+
+// Filters are debounced on the client but always resolved server-side —
+// keeps a 10k-row registry off the wire and lets Postgres do the `ilike`.
+const BATCH_FILTER_DEBOUNCE_MS = 300;
 
 const STATUS_VARIANT: Record<InventoryRow["status"], "default" | "secondary" | "outline" | "destructive"> = {
   manufactured: "outline",
@@ -39,16 +45,59 @@ interface Customer { id: string; name: string }
 interface StoreOption { id: string; name: string; organizationId: string }
 
 export function InventoryTable({
-  rows, customers, stores,
+  rows, customers, stores, page, pageCount, total, status, batch,
 }: {
   rows: InventoryRow[];
   customers: Customer[];
   stores: StoreOption[];
+  page: number;
+  pageCount: number;
+  total: number;
+  status: RegistryStatus | "all";
+  batch: string;
 }) {
+  const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [batchFilter, setBatchFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>(status);
+  const [batchFilter, setBatchFilter] = useState(batch);
   const [busy, setBusy] = useState(false);
+  const batchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep the controls in sync with the URL (e.g. browser back/forward).
+  useEffect(() => setStatusFilter(status), [status]);
+  useEffect(() => setBatchFilter(batch), [batch]);
+  useEffect(() => () => {
+    if (batchDebounceRef.current) clearTimeout(batchDebounceRef.current);
+  }, []);
+
+  function navigate(next: { status?: string; batch?: string; page?: number }) {
+    const params = new URLSearchParams();
+    const nextStatus = next.status ?? statusFilter;
+    const nextBatch = next.batch ?? batchFilter;
+    const nextPage = next.page ?? 1;
+    if (nextStatus !== "all") params.set("status", nextStatus);
+    if (nextBatch) params.set("batch", nextBatch);
+    if (nextPage > 1) params.set("page", String(nextPage));
+    const qs = params.toString();
+    router.replace(qs ? `/admin/inventory?${qs}` : "/admin/inventory");
+  }
+
+  function onStatusFilterChange(value: string) {
+    setStatusFilter(value);
+    navigate({ status: value, page: 1 });
+  }
+
+  function onBatchFilterChange(value: string) {
+    setBatchFilter(value);
+    if (batchDebounceRef.current) clearTimeout(batchDebounceRef.current);
+    batchDebounceRef.current = setTimeout(() => {
+      navigate({ batch: value, page: 1 });
+    }, BATCH_FILTER_DEBOUNCE_MS);
+  }
+
+  function goToPage(p: number) {
+    navigate({ page: p });
+  }
 
   // Single-serial add (barcode scanner) state
   const [addSerial, setAddSerial] = useState("");
@@ -64,16 +113,6 @@ export function InventoryTable({
   // QR dialog state
   const [qrSerial, setQrSerial] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
-
-  const filtered = useMemo(
-    () =>
-      rows.filter(
-        (r) =>
-          (statusFilter === "all" || r.status === statusFilter) &&
-          (!batchFilter || (r.batchCode ?? "").toLowerCase().includes(batchFilter.toLowerCase())),
-      ),
-    [rows, statusFilter, batchFilter],
-  );
 
   async function onImportFile(file: File) {
     setBusy(true);
@@ -197,7 +236,7 @@ export function InventoryTable({
       </Card>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={onStatusFilterChange}>
           <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
@@ -211,10 +250,10 @@ export function InventoryTable({
         <Input
           placeholder="Filter by batch…"
           value={batchFilter}
-          onChange={(e) => setBatchFilter(e.target.value)}
+          onChange={(e) => onBatchFilterChange(e.target.value)}
           className="w-48"
         />
-        <span className="text-sm text-muted-foreground">{filtered.length} of {rows.length}</span>
+        <span className="text-sm text-muted-foreground">{rows.length} of {total}</span>
       </div>
 
       <Table>
@@ -224,13 +263,14 @@ export function InventoryTable({
             <TableHead>Batch</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Customer</TableHead>
+            <TableHead>Store</TableHead>
             <TableHead>Device</TableHead>
             <TableHead>Manufactured</TableHead>
             <TableHead className="w-10" />
           </TableRow>
         </TableHeader>
         <TableBody>
-          {filtered.map((r) => (
+          {rows.map((r) => (
             <TableRow key={r.serial}>
               <TableCell className="font-mono text-xs">{r.serial}</TableCell>
               <TableCell>{r.batchCode ?? "—"}</TableCell>
@@ -245,6 +285,16 @@ export function InventoryTable({
                   <Link href={`/admin/customers/${r.allocatedOrganizationId}`} className="underline">
                     {r.allocatedOrgName}
                   </Link>
+                ) : "—"}
+              </TableCell>
+              <TableCell>
+                {r.allocatedStoreId ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    {r.allocatedStoreName ?? r.allocatedStoreId}
+                    {r.status === "allocated" && (
+                      <Badge variant="outline" className="text-[10px]">zero-touch</Badge>
+                    )}
+                  </span>
                 ) : "—"}
               </TableCell>
               <TableCell>
@@ -311,15 +361,37 @@ export function InventoryTable({
               </TableCell>
             </TableRow>
           ))}
-          {filtered.length === 0 && (
+          {rows.length === 0 && (
             <TableRow>
-              <TableCell colSpan={7} className="py-8 text-center text-muted-foreground">
+              <TableCell colSpan={8} className="py-8 text-center text-muted-foreground">
                 No serials match. Import a factory CSV to get started.
               </TableCell>
             </TableRow>
           )}
         </TableBody>
       </Table>
+
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-muted-foreground">Page {page} of {pageCount}</span>
+        <span className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page <= 1}
+            onClick={() => goToPage(page - 1)}
+          >
+            Previous
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={page >= pageCount}
+            onClick={() => goToPage(page + 1)}
+          >
+            Next
+          </Button>
+        </span>
+      </div>
 
       <Dialog open={allocating !== null} onOpenChange={(o) => !o && closeAllocateDialog()}>
         <DialogContent>

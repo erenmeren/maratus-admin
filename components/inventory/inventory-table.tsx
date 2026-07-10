@@ -83,7 +83,7 @@ export function InventoryTable({
     }
   }
 
-  function navigate(next: { status?: string; batch?: string; page?: number }) {
+  function navigate(next: { status?: string; batch?: string; page?: number }, opts?: { push?: boolean }) {
     const params = new URLSearchParams();
     const nextStatus = next.status ?? statusFilter;
     const nextBatch = next.batch ?? batchFilter;
@@ -92,7 +92,9 @@ export function InventoryTable({
     if (nextBatch) params.set("batch", nextBatch);
     if (nextPage > 1) params.set("page", String(nextPage));
     const qs = params.toString();
-    router.replace(qs ? `/admin/inventory?${qs}` : "/admin/inventory");
+    const href = qs ? `/admin/inventory?${qs}` : "/admin/inventory";
+    if (opts?.push) router.push(href);
+    else router.replace(href);
   }
 
   function onStatusFilterChange(value: string) {
@@ -115,7 +117,11 @@ export function InventoryTable({
     // Same stale-closure hazard as onStatusFilterChange: a pending batch
     // debounce must not fire with a page number this navigation just changed.
     clearBatchDebounce();
-    navigate({ page: p });
+    // Page turns are pushed (not replaced) so browser back/forward steps
+    // through pages one at a time — same history semantics as the tenant
+    // Activity page's `<Link href="?page=N">` precedent. Filter changes keep
+    // router.replace so typing/selecting filters doesn't spam history.
+    navigate({ page: p }, { push: true });
   }
 
   // Single-serial add (barcode scanner) state

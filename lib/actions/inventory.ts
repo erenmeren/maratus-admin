@@ -40,7 +40,7 @@ const serialsSchema = z
   .max(10000);
 const nullableString = z.string().max(120).nullable().optional();
 
-const importCsvInputSchema = z.object({ csvText: z.string().max(MAX_CSV_BYTES) });
+const importCsvInputSchema = z.object({ csvText: z.string() });
 const addSerialInputSchema = z.object({
   serial: serialSchema,
   batchCode: nullableString,

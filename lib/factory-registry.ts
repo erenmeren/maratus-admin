@@ -15,6 +15,7 @@ import { chunk } from "./chunk";
 import { generateDeviceKey, id } from "./ids";
 import type { RegistryAllocationSnapshot, RegistryStatus } from "./provisioning";
 import type { RegistryCsvRow } from "./factory-registry-csv";
+import { clampPage, foldDeallocatedByOrg } from "./factory-registry-fold";
 
 function isUniqueViolation(err: unknown): boolean {
   return !!err && typeof err === "object" && "code" in err && (err as { code?: string }).code === "23505";
@@ -24,7 +25,12 @@ function isUniqueViolation(err: unknown): boolean {
 // round trip per row — a 10k-row CSV is 20 statements, not 10k.
 const IMPORT_CHUNK_SIZE = 500;
 
-/** Idempotent upsert of parsed CSV rows (re-import updates, never duplicates). */
+/** Idempotent upsert of parsed CSV rows (re-import updates, never duplicates).
+ *  Precondition: `rows` MUST be pre-deduped by serial — a serial repeated
+ *  within one call lands in one multi-row INSERT and Postgres rejects it with
+ *  "ON CONFLICT DO UPDATE command cannot affect row a second time". Current
+ *  callers guarantee this: parseRegistryCsv Map-dedupes by serial, and
+ *  addSerialAction passes a single row. */
 export async function importFactoryDevices(
   rows: RegistryCsvRow[],
 ): Promise<{ imported: number }> {
@@ -93,7 +99,6 @@ export async function getFactoryDevicePage(opts: {
   batch?: string;
 }): Promise<InventoryPage> {
   const pageSize = opts.pageSize ?? 50;
-  const requestedPage = Math.max(1, Math.floor(opts.page) || 1);
   const batch = opts.batch?.trim();
 
   const conditions = [
@@ -103,10 +108,9 @@ export async function getFactoryDevicePage(opts: {
   const where = conditions.length ? and(...conditions) : undefined;
 
   const [{ total }] = await db.select({ total: count() }).from(factoryDevice).where(where);
-  const pageCount = Math.max(1, Math.ceil(total / pageSize));
   // Clamp into the valid range so an over-range ?page= shows the last page
   // with data (not an empty table reading "Page 99 of 2").
-  const safePage = Math.min(requestedPage, pageCount);
+  const { safePage, pageCount } = clampPage(opts.page, total, pageSize);
 
   const rows = await db
     .select({
@@ -261,12 +265,10 @@ export async function deallocateSerials(
       )
       .returning({ serial: factoryDevice.serial });
 
-    const updatedSerials = new Set(updated.map((r) => r.serial));
-    const byOrg: Record<string, string[]> = {};
-    for (const row of before) {
-      if (!row.allocatedOrganizationId || !updatedSerials.has(row.serial)) continue;
-      (byOrg[row.allocatedOrganizationId] ??= []).push(row.serial);
-    }
+    const byOrg = foldDeallocatedByOrg(
+      before.map((r) => ({ serial: r.serial, organizationId: r.allocatedOrganizationId })),
+      updated.map((r) => r.serial),
+    );
 
     return { updated: updated.length, byOrg };
   });

@@ -11,6 +11,7 @@ import {
   importFactoryDevices,
   setRegistryStatus,
 } from "@/lib/factory-registry";
+import { normalizeSerial } from "@/lib/provisioning";
 import { AUDIT, recordAudit } from "@/lib/audit";
 
 const MAX_CSV_BYTES = 2 * 1024 * 1024; // ~10k rows is well under 2 MB
@@ -29,6 +30,30 @@ export async function importRegistryCsvAction(
   const { imported } = await importFactoryDevices(rows);
   revalidatePath("/admin/inventory");
   return { ok: true, imported, errors };
+}
+
+/** Single-serial add (barcode-scanner entry point) — same coalescing upsert
+ *  path as CSV import, just with a one-row batch. */
+export async function addSerialAction(
+  serial: string,
+  batchCode?: string | null,
+  hardwareRevision?: string | null,
+): Promise<{ ok: boolean; error?: string }> {
+  await requirePlatformAdmin();
+  const normalized = normalizeSerial(serial);
+  if (!normalized) {
+    return { ok: false, error: `Invalid serial "${serial}".` };
+  }
+  await importFactoryDevices([
+    {
+      serial: normalized,
+      batchCode: batchCode || null,
+      hardwareRevision: hardwareRevision || null,
+      manufacturedAt: null,
+    },
+  ]);
+  revalidatePath("/admin/inventory");
+  return { ok: true };
 }
 
 export async function allocateSerialsAction(

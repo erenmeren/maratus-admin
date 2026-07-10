@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import QRCode from "qrcode";
 import { MoreHorizontal, QrCode, Upload } from "lucide-react";
@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/table";
 import type { InventoryRow } from "@/lib/factory-registry";
 import {
-  allocateSerialsAction, deallocateSerialsAction,
+  addSerialAction, allocateSerialsAction, deallocateSerialsAction,
   importRegistryCsvAction, setRegistryStatusAction,
 } from "@/lib/actions/inventory";
 
@@ -49,6 +49,12 @@ export function InventoryTable({
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [batchFilter, setBatchFilter] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Single-serial add (barcode scanner) state
+  const [addSerial, setAddSerial] = useState("");
+  const [addBatch, setAddBatch] = useState("");
+  const [addBusy, setAddBusy] = useState(false);
+  const addSerialRef = useRef<HTMLInputElement>(null);
 
   // Allocate dialog state
   const [allocating, setAllocating] = useState<string | null>(null); // serial
@@ -83,6 +89,26 @@ export function InventoryTable({
     } finally {
       setBusy(false);
       if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function onAddSerial(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!addSerial.trim()) return;
+    setAddBusy(true);
+    try {
+      const result = await addSerialAction(addSerial.trim(), addBatch.trim() || null);
+      if (result.ok) {
+        toast.success("Serial added.");
+        setAddSerial("");
+        addSerialRef.current?.focus();
+      } else {
+        toast.error(result.error ?? "Failed to add serial.");
+      }
+    } catch {
+      toast.error("Failed to add serial.");
+    } finally {
+      setAddBusy(false);
     }
   }
 
@@ -134,6 +160,39 @@ export function InventoryTable({
           <span className="text-muted-foreground">
             Columns: <code>serial,batch,hw_rev,manufactured_at</code> — serial required, re-import updates in place.
           </span>
+        </CardContent>
+        <CardContent className="border-t pt-4">
+          <form onSubmit={onAddSerial} className="flex flex-wrap items-end gap-3">
+            <div className="space-y-1">
+              <label htmlFor="add-serial-input" className="text-xs text-muted-foreground">
+                Serial (scan or type)
+              </label>
+              <Input
+                id="add-serial-input"
+                ref={addSerialRef}
+                placeholder="84f703aabbcc"
+                value={addSerial}
+                onChange={(e) => setAddSerial(e.target.value)}
+                className="w-56 font-mono text-sm"
+                autoComplete="off"
+              />
+            </div>
+            <div className="space-y-1">
+              <label htmlFor="add-batch-input" className="text-xs text-muted-foreground">
+                Batch (optional)
+              </label>
+              <Input
+                id="add-batch-input"
+                placeholder="B2026-07"
+                value={addBatch}
+                onChange={(e) => setAddBatch(e.target.value)}
+                className="w-40 text-sm"
+              />
+            </div>
+            <Button type="submit" disabled={addBusy || !addSerial.trim()}>
+              Add
+            </Button>
+          </form>
         </CardContent>
       </Card>
 

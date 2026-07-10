@@ -11,6 +11,7 @@ import {
   store as storeTable,
 } from "./db/schema";
 import { AUDIT, recordAudit } from "./audit";
+import { chunk } from "./chunk";
 import { generateDeviceKey, id } from "./ids";
 import type { RegistryAllocationSnapshot } from "./provisioning";
 import type { RegistryCsvRow } from "./factory-registry-csv";
@@ -19,25 +20,33 @@ function isUniqueViolation(err: unknown): boolean {
   return !!err && typeof err === "object" && "code" in err && (err as { code?: string }).code === "23505";
 }
 
+// One multi-row INSERT ... ON CONFLICT DO UPDATE per chunk instead of one
+// round trip per row — a 10k-row CSV is 20 statements, not 10k.
+const IMPORT_CHUNK_SIZE = 500;
+
 /** Idempotent upsert of parsed CSV rows (re-import updates, never duplicates). */
 export async function importFactoryDevices(
   rows: RegistryCsvRow[],
 ): Promise<{ imported: number }> {
-  for (const row of rows) {
+  for (const batch of chunk(rows, IMPORT_CHUNK_SIZE)) {
     await db
       .insert(factoryDevice)
-      .values({
-        serial: row.serial,
-        batchCode: row.batchCode,
-        hardwareRevision: row.hardwareRevision,
-        manufacturedAt: row.manufacturedAt,
-      })
+      .values(
+        batch.map((row) => ({
+          serial: row.serial,
+          batchCode: row.batchCode,
+          hardwareRevision: row.hardwareRevision,
+          manufacturedAt: row.manufacturedAt,
+        })),
+      )
       .onConflictDoUpdate({
         target: factoryDevice.serial,
         set: {
           // Coalesce against the incoming (EXCLUDED) row so a serial-only
           // re-import (no batch metadata in that CSV) doesn't null out
-          // batch/revision/manufacture data set by an earlier import.
+          // batch/revision/manufacture data set by an earlier import. Postgres
+          // resolves `excluded` per conflicting row, so this holds even when
+          // the statement carries hundreds of rows at once.
           batchCode: sql`coalesce(excluded.batch_code, ${factoryDevice.batchCode})`,
           hardwareRevision: sql`coalesce(excluded.hardware_revision, ${factoryDevice.hardwareRevision})`,
           manufacturedAt: sql`coalesce(excluded.manufactured_at, ${factoryDevice.manufacturedAt})`,

@@ -34,6 +34,7 @@ import {
   getCreditLedger,
   getOrgDevicesForOffboard,
   getArmedAllocationCountByStore,
+  getDeviceUsageThisMonth,
 } from "@/lib/data";
 import { getBalance } from "@/lib/credits";
 import { GrantCreditsForm } from "@/components/grant-credits-form";
@@ -58,10 +59,11 @@ export default async function CustomerDetailPage({
   if (!detail) notFound();
 
   const activity = await getOrgAuditLog(tenantId, 50);
-  const [creditBalance, creditLedger, armedByStore] = await Promise.all([
+  const [creditBalance, creditLedger, armedByStore, deviceUsage] = await Promise.all([
     getBalance(tenantId),
     getCreditLedger(tenantId),
     getArmedAllocationCountByStore(tenantId),
+    getDeviceUsageThisMonth(tenantId),
   ]);
 
   const { tenant, summary, devices, health } = detail;
@@ -183,6 +185,43 @@ export default async function CustomerDetailPage({
         includedTriggersPerDevice={tenant.includedTriggersPerDevice}
         disabled={isArchived}
       />
+
+      {/* Device usage this month */}
+      <Card className="overflow-hidden">
+        <CardHeader>
+          <CardTitle>Device usage this month</CardTitle>
+          <CardDescription>Triggers per device, current calendar month</CardDescription>
+        </CardHeader>
+        <CardContent className="px-0 pb-0">
+          {deviceUsage.length === 0 ? (
+            <p className="px-6 pb-6 text-sm text-muted-foreground">No triggers yet this month.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="pl-6">Device</TableHead>
+                  <TableHead className="pr-6 text-right">Triggers</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {deviceUsage.slice(0, 5).map((u) => (
+                  <TableRow key={u.deviceId}>
+                    <TableCell className="pl-6">{u.name}</TableCell>
+                    <TableCell className="pr-6 text-right tabular-nums">
+                      {formatNumber(u.triggers)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+          {deviceUsage.length > 5 && (
+            <p className="px-6 py-3 text-sm text-muted-foreground">
+              and {formatNumber(deviceUsage.length - 5)} more
+            </p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Credits */}
       <Card className="overflow-hidden">

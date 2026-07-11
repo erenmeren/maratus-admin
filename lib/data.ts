@@ -54,7 +54,8 @@ import { rollupByDevice } from "@/lib/credit-usage";
 import { rollupCredits, type CreditsOverview } from "@/lib/credits-overview";
 import { getBalance } from "./credits";
 import { AUDIT } from "@/lib/audit";
-import { DEFAULT_INCLUDED_TRIGGERS } from "@/lib/billing-plan";
+import { DEFAULT_INCLUDED_TRIGGERS, monthKey } from "@/lib/billing-plan";
+import { getOrgUsageForMonth } from "@/lib/device-usage";
 import type {
   Device,
   DeviceRow,
@@ -1654,6 +1655,27 @@ export async function deviceNamesForOrg(organizationId: string): Promise<Map<str
     .from(deviceTable)
     .where(eq(deviceTable.organizationId, organizationId));
   return new Map(rows.map((r) => [r.id, r.name]));
+}
+
+/** Current-calendar-month (UTC) trigger usage per device, with device names. */
+export async function getDeviceUsageThisMonth(
+  organizationId: string,
+): Promise<{ deviceId: string; name: string; triggers: number }[]> {
+  const month = monthKey(new Date());
+  const usage = await getOrgUsageForMonth(organizationId, month);
+  if (usage.length === 0) return [];
+  const devices = await db
+    .select({ id: deviceTable.id, name: deviceTable.name })
+    .from(deviceTable)
+    .where(eq(deviceTable.organizationId, organizationId));
+  const names = new Map(devices.map((d) => [d.id, d.name]));
+  return usage
+    .map((u) => ({
+      deviceId: u.deviceId,
+      name: names.get(u.deviceId) ?? "Removed device",
+      triggers: u.triggers,
+    }))
+    .sort((a, b) => b.triggers - a.triggers);
 }
 
 export type { CreditsOverview };

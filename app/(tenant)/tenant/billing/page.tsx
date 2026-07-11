@@ -1,19 +1,29 @@
 // app/(tenant)/tenant/billing/page.tsx
 import { requireTenant } from "@/lib/session";
-import { getCreditUsageByDevice, deviceNamesForOrg, currentMonthStart } from "@/lib/data";
+import {
+  getCreditUsageByDevice,
+  deviceNamesForOrg,
+  currentMonthStart,
+  getDeviceUsageThisMonth,
+  getTenant,
+} from "@/lib/data";
 import { BuyCreditsSection } from "@/components/billing/buy-credits-form";
 import { creditPacks } from "@/lib/billing/credit-packs";
 import { getBalance } from "@/lib/credits";
 import { PageHeader } from "@/components/page-header";
 import { PageSection } from "@/components/page-section";
+import { formatNumber } from "@/lib/format";
 
 export default async function TenantBillingPage() {
   const { organizationId } = await requireTenant();
-  const [balance, usage, deviceNames] = await Promise.all([
+  const [balance, usage, deviceNames, deviceUsage, tenant] = await Promise.all([
     getBalance(organizationId),
     getCreditUsageByDevice(organizationId, currentMonthStart()),
     deviceNamesForOrg(organizationId),
+    getDeviceUsageThisMonth(organizationId),
+    getTenant(organizationId),
   ]);
+  const { billingPlan, includedTriggersPerDevice } = tenant;
   const packs = creditPacks();
 
   return (
@@ -58,6 +68,46 @@ export default async function TenantBillingPage() {
                 <td className="text-right tabular-nums">{usage.total}</td>
                 <td></td>
               </tr>
+            </tbody>
+          </table>
+        )}
+      </PageSection>
+
+      <PageSection
+        title="Device usage this month"
+        description={
+          billingPlan === "flat"
+            ? "Your plan includes unlimited triggers (fair use)."
+            : billingPlan === "base_usage"
+              ? `Each device includes ${formatNumber(includedTriggersPerDevice)} triggers per month; beyond that, triggers use credits.`
+              : "Each trigger uses one credit."
+        }
+      >
+        {deviceUsage.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No triggers yet this month.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-muted-foreground">
+                <th className="py-2">Device</th>
+                <th className="text-right">Triggers</th>
+                {billingPlan === "base_usage" ? (
+                  <th className="text-right">Included remaining</th>
+                ) : null}
+              </tr>
+            </thead>
+            <tbody>
+              {deviceUsage.map((u) => (
+                <tr key={u.deviceId} className="border-t">
+                  <td className="py-2">{u.name}</td>
+                  <td className="text-right tabular-nums">{formatNumber(u.triggers)}</td>
+                  {billingPlan === "base_usage" ? (
+                    <td className="text-right tabular-nums">
+                      {formatNumber(Math.max(0, includedTriggersPerDevice - u.triggers))}
+                    </td>
+                  ) : null}
+                </tr>
+              ))}
             </tbody>
           </table>
         )}

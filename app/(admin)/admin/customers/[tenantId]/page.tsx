@@ -11,6 +11,7 @@ import { ProvisionDeviceDialog } from "@/components/provision-device-dialog";
 import { DeviceRowActions } from "@/components/device-row-actions";
 import { OffboardWizard } from "@/components/customers/offboard-wizard";
 import { RestoreCustomerButton } from "@/components/customers/restore-customer-button";
+import { AdminStoresCard } from "@/components/customers/admin-stores-card";
 import {
   Card,
   CardContent,
@@ -32,6 +33,7 @@ import {
   getLatestOrgArchivedEntry,
   getCreditLedger,
   getOrgDevicesForOffboard,
+  getArmedAllocationCountByStore,
 } from "@/lib/data";
 import { getBalance } from "@/lib/credits";
 import { GrantCreditsForm } from "@/components/grant-credits-form";
@@ -55,9 +57,10 @@ export default async function CustomerDetailPage({
   if (!detail) notFound();
 
   const activity = await getOrgAuditLog(tenantId, 50);
-  const [creditBalance, creditLedger] = await Promise.all([
+  const [creditBalance, creditLedger, armedByStore] = await Promise.all([
     getBalance(tenantId),
     getCreditLedger(tenantId),
+    getArmedAllocationCountByStore(tenantId),
   ]);
 
   const { tenant, summary, devices, health } = detail;
@@ -160,6 +163,18 @@ export default async function CustomerDetailPage({
           <BreakdownBarChart data={byStore} height={240} />
         </CardContent>
       </Card>
+
+      <AdminStoresCard
+        organizationId={tenant.id}
+        readOnly={isArchived}
+        stores={tenant.stores.map((s) => ({
+          id: s.id,
+          name: s.name,
+          address: s.address,
+          deviceCount: s.devices.length,
+          armedCount: armedByStore[s.id] ?? 0,
+        }))}
+      />
 
       {/* Credits */}
       <Card className="overflow-hidden">

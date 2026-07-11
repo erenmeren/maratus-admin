@@ -5,9 +5,10 @@ import { ArrowLeft, Cable, Cpu, Globe, HardDrive, FileText, Wifi,  } from "lucid
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { DevicePauseControl } from "@/components/device-pause-control";
+import { DeviceMoveControl } from "@/components/device-move-control";
 import { Card, CardContent, CardHeader, CardTitle,  } from "@/components/ui/card";
 import { CommandBar } from "@/components/devices/command-bar";
-import { getDevice, getDeviceCommands } from "@/lib/data";
+import { getDevice, getDeviceCommands, getTenantStores } from "@/lib/data";
 import { db } from "@/lib/db";
 import { firmwareRelease } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
@@ -19,13 +20,21 @@ export default async function DeviceDetailPage({
   params: Promise<{ storeId: string; deviceId: string }>;
 }) {
   const { storeId, deviceId } = await params;
-  const { organizationId } = await requireTenant();
+  const { ctx, organizationId } = await requireTenant();
   const result = await getDevice(deviceId);
   if (!result || result.tenant.id !== organizationId) notFound();
   if (result.store.id !== storeId) notFound();
 
   const { device, store } = result;
   const commands = await getDeviceCommands(device.id);
+
+  const membership = ctx.organizations.find((o) => o.id === organizationId);
+  const canManage = !!membership && ["owner", "admin"].includes(membership.role);
+  const otherStores = canManage
+    ? (await getTenantStores(organizationId))
+        .filter((s) => s.id !== storeId)
+        .map((s) => ({ id: s.id, name: s.name }))
+    : [];
 
   const [latestFw] = await db
     .select({ version: firmwareRelease.version })
@@ -107,11 +116,20 @@ export default async function DeviceDetailPage({
         </div>
 
         <div className="space-y-4">
-          <DevicePauseControl
-            deviceId={device.id}
-            deviceName={device.name}
-            initialStatus={device.status}
-          />
+          <div className="flex items-center gap-2">
+            <DevicePauseControl
+              deviceId={device.id}
+              deviceName={device.name}
+              initialStatus={device.status}
+            />
+            {canManage && otherStores.length > 0 && (
+              <DeviceMoveControl
+                deviceId={device.id}
+                deviceName={device.name}
+                stores={otherStores}
+              />
+            )}
+          </div>
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Connectivity</CardTitle>

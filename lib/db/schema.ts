@@ -198,6 +198,21 @@ export const tenantSettings = pgTable("tenant_settings", {
   deviceSettingsPasswordHash: text("device_settings_password_hash"),
   deviceSettingsPasswordSalt: text("device_settings_password_salt"),
   stripeCustomerId: text("stripe_customer_id"),
+  // --- Pricing plan (dual-track pricing spec 2026-07-11) -------------------
+  // credits    = prepaid credits only (self-service default; legacy behavior)
+  // flat       = Track B: per-device subscription, unlimited triggers (fair-use)
+  // base_usage = Track C: per-device base + included monthly quota, credit overage
+  billingPlan: text("billing_plan", { enum: ["credits", "flat", "base_usage"] })
+    .default("credits")
+    .notNull(),
+  // Track C: triggers included per device per calendar month (UTC).
+  includedTriggersPerDevice: integer("included_triggers_per_device")
+    .default(2000)
+    .notNull(),
+  // Per-device quantity subscription (flat/base plans). The item holds the
+  // quantity (= claimed device count).
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  stripeSubscriptionItemId: text("stripe_subscription_item_id"),
   status: text("status", { enum: ["active", "paused"] })
     .default("active")
     .notNull(),
@@ -332,6 +347,11 @@ export const deviceCommand = pgTable(
     status: text("status", { enum: ["pending", "delivered", "acked", "failed", "expired"] }).default("pending").notNull(),
     result: text("result"),
     action: text("action"),
+    // How this trigger was paid: "credits" = a credit hold exists for this
+    // commandId; "included" = covered by the org's plan (flat / base quota) —
+    // ack/expiry must NOT move credits for "included". Null on non-trigger
+    // commands and on pre-plan legacy rows (treated as "credits").
+    billing: text("billing", { enum: ["credits", "included"] }),
     payload: jsonb("payload"),
     expiresAt: timestamp("expires_at"),
     createdByUserId: text("created_by_user_id"),
@@ -401,6 +421,32 @@ export const creditLedger = pgTable(
     index("credit_ledger_device_created_idx").on(t.deviceId, t.createdAt),
     index("credit_ledger_command_idx").on(t.commandId),
     uniqueIndex("credit_ledger_kind_idem_idx").on(t.kind, t.idempotencyKey).where(sql`${t.idempotencyKey} is not null`),
+  ],
+);
+
+// Per-device monthly trigger counter (calendar month, UTC, "YYYY-MM").
+// Bumped at trigger-reservation time (counts attempts, not acks — an expired
+// included trigger deliberately still consumes a quota unit; accepted spec
+// trade-off). Drives Track C included-quota checks, Track B fair-use, and
+// usage reporting.
+export const deviceUsageMonth = pgTable(
+  "device_usage_month",
+  {
+    deviceId: text("device_id")
+      .notNull()
+      .references(() => device.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    month: text("month").notNull(),
+    triggers: integer("triggers").notNull().default(0),
+    updatedAt: timestamp("updated_at")
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.deviceId, t.month] }),
+    index("device_usage_month_org_month_idx").on(t.organizationId, t.month),
   ],
 );
 

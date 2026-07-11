@@ -225,6 +225,13 @@
       "when": 1783719689631,
       "tag": "0031_powerful_texas_twister",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1783805040634,
+      "tag": "0032_boring_typhoid_mary",
+      "breakpoints": true
     }
   ]
 }

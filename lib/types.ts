@@ -20,6 +20,7 @@ export interface Device {
   lastSeenAt: string | null; // raw last-seen, null if never seen (for status)
   activationsToday: number;
   activationsThisMonth: number;
+  claimed: boolean;
 }
 
 export interface Store {

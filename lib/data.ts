@@ -297,6 +297,7 @@ function mapDevice(
     lastSeenAt: d.lastSeenAt ? d.lastSeenAt.toISOString() : null,
     activationsToday: todayBy.get(d.id) ?? 0,
     activationsThisMonth: monthBy.get(d.id) ?? 0,
+    claimed: d.claimedAt !== null,
   };
 }
 

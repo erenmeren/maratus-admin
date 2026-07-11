@@ -3,7 +3,7 @@
 // Store mutations (tenant-scoped). Create a new branch in the active org.
 
 import { revalidatePath } from "next/cache";
-import { and, count, eq } from "drizzle-orm";
+import { and, count, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   device as deviceTable,
@@ -176,10 +176,12 @@ async function performStoreDelete(
     .limit(1);
   if (!existing) return { ok: false, error: "Store not found." };
 
+  // Only claimed devices actually enter the Unassigned pool — unclaimed
+  // provisioned devices just lose their store link and stay out of it.
   const [{ n: unassignedDeviceCount }] = await db
     .select({ n: count() })
     .from(deviceTable)
-    .where(eq(deviceTable.storeId, storeId));
+    .where(and(eq(deviceTable.storeId, storeId), isNotNull(deviceTable.claimedAt)));
   const [{ n: disarmedAllocationCount }] = await db
     .select({ n: count() })
     .from(factoryDevice)

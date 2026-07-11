@@ -74,7 +74,7 @@ export default async function StoreDetailPage({
         {canClaim && (
           <StoreDeleteButton
             store={{ id: store.id, name: store.name }}
-            deviceCount={store.devices.length}
+            deviceCount={store.devices.filter((d) => d.claimed).length}
             armedCount={armedByStore[store.id] ?? 0}
           />
         )}

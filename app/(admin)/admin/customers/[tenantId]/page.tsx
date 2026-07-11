@@ -171,7 +171,7 @@ export default async function CustomerDetailPage({
           id: s.id,
           name: s.name,
           address: s.address,
-          deviceCount: s.devices.length,
+          deviceCount: s.devices.filter((d) => d.claimed).length,
           armedCount: armedByStore[s.id] ?? 0,
         }))}
       />
@@ -276,7 +276,11 @@ export default async function CustomerDetailPage({
                   </TableCell>
                   <TableCell className="pr-4">
                     {!isArchived && (
-                      <DeviceRowActions deviceId={d.id} status={d.status} />
+                      <DeviceRowActions
+                        deviceId={d.id}
+                        status={d.status}
+                        stores={storeOptions}
+                      />
                     )}
                   </TableCell>
                 </TableRow>

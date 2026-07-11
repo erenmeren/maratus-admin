@@ -3,9 +3,14 @@
 // Store mutations (tenant-scoped). Create a new branch in the active org.
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { organization as orgTable, store as storeTable } from "@/lib/db/schema";
+import {
+  device as deviceTable,
+  factoryDevice,
+  organization as orgTable,
+  store as storeTable,
+} from "@/lib/db/schema";
 import { requirePlatformAdmin, requireTenant } from "@/lib/session";
 import { id } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
@@ -149,4 +154,97 @@ export async function updateStore(
   revalidatePath(`/tenant/stores/${storeId}`);
   revalidatePath("/tenant");
   return { ok: true, storeId };
+}
+
+export interface DeleteStoreResult {
+  ok: boolean;
+  error?: string;
+}
+
+// Shared body for both roles. Deleting the row nulls device.storeId and
+// factoryDevice.allocatedStoreId via the FKs' onDelete: "set null" — devices
+// drop into the tenant's Unassigned pool; armed allocations disarm.
+async function performStoreDelete(
+  organizationId: string,
+  storeId: string,
+  actor: { type: "user"; id: string; label: string },
+): Promise<DeleteStoreResult> {
+  const [existing] = await db
+    .select({ id: storeTable.id, name: storeTable.name })
+    .from(storeTable)
+    .where(and(eq(storeTable.id, storeId), eq(storeTable.organizationId, organizationId)))
+    .limit(1);
+  if (!existing) return { ok: false, error: "Store not found." };
+
+  const [{ n: unassignedDeviceCount }] = await db
+    .select({ n: count() })
+    .from(deviceTable)
+    .where(eq(deviceTable.storeId, storeId));
+  const [{ n: disarmedAllocationCount }] = await db
+    .select({ n: count() })
+    .from(factoryDevice)
+    .where(and(eq(factoryDevice.allocatedStoreId, storeId), eq(factoryDevice.status, "allocated")));
+
+  await db
+    .delete(storeTable)
+    .where(and(eq(storeTable.id, storeId), eq(storeTable.organizationId, organizationId)));
+
+  await recordAudit({
+    organizationId,
+    actor,
+    action: AUDIT.storeDeleted,
+    target: { type: "store", id: storeId },
+    metadata: { name: existing.name, unassignedDeviceCount, disarmedAllocationCount },
+  });
+  return { ok: true };
+}
+
+/** Delete a store (tenant owner/admin). Its devices move to the Unassigned pool. */
+export async function deleteStore(storeId: string): Promise<DeleteStoreResult> {
+  const { ctx, organizationId } = await requireTenant();
+
+  const membership = ctx.organizations.find((o) => o.id === organizationId);
+  if (!membership || !["owner", "admin"].includes(membership.role)) {
+    return { ok: false, error: "You don't have permission to delete stores." };
+  }
+
+  const result = await performStoreDelete(organizationId, storeId, {
+    type: "user",
+    id: ctx.user.id,
+    label: ctx.user.email,
+  });
+  if (!result.ok) return result;
+
+  revalidatePath("/tenant/stores");
+  revalidatePath("/tenant");
+  return result;
+}
+
+/** Platform-admin variant (parity with createStoreForOrg). */
+export async function deleteStoreForOrg(
+  organizationId: string,
+  storeId: string,
+): Promise<DeleteStoreResult> {
+  const ctx = await requirePlatformAdmin();
+
+  const [org] = await db
+    .select({ id: orgTable.id })
+    .from(orgTable)
+    .where(eq(orgTable.id, organizationId))
+    .limit(1);
+  if (!org) return { ok: false, error: "Customer not found." };
+  if (await isOrgArchived(organizationId)) {
+    return { ok: false, error: "Customer is archived." };
+  }
+
+  const result = await performStoreDelete(organizationId, storeId, {
+    type: "user",
+    id: ctx.user.id,
+    label: ctx.user.email,
+  });
+  if (!result.ok) return result;
+
+  revalidatePath(`/admin/customers/${organizationId}`);
+  revalidatePath("/admin");
+  return result;
 }

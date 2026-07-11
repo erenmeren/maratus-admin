@@ -323,3 +323,50 @@ export async function unassignDevice(deviceId: string): Promise<ActionResult> {
   return { ok: true, status: "offline" };
 }
 
+/**
+ * Assign a pool (or any same-org) device to a store — the tenant-scoped
+ * sibling of the admin-only reassignDevice. Owner/admin only.
+ */
+export async function assignDeviceToStore(
+  deviceId: string,
+  storeId: string,
+): Promise<ActionResult> {
+  const { ctx, organizationId } = await requireTenant();
+
+  const membership = ctx.organizations.find((o) => o.id === organizationId);
+  if (!membership || !["owner", "admin"].includes(membership.role)) {
+    return { ok: false, error: "You don't have permission to manage devices." };
+  }
+
+  const [device] = await db
+    .select({ id: deviceTable.id, organizationId: deviceTable.organizationId })
+    .from(deviceTable)
+    .where(eq(deviceTable.id, deviceId))
+    .limit(1);
+  if (!device || device.organizationId !== organizationId) {
+    return { ok: false, error: "Device not found." };
+  }
+
+  const [target] = await db
+    .select({ id: storeTable.id })
+    .from(storeTable)
+    .where(and(eq(storeTable.id, storeId), eq(storeTable.organizationId, organizationId)))
+    .limit(1);
+  if (!target) return { ok: false, error: "Store not found." };
+
+  await db.update(deviceTable).set({ storeId }).where(eq(deviceTable.id, deviceId));
+
+  await recordAudit({
+    organizationId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    action: AUDIT.deviceReassigned,
+    target: { type: "device", id: deviceId },
+    metadata: { storeId },
+  });
+
+  revalidatePath("/tenant/stores");
+  revalidatePath(`/tenant/stores/${storeId}`);
+  revalidatePath("/tenant");
+  return { ok: true };
+}
+

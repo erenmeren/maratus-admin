@@ -77,8 +77,9 @@ Two access tiers behind one app shell:
   branding, device settings, members, analytics, reports, activity (audit log),
   and billing (prepaid credits). Scoped to the user's active organization.
 - **Super Admin** (`/admin/*`) — Ditto staff (`user.role = 'platform_admin'`) see
-  across all customers: overview, customers, the global device fleet, firmware
-  releases, platform health, and billing (credit usage across all orgs).
+  across all customers: overview, customers, the global device fleet, factory
+  **inventory** (manufacturing registry, `/admin/inventory`), firmware releases,
+  platform health, and billing (credit usage across all orgs).
 
 Key seams:
 
@@ -90,8 +91,10 @@ Key seams:
   Route-group layouts call these to gate access. `middleware.ts` is an optimistic
   cookie check at the edge; real role checks run in the layouts.
 - **`lib/db/schema.ts`** — Better Auth tables + org plugin + app tables (all FK →
-  `organizationId`): `tenantSettings`, `store`, `device`, `deviceCommand`,
-  `firmwareRelease`, `apiKey`, `creditBalance`, `creditLedger`, plus infra tables
+  `organizationId`): `tenantSettings` (incl. `archivedAt`/`archivedNote` for the
+  customer-archive lifecycle), `store`, `device` (incl. `serial`), `deviceCommand`,
+  `firmwareRelease`, `apiKey`, `creditBalance`, `creditLedger`, `factoryDevice`
+  (the manufacturing registry, keyed by eFuse-MAC serial), plus infra tables
   (`apiIdempotency`, `rateLimit`, `auditLog`, `alert`). `organization = tenant`;
   platform admin is a user role, not a membership. Money is stored in integer
   **cents**; prepaid credits are the sole payment path.
@@ -109,7 +112,10 @@ passes a URL.
 1. **Provision** — a platform admin creates a device with a one-time pairing code.
 2. **Claim** — a tenant claims it into a store (`claimDevice`), which issues a
    device key (raw key shown **once**; only its SHA-256 hash is stored) and
-   consumes the pairing code.
+   consumes the pairing code. A device also self-claims by polling
+   `GET /api/device/claim?code=…&serial=…` on its setup screen; if its serial was
+   pre-allocated in the factory registry (see below), it **auto-claims zero-touch**
+   on first contact — no code entry.
 3. **Trigger** — `POST /api/v1/devices/{deviceId}/trigger`, authenticated by an
    API key with the `devices:trigger` scope plus a required `Idempotency-Key`
    header. Body `{ action: "show_qr", payload: { url } }`. The route checks device
@@ -124,6 +130,36 @@ Devices also poll `GET /api/device/config` for org-wide device policy
 (brightness / sleep / QR duration / PIN) and pull firmware from
 `GET /api/device/firmware`. See [`docs/device-protocol.md`](docs/device-protocol.md)
 and the machine-readable API spec at `GET /api/v1/openapi.json`.
+
+## Factory registry & zero-touch provisioning
+
+For manufacturing scale, every printer is tracked in `factoryDevice`, keyed by its
+immutable **eFuse-MAC serial** (12 lowercase hex — public, printed on the box;
+**never** a credential). Platform admins manage it at `/admin/inventory`: import a
+batch by CSV, allocate serials to a customer (+store), mark RMA, or reprint a
+label QR. Lifecycle `manufactured → allocated → claimed` (+`rma`/`retired`). When
+an **allocated** serial (with both org and store) first polls the claim endpoint,
+it auto-claims zero-touch and mints its key in one shot — the installer only
+connects Wi-Fi. A `claimed` serial never re-mints a key (hijack guard); the claim
+endpoint validates the code before any DB hit and is rate-limited per-code and
+per-IP. `lib/factory-registry.ts` holds the transactional registry operations;
+`lib/provisioning.ts` holds the pure decision logic. Recovery from a mis-claim is
+documented in [`docs/runbooks/factory-registry-hijack-recovery.md`](docs/runbooks/factory-registry-hijack-recovery.md).
+
+## Customer lifecycle (offboarding & archive)
+
+Customers are never hard-deleted — "deleting" a churned customer **archives** it
+(`tenantSettings.archivedAt`), a reversible soft-delete that keeps all credit and
+audit history. The admin offboard wizard (customer detail → danger zone) decides
+each device's fate (return to stock → device row deleted + its registry serial
+reverted to `manufactured`, re-allocatable; or leave with customer → device paused
++ serial `retired`), sweeps still-allocated serials, revokes API keys, cancels
+pending invitations, freezes the credit balance, and stamps `archivedAt` last (so
+the flow is idempotently re-runnable). `requireTenant` gates archived orgs out of
+the tenant panel; `lib/data.ts` excludes them from KPIs/lists by default; a
+server-side `isOrgArchived` guard blocks admin mutations. **Restore** un-archives
+(it does not undo device dispositions or key revocations). See
+`lib/actions/offboarding.ts`.
 
 ## Billing (prepaid credits)
 
@@ -141,7 +177,8 @@ a completed purchase. The `creditLedger` table is the append-only source of trut
 npm test
 ```
 
-Pure domain logic is unit-tested with vitest (`lib/**/*.test.ts`, ~32 suites) —
-device status derivation, health alerts, credit usage/overview rollups, API-key
-scopes, OpenAPI/serialization, audit labels, rate limiting, trigger actions,
-provisioning, printer layout/geometry, timezones, and member-role rules.
+Pure domain logic is unit-tested with vitest (`lib/**/*.test.ts`, 37 suites /
+260 tests) — device status derivation, health alerts, credit usage/overview
+rollups, API-key scopes, OpenAPI/serialization, audit labels, rate limiting,
+trigger actions, provisioning + factory-registry decision logic, offboarding
+helpers, printer layout/geometry, timezones, and member-role rules.

@@ -27,7 +27,12 @@ function isGoneSubscriptionError(err: unknown): boolean {
   const e = err as { code?: string; message?: string } | null;
   return (
     e?.code === "resource_missing" ||
-    /canceled subscription|no such subscription/i.test(e?.message ?? "")
+    // Stripe's wording varies by endpoint: "This subscription is already
+    // canceled", "You cannot update a subscription that is `canceled` or
+    // `incomplete_expired`", "No such subscription: ...". Match them all.
+    /canceled subscription|no such subscription|already canceled|subscription that is `?canceled|incomplete_expired/i.test(
+      e?.message ?? "",
+    )
   );
 }
 

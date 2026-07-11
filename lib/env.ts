@@ -42,6 +42,11 @@ const envSchema = z.object({
   // e.g. `small:price_abc:100,large:price_def:1000`
   STRIPE_CREDIT_PACK_PRICE_IDS: z.string().optional(),
 
+  // Per-device monthly Stripe prices (dual-track pricing). Tier discounts are
+  // configured on the price objects in Stripe, not in code.
+  STRIPE_FLAT_PRICE_ID: z.string().optional(),
+  STRIPE_BASE_PRICE_ID: z.string().optional(),
+
   // Shared secret for the scheduled cron endpoint(s). Vercel sends it as
   // `Authorization: Bearer <CRON_SECRET>`. Absent → the cron route returns 503.
   CRON_SECRET: z.string().optional(),

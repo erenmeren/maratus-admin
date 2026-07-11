@@ -28,6 +28,7 @@ import {
 } from "@/lib/factory-registry";
 import { sendEmail } from "@/lib/email";
 import { autoClaimEmail } from "@/lib/registry-emails";
+import { syncDeviceSubscription } from "@/lib/billing/device-subscription";
 
 export const runtime = "nodejs";
 
@@ -68,6 +69,16 @@ export async function GET(req: Request) {
     if (shouldAutoClaim(false, registry)) {
       const auto = await autoClaimDevice(serial, code);
       if (auto) {
+        // Keep the per-device subscription quantity in sync (fail-open — a
+        // Stripe hiccup must never delay or fail key delivery). Deferred via
+        // after(), same as the notification email below.
+        after(async () => {
+          try {
+            await syncDeviceSubscription(auto.organizationId);
+          } catch (err) {
+            console.error("device-subscription sync after auto-claim failed", err);
+          }
+        });
         // Best-effort platform-admin notification — a zero-touch auto-claim
         // is the exact event the hijack-recovery runbook is written around,
         // so admins need a signal to notice an unexpected one. Deferred via

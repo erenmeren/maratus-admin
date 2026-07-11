@@ -15,6 +15,7 @@ import { requirePlatformAdmin } from "@/lib/session";
 import { AUDIT, recordAudit } from "@/lib/audit";
 import { getBalance } from "@/lib/credits";
 import { getOrgDevicesForOffboard } from "@/lib/data";
+import { syncDeviceSubscription } from "@/lib/billing/device-subscription";
 import {
   returnDeviceToStock,
   retireDeviceWithCustomer,
@@ -196,6 +197,16 @@ export async function offboardCustomerAction(
     metadata: buildOffboardMetadata(summary, normalizedNote),
   });
 
+  // Keep the per-device subscription in sync (fail-open — a Stripe hiccup
+  // must never fail an offboard). Covers both the disposition-driven claimed
+  // device count drop (return-to-stock deletes rows) and the archive → wind
+  // down to "credits" (cancel).
+  try {
+    await syncDeviceSubscription(organizationId);
+  } catch (err) {
+    console.error("device-subscription sync after offboard failed", err);
+  }
+
   revalidatePath("/admin/customers");
   revalidatePath(`/admin/customers/${organizationId}`);
   return { ok: true, summary };
@@ -228,6 +239,15 @@ export async function restoreCustomerAction(
     action: AUDIT.orgRestored,
     target: { type: "organization", id: organizationId },
   });
+
+  // Keep the per-device subscription in sync (fail-open) — a restored org's
+  // plan is live again, so a flat/base_usage plan should re-create/resume.
+  try {
+    await syncDeviceSubscription(organizationId);
+  } catch (err) {
+    console.error("device-subscription sync after restore failed", err);
+  }
+
   revalidatePath("/admin/customers");
   revalidatePath(`/admin/customers/${organizationId}`);
   return { ok: true };

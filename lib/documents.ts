@@ -6,6 +6,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "./db";
 import { device as deviceTable, store as storeTable } from "./db/schema";
 import { generateDeviceKey, id } from "./ids";
+import { syncDeviceSubscription } from "./billing/device-subscription";
 
 export interface ClaimResult {
   deviceId: string;
@@ -66,6 +67,13 @@ export async function claimDevice(
       .where(and(eq(deviceTable.id, existing.id), isNull(deviceTable.claimedAt)))
       .returning({ id: deviceTable.id });
     if (bound.length === 0) throw new Error("Device already claimed");
+    // Keep the per-device subscription quantity in sync (fail-open — a Stripe
+    // hiccup must never fail a claim).
+    try {
+      await syncDeviceSubscription(store.organizationId);
+    } catch (err) {
+      console.error("device-subscription sync after claim failed", err);
+    }
     return { deviceId: existing.id, deviceName: existing.name, deviceKey: key };
   }
 
@@ -94,6 +102,13 @@ export async function claimDevice(
       throw new Error("Pairing code already in use");
     }
     throw err;
+  }
+  // Keep the per-device subscription quantity in sync (fail-open — a Stripe
+  // hiccup must never fail a claim).
+  try {
+    await syncDeviceSubscription(store.organizationId);
+  } catch (err) {
+    console.error("device-subscription sync after claim failed", err);
   }
   return { deviceId, deviceName: name, deviceKey: key };
 }

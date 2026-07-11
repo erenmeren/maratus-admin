@@ -4,6 +4,7 @@ import { StoreRowActions } from "@/components/store-row-actions";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge, StatusDot } from "@/components/status-badge";
 import { AddStoreDialog } from "@/components/add-store-dialog";
+import { UnassignedDevices } from "@/components/unassigned-devices";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -13,13 +14,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getTenantStores } from "@/lib/data";
+import { getTenantStores, getTenantUnassignedDevices } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
 import { formatNumber } from "@/lib/format";
 
 export default async function StoresPage() {
   const { ctx, organizationId } = await requireTenant();
   const stores = await getTenantStores(organizationId);
+  const unassigned = await getTenantUnassignedDevices(organizationId);
   const totalDevices = stores.reduce((a, s) => a + s.deviceCount, 0);
   const totalOnline = stores.reduce((a, s) => a + s.onlineCount, 0);
   const membership = ctx.organizations.find((o) => o.id === organizationId);
@@ -104,6 +106,14 @@ export default async function StoresPage() {
           </TableBody>
         </Table>
       </Card>
+
+      {unassigned.length > 0 && (
+        <UnassignedDevices
+          devices={unassigned}
+          stores={stores.map((s) => ({ id: s.id, name: s.name }))}
+          canManage={canManage}
+        />
+      )}
     </>
   );
 }

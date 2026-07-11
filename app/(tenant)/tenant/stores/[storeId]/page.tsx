@@ -12,6 +12,8 @@ import { requireTenant } from "@/lib/session";
 import { DocumentsAreaChart } from "@/components/charts";
 import { PeakHeatmap } from "@/components/peak-heatmap";
 import { StoreEditButton } from "@/components/store-edit-button";
+import { StoreDeleteButton } from "@/components/store-delete-button";
+import { getArmedAllocationCountByStore } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
 
 export default async function StoreDetailPage({
@@ -28,6 +30,7 @@ export default async function StoreDetailPage({
   const membership = ctx.organizations.find((o) => o.id === organizationId);
   const canClaim = !!membership && ["owner", "admin"].includes(membership.role);
   const unclaimed = canClaim ? await getUnclaimedDevices(organizationId) : [];
+  const armedByStore = canClaim ? await getArmedAllocationCountByStore(organizationId) : {};
 
   const online = store.devices.filter((d) => d.status === "online").length;
   const activationsToday = store.devices.reduce((a, d) => a + d.activationsToday, 0);
@@ -66,6 +69,13 @@ export default async function StoreDetailPage({
               address: store.address,
               timezone: store.timezone,
             }}
+          />
+        )}
+        {canClaim && (
+          <StoreDeleteButton
+            store={{ id: store.id, name: store.name }}
+            deviceCount={store.devices.length}
+            armedCount={armedByStore[store.id] ?? 0}
           />
         )}
         {canClaim && <ClaimDeviceDialog storeId={store.id} />}

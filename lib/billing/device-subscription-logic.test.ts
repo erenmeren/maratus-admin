@@ -32,12 +32,15 @@ describe("desiredSubscriptionState", () => {
     ).toEqual({ action: "cancel" });
   });
 
-  it("unconfigured price id is a no-op / cancel (env not set)", () => {
+  it("unconfigured price id with no subscription → none (config error, nothing to wind down)", () => {
     expect(
       desiredSubscriptionState({ plan: "base_usage", deviceCount: 4, hasSubscription: false, priceId: null }),
     ).toEqual({ action: "none" });
+  });
+
+  it("unconfigured price id with an existing subscription → none (config-missing is NOT a wind-down; never auto-cancel a live sub over a missing env var)", () => {
     expect(
       desiredSubscriptionState({ plan: "base_usage", deviceCount: 4, hasSubscription: true, priceId: null }),
-    ).toEqual({ action: "cancel" });
+    ).toEqual({ action: "none" });
   });
 });

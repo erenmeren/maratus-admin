@@ -15,9 +15,12 @@ export function desiredSubscriptionState(a: {
   hasSubscription: boolean;
   priceId: string | null;
 }): DesiredSub {
-  const billable = a.priceId !== null && a.plan !== "credits" && a.deviceCount > 0;
-  if (!billable) return a.hasSubscription ? { action: "cancel" } : { action: "none" };
+  if (a.plan === "credits" || a.deviceCount === 0)
+    return a.hasSubscription ? { action: "cancel" } : { action: "none" };
+  // Plan is billable but the price env var is missing: configuration error,
+  // not a wind-down — never touch an existing subscription over it.
+  if (!a.priceId) return { action: "none" };
   return a.hasSubscription
-    ? { action: "update", priceId: a.priceId!, quantity: a.deviceCount }
-    : { action: "create", priceId: a.priceId!, quantity: a.deviceCount };
+    ? { action: "update", priceId: a.priceId, quantity: a.deviceCount }
+    : { action: "create", priceId: a.priceId, quantity: a.deviceCount };
 }

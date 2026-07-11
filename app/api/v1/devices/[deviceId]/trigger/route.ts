@@ -71,7 +71,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
   if (!reserved.ok) {
     await db.delete(apiIdempotency).where(and(eq(apiIdempotency.key, idemKey), eq(apiIdempotency.organizationId, auth.organizationId)));
     if (reserved.reason === "fair_use_exceeded") {
-      return apiError("fair_use_exceeded", "Fair-use trigger ceiling reached for this device this month.", 429);
+      const res = apiError("fair_use_exceeded", "Fair-use trigger ceiling reached for this device this month.", 429);
+      const now = new Date();
+      const nextMonth = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1);
+      const retryAfterSeconds = Math.max(1, Math.ceil((nextMonth - now.getTime()) / 1000));
+      res.headers.set("Retry-After", String(retryAfterSeconds));
+      return res;
     }
     return apiError("insufficient_credits", "Not enough credits.", 402);
   }

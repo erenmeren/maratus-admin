@@ -5,7 +5,7 @@ import { guardApiRequest } from "@/lib/api/guard";
 import { apiError, apiJson } from "@/lib/api/respond";
 import { hasScope } from "@/lib/api-scopes";
 import { validateTriggerBody, creditCostForAction } from "@/lib/trigger-actions";
-import { reserveCredit, releaseHold } from "@/lib/credits";
+import { reserveTrigger, cancelTriggerReservation } from "@/lib/trigger-billing";
 import { releaseExpiredHolds } from "@/lib/credit-holds";
 import { effectiveDeviceStatus } from "@/lib/device-status";
 import { id } from "@/lib/ids";
@@ -66,20 +66,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
     return apiError("conflict", "Concurrent request in progress.", 409);
   }
 
-  // We own the claim. Reserve; on failure, release the claim so a retry can proceed.
-  const reserved = await reserveCredit({ organizationId: auth.organizationId, deviceId, action: v.action, commandId, cost });
+  // We own the claim. Reserve (plan-aware); on failure, release the claim so a retry can proceed.
+  const reserved = await reserveTrigger({ organizationId: auth.organizationId, deviceId, action: v.action, commandId, cost });
   if (!reserved.ok) {
     await db.delete(apiIdempotency).where(and(eq(apiIdempotency.key, idemKey), eq(apiIdempotency.organizationId, auth.organizationId)));
+    if (reserved.reason === "fair_use_exceeded") {
+      return apiError("fair_use_exceeded", "Fair-use trigger ceiling reached for this device this month.", 429);
+    }
     return apiError("insufficient_credits", "Not enough credits.", 402);
   }
 
   try {
     await db.insert(deviceCommand).values({
       id: commandId, deviceId, organizationId: auth.organizationId, type: "trigger",
-      status: "pending", action: v.action, payload: v.payload, expiresAt: new Date(Date.now() + TTL_MS),
+      status: "pending", action: v.action, payload: v.payload, billing: reserved.billing,
+      expiresAt: new Date(Date.now() + TTL_MS),
     });
   } catch {
-    await releaseHold({ organizationId: auth.organizationId, commandId, cost, deviceId });
+    await cancelTriggerReservation({ organizationId: auth.organizationId, deviceId, commandId, cost, billing: reserved.billing, month: reserved.month });
     await db.delete(apiIdempotency).where(and(eq(apiIdempotency.key, idemKey), eq(apiIdempotency.organizationId, auth.organizationId)));
     return apiError("internal_error", "Could not enqueue the command.", 500);
   }

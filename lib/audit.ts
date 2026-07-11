@@ -36,6 +36,7 @@ export const AUDIT = {
   deviceWentOffline: "device.went_offline",
   storeCreated: "store.created",
   storeUpdated: "store.updated",
+  storeDeleted: "store.deleted",
   apiKeyCreated: "api_key.created",
   apiKeyRevoked: "api_key.revoked",
   brandingUpdated: "branding.updated",

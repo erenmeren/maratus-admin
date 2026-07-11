@@ -33,6 +33,7 @@ export async function releaseExpiredHolds(opts?: { organizationId?: string }): P
       organizationId: deviceCommand.organizationId,
       action: deviceCommand.action,
       deviceId: deviceCommand.deviceId,
+      billing: deviceCommand.billing,
     })
     .from(deviceCommand)
     .where(where);
@@ -45,13 +46,16 @@ export async function releaseExpiredHolds(opts?: { organizationId?: string }): P
       .where(and(eq(deviceCommand.id, c.id), inArray(deviceCommand.status, ["pending", "delivered"])))
       .returning({ id: deviceCommand.id });
     if (!won) continue; // lost the race to an ack
-    await releaseHold({
-      organizationId: c.organizationId,
-      commandId: c.id,
-      cost: creditCostForAction((c.action ?? "show_qr") as "show_qr"),
-      deviceId: c.deviceId,
-    });
-    released++;
+    // Included (plan-covered) triggers hold no credits — expiring the command is enough.
+    if (c.billing !== "included") {
+      await releaseHold({
+        organizationId: c.organizationId,
+        commandId: c.id,
+        cost: creditCostForAction((c.action ?? "show_qr") as "show_qr"),
+        deviceId: c.deviceId,
+      });
+      released++;
+    }
   }
   return { released };
 }

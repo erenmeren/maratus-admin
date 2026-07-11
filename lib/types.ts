@@ -45,6 +45,8 @@ export interface Tenant {
   logoText: string;
   staffPin: string;
   stores: Store[];
+  /** Claimed devices with no store (their store was deleted / they were unassigned). */
+  unassignedDevices: Device[];
 }
 
 export interface TimePoint {

@@ -21,6 +21,7 @@ import {
   creditLedger as creditLedgerTable,
   device as deviceTable,
   deviceCommand,
+  factoryDevice,
   invitation as invitationTable,
   member as memberTable,
   organization as orgTable,
@@ -258,6 +259,12 @@ function buildTenant(b: OrgBundle): Tenant {
       .map((d) => mapDevice(d, b.org.id, todayBy, monthBy)),
   }));
 
+  // Claimed but storeless (store deleted or admin-unassigned). Unclaimed
+  // provisioned devices are also storeless by design — keep them out.
+  const unassignedDevices: Device[] = b.devices
+    .filter((d) => d.storeId === null && d.claimedAt !== null)
+    .map((d) => mapDevice(d, b.org.id, todayBy, monthBy));
+
   return {
     id: b.org.id,
     name: b.org.name,
@@ -267,6 +274,7 @@ function buildTenant(b: OrgBundle): Tenant {
     logoText: b.org.name,
     staffPin: b.settings?.staffPin ?? "",
     stores,
+    unassignedDevices,
   };
 }
 
@@ -300,7 +308,10 @@ function rollUpStoreStatus(devices: Device[]): StoreSummary["status"] {
 
 function summarize(b: OrgBundle): TenantSummary {
   const tenant = buildTenant(b);
-  const allDevices = tenant.stores.flatMap((s) => s.devices);
+  const allDevices = [
+    ...tenant.stores.flatMap((s) => s.devices),
+    ...tenant.unassignedDevices,
+  ];
   const activationsThisMonth = allDevices.reduce(
     (a, d) => a + d.activationsThisMonth,
     0,
@@ -396,7 +407,10 @@ export async function getTenantDashboard(
   const b = await loadOrg(organizationId);
   if (!b) throw new Error(`Organization not found: ${organizationId}`);
   const tenant = buildTenant(b);
-  const devices = tenant.stores.flatMap((s) => s.devices);
+  const devices = [
+    ...tenant.stores.flatMap((s) => s.devices),
+    ...tenant.unassignedDevices,
+  ];
   const activationsToday = devices.reduce((a, d) => a + d.activationsToday, 0);
   const activationsThisMonth = devices.reduce((a, d) => a + d.activationsThisMonth, 0);
   const activeDevices = devices.filter((d) => d.status === "online").length;
@@ -691,14 +705,22 @@ export async function getCustomerDetail(
   const now = new Date();
 
   // Apply effective status locally (mapDevice stays raw globally).
-  const devices: DeviceRow[] = tenant.stores.flatMap((store) =>
-    store.devices.map((d) => ({
+  const devices: DeviceRow[] = [
+    ...tenant.stores.flatMap((store) =>
+      store.devices.map((d) => ({
+        ...d,
+        status: effectiveDeviceStatus(d.status, d.lastSeenAt ? new Date(d.lastSeenAt) : null, now),
+        tenantName: tenant.name,
+        storeName: store.name,
+      })),
+    ),
+    ...tenant.unassignedDevices.map((d) => ({
       ...d,
       status: effectiveDeviceStatus(d.status, d.lastSeenAt ? new Date(d.lastSeenAt) : null, now),
       tenantName: tenant.name,
-      storeName: store.name,
+      storeName: "—",
     })),
-  );
+  ];
   let online = 0, offline = 0, paused = 0;
   for (const d of devices) {
     if (d.status === "online") online++;
@@ -1024,6 +1046,38 @@ export async function enqueueConfigChangedForOrg(
       createdByUserId: createdByUserId ?? undefined,
     })),
   );
+}
+
+/** The org's unassigned pool (claimed devices whose store was deleted). */
+export async function getTenantUnassignedDevices(
+  organizationId: string,
+): Promise<Device[]> {
+  const tenant = await getTenant(organizationId);
+  return tenant.unassignedDevices;
+}
+
+/**
+ * Armed zero-touch allocations per store: factory serials allocated to a
+ * store but not yet claimed. Deleting the store disarms them (FK set-null),
+ * so delete dialogs surface this count as a warning.
+ */
+export async function getArmedAllocationCountByStore(
+  organizationId: string,
+): Promise<Record<string, number>> {
+  const rows = await db
+    .select({ storeId: factoryDevice.allocatedStoreId, n: count() })
+    .from(factoryDevice)
+    .where(
+      and(
+        eq(factoryDevice.allocatedOrganizationId, organizationId),
+        eq(factoryDevice.status, "allocated"),
+        isNotNull(factoryDevice.allocatedStoreId),
+      ),
+    )
+    .groupBy(factoryDevice.allocatedStoreId);
+  const out: Record<string, number> = {};
+  for (const r of rows) if (r.storeId) out[r.storeId] = r.n;
+  return out;
 }
 
 // Device provisioning helpers live in lib/documents.ts (claimDevice,

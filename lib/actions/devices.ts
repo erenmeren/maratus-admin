@@ -354,7 +354,10 @@ export async function assignDeviceToStore(
     .limit(1);
   if (!target) return { ok: false, error: "Store not found." };
 
-  await db.update(deviceTable).set({ storeId }).where(eq(deviceTable.id, deviceId));
+  await db
+    .update(deviceTable)
+    .set({ storeId })
+    .where(and(eq(deviceTable.id, deviceId), eq(deviceTable.organizationId, organizationId)));
 
   await recordAudit({
     organizationId,

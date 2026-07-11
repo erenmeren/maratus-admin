@@ -587,6 +587,20 @@ export async function getDevice(
     const device = store.devices.find((d) => d.id === deviceId);
     if (device) return { device, store, tenant };
   }
+  // Pool device: claimed but storeless. Represent with a synthetic "—" store
+  // so the admin device-detail page can render without crashing/404ing.
+  const pooled = tenant.unassignedDevices.find((d) => d.id === deviceId);
+  if (pooled) {
+    const unassignedStore: Store = {
+      id: "",
+      tenantId: tenant.id,
+      name: "—",
+      address: "",
+      timezone: "",
+      devices: [],
+    };
+    return { device: pooled, store: unassignedStore, tenant };
+  }
   return null;
 }
 
@@ -632,6 +646,18 @@ export async function getAllDevices(): Promise<DeviceRow[]> {
           storeName: store.name,
         });
       }
+    }
+    for (const device of tenant.unassignedDevices) {
+      rows.push({
+        ...device,
+        status: effectiveDeviceStatus(
+          device.status,
+          device.lastSeenAt ? new Date(device.lastSeenAt) : null,
+          now,
+        ),
+        tenantName: tenant.name,
+        storeName: "—",
+      });
     }
   }
   return rows;

@@ -22,6 +22,7 @@ export default async function DeviceDetailPage({
   const { organizationId } = await requireTenant();
   const result = await getDevice(deviceId);
   if (!result || result.tenant.id !== organizationId) notFound();
+  if (result.store.id !== storeId) notFound();
 
   const { device, store } = result;
   const commands = await getDeviceCommands(device.id);

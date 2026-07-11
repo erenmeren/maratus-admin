@@ -20,10 +20,15 @@ import { formatNumber } from "@/lib/format";
 
 export default async function StoresPage() {
   const { ctx, organizationId } = await requireTenant();
-  const stores = await getTenantStores(organizationId);
-  const unassigned = await getTenantUnassignedDevices(organizationId);
-  const totalDevices = stores.reduce((a, s) => a + s.deviceCount, 0);
-  const totalOnline = stores.reduce((a, s) => a + s.onlineCount, 0);
+  const [stores, unassigned] = await Promise.all([
+    getTenantStores(organizationId),
+    getTenantUnassignedDevices(organizationId),
+  ]);
+  const totalDevices =
+    stores.reduce((a, s) => a + s.deviceCount, 0) + unassigned.length;
+  const totalOnline =
+    stores.reduce((a, s) => a + s.onlineCount, 0) +
+    unassigned.filter((d) => d.status === "online").length;
   const membership = ctx.organizations.find((o) => o.id === organizationId);
   const canManage = !!membership && ["owner", "admin"].includes(membership.role);
 

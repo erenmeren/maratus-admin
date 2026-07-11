@@ -56,7 +56,7 @@ export function UnassignedDevices({
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="flex items-center gap-2 text-lg font-medium">
+        <h2 className="flex items-center gap-2 text-lg font-medium tracking-tight">
           <Link2Off className="size-4 text-muted-foreground" />
           Unassigned devices
         </h2>

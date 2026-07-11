@@ -30,7 +30,12 @@ export function DeleteStoreDialog({
   onConfirm: () => void;
 }) {
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!pending) onOpenChange(o);
+      }}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Delete store?</DialogTitle>
@@ -57,7 +62,7 @@ export function DeleteStoreDialog({
         </DialogHeader>
         <DialogFooter>
           <DialogClose asChild>
-            <Button type="button" variant="outline">
+            <Button type="button" variant="outline" disabled={pending}>
               Cancel
             </Button>
           </DialogClose>

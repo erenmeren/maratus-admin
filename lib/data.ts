@@ -52,6 +52,7 @@ import { normalizeDeviceSettings } from "@/lib/device-settings";
 import { rollupByDevice } from "@/lib/credit-usage";
 import { rollupCredits, type CreditsOverview } from "@/lib/credits-overview";
 import { getBalance } from "./credits";
+import { AUDIT } from "@/lib/audit";
 import type {
   Device,
   DeviceRow,
@@ -1049,6 +1050,25 @@ export async function getOrgAuditLog(organizationId: string, limit = 100) {
     metadata: (r.metadata as Record<string, unknown> | null) ?? null,
     at: r.createdAt.toISOString(),
   }));
+}
+
+/** Latest `org.archived` audit row for an org — targeted single-row lookup
+ *  for the offboarding-summary card, so it can't blank out once an org
+ *  accrues more than the activity list's row cap. */
+export async function getLatestOrgArchivedEntry(
+  organizationId: string,
+): Promise<{ metadata: Record<string, unknown> | null; at: string } | null> {
+  const [row] = await db
+    .select({ metadata: auditLogTable.metadata, createdAt: auditLogTable.createdAt })
+    .from(auditLogTable)
+    .where(and(eq(auditLogTable.organizationId, organizationId), eq(auditLogTable.action, AUDIT.orgArchived)))
+    .orderBy(desc(auditLogTable.createdAt))
+    .limit(1);
+  if (!row) return null;
+  return {
+    metadata: (row.metadata as Record<string, unknown> | null) ?? null,
+    at: row.createdAt.toISOString(),
+  };
 }
 
 export async function getOrgAuditPage(

@@ -29,6 +29,7 @@ import {
 import {
   getCustomerDetail,
   getOrgAuditLog,
+  getLatestOrgArchivedEntry,
   getCreditLedger,
   getOrgDevicesForOffboard,
 } from "@/lib/data";
@@ -36,7 +37,6 @@ import { getBalance } from "@/lib/credits";
 import { GrantCreditsForm } from "@/components/grant-credits-form";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { actionLabel } from "@/lib/audit-labels";
-import { AUDIT } from "@/lib/audit";
 import { deriveArchivedStatus, type OffboardSummary } from "@/lib/offboarding";
 
 const HEALTH_UI: Record<"healthy" | "warning" | "critical", { dot: string; label: string }> = {
@@ -75,7 +75,7 @@ export default async function CustomerDetailPage({
   const offboardDevices = isArchived
     ? []
     : await getOrgDevicesForOffboard(tenantId);
-  const archiveEntry = activity.find((e) => e.action === AUDIT.orgArchived);
+  const archiveEntry = isArchived ? await getLatestOrgArchivedEntry(tenantId) : null;
   const archiveSummary = archiveEntry?.metadata as
     | (Partial<OffboardSummary> & { note?: string })
     | null

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
@@ -26,6 +27,13 @@ import {
   type OffboardSummary,
 } from "@/lib/offboarding";
 
+const offboardChoicesSchema = z.array(
+  z.object({
+    deviceId: z.string().min(1),
+    disposition: z.enum(["return_to_stock", "leave_with_customer"]),
+  }),
+);
+
 /** Count of this org's audit rows for a given action — used to report
  *  END-STATE device-disposition totals (not just this run's delta), so a
  *  recovery re-run still shows the true cumulative counts. */
@@ -43,6 +51,12 @@ export async function offboardCustomerAction(
   note: string | null,
 ): Promise<{ ok: boolean; error?: string; summary?: OffboardSummary }> {
   const ctx = await requirePlatformAdmin();
+
+  const parsedChoices = offboardChoicesSchema.safeParse(choices);
+  if (!parsedChoices.success) {
+    return { ok: false, error: "Invalid offboarding request." };
+  }
+
   const normalizedNote = note || null;
 
   // Idempotency gate: if the org is already archived, do NOT re-run the
@@ -147,6 +161,9 @@ export async function offboardCustomerAction(
   const [returnedToStockTotal, leftWithCustomerTotal, revokedKeysTotal] = await Promise.all([
     countOrgAuditAction(organizationId, AUDIT.deviceReturnedToStock),
     countOrgAuditAction(organizationId, AUDIT.deviceLeftWithCustomer),
+    // END-STATE like the two counters above: counts ALL revoked keys for the
+    // org, not just ones revoked by this run — intentional, don't narrow to
+    // a per-run count.
     db
       .select({ total: count() })
       .from(apiKeyTable)

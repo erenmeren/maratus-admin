@@ -2,6 +2,7 @@
 // These mirror the shape a real API would eventually return.
 
 import type { HealthLevel } from "./tenant-health";
+import type { BillingPlan } from "./billing-plan";
 
 export type DeviceStatus = "online" | "offline" | "paused";
 export type ConnectionType = "ethernet" | "wifi";
@@ -48,6 +49,10 @@ export interface Tenant {
   stores: Store[];
   /** Claimed devices with no store (their store was deleted / they were unassigned). */
   unassignedDevices: Device[];
+  /** Dual-track pricing plan (2026-07-11 spec). */
+  billingPlan: BillingPlan;
+  /** Track C (base_usage): triggers included per device per calendar month. */
+  includedTriggersPerDevice: number;
 }
 
 export interface TimePoint {

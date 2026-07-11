@@ -37,6 +37,7 @@ import {
 } from "@/lib/data";
 import { getBalance } from "@/lib/credits";
 import { GrantCreditsForm } from "@/components/grant-credits-form";
+import { BillingPlanCard } from "@/components/billing-plan-card";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { actionLabel } from "@/lib/audit-labels";
 import { deriveArchivedStatus, type OffboardSummary } from "@/lib/offboarding";
@@ -174,6 +175,13 @@ export default async function CustomerDetailPage({
           deviceCount: s.devices.filter((d) => d.claimed).length,
           armedCount: armedByStore[s.id] ?? 0,
         }))}
+      />
+
+      <BillingPlanCard
+        organizationId={tenant.id}
+        billingPlan={tenant.billingPlan}
+        includedTriggersPerDevice={tenant.includedTriggersPerDevice}
+        disabled={isArchived}
       />
 
       {/* Credits */}

@@ -58,6 +58,7 @@ export const AUDIT = {
   orgRestored: "org.restored",
   deviceReturnedToStock: "device.returned_to_stock",
   deviceLeftWithCustomer: "device.left_with_customer",
+  billingPlanChanged: "billing.plan_changed",
 } as const;
 
 export async function recordAudit(input: {

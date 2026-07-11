@@ -54,6 +54,7 @@ import { rollupByDevice } from "@/lib/credit-usage";
 import { rollupCredits, type CreditsOverview } from "@/lib/credits-overview";
 import { getBalance } from "./credits";
 import { AUDIT } from "@/lib/audit";
+import { DEFAULT_INCLUDED_TRIGGERS } from "@/lib/billing-plan";
 import type {
   Device,
   DeviceRow,
@@ -275,6 +276,8 @@ function buildTenant(b: OrgBundle): Tenant {
     staffPin: b.settings?.staffPin ?? "",
     stores,
     unassignedDevices,
+    billingPlan: b.settings?.billingPlan ?? "credits",
+    includedTriggersPerDevice: b.settings?.includedTriggersPerDevice ?? DEFAULT_INCLUDED_TRIGGERS,
   };
 }
 

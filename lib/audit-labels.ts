@@ -49,6 +49,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "org.restored": "Customer restored",
   "device.returned_to_stock": "Device returned to stock",
   "device.left_with_customer": "Device left with customer",
+  "billing.plan_changed": "Billing plan changed",
 };
 
 function cap(s: string): string {

@@ -10,7 +10,7 @@
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
 //   • activationsToday / activationsThisMonth are derived from acked device-trigger commands
 
-import { and, count, desc, eq, gte, isNotNull, lt, max, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, isNotNull, lt, max, ne, sql } from "drizzle-orm";
 import { db } from "./db";
 import { id as genId } from "@/lib/ids";
 import {
@@ -59,6 +59,7 @@ import { getOrgUsageForMonth } from "@/lib/device-usage";
 import type {
   Device,
   DeviceRow,
+  DeviceStatus,
   Store,
   StoreSummary,
   Tenant,
@@ -66,6 +67,7 @@ import type {
   TenantSummary,
   TimePoint,
 } from "./types";
+import { PAGE_SIZE, escapeLike, type DeviceStatusFilter } from "@/lib/list-params";
 
 // ============================================================================
 // Internal: load an org's bounded metadata + SQL-aggregated activation rollups,
@@ -448,6 +450,189 @@ export async function getTenantStores(
     activationsThisMonth: s.devices.reduce((a, d) => a + d.activationsThisMonth, 0),
     status: rollUpStoreStatus(s.devices),
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Paginated fleet-scale lists (tenant Stores + Devices pages).
+// One 50-row page per call; totals via count(*) over (); search is escaped
+// ILIKE. Status is the STORED device.status column — the same thing every
+// other tenant page shows (the daily reconcile keeps it honest).
+
+export interface StoreListPage {
+  rows: StoreSummary[];
+  total: number;
+  fleet: { stores: number; devices: number; online: number };
+}
+
+export async function getTenantStoresPage(
+  organizationId: string,
+  opts: { q: string; page: number },
+): Promise<StoreListPage> {
+  const like = `%${escapeLike(opts.q)}%`;
+  const offset = (opts.page - 1) * PAGE_SIZE;
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+
+  const [pageRes, fleetRes] = await Promise.all([
+    db.execute(sql`
+      select s.id, s.name, s.address, s.timezone,
+             coalesce(dv.device_count, 0)::int  as device_count,
+             coalesce(dv.online_count, 0)::int  as online_count,
+             coalesce(dv.paused_count, 0)::int  as paused_count,
+             coalesce(act.n, 0)::int            as activations,
+             count(*) over ()::int              as total
+      from store s
+      left join (
+        select store_id,
+               count(*)::int                                as device_count,
+               count(*) filter (where status = 'online')::int as online_count,
+               count(*) filter (where status = 'paused')::int as paused_count
+        from device
+        where organization_id = ${organizationId}
+          and claimed_at is not null and store_id is not null
+        group by store_id
+      ) dv on dv.store_id = s.id
+      left join (
+        select d.store_id, count(*)::int as n
+        from device_command c
+        join device d on d.id = c.device_id
+        where d.organization_id = ${organizationId}
+          and c.type = 'trigger' and c.status = 'acked'
+          and c.created_at >= ${monthStart}
+        group by d.store_id
+      ) act on act.store_id = s.id
+      where s.organization_id = ${organizationId}
+        and (${opts.q} = '' or s.name ilike ${like} or s.address ilike ${like})
+      order by s.name asc
+      limit ${PAGE_SIZE} offset ${offset}
+    `),
+    db.execute(sql`
+      select (select count(*)::int from store where organization_id = ${organizationId}) as stores,
+             count(*)::int                                       as devices,
+             count(*) filter (where status = 'online')::int      as online
+      from device
+      where organization_id = ${organizationId} and claimed_at is not null
+    `),
+  ]);
+
+  type Row = {
+    id: string; name: string; address: string; timezone: string;
+    device_count: number; online_count: number; paused_count: number;
+    activations: number; total: number;
+  };
+  const rows = (pageRes.rows as Row[]).map((r) => ({
+    id: r.id,
+    name: r.name,
+    address: r.address,
+    timezone: r.timezone,
+    deviceCount: r.device_count,
+    onlineCount: r.online_count,
+    activationsThisMonth: r.activations,
+    status: (r.online_count > 0 ? "online" : r.paused_count > 0 ? "paused" : "offline") as StoreSummary["status"],
+  }));
+  const fleet = fleetRes.rows[0] as { stores: number; devices: number; online: number };
+  return {
+    rows,
+    total: (pageRes.rows[0] as Row | undefined)?.total ?? 0,
+    fleet: { stores: Number(fleet.stores), devices: Number(fleet.devices), online: Number(fleet.online) },
+  };
+}
+
+export interface DeviceListRow {
+  id: string;
+  name: string;
+  serial: string | null;
+  storeId: string | null;
+  storeName: string | null;
+  status: DeviceStatus;
+  lastSeen: string;
+}
+
+export interface DeviceListPage {
+  rows: DeviceListRow[];
+  total: number;
+  counts: { all: number; online: number; offline: number; paused: number; pool: number };
+}
+
+export async function getTenantDevicesPage(
+  organizationId: string,
+  opts: { q: string; status: DeviceStatusFilter; page: number },
+): Promise<DeviceListPage> {
+  const like = `%${escapeLike(opts.q)}%`;
+  const offset = (opts.page - 1) * PAGE_SIZE;
+  const statusCond =
+    opts.status === "all"
+      ? sql`true`
+      : opts.status === "pool"
+        ? sql`d.store_id is null`
+        : sql`d.status = ${opts.status}`;
+
+  const [pageRes, countRes] = await Promise.all([
+    db.execute(sql`
+      select d.id, d.name, d.serial, d.store_id, s.name as store_name, d.status,
+             coalesce(d.last_seen_at, d.created_at) as last_seen,
+             count(*) over ()::int as total
+      from device d
+      left join store s on s.id = d.store_id
+      where d.organization_id = ${organizationId}
+        and d.claimed_at is not null
+        and (${opts.q} = '' or d.name ilike ${like} or d.serial ilike ${like} or s.name ilike ${like})
+        and ${statusCond}
+      order by d.name asc, d.id asc
+      limit ${PAGE_SIZE} offset ${offset}
+    `),
+    db.execute(sql`
+      select count(*)::int                                        as all_count,
+             count(*) filter (where d.status = 'online')::int     as online,
+             count(*) filter (where d.status = 'offline')::int    as offline,
+             count(*) filter (where d.status = 'paused')::int     as paused,
+             count(*) filter (where d.store_id is null)::int      as pool
+      from device d
+      left join store s on s.id = d.store_id
+      where d.organization_id = ${organizationId}
+        and d.claimed_at is not null
+        and (${opts.q} = '' or d.name ilike ${like} or d.serial ilike ${like} or s.name ilike ${like})
+    `),
+  ]);
+
+  type Row = {
+    id: string; name: string; serial: string | null; store_id: string | null;
+    store_name: string | null; status: string; last_seen: string | Date; total: number;
+  };
+  const rows = (pageRes.rows as Row[]).map((r) => ({
+    id: r.id,
+    name: r.name,
+    serial: r.serial,
+    storeId: r.store_id,
+    storeName: r.store_name,
+    status: r.status as DeviceStatus,
+    lastSeen: new Date(r.last_seen).toISOString(),
+  }));
+  const c = countRes.rows[0] as {
+    all_count: number; online: number; offline: number; paused: number; pool: number;
+  };
+  return {
+    rows,
+    total: (pageRes.rows[0] as Row | undefined)?.total ?? 0,
+    counts: {
+      all: Number(c.all_count),
+      online: Number(c.online),
+      offline: Number(c.offline),
+      paused: Number(c.paused),
+      pool: Number(c.pool),
+    },
+  };
+}
+
+/** Lightweight store options (id + name) for the assign/move picker. */
+export async function getTenantStoreOptions(
+  organizationId: string,
+): Promise<{ id: string; name: string }[]> {
+  return db
+    .select({ id: storeTable.id, name: storeTable.name })
+    .from(storeTable)
+    .where(eq(storeTable.organizationId, organizationId))
+    .orderBy(asc(storeTable.name));
 }
 
 export async function getStore(

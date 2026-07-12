@@ -9,6 +9,7 @@ import { tenantSettings } from "@/lib/db/schema";
 import { getEnv } from "@/lib/env";
 import { eq } from "drizzle-orm";
 import { findPack } from "./credit-packs";
+import { getOrgEmailContext } from "./invoice-emails";
 
 function requireStripe() {
   if (!stripe) throw new Error("Stripe is not configured");
@@ -25,7 +26,14 @@ export async function ensureStripeCustomer(organizationId: string): Promise<stri
     .limit(1);
   if (settings?.stripeCustomerId) return settings.stripeCustomerId;
 
-  const customer = await s.customers.create({ metadata: { organizationId } });
+  // Stamp owner email + org name at creation: invoice-based (send_invoice)
+  // subscriptions refuse to bill a customer without an email.
+  const { ownerEmail, orgName } = await getOrgEmailContext(organizationId);
+  const customer = await s.customers.create({
+    email: ownerEmail ?? undefined,
+    name: orgName || undefined,
+    metadata: { organizationId },
+  });
   await db
     .update(tenantSettings)
     .set({ stripeCustomerId: customer.id })

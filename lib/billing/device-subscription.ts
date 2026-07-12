@@ -11,6 +11,7 @@ import { device, tenantSettings } from "@/lib/db/schema";
 import { getEnv } from "@/lib/env";
 import type { BillingPlan } from "@/lib/billing-plan";
 import { ensureStripeCustomer } from "./stripe-billing";
+import { getOrgEmailContext } from "./invoice-emails";
 import { desiredSubscriptionState } from "./device-subscription-logic";
 
 function planPriceId(plan: BillingPlan): string | null {
@@ -84,6 +85,16 @@ export async function syncDeviceSubscription(organizationId: string): Promise<vo
 
   if (desired.action === "create") {
     const customerId = await ensureStripeCustomer(organizationId);
+    // send_invoice subscriptions require an email on the customer, and
+    // ensureStripeCustomer historically created customers with metadata only.
+    // Stamp owner email + org name idempotently (also heals old customers).
+    const { ownerEmail, orgName } = await getOrgEmailContext(organizationId);
+    if (!ownerEmail) {
+      throw new Error(
+        `cannot create device subscription for ${organizationId}: org has no member email for invoicing`,
+      );
+    }
+    await stripe.customers.update(customerId, { email: ownerEmail, name: orgName });
     // Idempotency key guards against a concurrent burst of claims (e.g. one
     // sync per auto-claim during a zero-touch fleet install) minting
     // duplicate subscriptions. Stripe idempotency keys expire after 24h, so a
@@ -91,14 +102,28 @@ export async function syncDeviceSubscription(organizationId: string): Promise<vo
     // exactly what the concurrent burst needs. A cancel-then-recreate inside
     // 24h would replay the canceled sub's response, but Fix 2's update-path
     // gone-subscription healing corrects that on the very next sync.
+    // Invoice-based collection: plan customers are onboarded through
+    // negotiated contracts and usually have no card on file — the default
+    // charge_automatically rejects creation outright for them ("no attached
+    // payment source", confirmed against Stripe test mode). Invoices can
+    // still be paid by card via Stripe's hosted invoice page.
     const sub = await stripe.subscriptions.create(
       {
         customer: customerId,
         items: [{ price: desired.priceId, quantity: desired.quantity }],
         proration_behavior: "none",
+        collection_method: "send_invoice",
+        days_until_due: 14,
         metadata: { organizationId },
       },
-      { idempotencyKey: `devsub-create-${organizationId}` },
+      // v3 + 10-minute bucket: concurrent bursts (zero-touch fleet installs)
+      // land in the same bucket and dedupe; a poisoned key (Stripe caches 4xx
+      // responses per key for 24h — observed with a propagation-lagged
+      // "Missing email") self-heals at the next bucket instead of wedging the
+      // org for a day. Cross-bucket duplicates can't happen: create only runs
+      // when stripeSubscriptionId is null, and a success persists it.
+      // Bump v3 if these params ever change.
+      { idempotencyKey: `devsub-create-v3-${organizationId}-${Math.floor(Date.now() / 600_000)}` },
     );
     await db
       .update(tenantSettings)

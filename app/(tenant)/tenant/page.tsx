@@ -12,7 +12,7 @@ import { requireTenant } from "@/lib/session";
 import { formatNumber } from "@/lib/format";
 
 export default async function TenantDashboardPage() {
-  const { organizationId } = await requireTenant();
+  const { ctx, organizationId } = await requireTenant();
   const dash = await getTenantDashboard(organizationId);
   const stores = await getTenantStores(organizationId);
   const topStores = [...stores]
@@ -22,12 +22,12 @@ export default async function TenantDashboardPage() {
   return (
     <>
       <PageHeader
-        title={`Welcome back, ${dash.tenant.contact.name.split(" ")[0]}`}
+        title={`Welcome back, ${(ctx.user.name || dash.tenant.name).split(" ")[0]}`}
         description={`Here's how ${dash.tenant.name}'s paperless checkout is doing today.`}
       >
         <span className="inline-flex items-center gap-1.5 rounded-md border bg-card px-2.5 py-1.5 text-xs text-muted-foreground">
           <CalendarDays className="size-3.5" />
-          May 30, 2026
+          {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
         </span>
       </PageHeader>
 

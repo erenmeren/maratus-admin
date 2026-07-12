@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ChevronsUpDown, LogOut, Settings, UserRound } from "lucide-react";
+import { ChevronsUpDown, LogOut } from "lucide-react";
 import { signOut } from "@/lib/auth-client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -15,12 +15,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 export function UserMenu({
-  name = "Eren Altan",
-  email = "erenaltan@gmail.com",
+  name,
+  email,
   subtitle = "Account",
 }: {
-  name?: string;
-  email?: string;
+  name: string;
+  email: string;
   /** Short role caption shown under the name (e.g. "Owner", "Super Admin"). */
   subtitle?: string;
 }) {
@@ -71,13 +71,6 @@ export function UserMenu({
             </span>
           </div>
         </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem>
-          <UserRound className="size-4" /> Profile
-        </DropdownMenuItem>
-        <DropdownMenuItem>
-          <Settings className="size-4" /> Settings
-        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={async () => {

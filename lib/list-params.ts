@@ -5,9 +5,9 @@
 
 export const PAGE_SIZE = 50;
 
-export type DeviceStatusFilter = "all" | "online" | "offline" | "paused" | "pool";
+export type DeviceStatusFilter = "all" | "online" | "offline" | "paused" | "pool" | "unclaimed";
 
-const STATUSES: readonly DeviceStatusFilter[] = ["all", "online", "offline", "paused", "pool"];
+const STATUSES: readonly DeviceStatusFilter[] = ["all", "online", "offline", "paused", "pool", "unclaimed"];
 
 export interface ListParams {
   q: string;

@@ -468,12 +468,16 @@ export interface StoreListPage {
 
 export async function getTenantStoresPage(
   organizationId: string,
-  opts: { q: string; page: number },
+  opts: { q: string; page: number; sort?: "name" | "activations" },
 ): Promise<StoreListPage> {
   const like = `%${escapeLike(opts.q)}%`;
   const offset = (opts.page - 1) * PAGE_SIZE;
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const orderBy =
+    opts.sort === "activations"
+      ? sql`coalesce(act.n, 0) desc, s.name asc, s.id asc`
+      : sql`s.name asc, s.id asc`;
 
   const [pageRes, fleetRes, totalRes] = await Promise.all([
     db.execute(sql`
@@ -507,7 +511,7 @@ export async function getTenantStoresPage(
       ) act on act.store_id = s.id
       where s.organization_id = ${organizationId}
         and (${opts.q} = '' or s.name ilike ${like} or s.address ilike ${like})
-      order by s.name asc, s.id asc
+      order by ${orderBy}
       limit ${PAGE_SIZE} offset ${offset}
     `),
     db.execute(sql`
@@ -626,9 +630,13 @@ export async function getTenantDevicesPage(
   // The counts query already applies `q` + the tab filter, so the matching count
   // IS the filtered total — using it (not the page's window function) keeps the
   // total correct even when `offset` lands past the last row (0 rows back).
+  // Tenant devices are always claimed (`claimed_at is not null` above), so this
+  // page has no "unclaimed" tab — that value only exists for getAdminDevicesPage;
+  // guard it explicitly rather than letting it fall through to an unknown key.
   const total =
     opts.status === "all" ? Number(c.all_count)
     : opts.status === "pool" ? Number(c.pool)
+    : opts.status === "unclaimed" ? 0
     : Number(c[opts.status]);
   return {
     rows,
@@ -639,6 +647,118 @@ export async function getTenantDevicesPage(
       offline: Number(c.offline),
       paused: Number(c.paused),
       pool: Number(c.pool),
+    },
+  };
+}
+
+export interface AdminDeviceListRow {
+  id: string;
+  name: string;
+  serial: string | null;
+  orgId: string;
+  orgName: string;
+  storeId: string | null;
+  storeName: string | null;
+  status: DeviceStatus;
+  firmwareVersion: string;
+  lastSeen: string;
+  claimed: boolean;
+}
+
+export interface AdminDeviceListPage {
+  rows: AdminDeviceListRow[];
+  total: number;
+  counts: { all: number; online: number; offline: number; paused: number; pool: number; unclaimed: number };
+}
+
+/** Super-admin fleet-wide devices page — spans every org, no organizationId filter.
+ *  Claimed-rule: rows are claimed devices by default (`claimed_at is not null`),
+ *  EXCEPT `status: "unclaimed"` which flips the base predicate to `claimed_at is
+ *  null` instead (unclaimed devices have no store/status worth filtering on).
+ *  The counts query computes all six tab counts in one pass over claimed +
+ *  unclaimed rows so `total` (= counts[status]) and the tab badges never drift. */
+export async function getAdminDevicesPage(
+  opts: { q: string; status: DeviceStatusFilter; page: number },
+): Promise<AdminDeviceListPage> {
+  const like = `%${escapeLike(opts.q)}%`;
+  const offset = (opts.page - 1) * PAGE_SIZE;
+  const claimedCond = opts.status === "unclaimed" ? sql`d.claimed_at is null` : sql`d.claimed_at is not null`;
+  const statusCond =
+    opts.status === "all" || opts.status === "unclaimed"
+      ? sql`true`
+      : opts.status === "pool"
+        ? sql`d.store_id is null`
+        : sql`d.status = ${opts.status}`;
+
+  const [pageRes, countRes] = await Promise.all([
+    db.execute(sql`
+      select d.id, d.name, d.serial, d.claimed_at,
+             o.id as org_id, o.name as org_name,
+             d.store_id, s.name as store_name, d.status, d.firmware_version,
+             coalesce(d.last_seen_at, d.created_at) as last_seen
+      from device d
+      left join store s on s.id = d.store_id
+      join organization o on o.id = d.organization_id
+      where ${claimedCond}
+        and (${opts.q} = '' or d.name ilike ${like} or d.serial ilike ${like} or s.name ilike ${like} or o.name ilike ${like})
+        and ${statusCond}
+      order by d.name asc, d.id asc
+      limit ${PAGE_SIZE} offset ${offset}
+    `),
+    db.execute(sql`
+      select count(*) filter (where d.claimed_at is not null)::int                              as all_count,
+             count(*) filter (where d.claimed_at is not null and d.status = 'online')::int      as online,
+             count(*) filter (where d.claimed_at is not null and d.status = 'offline')::int     as offline,
+             count(*) filter (where d.claimed_at is not null and d.status = 'paused')::int      as paused,
+             count(*) filter (where d.claimed_at is not null and d.store_id is null)::int       as pool,
+             count(*) filter (where d.claimed_at is null)::int                                   as unclaimed
+      from device d
+      left join store s on s.id = d.store_id
+      join organization o on o.id = d.organization_id
+      where (${opts.q} = '' or d.name ilike ${like} or d.serial ilike ${like} or s.name ilike ${like} or o.name ilike ${like})
+    `),
+  ]);
+
+  type Row = {
+    id: string; name: string; serial: string | null; claimed_at: string | Date | null;
+    org_id: string; org_name: string; store_id: string | null; store_name: string | null;
+    status: string; firmware_version: string; last_seen: string | Date;
+  };
+  const rows = (pageRes.rows as Row[]).map((r) => ({
+    id: r.id,
+    name: r.name,
+    serial: r.serial,
+    orgId: r.org_id,
+    orgName: r.org_name,
+    storeId: r.store_id,
+    storeName: r.store_name,
+    status: r.status as DeviceStatus,
+    firmwareVersion: r.firmware_version,
+    lastSeen: new Date(r.last_seen).toISOString(),
+    claimed: r.claimed_at !== null,
+  }));
+  const c = countRes.rows[0] as {
+    all_count: number; online: number; offline: number; paused: number; pool: number; unclaimed: number;
+  };
+  // The counts query already applies `q` (and covers both claimed + unclaimed
+  // rows in one pass), so the matching bucket IS the filtered total — using it
+  // (not the page's window function) keeps the total correct even when `offset`
+  // lands past the last row (0 rows back).
+  const total =
+    opts.status === "all" ? Number(c.all_count)
+    : opts.status === "pool" ? Number(c.pool)
+    : opts.status === "unclaimed" ? Number(c.unclaimed)
+    : Number(c[opts.status]);
+  return {
+    rows,
+    total,
+    counts: {
+      all: Number(c.all_count),
+      online: Number(c.online),
+      offline: Number(c.offline),
+      paused: Number(c.paused),
+      pool: Number(c.pool),
+      unclaimed: Number(c.unclaimed),
     },
   };
 }

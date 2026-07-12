@@ -15,7 +15,7 @@ describe("parseListParams", () => {
     expect(parseListParams({ q: "x".repeat(150) }).q).toHaveLength(100);
   });
   it("accepts every valid status and rejects junk", () => {
-    for (const s of ["all", "online", "offline", "paused", "pool"] as const) {
+    for (const s of ["all", "online", "offline", "paused", "pool", "unclaimed"] as const) {
       expect(parseListParams({ status: s }).status).toBe(s);
     }
     expect(parseListParams({ status: "hacked" }).status).toBe("all");

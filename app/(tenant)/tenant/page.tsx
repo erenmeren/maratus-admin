@@ -7,17 +7,15 @@ import { DocumentsAreaChart } from "@/components/charts";
 import { StatusBadge } from "@/components/status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle,  } from "@/components/ui/card";
-import { getTenantDashboard, getTenantStores } from "@/lib/data";
+import { getTenantDashboard, getTenantStoresPage } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
 import { formatNumber } from "@/lib/format";
 
 export default async function TenantDashboardPage() {
   const { ctx, organizationId } = await requireTenant();
   const dash = await getTenantDashboard(organizationId);
-  const stores = await getTenantStores(organizationId);
-  const topStores = [...stores]
-    .sort((a, b) => b.activationsThisMonth - a.activationsThisMonth)
-    .slice(0, 4);
+  const { rows } = await getTenantStoresPage(organizationId, { q: "", page: 1, sort: "activations" });
+  const topStores = rows.slice(0, 4);
 
   return (
     <>

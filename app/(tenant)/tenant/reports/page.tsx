@@ -13,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { getTenant, getTenantStores, tenantMonthly } from "@/lib/data";
+import { getTenant, getTenantStoresPage, tenantMonthly } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
 import { computeEcoSavings, PAPER_GRAMS_PER_DOCUMENT } from "@/lib/eco";
 
@@ -21,11 +21,17 @@ export default async function ReportsPage() {
   const { organizationId } = await requireTenant();
   const tenant = await getTenant(organizationId);
   const monthly = await tenantMonthly(organizationId);
-  const stores = await getTenantStores(organizationId);
+  const { rows: stores, total: storeCount } = await getTenantStoresPage(organizationId, {
+    q: "",
+    page: 1,
+    sort: "activations",
+  });
 
-  const byStore = [...stores]
-    .map((s) => ({ label: s.name.replace("Roastwell ", ""), value: s.activationsThisMonth }))
-    .sort((a, b) => b.value - a.value);
+  // Already sorted + capped to the first 50 (by activations) by the query above.
+  const byStore = stores.map((s) => ({
+    label: s.name.replace("Roastwell ", ""),
+    value: s.activationsThisMonth,
+  }));
 
   const byDevice = tenant.stores
     .flatMap((store) =>
@@ -85,6 +91,11 @@ export default async function ReportsPage() {
           </CardHeader>
           <CardContent>
             <BreakdownBarChart data={byStore} />
+            {storeCount > 50 && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Showing top 50 stores by activations.
+              </p>
+            )}
           </CardContent>
         </Card>
         <Card>

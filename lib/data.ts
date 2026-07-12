@@ -381,11 +381,6 @@ function sumSeries(all: TimePoint[][]): TimePoint[] {
 // Tenant lookups
 // ============================================================================
 
-export async function getTenants(): Promise<Tenant[]> {
-  const bundles = await loadAllOrgs();
-  return bundles.map(buildTenant);
-}
-
 export async function getTenant(organizationId: string): Promise<Tenant> {
   const b = await loadOrg(organizationId);
   if (!b) throw new Error(`Organization not found: ${organizationId}`);
@@ -954,42 +949,6 @@ export async function getTenantSummaries(opts?: {
 }): Promise<TenantSummary[]> {
   const bundles = await loadAllOrgs(opts);
   return bundles.map(summarize);
-}
-
-export async function getAllDevices(): Promise<DeviceRow[]> {
-  const bundles = await loadAllOrgs();
-  const rows: DeviceRow[] = [];
-  const now = new Date();
-  for (const b of bundles) {
-    const tenant = buildTenant(b);
-    for (const store of tenant.stores) {
-      for (const device of store.devices) {
-        rows.push({
-          ...device,
-          status: effectiveDeviceStatus(
-            device.status,
-            device.lastSeenAt ? new Date(device.lastSeenAt) : null,
-            now,
-          ),
-          tenantName: tenant.name,
-          storeName: store.name,
-        });
-      }
-    }
-    for (const device of tenant.unassignedDevices) {
-      rows.push({
-        ...device,
-        status: effectiveDeviceStatus(
-          device.status,
-          device.lastSeenAt ? new Date(device.lastSeenAt) : null,
-          now,
-        ),
-        tenantName: tenant.name,
-        storeName: "—",
-      });
-    }
-  }
-  return rows;
 }
 
 export interface AdminOverview {

@@ -694,9 +694,12 @@ export async function getAdminDevicesPage(
       from device d
       left join store s on s.id = d.store_id
       join organization o on o.id = d.organization_id
+      left join tenant_settings ts on ts.organization_id = d.organization_id
       where ${claimedCond}
         and (${opts.q} = '' or d.name ilike ${like} or d.serial ilike ${like} or s.name ilike ${like} or o.name ilike ${like})
         and ${statusCond}
+        -- archived (offboarded) customers keep their device rows, but the fleet list hides them like the customers list does
+        and ts.archived_at is null
       order by d.name asc, d.id asc
       limit ${PAGE_SIZE} offset ${offset}
     `),
@@ -710,7 +713,10 @@ export async function getAdminDevicesPage(
       from device d
       left join store s on s.id = d.store_id
       join organization o on o.id = d.organization_id
+      left join tenant_settings ts on ts.organization_id = d.organization_id
       where (${opts.q} = '' or d.name ilike ${like} or d.serial ilike ${like} or s.name ilike ${like} or o.name ilike ${like})
+        -- archived (offboarded) customers keep their device rows, but the fleet list hides them like the customers list does
+        and ts.archived_at is null
     `),
   ]);
 

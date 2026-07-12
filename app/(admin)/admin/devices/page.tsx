@@ -85,22 +85,33 @@ export default async function FleetPage({
               rows.map((d) => (
                 <TableRow key={d.id}>
                   <TableCell>
-                    <Link href={`/admin/devices/${d.id}`} className="flex flex-col">
-                      <span className="font-medium">{d.name}</span>
-                      {d.serial && (
-                        <span className="font-mono text-xs text-muted-foreground">{d.serial}</span>
-                      )}
-                    </Link>
+                    {d.claimed ? (
+                      <Link href={`/admin/devices/${d.id}`} className="flex flex-col">
+                        <span className="font-medium">{d.name}</span>
+                        {d.serial && (
+                          <span className="font-mono text-xs text-muted-foreground">{d.serial}</span>
+                        )}
+                      </Link>
+                    ) : (
+                      <span className="flex flex-col">
+                        <span className="font-medium">{d.name}</span>
+                        {d.serial && (
+                          <span className="font-mono text-xs text-muted-foreground">{d.serial}</span>
+                        )}
+                      </span>
+                    )}
                   </TableCell>
                   <TableCell className="font-medium">{d.orgName}</TableCell>
                   <TableCell className="text-muted-foreground">{d.storeName ?? "—"}</TableCell>
                   <TableCell>
                     <StatusBadge status={d.status} />
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{timeAgo(d.lastSeen)}</TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {d.claimed ? timeAgo(d.lastSeen) : "—"}
+                  </TableCell>
                   <TableCell className="font-mono text-xs">
                     v{d.firmwareVersion}
-                    {firmwareUpdateAvailable(d.firmwareVersion, latestFw?.version ?? null) && (
+                    {d.claimed && firmwareUpdateAvailable(d.firmwareVersion, latestFw?.version ?? null) && (
                       <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
                         update
                       </span>

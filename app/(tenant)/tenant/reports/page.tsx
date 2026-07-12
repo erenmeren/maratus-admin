@@ -16,6 +16,7 @@ import {
 import { getTenant, getTenantStoresPage, tenantMonthly } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
 import { computeEcoSavings, PAPER_GRAMS_PER_DOCUMENT } from "@/lib/eco";
+import { PAGE_SIZE } from "@/lib/list-params";
 
 export default async function ReportsPage() {
   const { organizationId } = await requireTenant();
@@ -27,7 +28,7 @@ export default async function ReportsPage() {
     sort: "activations",
   });
 
-  // Already sorted + capped to the first 50 (by activations) by the query above.
+  // Already sorted + capped to the first PAGE_SIZE (by activations) by the query above.
   const byStore = stores.map((s) => ({
     label: s.name.replace("Roastwell ", ""),
     value: s.activationsThisMonth,
@@ -91,9 +92,9 @@ export default async function ReportsPage() {
           </CardHeader>
           <CardContent>
             <BreakdownBarChart data={byStore} />
-            {storeCount > 50 && (
+            {storeCount > PAGE_SIZE && (
               <p className="mt-2 text-xs text-muted-foreground">
-                Showing top 50 stores by activations.
+                Showing top {PAGE_SIZE} stores by activations.
               </p>
             )}
           </CardContent>

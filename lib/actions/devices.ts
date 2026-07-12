@@ -12,6 +12,7 @@ import {
   store as storeTable,
 } from "@/lib/db/schema";
 import { requirePlatformAdmin, requireTenant } from "@/lib/session";
+import { getTenantStoreOptions } from "@/lib/data";
 import { id, pairingCode } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import type { DeviceStatus } from "@/lib/types";
@@ -379,7 +380,14 @@ export async function assignDeviceToStore(
 
   revalidatePath("/tenant/stores");
   revalidatePath(`/tenant/stores/${storeId}`);
+  revalidatePath("/tenant/devices");
   revalidatePath("/tenant");
   return { ok: true };
+}
+
+/** Store options for the tenant device assign/move picker (any member may read). */
+export async function getTenantStoreOptionsAction(): Promise<{ id: string; name: string }[]> {
+  const { organizationId } = await requireTenant();
+  return getTenantStoreOptions(organizationId);
 }
 

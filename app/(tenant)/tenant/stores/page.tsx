@@ -4,7 +4,6 @@ import { StoreRowActions } from "@/components/store-row-actions";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge, StatusDot } from "@/components/status-badge";
 import { AddStoreDialog } from "@/components/add-store-dialog";
-import { UnassignedDevices } from "@/components/unassigned-devices";
 import { ListControls } from "@/components/list-controls";
 import { PaginationBar } from "@/components/pagination-bar";
 import { Card } from "@/components/ui/card";
@@ -16,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getTenantStoresPage, getTenantUnassignedDevices } from "@/lib/data";
+import { getTenantStoresPage } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
 import { formatNumber } from "@/lib/format";
 import { parseListParams } from "@/lib/list-params";
@@ -28,10 +27,7 @@ export default async function StoresPage({
 }) {
   const { ctx, organizationId } = await requireTenant();
   const { q, page } = parseListParams(await searchParams);
-  const [{ rows: stores, total, fleet }, unassigned] = await Promise.all([
-    getTenantStoresPage(organizationId, { q, page }),
-    getTenantUnassignedDevices(organizationId),
-  ]);
+  const { rows: stores, total, fleet } = await getTenantStoresPage(organizationId, { q, page });
   const membership = ctx.organizations.find((o) => o.id === organizationId);
   const canManage =
     !!membership && ["owner", "admin"].includes(membership.role);
@@ -140,14 +136,6 @@ export default async function StoresPage({
         pathname="/tenant/stores"
         params={params}
       />
-
-      {unassigned.length > 0 && (
-        <UnassignedDevices
-          devices={unassigned}
-          stores={stores.map((s) => ({ id: s.id, name: s.name }))}
-          canManage={canManage}
-        />
-      )}
     </>
   );
 }

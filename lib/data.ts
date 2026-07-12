@@ -1280,14 +1280,6 @@ export async function enqueueConfigChangedForOrg(
   );
 }
 
-/** The org's unassigned pool (claimed devices whose store was deleted). */
-export async function getTenantUnassignedDevices(
-  organizationId: string,
-): Promise<Device[]> {
-  const tenant = await getTenant(organizationId);
-  return tenant.unassignedDevices;
-}
-
 /**
  * Armed zero-touch allocations per store: factory serials allocated to a
  * store but not yet claimed. Deleting the store disarms them (FK set-null),

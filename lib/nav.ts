@@ -34,6 +34,7 @@ export const ADMIN_NAV: NavItem[] = [
 export const TENANT_NAV: NavItem[] = [
   { label: "Dashboard", href: "/tenant", icon: LayoutDashboard },
   { label: "Stores", href: "/tenant/stores", icon: Store },
+  { label: "Devices", href: "/tenant/devices", icon: Cpu },
   { label: "Branding", href: "/tenant/branding", icon: Palette },
   { label: "Device Settings", href: "/tenant/device-settings", icon: MonitorCog },
   { label: "Members", href: "/tenant/members", icon: Users },

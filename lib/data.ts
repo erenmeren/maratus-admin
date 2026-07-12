@@ -454,9 +454,11 @@ export async function getTenantStores(
 
 // ---------------------------------------------------------------------------
 // Paginated fleet-scale lists (tenant Stores + Devices pages).
-// One 50-row page per call; totals via count(*) over (); search is escaped
-// ILIKE. Status is the STORED device.status column — the same thing every
-// other tenant page shows (the daily reconcile keeps it honest).
+// One 50-row page per call; totals come from a dedicated filtered count query
+// (not a windowed count(*) over () on the page query), so an out-of-range page
+// still reports the correct total instead of falling back to 0. Search is
+// escaped ILIKE. Status is the STORED device.status column — the same thing
+// every other tenant page shows (the daily reconcile keeps it honest).
 
 export interface StoreListPage {
   rows: StoreSummary[];
@@ -473,14 +475,13 @@ export async function getTenantStoresPage(
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
 
-  const [pageRes, fleetRes] = await Promise.all([
+  const [pageRes, fleetRes, totalRes] = await Promise.all([
     db.execute(sql`
       select s.id, s.name, s.address, s.timezone,
              coalesce(dv.device_count, 0)::int  as device_count,
              coalesce(dv.online_count, 0)::int  as online_count,
              coalesce(dv.paused_count, 0)::int  as paused_count,
-             coalesce(act.n, 0)::int            as activations,
-             count(*) over ()::int              as total
+             coalesce(act.n, 0)::int            as activations
       from store s
       left join (
         select store_id,
@@ -513,12 +514,18 @@ export async function getTenantStoresPage(
       from device
       where organization_id = ${organizationId} and claimed_at is not null
     `),
+    db.execute(sql`
+      select count(*)::int as n
+      from store
+      where organization_id = ${organizationId}
+        and (${opts.q} = '' or name ilike ${like} or address ilike ${like})
+    `),
   ]);
 
   type Row = {
     id: string; name: string; address: string; timezone: string;
     device_count: number; online_count: number; paused_count: number;
-    activations: number; total: number;
+    activations: number;
   };
   const rows = (pageRes.rows as Row[]).map((r) => ({
     id: r.id,
@@ -531,9 +538,12 @@ export async function getTenantStoresPage(
     status: (r.online_count > 0 ? "online" : r.paused_count > 0 ? "paused" : "offline") as StoreSummary["status"],
   }));
   const fleet = fleetRes.rows[0] as { stores: number; devices: number; online: number };
+  // Computed from a dedicated count query (not the page's window function) so the
+  // total stays correct even when `offset` lands past the last row (0 rows back).
+  const total = Number((totalRes.rows[0] as { n: number }).n);
   return {
     rows,
-    total: (pageRes.rows[0] as Row | undefined)?.total ?? 0,
+    total,
     fleet: { stores: Number(fleet.stores), devices: Number(fleet.devices), online: Number(fleet.online) },
   };
 }
@@ -570,8 +580,7 @@ export async function getTenantDevicesPage(
   const [pageRes, countRes] = await Promise.all([
     db.execute(sql`
       select d.id, d.name, d.serial, d.store_id, s.name as store_name, d.status,
-             coalesce(d.last_seen_at, d.created_at) as last_seen,
-             count(*) over ()::int as total
+             coalesce(d.last_seen_at, d.created_at) as last_seen
       from device d
       left join store s on s.id = d.store_id
       where d.organization_id = ${organizationId}
@@ -597,7 +606,7 @@ export async function getTenantDevicesPage(
 
   type Row = {
     id: string; name: string; serial: string | null; store_id: string | null;
-    store_name: string | null; status: string; last_seen: string | Date; total: number;
+    store_name: string | null; status: string; last_seen: string | Date;
   };
   const rows = (pageRes.rows as Row[]).map((r) => ({
     id: r.id,
@@ -611,9 +620,16 @@ export async function getTenantDevicesPage(
   const c = countRes.rows[0] as {
     all_count: number; online: number; offline: number; paused: number; pool: number;
   };
+  // The counts query already applies `q` + the tab filter, so the matching count
+  // IS the filtered total — using it (not the page's window function) keeps the
+  // total correct even when `offset` lands past the last row (0 rows back).
+  const total =
+    opts.status === "all" ? Number(c.all_count)
+    : opts.status === "pool" ? Number(c.pool)
+    : Number(c[opts.status]);
   return {
     rows,
-    total: (pageRes.rows[0] as Row | undefined)?.total ?? 0,
+    total,
     counts: {
       all: Number(c.all_count),
       online: Number(c.online),

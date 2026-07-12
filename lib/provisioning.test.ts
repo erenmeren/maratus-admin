@@ -79,8 +79,10 @@ describe("shouldAutoClaim", () => {
       expect(shouldAutoClaim(false, { ...allocated, status })).toBe(false);
     }
   });
-  it("never fires when the allocation lacks an org or a store", () => {
+  it("never fires when the allocation lacks an org", () => {
     expect(shouldAutoClaim(false, { ...allocated, allocatedOrganizationId: null })).toBe(false);
-    expect(shouldAutoClaim(false, { ...allocated, allocatedStoreId: null })).toBe(false);
+  });
+  it("fires for a store-less allocation — the device claims into the org pool", () => {
+    expect(shouldAutoClaim(false, { ...allocated, allocatedStoreId: null })).toBe(true);
   });
 });

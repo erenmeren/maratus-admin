@@ -51,11 +51,12 @@ export interface RegistryAllocationSnapshot {
 
 /**
  * Auto-claim fires ONLY when no device row matches the polled code AND the
- * serial's registry row is `allocated` with both an org and a store. The serial
- * is public (printed on the box), so nothing else may ever mint a key from it:
- * `claimed` never re-fires (hijack guard), and a store-less allocation stays on
- * the human-claim path (store-less claimed devices are invisible to the
- * store-scoped device queries).
+ * serial's registry row is `allocated` to an org. The serial is public
+ * (printed on the box), so nothing else may ever mint a key from it:
+ * `claimed` never re-fires (hijack guard). A store-less allocation claims
+ * into the org's unassigned pool (storeId null) — the tenant assigns it to a
+ * store from the pool UI; which device goes to which store is the customer's
+ * call, not the platform admin's.
  */
 export function shouldAutoClaim(
   deviceRowExists: boolean,
@@ -65,7 +66,6 @@ export function shouldAutoClaim(
     !deviceRowExists &&
     registry !== null &&
     registry.status === "allocated" &&
-    registry.allocatedOrganizationId !== null &&
-    registry.allocatedStoreId !== null
+    registry.allocatedOrganizationId !== null
   );
 }

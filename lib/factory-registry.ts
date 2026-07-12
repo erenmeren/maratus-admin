@@ -357,11 +357,12 @@ export async function autoClaimDevice(
           organizationId: factoryDevice.allocatedOrganizationId,
           storeId: factoryDevice.allocatedStoreId,
         });
-      if (!locked || !locked.organizationId || !locked.storeId) {
-        // No row hijacked (already claimed/raced), or an incomplete
-        // allocation that shouldAutoClaim should have filtered — either way,
-        // abort so the rollback restores `allocated` and fall back to the
-        // human path.
+      if (!locked || !locked.organizationId) {
+        // No row hijacked (already claimed/raced), or an org-less allocation
+        // that shouldAutoClaim should have filtered — either way, abort so
+        // the rollback restores `allocated` and fall back to the human path.
+        // A null storeId is fine: the device claims into the org's
+        // unassigned pool and the tenant assigns it to a store.
         tx.rollback();
         return;
       }

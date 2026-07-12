@@ -23,6 +23,15 @@ export function ListControls({
   const [value, setValue] = React.useState(initialQ);
   const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // A pending debounce firing after unmount would router.replace the user
+  // back to this list page — clear it on the way out.
+  React.useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+
   const apply = React.useCallback(
     (patch: Record<string, string | null>) => {
       const next = new URLSearchParams(searchParams.toString());

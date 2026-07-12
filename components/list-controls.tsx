@@ -74,7 +74,10 @@ export function ListControls({
             <button
               key={t.value}
               type="button"
-              onClick={() => apply({ status: t.value === "all" ? null : t.value })}
+              onClick={() => {
+                if (timer.current) clearTimeout(timer.current);
+                apply({ status: t.value === "all" ? null : t.value, q: value.trim() });
+              }}
               className={cn(
                 "rounded-full px-3 py-1 text-sm tabular-nums transition-colors",
                 t.active

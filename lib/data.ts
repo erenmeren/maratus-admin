@@ -499,12 +499,15 @@ export async function getTenantStoresPage(
         join device d on d.id = c.device_id
         where d.organization_id = ${organizationId}
           and c.type = 'trigger' and c.status = 'acked'
-          and c.created_at >= ${monthStart}
+          -- ISO string cast to ::timestamp, matching the orgScoped convention above:
+          -- a raw JS Date param is serialized as local wall-clock (neon-http
+          -- parseInputDatesAsUTC=false), which would skew the month boundary off UTC.
+          and c.created_at >= ${monthStart.toISOString()}::timestamp
         group by d.store_id
       ) act on act.store_id = s.id
       where s.organization_id = ${organizationId}
         and (${opts.q} = '' or s.name ilike ${like} or s.address ilike ${like})
-      order by s.name asc
+      order by s.name asc, s.id asc
       limit ${PAGE_SIZE} offset ${offset}
     `),
     db.execute(sql`

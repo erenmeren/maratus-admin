@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ChevronsUpDown, LogOut, Settings, UserRound } from "lucide-react";
+import { signOut } from "@/lib/auth-client";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -78,7 +79,15 @@ export function UserMenu({
           <Settings className="size-4" /> Settings
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => router.push("/login")}>
+        <DropdownMenuItem
+          onClick={async () => {
+            // Destroy the session first; a bare router.push leaves the cookie
+            // alive and the login page bounces a signed-in user right back.
+            await signOut();
+            router.push("/login");
+            router.refresh();
+          }}
+        >
           <LogOut className="size-4" /> Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>

@@ -94,7 +94,7 @@ export function PrinterPreview({
       )}
       style={{
         ...printerRootStyle(brand),
-        background: screen === "error" ? "#f7f1e8" : "var(--k-bg)",
+        background: "var(--k-bg)",
         color: "var(--k-fg)",
       }}
     >
@@ -258,9 +258,8 @@ function IconObject({ object, brand: _brand }: { object: PrinterObject; brand: P
   const ic = object.icon ?? { source: "preset" as const };
   const tintVar =
     ic.tint === "muted" ? "var(--k-muted)" :
-    ic.tint === "warn" ? "#b9772a" :
     ic.tint === "none" ? "var(--k-fg)" :
-    "var(--k-accent)";
+    "var(--k-accent)"; // "warn" (legacy stored configs) renders as accent — error screen uses brand colors
   const Inner = () =>
     ic.source === "upload" && ic.url ? (
       // eslint-disable-next-line @next/next/no-img-element

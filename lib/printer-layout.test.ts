@@ -120,9 +120,9 @@ describe("seededScreen", () => {
     expect(sent!.icon).toMatchObject({ source: "preset", preset: "check", circle: true, tint: "accent" });
   });
 
-  it("seeds the error screen with a warn wifi-off icon", () => {
+  it("seeds the error screen with an accent wifi-off icon", () => {
     const err = seededScreen("error").objects.find((o) => o.type === "icon");
-    expect(err!.icon).toMatchObject({ source: "preset", preset: "wifi-off", tint: "warn" });
+    expect(err!.icon).toMatchObject({ source: "preset", preset: "wifi-off", tint: "accent" });
   });
 
   it("seeds idle with logo/clock/wifi and no placeholder text labels", () => {

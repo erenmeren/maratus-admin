@@ -51,7 +51,7 @@ export const ICON_PRESETS = [
 ] as const;
 export type IconPreset = (typeof ICON_PRESETS)[number];
 export const DEFAULT_ICON_PRESET: IconPreset = "check";
-export type IconTint = "accent" | "muted" | "warn" | "none";
+export type IconTint = "accent" | "muted" | "none";
 
 export interface PrinterIcon {
   source: "preset" | "upload";
@@ -243,7 +243,7 @@ export function seededScreen(screen: PrinterScreen): ScreenLayout {
       // From ErrorScreen (printer-preview.tsx): wifi-off icon + headline + subtext + pill.
       return {
         objects: [
-          obj({ id: "icon", type: "icon", x: 0.42, y: 0.22, w: 0.16, h: 0.16, z: 0, icon: { source: "preset", preset: "wifi-off", tint: "warn", circle: false } }),
+          obj({ id: "icon", type: "icon", x: 0.42, y: 0.22, w: 0.16, h: 0.16, z: 0, icon: { source: "preset", preset: "wifi-off", tint: "accent", circle: false } }),
           obj({ id: "text-title", type: "text", x: 0.1, y: 0.44, w: 0.8, h: 0.08, z: 1, text: "We couldn't send your document", fontSize: 24, align: "center" }),
           obj({ id: "text-sub", type: "text", x: 0.15, y: 0.54, w: 0.7, h: 0.06, z: 2, text: "The device is offline right now.", fontSize: 16, align: "center" }),
           obj({ id: "text-pill", type: "text", x: 0.15, y: 0.72, w: 0.7, h: 0.08, z: 3, text: "Please ask a team member for a paper document", fontSize: 15, align: "center" }),
@@ -349,7 +349,9 @@ export function normalizePrinterLayout(raw: unknown): PrinterLayout {
 
 // ─── Task 2: v2→v3 migration + normalizePrinterConfig ──────────────────────────
 
-const ICON_TINTS = ["accent", "muted", "warn", "none"] as const satisfies readonly IconTint[];
+// "warn" was retired 2026-07-12 (error screen now uses brand colors like every
+// other screen); stored configs carrying it normalize to "accent" below.
+const ICON_TINTS = ["accent", "muted", "none"] as const satisfies readonly IconTint[];
 
 function sanitizeIcon(raw: unknown): PrinterIcon {
   const r = (raw ?? {}) as Record<string, unknown>;

@@ -125,12 +125,17 @@ describe("seededScreen", () => {
     expect(err!.icon).toMatchObject({ source: "preset", preset: "wifi-off", tint: "accent" });
   });
 
-  it("seeds idle with logo/clock/wifi and no placeholder text labels", () => {
+  it("seeds idle with clock/wifi and no placeholder text labels", () => {
     const idle = seededScreen("idle").objects;
-    expect(idle.some((o) => o.type === "logo")).toBe(true);
     expect(idle.some((o) => o.type === "clock")).toBe(true);
     expect(idle.some((o) => o.type === "wifi")).toBe(true);
     expect(idle.filter((o) => o.type === "text").length).toBe(0);
+  });
+
+  it("never seeds the retired brand-name (logo) widget on any screen", () => {
+    for (const screen of PRINTER_SCREENS) {
+      expect(seededScreen(screen).objects.some((o) => o.type === "logo")).toBe(false);
+    }
   });
 });
 
@@ -197,13 +202,14 @@ describe("clock options", () => {
 });
 
 describe("migrateV2ToConfig", () => {
-  it("puts the v2 idle objects into screens.idle and seeds the other 6", () => {
+  it("puts the v2 idle objects (minus the retired logo) into screens.idle and seeds the other 6", () => {
     const v2 = defaultLayout();
     const cfg = migrateV2ToConfig(v2);
     expect(cfg.version).toBe(3);
     expect(cfg.clockTimezone).toBe(v2.clockTimezone);
     expect(cfg.wifiLevel).toBe(v2.wifiLevel);
-    expect(cfg.screens.idle.objects.length).toBe(v2.objects.length);
+    expect(cfg.screens.idle.objects.length).toBe(v2.objects.filter((o) => o.type !== "logo").length);
+    expect(cfg.screens.idle.objects.some((o) => o.type === "logo")).toBe(false);
     for (const s of PRINTER_SCREENS) {
       expect(cfg.screens[s].objects.length).toBeGreaterThan(0);
     }
@@ -217,11 +223,11 @@ describe("normalizePrinterConfig", () => {
     for (const s of PRINTER_SCREENS) expect(cfg.screens[s].objects.length).toBeGreaterThan(0);
   });
 
-  it("migrates a stored v2 layout (version: 2)", () => {
+  it("migrates a stored v2 layout (version: 2), dropping the retired logo", () => {
     const v2 = defaultLayout();
     const cfg = normalizePrinterConfig(v2);
     expect(cfg.version).toBe(3);
-    expect(cfg.screens.idle.objects.some((o) => o.type === "logo")).toBe(true);
+    expect(cfg.screens.idle.objects.some((o) => o.type === "logo")).toBe(false);
     expect(cfg.screens.idle.objects.some((o) => o.type === "clock")).toBe(true);
     expect(cfg.screens.idle.objects.some((o) => o.type === "wifi")).toBe(true);
   });
@@ -355,23 +361,73 @@ describe("image objects", () => {
   });
 });
 
-// ─── Brand name (logo) widget ────────────────────────────────────────────────
+// ─── Retired brand-name (logo) widget ────────────────────────────────────────
 
-import { TYPE_LABEL } from "./printer-layout";
-
-describe("brand-name (logo) widget", () => {
-  it("is labelled 'Brand name'", () => {
-    expect(TYPE_LABEL.logo).toBe("Brand name");
-  });
-
-  it("normalize keeps at most one logo widget per screen", () => {
+describe("retired brand-name (logo) widget", () => {
+  it("normalize drops every stored logo object (v3)", () => {
     const cfg = normalizePrinterConfig({
       version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60,
       screens: { idle: { objects: [
         { id: "logo", type: "logo", x: 0.25, y: 0.32, w: 0.5, h: 0.16, visible: true, z: 0 },
-        { id: "logo2", type: "logo", x: 0.1, y: 0.1, w: 0.2, h: 0.1, visible: true, z: 1 },
+        { id: "clock", type: "clock", x: 0.25, y: 0.52, w: 0.5, h: 0.18, visible: true, z: 1 },
       ] } },
     });
-    expect(cfg.screens.idle.objects.filter((o) => o.type === "logo").length).toBe(1);
+    expect(cfg.screens.idle.objects.some((o) => o.type === "logo")).toBe(false);
+    expect(cfg.screens.idle.objects.some((o) => o.type === "clock")).toBe(true);
+  });
+});
+
+// ─── Addable clock/wifi widgets + custom names ───────────────────────────────
+
+import { createClockObject, createWifiObject, MAX_NAME_LEN } from "./printer-layout";
+
+describe("clock/wifi factories", () => {
+  it("createClockObject makes a visible clock with defaults and a unique id", () => {
+    const a = createClockObject(4);
+    expect(a.type).toBe("clock");
+    expect(a.id).toMatch(/^clock-/);
+    expect(a).toMatchObject({ visible: true, z: 4, align: "center", clock: { showDate: true, showWeekday: true } });
+    expect(createClockObject(4).id).not.toBe(a.id);
+  });
+
+  it("createWifiObject makes a visible wifi widget with a unique id", () => {
+    const a = createWifiObject(2);
+    expect(a.type).toBe("wifi");
+    expect(a.id).toMatch(/^wifi-/);
+    expect(a).toMatchObject({ visible: true, z: 2 });
+    expect(createWifiObject(2).id).not.toBe(a.id);
+  });
+});
+
+describe("custom object names", () => {
+  const cfgWith = (objects: unknown[]) => normalizePrinterConfig({
+    version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60,
+    screens: { idle: { objects } },
+  });
+
+  it("normalize preserves a trimmed name and caps its length", () => {
+    const cfg = cfgWith([
+      { id: "t", type: "text", x: 0.1, y: 0.1, w: 0.3, h: 0.1, visible: true, z: 0, text: "hi", name: `  ${"n".repeat(60)}  ` },
+    ]);
+    const t = cfg.screens.idle.objects.find((o) => o.id === "t")!;
+    expect(t.name).toBe("n".repeat(MAX_NAME_LEN));
+  });
+
+  it("normalize drops empty/garbage names", () => {
+    const cfg = cfgWith([
+      { id: "t", type: "text", x: 0.1, y: 0.1, w: 0.3, h: 0.1, visible: true, z: 0, text: "hi", name: "   " },
+      { id: "c", type: "clock", x: 0.25, y: 0.52, w: 0.5, h: 0.18, visible: true, z: 1, name: 42 },
+    ]);
+    expect(cfg.screens.idle.objects.find((o) => o.id === "t")!.name).toBeUndefined();
+    expect(cfg.screens.idle.objects.find((o) => o.id === "c")!.name).toBeUndefined();
+  });
+
+  it("objectLabel prefers the user-given name over text/type labels", () => {
+    expect(objectLabel({ ...createTextObject("Hello world", 0), name: "Header" })).toBe("Header");
+    expect(objectLabel({ ...createClockObject(0), name: "Lobby clock" })).toBe("Lobby clock");
+    expect(objectLabel({ ...createClockObject(0) })).toBe("Clock");
+    expect(objectLabel({ ...createTextObject("Hello", 0) })).toBe("Hello");
+    const long = { ...createTextObject("x", 0), name: "A very long custom object name" };
+    expect(objectLabel(long).endsWith("…")).toBe(true);
   });
 });

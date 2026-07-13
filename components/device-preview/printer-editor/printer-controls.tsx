@@ -19,22 +19,29 @@ export function PrinterControls({
 }) {
   const { ordered, disabled, selectedId, setSelectedId, atCustomCap } = editor;
 
-  const addButtons: { label: string; onClick: () => void; capped: boolean; show: boolean }[] = [
-    { label: "Text", onClick: editor.addText, capped: atCustomCap, show: true },
-    { label: "Image", onClick: editor.addImage, capped: atCustomCap, show: true },
+  const addButtons: { label: string; onClick: () => void; capped: boolean; cappedHint: string }[] = [
+    { label: "Text", onClick: editor.addText, capped: atCustomCap, cappedHint: `Limit of ${MAX_CUSTOM} custom objects reached` },
+    { label: "Image", onClick: editor.addImage, capped: atCustomCap, cappedHint: `Limit of ${MAX_CUSTOM} custom objects reached` },
+    { label: "Clock", onClick: editor.addClock, capped: editor.hasClock, cappedHint: "This screen already has a clock" },
+    { label: "Wi-Fi signal", onClick: editor.addWifi, capped: editor.hasWifi, cappedHint: "This screen already has a Wi-Fi signal" },
   ];
+
+  // Clock + Wi-Fi can be re-added from the buttons above; the remaining widgets
+  // (QR, spinner, countdown…) can't, so they stay hide-only.
+  const deletable = (t: string) =>
+    t === "text" || t === "icon" || t === "image" || t === "clock" || t === "wifi";
 
   return (
     <div className="space-y-4">
       {/* Add objects */}
       <div className="grid grid-cols-2 gap-1.5">
-        {addButtons.filter((b) => b.show).map((b) => (
+        {addButtons.map((b) => (
           <button
             key={b.label}
             type="button"
             disabled={disabled || b.capped}
             onClick={b.onClick}
-            title={b.capped ? `Limit of ${MAX_CUSTOM} custom objects reached` : undefined}
+            title={b.capped ? b.cappedHint : undefined}
             className="flex h-8 min-w-0 items-center justify-center gap-1 rounded-md border text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
           >
             <Plus className="size-3.5 shrink-0" />
@@ -50,7 +57,8 @@ export function PrinterControls({
           return (
             <React.Fragment key={o.id}>
               <div
-                onClick={() => o.visible && setSelectedId(o.id)}
+                // Toggle: clicking the selected row collapses its properties again.
+                onClick={() => o.visible && setSelectedId(active ? null : o.id)}
                 className={cn(
                   "flex items-center gap-2.5 px-2.5 py-2 transition-colors",
                   i > 0 && "border-t border-border/60",
@@ -70,8 +78,7 @@ export function PrinterControls({
                 <span className={cn("min-w-0 flex-1 truncate text-[13px] font-medium", !o.visible && "text-muted-foreground line-through")}>
                   {objectLabel(o)}
                 </span>
-                {/* Brand name (logo) is hide-only: with no add button it couldn't be re-added. */}
-                {(o.type === "text" || o.type === "icon" || o.type === "image") && (
+                {deletable(o.type) && (
                   <button
                     type="button"
                     disabled={disabled}

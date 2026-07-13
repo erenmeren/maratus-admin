@@ -4,6 +4,8 @@ import * as React from "react";
 import {
   createTextObject,
   createImageObject,
+  createClockObject,
+  createWifiObject,
   seededScreen,
   MAX_CUSTOM,
   type PrinterObject,
@@ -36,6 +38,9 @@ export interface PrinterEditor {
   guides: Guides;
   ordered: PrinterObject[];
   atCustomCap: boolean;
+  /** True when the active screen already has a clock / Wi-Fi widget (one max each). */
+  hasClock: boolean;
+  hasWifi: boolean;
   patch: (id: string, p: Partial<PrinterObject>) => void;
   startMove: (id: string, e: React.PointerEvent) => void;
   startResize: (handle: Handle, e: React.PointerEvent) => void;
@@ -44,6 +49,8 @@ export interface PrinterEditor {
   onCanvasPointerDown: () => void;
   addText: () => void;
   addImage: () => void;
+  addClock: () => void;
+  addWifi: () => void;
   setShared: (p: Partial<Pick<PrinterConfig, "clockTimezone" | "clock24h" | "wifiLevel" | "qrTimeoutSeconds">>) => void;
   removeObject: (id: string) => void;
   bringToFront: (id: string) => void;
@@ -79,6 +86,8 @@ export function usePrinterEditor({
   const selBox = selected && selected.visible ? toBox(selected) : null;
   const addableCount = objects.filter((o) => o.type === "text" || o.type === "icon" || o.type === "image").length;
   const atCustomCap = addableCount >= MAX_CUSTOM;
+  const hasClock = objects.some((o) => o.type === "clock");
+  const hasWifi = objects.some((o) => o.type === "wifi");
 
   function patch(id: string, p: Partial<PrinterObject>) {
     setObjects(objects.map((o) => (o.id === id ? { ...o, ...p } : o)));
@@ -161,6 +170,16 @@ export function usePrinterEditor({
     setSelectedId(newImage.id);
   }
 
+  // Clock/Wi-Fi are singleton widgets — addable only while the screen has none.
+  function addWidget(create: (z: number) => PrinterObject, exists: boolean) {
+    if (disabled || exists) return;
+    const o = create(objects.reduce((m, x) => Math.max(m, x.z), 0) + 1);
+    setObjects([...objects, o]);
+    setSelectedId(o.id);
+  }
+  const addClock = () => addWidget(createClockObject, hasClock);
+  const addWifi = () => addWidget(createWifiObject, hasWifi);
+
   const setShared = (p: Partial<Pick<PrinterConfig, "clockTimezone" | "clock24h" | "wifiLevel" | "qrTimeoutSeconds">>) =>
     onChange({ ...config, ...p });
 
@@ -206,6 +225,8 @@ export function usePrinterEditor({
     guides,
     ordered,
     atCustomCap,
+    hasClock,
+    hasWifi,
     patch,
     startMove,
     startResize,
@@ -214,6 +235,8 @@ export function usePrinterEditor({
     onCanvasPointerDown,
     addText,
     addImage,
+    addClock,
+    addWifi,
     setShared,
     removeObject,
     bringToFront,

@@ -21,12 +21,14 @@ export type PrinterObjectType = (typeof OBJECT_TYPES)[number];
 export const FIXED_TYPES = ["logo", "clock", "wifi"] as const;
 export type FixedType = (typeof FIXED_TYPES)[number];
 
-// v3 singleton widgets: ≤1 per screen; hideable. Not user-addable/deletable —
-// EXCEPT `logo` (the brand-name wordmark), which the editor lets you add + delete.
-export const WIDGET_TYPES = ["logo", "clock", "wifi", "qr", "spinner", "countdown", "pairingCode", "steps"] as const;
+// v3 singleton widgets: ≤1 per screen; hideable. `clock` and `wifi` are also
+// user-addable/deletable (still one per screen); the rest are hide-only.
+// `logo` (the brand-name wordmark) was retired 2026-07-13 — stored logo objects
+// are dropped on normalize; the type stays in OBJECT_TYPES only for legacy data.
+export const WIDGET_TYPES = ["clock", "wifi", "qr", "spinner", "countdown", "pairingCode", "steps"] as const;
 export type WidgetType = (typeof WIDGET_TYPES)[number];
 
-// v3 user-addable/duplicable types.
+// v3 user-addable/duplicable types (unbounded up to MAX_CUSTOM).
 export const ADDABLE_TYPES = ["text", "image"] as const;
 export type AddableType = (typeof ADDABLE_TYPES)[number];
 
@@ -85,6 +87,8 @@ export interface PrinterObject {
   h: number;
   visible: boolean;
   z: number;
+  /** Optional user-given display name shown in the object list. */
+  name?: string;
   text?: string;
   fontSize?: number; // px on the 720 reference
   align?: TextAlign;
@@ -118,6 +122,7 @@ export const FONT_MIN = 8;
 export const FONT_MAX = 160;
 export const MAX_CUSTOM = 20;
 export const MAX_TEXT_LEN = 80;
+export const MAX_NAME_LEN = 40;
 
 const ALIGNS: TextAlign[] = ["left", "center", "right"];
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
@@ -193,6 +198,30 @@ export function createImageObject(z: number): PrinterObject {
   };
 }
 
+/** A fresh clock widget (one per screen), on top (`z`). */
+export function createClockObject(z: number): PrinterObject {
+  return {
+    id: `clock-${genIdSuffix()}`,
+    type: "clock",
+    ...WIDGET_BOX.clock,
+    visible: true,
+    z,
+    align: "center",
+    clock: { showDate: true, showWeekday: true },
+  };
+}
+
+/** A fresh Wi-Fi signal widget (one per screen), on top (`z`). */
+export function createWifiObject(z: number): PrinterObject {
+  return {
+    id: `wifi-${genIdSuffix()}`,
+    type: "wifi",
+    ...WIDGET_BOX.wifi,
+    visible: true,
+    z,
+  };
+}
+
 // Internal helper: build an object with sane defaults.
 function obj(o: Partial<PrinterObject> & Pick<PrinterObject, "id" | "type" | "x" | "y" | "w" | "h" | "z">): PrinterObject {
   return { visible: true, ...o };
@@ -207,8 +236,8 @@ function obj(o: Partial<PrinterObject> & Pick<PrinterObject, "id" | "type" | "x"
 export function seededScreen(screen: PrinterScreen): ScreenLayout {
   switch (screen) {
     case "idle":
-      // Reuse the v2 default objects verbatim (logo/clock/wifi + lane + tagline).
-      return { objects: defaultLayout().objects };
+      // Reuse the v2 default objects (clock/wifi — the brand-name logo is retired).
+      return { objects: defaultLayout().objects.filter((o) => o.type !== "logo") };
     case "processing":
       // From ProcessingScreen (printer-preview.tsx): spinner + caption text.
       return {
@@ -219,10 +248,9 @@ export function seededScreen(screen: PrinterScreen): ScreenLayout {
         ],
       };
     case "qr":
-      // From DocumentScreen (printer-preview.tsx): logo + heading + qr + caption + countdown.
+      // From DocumentScreen (printer-preview.tsx): heading + qr + caption + countdown.
       return {
         objects: [
-          obj({ id: "logo", type: "logo", x: 0.34, y: 0.06, w: 0.32, h: 0.12, z: 0 }),
           obj({ id: "text-heading", type: "text", x: 0.1, y: 0.2, w: 0.8, h: 0.07, z: 1, text: "Scan to get your document", fontSize: 24, align: "center" }),
           obj({ id: "qr", type: "qr", x: 0.32, y: 0.3, w: 0.36, h: 0.36, z: 2 }),
           obj({ id: "text-hint", type: "text", x: 0.15, y: 0.7, w: 0.7, h: 0.06, z: 3, text: "Point your phone camera at the code", fontSize: 16, align: "center" }),
@@ -250,19 +278,17 @@ export function seededScreen(screen: PrinterScreen): ScreenLayout {
         ],
       };
     case "paused":
-      // From PausedScreen (printer-preview.tsx): dimmed logo + text.
+      // From PausedScreen (printer-preview.tsx): title + subtext.
       return {
         objects: [
-          obj({ id: "logo", type: "logo", x: 0.34, y: 0.22, w: 0.32, h: 0.16, z: 0 }),
           obj({ id: "text-title", type: "text", x: 0.1, y: 0.46, w: 0.8, h: 0.08, z: 1, text: "Currently unavailable", fontSize: 24, align: "center" }),
           obj({ id: "text-sub", type: "text", x: 0.15, y: 0.56, w: 0.7, h: 0.06, z: 2, text: "Digital documents are paused at this register.", fontSize: 16, align: "center" }),
         ],
       };
     case "setup":
-      // From SetupScreen (printer-preview.tsx): logo + heading + steps + pairingCode + qr.
+      // From SetupScreen (printer-preview.tsx): heading + steps + pairingCode + qr.
       return {
         objects: [
-          obj({ id: "logo", type: "logo", x: 0.34, y: 0.05, w: 0.32, h: 0.1, z: 0 }),
           obj({ id: "text-title", type: "text", x: 0.1, y: 0.18, w: 0.8, h: 0.07, z: 1, text: "Let's pair this device", fontSize: 24, align: "center" }),
           obj({ id: "text-sub", type: "text", x: 0.15, y: 0.26, w: 0.7, h: 0.05, z: 2, text: "Claim it from your admin dashboard to start.", fontSize: 15, align: "center" }),
           obj({ id: "steps", type: "steps", x: 0.18, y: 0.34, w: 0.64, h: 0.28, z: 3 }),
@@ -273,11 +299,14 @@ export function seededScreen(screen: PrinterScreen): ScreenLayout {
   }
 }
 
-/** Display name for the object list / inspector. */
+/** Display name for the object list / inspector: user-given name > text content > type label. */
 export function objectLabel(o: PrinterObject): string {
+  const truncate = (s: string) => (s.length > 18 ? `${s.slice(0, 18)}…` : s);
+  const name = (o.name ?? "").trim();
+  if (name) return truncate(name);
   if (o.type !== "text") return TYPE_LABEL[o.type];
   const t = (o.text ?? "").trim();
-  return t ? (t.length > 18 ? `${t.slice(0, 18)}…` : t) : "Text";
+  return t ? truncate(t) : "Text";
 }
 
 /** Clamp a box onto the canvas with a minimum size. */
@@ -383,7 +412,6 @@ function sanitizeClock(raw: unknown): PrinterClockOptions {
 
 /** Default box for a widget singleton (used when a stored object is malformed). */
 const WIDGET_BOX: Record<WidgetType, Pick<PrinterObject, "x" | "y" | "w" | "h">> = {
-  logo: { x: 0.34, y: 0.22, w: 0.32, h: 0.16 },
   clock: { x: 0.25, y: 0.52, w: 0.5, h: 0.18 },
   wifi: { x: 0.82, y: 0.04, w: 0.1, h: 0.06 },
   qr: { x: 0.32, y: 0.3, w: 0.36, h: 0.36 },
@@ -398,14 +426,19 @@ function sanitizeObject(raw: unknown, fallbackZ: number): PrinterObject | null {
   const o = (raw ?? {}) as Record<string, unknown>;
   const type = o.type;
   if (!(OBJECT_TYPES as readonly string[]).includes(type as string)) return null;
+  // Brand-name wordmark retired 2026-07-13 — drop stored logo objects everywhere.
+  if (type === "logo") return null;
   const z = typeof o.z === "number" && Number.isFinite(o.z) ? o.z : fallbackZ;
   const visible = typeof o.visible === "boolean" ? o.visible : true;
   const id = typeof o.id === "string" && o.id ? o.id : `${String(type)}-${fallbackZ}`;
+  const name = typeof o.name === "string" && o.name.trim()
+    ? o.name.trim().slice(0, MAX_NAME_LEN)
+    : undefined;
 
   if (type === "text") {
     if (typeof o.text !== "string" || o.text.trim() === "") return null;
     return {
-      id, type: "text", z, visible,
+      id, type: "text", z, visible, name,
       ...sanitizeBox(o, { x: 0.35, y: 0.45, w: 0.3, h: 0.1 }),
       text: o.text.slice(0, MAX_TEXT_LEN),
       fontSize: clamp(num(o.fontSize, DEFAULT_FONT.text), FONT_MIN, FONT_MAX),
@@ -414,21 +447,21 @@ function sanitizeObject(raw: unknown, fallbackZ: number): PrinterObject | null {
   }
   if (type === "icon") {
     return {
-      id, type: "icon", z, visible,
+      id, type: "icon", z, visible, name,
       ...sanitizeBox(o, { x: 0.4, y: 0.4, w: 0.2, h: 0.2 }),
       icon: sanitizeIcon(o.icon),
     };
   }
   if (type === "image") {
     return {
-      id, type: "image", z, visible,
+      id, type: "image", z, visible, name,
       ...sanitizeBox(o, { x: 0.35, y: 0.35, w: 0.3, h: 0.3 }),
       image: sanitizeImage(o.image),
     };
   }
   if (type === "clock") {
     return {
-      id, type: "clock", z, visible,
+      id, type: "clock", z, visible, name,
       ...sanitizeBox(o, WIDGET_BOX.clock),
       align: ALIGNS.includes(o.align as TextAlign) ? (o.align as TextAlign) : "center",
       clock: sanitizeClock(o.clock),
@@ -437,7 +470,7 @@ function sanitizeObject(raw: unknown, fallbackZ: number): PrinterObject | null {
   // widget singleton
   const wt = type as WidgetType;
   return {
-    id, type: wt, z, visible,
+    id, type: wt, z, visible, name,
     ...sanitizeBox(o, WIDGET_BOX[wt]),
   };
 }
@@ -468,11 +501,14 @@ function sanitizeScreen(raw: unknown, screen: PrinterScreen): ScreenLayout {
   return { objects: out.length ? out : seededScreen(screen).objects };
 }
 
-/** Migrate a v2 PrinterLayout into a v3 config: idle = its objects, others seeded. */
+/** Migrate a v2 PrinterLayout into a v3 config: idle = its objects (minus the
+ *  retired logo wordmark), others seeded. */
 export function migrateV2ToConfig(layout: PrinterLayout): PrinterConfig {
   const screens = {} as Record<PrinterScreen, ScreenLayout>;
   for (const s of PRINTER_SCREENS) {
-    screens[s] = s === "idle" ? { objects: [...layout.objects] } : seededScreen(s);
+    screens[s] = s === "idle"
+      ? { objects: layout.objects.filter((o) => o.type !== "logo") }
+      : seededScreen(s);
   }
   return {
     version: 3,

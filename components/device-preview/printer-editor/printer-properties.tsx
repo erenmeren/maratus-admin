@@ -6,6 +6,8 @@ import {
   FONT_MIN,
   FONT_MAX,
   MAX_TEXT_LEN,
+  MAX_NAME_LEN,
+  TYPE_LABEL,
   type PrinterObject,
   type TextAlign,
 } from "@/lib/printer-layout";
@@ -43,6 +45,18 @@ export function PropertyFields({
 
   return (
     <div className="space-y-3">
+      <div className="space-y-1.5">
+        <Label className="text-xs text-muted-foreground">Name</Label>
+        <Input
+          value={object.name ?? ""}
+          disabled={disabled}
+          maxLength={MAX_NAME_LEN}
+          placeholder={TYPE_LABEL[object.type]}
+          onChange={(e) => set({ name: e.target.value || undefined })}
+          className="h-8"
+        />
+      </div>
+
       {object.type === "text" && (
         <>
           <div className="space-y-1.5">

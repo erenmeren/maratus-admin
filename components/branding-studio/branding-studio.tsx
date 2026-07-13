@@ -495,20 +495,6 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
         </div>
       </section>
 
-      {/* Logo text */}
-      <section className="space-y-2">
-        <Label htmlFor="studio-logoText" className="text-xs">
-          Logo text (preview fallback)
-        </Label>
-        <Input
-          id="studio-logoText"
-          value={draft.logoText}
-          onChange={(e) => draft.setLogoText(e.target.value)}
-          placeholder="Your brand"
-          disabled={draft.disabled}
-          className="h-9"
-        />
-      </section>
     </>
   );
 }

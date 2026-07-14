@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ObjectVisual, printerRootStyle, cq, type PrinterBrand } from "../printer-preview";
+import { ObjectVisual, printerRootStyle, effectiveBrand, cq, type PrinterBrand } from "../printer-preview";
 import { MAX_TEXT_LEN } from "@/lib/printer-layout";
 import { HANDLES, type Box, type Handle } from "@/lib/printer-geometry";
 import type { PrinterEditor } from "./use-printer-editor";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
  *  selection/resize overlay. Driven entirely by a usePrinterEditor instance. */
 export function PrinterStage({ editor, brand }: { editor: PrinterEditor; brand: PrinterBrand }) {
   const { config, disabled, canvasRef, ordered, guides, selBox, selectedId } = editor;
+  const eb = effectiveBrand(brand, editor.config, editor.screen);
 
   // Clear drag/selection when the canvas unmounts (e.g. switching preview screens).
   const endInteraction = editor.endInteraction;
@@ -36,7 +37,7 @@ export function PrinterStage({ editor, brand }: { editor: PrinterEditor; brand: 
       onPointerLeave={editor.onPointerUp}
       onPointerDown={editor.onCanvasPointerDown}
       className="@container relative aspect-square w-full touch-none overflow-hidden shadow-2xl ring-1 ring-black/10 select-none"
-      style={{ ...printerRootStyle(brand), background: "var(--k-bg)", color: "var(--k-fg)" }}
+      style={{ ...printerRootStyle(eb), background: "var(--k-bg)", color: "var(--k-fg)" }}
     >
       {ordered
         .filter((o) => o.visible)
@@ -65,7 +66,7 @@ export function PrinterStage({ editor, brand }: { editor: PrinterEditor; brand: 
                   onCancel={() => setEditingId(null)}
                 />
               ) : (
-                <ObjectVisual object={o} brand={brand} config={config} />
+                <ObjectVisual object={o} brand={eb} config={config} />
               )}
             </div>
           );

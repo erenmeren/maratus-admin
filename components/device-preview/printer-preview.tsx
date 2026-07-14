@@ -6,6 +6,7 @@ import { FauxQR } from "./qr-code";
 import { PrinterClock } from "./printer-clock";
 import { resolveBrandTokens, withAlpha } from "@/lib/color";
 import {
+  screenColors,
   type PrinterConfig,
   type PrinterObject,
   type PrinterScreen,
@@ -66,6 +67,17 @@ export function printerRootStyle(brand: PrinterBrand): React.CSSProperties {
   } as React.CSSProperties;
 }
 
+/** The brand with the screen's palette override applied (if any). */
+export function effectiveBrand(
+  brand: PrinterBrand,
+  config: PrinterConfig,
+  screen: PrinterScreen,
+): PrinterBrand {
+  const oc = screenColors(config, screen);
+  if (!oc) return brand;
+  return { ...brand, brandColor: oc.accent, brandBg: oc.bg, brandFg: oc.fg, brandMuted: oc.muted };
+}
+
 /**
  * 720×720 printer mockup, container-query sized (cqw) so it scales to any width
  * while staying square. Renders the visible objects of the given screen sorted by
@@ -83,6 +95,7 @@ export function PrinterPreview({
   screen: PrinterScreen;
   className?: string;
 }) {
+  const eb = effectiveBrand(brand, config, screen);
   const objects = [...config.screens[screen].objects]
     .filter((o) => o.visible)
     .sort((a, b) => a.z - b.z);
@@ -93,7 +106,7 @@ export function PrinterPreview({
         className,
       )}
       style={{
-        ...printerRootStyle(brand),
+        ...printerRootStyle(eb),
         background: "var(--k-bg)",
         color: "var(--k-fg)",
       }}
@@ -110,7 +123,7 @@ export function PrinterPreview({
             zIndex: o.z,
           }}
         >
-          <ObjectVisual object={o} brand={brand} config={config} />
+          <ObjectVisual object={o} brand={eb} config={config} />
         </div>
       ))}
     </div>

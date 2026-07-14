@@ -38,9 +38,11 @@ import {
   ZOOM_DEFAULT,
 } from "@/lib/branding-shell";
 import { isValidHex, withAlpha } from "@/lib/color";
+import { screenColors, type ScreenColors } from "@/lib/printer-layout";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
@@ -52,6 +54,7 @@ export function BrandingStudio(props: BrandingVariantProps) {
   const [fullscreen, setFullscreen] = React.useState(false);
   const previewPx = zoomToPx(zoom);
   const activeScreen = SCREENS.find((s) => s.value === draft.screen);
+  const stageAccent = screenColors(draft.config, draft.screen)?.accent ?? draft.color;
 
   // Full-screen mode: lock page scroll behind the overlay, exit on Escape.
   React.useEffect(() => {
@@ -118,7 +121,7 @@ export function BrandingStudio(props: BrandingVariantProps) {
             aria-hidden
             className="pointer-events-none absolute inset-0"
             style={{
-              background: `radial-gradient(60% 55% at 50% 36%, ${withAlpha(draft.color, 0.16)}, transparent 70%)`,
+              background: `radial-gradient(60% 55% at 50% 36%, ${withAlpha(stageAccent, 0.16)}, transparent 70%)`,
             }}
           />
 
@@ -198,7 +201,7 @@ export function BrandingStudio(props: BrandingVariantProps) {
                       )}
                       style={
                         active
-                          ? ({ "--tw-ring-color": draft.color } as React.CSSProperties)
+                          ? ({ "--tw-ring-color": stageAccent } as React.CSSProperties)
                           : undefined
                       }
                     >
@@ -362,10 +365,9 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
       {/* Custom brand colors — first-class, nothing hidden */}
       <section className="space-y-2.5">
         <div className="space-y-1">
-          <PanelLabel>Brand colors</PanelLabel>
+          <PanelLabel>Global colors</PanelLabel>
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Every color is yours to set — build your own look, or start from a
-            preset below and fine-tune.
+            Used by every screen that doesn&apos;t set its own colors below.
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -495,7 +497,76 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
         </div>
       </section>
 
+      {/* Per-screen override — scoped to the active screen (picked in the filmstrip) */}
+      <ScreenColorsPanel draft={draft} />
     </>
+  );
+}
+
+/** Per-screen palette override for the active screen. */
+function ScreenColorsPanel({ draft }: { draft: BrandingDraft }) {
+  const label = SCREENS.find((s) => s.value === draft.screen)?.label ?? draft.screen;
+  const override = screenColors(draft.config, draft.screen);
+  const globalPalette: ScreenColors = { accent: draft.color, bg: draft.bg, fg: draft.fg, muted: draft.muted };
+  const set = (p: Partial<ScreenColors>) =>
+    draft.editor.setScreenColors({ ...(override ?? globalPalette), ...p });
+  const palettes = derivePalettes(override?.accent ?? draft.color);
+
+  return (
+    <section className="space-y-2.5 border-t pt-4">
+      <div className="space-y-1">
+        <PanelLabel>Screen colors — {label}</PanelLabel>
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          Give this screen its own palette. Pick the screen in the filmstrip below.
+        </p>
+      </div>
+      <div className="flex items-center justify-between">
+        <Label htmlFor="screen-colors-switch" className="text-xs">
+          Use custom colors for this screen
+        </Label>
+        <Switch
+          id="screen-colors-switch"
+          checked={override !== null}
+          disabled={draft.disabled}
+          onCheckedChange={(on) => draft.editor.setScreenColors(on ? globalPalette : null)}
+        />
+      </div>
+      {override && (
+        <>
+          <div className="space-y-3 pt-1">
+            <ColorField label="Accent" value={override.accent} onChange={(v) => set({ accent: v })} disabled={draft.disabled} />
+            <ColorField label="Background" value={override.bg} onChange={(v) => set({ bg: v })} disabled={draft.disabled} />
+            <ColorField label="Text" value={override.fg} onChange={(v) => set({ fg: v })} disabled={draft.disabled} />
+            <ColorField label="Muted text" value={override.muted} onChange={(v) => set({ muted: v })} disabled={draft.disabled} />
+          </div>
+          <div className="flex gap-2 pt-1">
+            {palettes.map((p) => {
+              const active = eq(p.bg, override.bg) && eq(p.fg, override.fg) && eq(p.muted, override.muted);
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  disabled={draft.disabled}
+                  onClick={() => set({ bg: p.bg, fg: p.fg, muted: p.muted })}
+                  className={cn(
+                    "flex flex-1 flex-col items-center gap-1.5 rounded-lg border py-2.5 ring-offset-2 ring-offset-card transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm disabled:pointer-events-none disabled:opacity-60",
+                    active && "ring-2",
+                  )}
+                  style={active ? ({ "--tw-ring-color": override.accent } as React.CSSProperties) : undefined}
+                >
+                  <span className="flex -space-x-1">
+                    {[p.bg, p.fg, p.muted].map((c, i) => (
+                      <span key={i} className="size-4 rounded-full ring-1 ring-border" style={{ background: c }} />
+                    ))}
+                  </span>
+                  <span className="text-[10px] font-medium text-muted-foreground">{p.name}</span>
+                </button>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </section>
   );
 }
 

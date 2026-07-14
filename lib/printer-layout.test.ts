@@ -455,9 +455,15 @@ describe("per-screen colors", () => {
   it("drops partial, invalid-hex, and non-object overrides", () => {
     expect(idleWith({ accent: "#10a765", bg: "#ffffff", fg: "#111111" }).screens.idle.colors).toBeUndefined();
     expect(idleWith({ accent: "#10a765", bg: "#ffffff", fg: "#111111", muted: "nope" }).screens.idle.colors).toBeUndefined();
-    expect(idleWith({ accent: "#10a765", bg: "#ffffff", fg: "#111111", muted: "#abc" }).screens.idle.colors).toBeUndefined(); // 3-digit rejected
     expect(idleWith("dark").screens.idle.colors).toBeUndefined();
     expect(idleWith(null).screens.idle.colors).toBeUndefined();
+  });
+
+  it("expands 3-digit hex shorthand instead of dropping the override", () => {
+    const cfg = idleWith({ accent: "#AbC", bg: "fff", fg: "#111111", muted: "#8a8a8a" });
+    expect(cfg.screens.idle.colors).toEqual({
+      accent: "#aabbcc", bg: "#ffffff", fg: "#111111", muted: "#8a8a8a",
+    });
   });
 
   it("v2 migration and seeded screens never produce colors", () => {

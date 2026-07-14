@@ -449,17 +449,20 @@ function sanitizeClock(raw: unknown): PrinterClockOptions {
   };
 }
 
-const HEX6 = /^#?([0-9a-f]{6})$/i;
+const HEX = /^#?([0-9a-f]{3}|[0-9a-f]{6})$/i;
 
-/** Valid = all four tokens are 6-digit hex; normalized to #-prefixed lowercase. Else null. */
+/** Valid = all four tokens are 3- or 6-digit hex; normalized to 6-digit #-prefixed
+ *  lowercase (#abc → #aabbcc — the hex inputs accept shorthand, so normalize must
+ *  not drop it). Else null. */
 function sanitizeScreenColors(raw: unknown): ScreenColors | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
   const out: Partial<ScreenColors> = {};
   for (const key of ["accent", "bg", "fg", "muted"] as const) {
-    const m = typeof r[key] === "string" ? (r[key] as string).match(HEX6) : null;
+    const m = typeof r[key] === "string" ? (r[key] as string).match(HEX) : null;
     if (!m) return null;
-    out[key] = `#${m[1].toLowerCase()}`;
+    const hex = m[1].toLowerCase();
+    out[key] = `#${hex.length === 3 ? [...hex].map((c) => c + c).join("") : hex}`;
   }
   return out as ScreenColors;
 }

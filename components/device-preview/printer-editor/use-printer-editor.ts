@@ -7,10 +7,13 @@ import {
   createClockObject,
   createWifiObject,
   seededScreen,
+  withScreenObjects,
+  withScreenColors,
   MAX_CUSTOM,
   type PrinterObject,
   type PrinterConfig,
   type PrinterScreen,
+  type ScreenColors,
 } from "@/lib/printer-layout";
 import { resizeBox, snapMove, snapResize, clampToCanvas, type Box, type Handle, type Guides } from "@/lib/printer-geometry";
 
@@ -52,6 +55,8 @@ export interface PrinterEditor {
   addClock: () => void;
   addWifi: () => void;
   setShared: (p: Partial<Pick<PrinterConfig, "clockTimezone" | "clock24h" | "wifiLevel" | "qrTimeoutSeconds">>) => void;
+  /** Set (or clear, with null) the active screen's palette override. */
+  setScreenColors: (c: ScreenColors | null) => void;
   removeObject: (id: string) => void;
   bringToFront: (id: string) => void;
   resetLayout: () => void;
@@ -78,9 +83,9 @@ export function usePrinterEditor({
 
   const objects = config.screens[screen].objects;
 
-  // Replace the whole active screen's object list, preserving other screens + shared config.
-  const setObjects = (next: PrinterObject[]) =>
-    onChange({ ...config, screens: { ...config.screens, [screen]: { objects: next } } });
+  // Replace the whole active screen's object list, preserving the screen's other
+  // fields (colors) + other screens + shared config.
+  const setObjects = (next: PrinterObject[]) => onChange(withScreenObjects(config, screen, next));
 
   const selected = objects.find((o) => o.id === selectedId) ?? null;
   const selBox = selected && selected.visible ? toBox(selected) : null;
@@ -183,6 +188,10 @@ export function usePrinterEditor({
   const setShared = (p: Partial<Pick<PrinterConfig, "clockTimezone" | "clock24h" | "wifiLevel" | "qrTimeoutSeconds">>) =>
     onChange({ ...config, ...p });
 
+  const setScreenColors = (c: ScreenColors | null) => {
+    if (!disabled) onChange(withScreenColors(config, screen, c));
+  };
+
   function removeObject(id: string) {
     setObjects(objects.filter((o) => o.id !== id));
     if (selectedId === id) setSelectedId(null);
@@ -238,6 +247,7 @@ export function usePrinterEditor({
     addClock,
     addWifi,
     setShared,
+    setScreenColors,
     removeObject,
     bringToFront,
     resetLayout,

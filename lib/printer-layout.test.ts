@@ -480,3 +480,37 @@ describe("per-screen colors", () => {
     expect(twice.screens.idle.colors).toEqual(once.screens.idle.colors);
   });
 });
+
+import { withScreenObjects, withScreenColors, createTextObject as mkText } from "./printer-layout";
+
+describe("screen updaters", () => {
+  const colors: ScreenColors = { accent: "#10a765", bg: "#ffffff", fg: "#111111", muted: "#8a8a8a" };
+  const cfg = () => {
+    const c = normalizePrinterConfig(null);
+    return withScreenColors(c, "idle", colors);
+  };
+
+  it("withScreenColors sets and removes the override without touching objects", () => {
+    const withC = cfg();
+    expect(withC.screens.idle.colors).toEqual(colors);
+    expect(withC.screens.idle.objects.length).toBeGreaterThan(0);
+    const removed = withScreenColors(withC, "idle", null);
+    expect(removed.screens.idle.colors).toBeUndefined();
+    expect("colors" in removed.screens.idle).toBe(false); // key absent, not undefined (clean JSON)
+    expect(removed.screens.idle.objects).toEqual(withC.screens.idle.objects);
+  });
+
+  it("withScreenObjects replaces objects and PRESERVES the color override", () => {
+    const next = withScreenObjects(cfg(), "idle", [mkText("hello", 0)]);
+    expect(next.screens.idle.objects.map((o) => o.text)).toEqual(["hello"]);
+    expect(next.screens.idle.colors).toEqual(colors);
+  });
+
+  it("updaters do not mutate their input and leave other screens alone", () => {
+    const before = cfg();
+    const snapshot = JSON.stringify(before);
+    const after = withScreenObjects(before, "idle", []);
+    expect(JSON.stringify(before)).toBe(snapshot);
+    expect(after.screens.error).toBe(before.screens.error);
+  });
+});

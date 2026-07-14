@@ -323,6 +323,31 @@ export function screenColors(config: PrinterConfig, screen: PrinterScreen): Scre
   return config.screens[screen].colors ?? null;
 }
 
+/** Replace one screen's objects, preserving its other fields (e.g. colors). */
+export function withScreenObjects(
+  config: PrinterConfig,
+  screen: PrinterScreen,
+  objects: PrinterObject[],
+): PrinterConfig {
+  return {
+    ...config,
+    screens: { ...config.screens, [screen]: { ...config.screens[screen], objects } },
+  };
+}
+
+/** Set (or remove, with null) one screen's palette override, preserving its objects. */
+export function withScreenColors(
+  config: PrinterConfig,
+  screen: PrinterScreen,
+  colors: ScreenColors | null,
+): PrinterConfig {
+  const entry = config.screens[screen];
+  const next: ScreenLayout = colors
+    ? { ...entry, colors }
+    : { objects: entry.objects }; // rebuild without the key so JSON stays clean
+  return { ...config, screens: { ...config.screens, [screen]: next } };
+}
+
 /** Clamp a box onto the canvas with a minimum size. */
 function sanitizeBox(o: Record<string, unknown>, d: Pick<PrinterObject, "x" | "y" | "w" | "h">) {
   const w = clamp(num(o.w, d.w), MIN_BOX, 1);

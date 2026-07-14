@@ -397,9 +397,6 @@ export interface TenantDashboard {
   activationsThisMonth: number;
   activeDevices: number;
   totalDevices: number;
-  eco: ReturnType<typeof computeEcoSavings>;
-  ecoYtdActivations: number;
-  ecoYtd: ReturnType<typeof computeEcoSavings>;
   daily: TimePoint[];
 }
 
@@ -416,7 +413,6 @@ export async function getTenantDashboard(
   const activationsToday = devices.reduce((a, d) => a + d.activationsToday, 0);
   const activationsThisMonth = devices.reduce((a, d) => a + d.activationsThisMonth, 0);
   const activeDevices = devices.filter((d) => d.status === "online").length;
-  const ecoYtdActivations = Math.round(activationsThisMonth * 7.4);
 
   return {
     tenant,
@@ -424,9 +420,6 @@ export async function getTenantDashboard(
     activationsThisMonth,
     activeDevices,
     totalDevices: devices.length,
-    eco: computeEcoSavings(activationsThisMonth),
-    ecoYtdActivations,
-    ecoYtd: computeEcoSavings(ecoYtdActivations),
     daily: dailySeries(b),
   };
 }

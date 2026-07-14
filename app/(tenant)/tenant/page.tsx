@@ -1,21 +1,15 @@
-import Link from "next/link";
-import { ArrowUpRight, CalendarDays, Cpu, FileText } from "lucide-react";
+import { CalendarDays, Cpu, FileText } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
-import { EcoSavingsCard } from "@/components/eco-savings";
 import { DocumentsAreaChart } from "@/components/charts";
-import { StatusBadge } from "@/components/status-badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle,  } from "@/components/ui/card";
-import { getTenantDashboard, getTenantStoresPage } from "@/lib/data";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getTenantDashboard } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
 import { formatNumber } from "@/lib/format";
 
 export default async function TenantDashboardPage() {
   const { ctx, organizationId } = await requireTenant();
   const dash = await getTenantDashboard(organizationId);
-  const { rows } = await getTenantStoresPage(organizationId, { q: "", page: 1, sort: "activations" });
-  const topStores = rows.slice(0, 4);
 
   return (
     <>
@@ -52,54 +46,13 @@ export default async function TenantDashboardPage() {
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle>Activations over time</CardTitle>
-            <CardDescription>Daily activations, last 30 days</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <DocumentsAreaChart data={dash.daily} />
-          </CardContent>
-        </Card>
-
-        <EcoSavingsCard eco={dash.eco} />
-      </div>
-
       <Card>
-        <CardHeader className="flex-row items-center justify-between space-y-0">
-          <div className="space-y-1">
-            <CardTitle>Busiest stores</CardTitle>
-            <CardDescription>Activations this month, by branch</CardDescription>
-          </div>
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/tenant/stores">
-              All stores
-              <ArrowUpRight className="size-4" />
-            </Link>
-          </Button>
+        <CardHeader>
+          <CardTitle>Activations over time</CardTitle>
+          <CardDescription>Daily activations, last 30 days</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 sm:grid-cols-2">
-          {topStores.map((s) => (
-            <Link
-              key={s.id}
-              href={`/tenant/stores/${s.id}`}
-              className="flex items-center justify-between rounded-xl border p-4 transition-colors hover:bg-accent/50"
-            >
-              <div className="min-w-0">
-                <p className="truncate font-medium">{s.name}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {s.deviceCount} printers · {s.onlineCount} online
-                </p>
-              </div>
-              <div className="flex flex-col items-end gap-1.5">
-                <span className="font-display text-lg font-bold tabular-nums">
-                  {formatNumber(s.activationsThisMonth)}
-                </span>
-                <StatusBadge status={s.status} />
-              </div>
-            </Link>
-          ))}
+        <CardContent>
+          <DocumentsAreaChart data={dash.daily} />
         </CardContent>
       </Card>
     </>

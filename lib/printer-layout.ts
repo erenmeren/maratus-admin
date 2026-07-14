@@ -105,8 +105,17 @@ export interface PrinterLayout {
   objects: PrinterObject[];
 }
 
+/** All-or-nothing per-screen palette override; absent = inherit the global palette. */
+export interface ScreenColors {
+  accent: string; // #rrggbb
+  bg: string;
+  fg: string;
+  muted: string;
+}
+
 export interface ScreenLayout {
   objects: PrinterObject[];
+  colors?: ScreenColors;
 }
 
 export interface PrinterConfig {
@@ -309,6 +318,11 @@ export function objectLabel(o: PrinterObject): string {
   return t ? truncate(t) : "Text";
 }
 
+/** The screen's palette override, or null to use the global palette. */
+export function screenColors(config: PrinterConfig, screen: PrinterScreen): ScreenColors | null {
+  return config.screens[screen].colors ?? null;
+}
+
 /** Clamp a box onto the canvas with a minimum size. */
 function sanitizeBox(o: Record<string, unknown>, d: Pick<PrinterObject, "x" | "y" | "w" | "h">) {
   const w = clamp(num(o.w, d.w), MIN_BOX, 1);
@@ -410,6 +424,21 @@ function sanitizeClock(raw: unknown): PrinterClockOptions {
   };
 }
 
+const HEX6 = /^#?([0-9a-f]{6})$/i;
+
+/** Valid = all four tokens are 6-digit hex; normalized to #-prefixed lowercase. Else null. */
+function sanitizeScreenColors(raw: unknown): ScreenColors | null {
+  if (!raw || typeof raw !== "object") return null;
+  const r = raw as Record<string, unknown>;
+  const out: Partial<ScreenColors> = {};
+  for (const key of ["accent", "bg", "fg", "muted"] as const) {
+    const m = typeof r[key] === "string" ? (r[key] as string).match(HEX6) : null;
+    if (!m) return null;
+    out[key] = `#${m[1].toLowerCase()}`;
+  }
+  return out as ScreenColors;
+}
+
 /** Default box for a widget singleton (used when a stored object is malformed). */
 const WIDGET_BOX: Record<WidgetType, Pick<PrinterObject, "x" | "y" | "w" | "h">> = {
   clock: { x: 0.25, y: 0.52, w: 0.5, h: 0.18 },
@@ -477,7 +506,7 @@ function sanitizeObject(raw: unknown, fallbackZ: number): PrinterObject | null {
 
 /** Normalize one screen's objects: ≥0 widget singletons (deduped) + capped addables. */
 function sanitizeScreen(raw: unknown, screen: PrinterScreen): ScreenLayout {
-  const r = (raw ?? {}) as { objects?: unknown };
+  const r = (raw ?? {}) as { objects?: unknown; colors?: unknown };
   if (!Array.isArray(r.objects)) return seededScreen(screen);
   const list = r.objects as unknown[];
 
@@ -497,8 +526,12 @@ function sanitizeScreen(raw: unknown, screen: PrinterScreen): ScreenLayout {
     }
     out.push(o);
   }
+  const colors = sanitizeScreenColors(r.colors);
   // If a screen was emptied to nothing, fall back to its seed so it isn't blank.
-  return { objects: out.length ? out : seededScreen(screen).objects };
+  return {
+    objects: out.length ? out : seededScreen(screen).objects,
+    ...(colors ? { colors } : {}),
+  };
 }
 
 /** Migrate a v2 PrinterLayout into a v3 config: idle = its objects (minus the

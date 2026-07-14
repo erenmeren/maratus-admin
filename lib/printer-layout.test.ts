@@ -431,3 +431,52 @@ describe("custom object names", () => {
     expect(objectLabel(long).endsWith("…")).toBe(true);
   });
 });
+
+// ─── Per-screen color overrides ──────────────────────────────────────────────
+
+import { screenColors, type ScreenColors } from "./printer-layout";
+
+describe("per-screen colors", () => {
+  const base = { version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60 };
+  const idleWith = (colors: unknown) => normalizePrinterConfig({
+    ...base,
+    screens: { idle: { objects: [
+      { id: "t", type: "text", x: 0.1, y: 0.1, w: 0.3, h: 0.1, visible: true, z: 0, text: "hi" },
+    ], colors } },
+  });
+
+  it("keeps a valid 4-color override and normalizes hex to #-prefixed lowercase", () => {
+    const cfg = idleWith({ accent: "10A765", bg: "#FFFFFF", fg: "#111111", muted: "#8a8a8a" });
+    expect(cfg.screens.idle.colors).toEqual({
+      accent: "#10a765", bg: "#ffffff", fg: "#111111", muted: "#8a8a8a",
+    });
+  });
+
+  it("drops partial, invalid-hex, and non-object overrides", () => {
+    expect(idleWith({ accent: "#10a765", bg: "#ffffff", fg: "#111111" }).screens.idle.colors).toBeUndefined();
+    expect(idleWith({ accent: "#10a765", bg: "#ffffff", fg: "#111111", muted: "nope" }).screens.idle.colors).toBeUndefined();
+    expect(idleWith({ accent: "#10a765", bg: "#ffffff", fg: "#111111", muted: "#abc" }).screens.idle.colors).toBeUndefined(); // 3-digit rejected
+    expect(idleWith("dark").screens.idle.colors).toBeUndefined();
+    expect(idleWith(null).screens.idle.colors).toBeUndefined();
+  });
+
+  it("v2 migration and seeded screens never produce colors", () => {
+    const migrated = normalizePrinterConfig(defaultLayout());
+    for (const s of PRINTER_SCREENS) {
+      expect(migrated.screens[s].colors).toBeUndefined();
+      expect(seededScreen(s).colors).toBeUndefined();
+    }
+  });
+
+  it("screenColors returns the override when present, null otherwise", () => {
+    const cfg = idleWith({ accent: "#10a765", bg: "#ffffff", fg: "#111111", muted: "#8a8a8a" });
+    expect(screenColors(cfg, "idle")).toEqual({ accent: "#10a765", bg: "#ffffff", fg: "#111111", muted: "#8a8a8a" });
+    expect(screenColors(cfg, "error")).toBeNull();
+  });
+
+  it("round-trips: a normalized override survives re-normalization", () => {
+    const once = idleWith({ accent: "#10a765", bg: "#ffffff", fg: "#111111", muted: "#8a8a8a" });
+    const twice = normalizePrinterConfig(once);
+    expect(twice.screens.idle.colors).toEqual(once.screens.idle.colors);
+  });
+});

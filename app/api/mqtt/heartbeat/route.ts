@@ -3,7 +3,7 @@
 // than ~1 minute, bounding a lost publish to one heartbeat interval.
 
 import { NextResponse } from "next/server";
-import { and, eq, lt } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { device as deviceTable, deviceCommand } from "@/lib/db/schema";
 import { mqttEnabled, verifyWebhookSecret, parseHeartbeatPayload, publishCommand } from "@/lib/mqtt";
@@ -23,8 +23,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Malformed body" }, { status: 400 });
   }
   const hb = parseHeartbeatPayload(raw);
+  if (!hb) return NextResponse.json({ error: "Invalid heartbeat payload" }, { status: 400 });
   const clientid = (raw as { clientid?: unknown }).clientid;
-  if (!hb || typeof clientid !== "string" || clientid.length === 0) {
+  if (typeof clientid !== "string" || clientid.length === 0) {
     return NextResponse.json({ error: "Invalid heartbeat payload" }, { status: 400 });
   }
 
@@ -34,16 +35,13 @@ export async function POST(req: Request) {
     .set({
       lastSeenAt: now,
       ...(hb.version ? { firmwareVersion: hb.version } : {}),
-      // Do not resurrect a paused device.
+      // Atomic in-DB decision: never resurrect a paused device, even under
+      // concurrent writes (no stale JS-side status read driving this write).
+      status: sql`CASE WHEN ${deviceTable.status} = 'paused' THEN ${deviceTable.status} ELSE 'online' END`,
     })
     .where(eq(deviceTable.id, clientid))
-    .returning({ id: deviceTable.id, status: deviceTable.status });
+    .returning({ id: deviceTable.id });
   if (!dev) return NextResponse.json({ error: "Unknown device" }, { status: 404 });
-
-  // Mark online unless paused (separate set to keep the enum-narrowing simple).
-  if (dev.status !== "paused") {
-    await db.update(deviceTable).set({ status: "online" }).where(eq(deviceTable.id, dev.id));
-  }
 
   // Republish stale pending commands so a lost publish self-heals.
   const stale = await db

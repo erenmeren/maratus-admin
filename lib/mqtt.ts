@@ -4,7 +4,6 @@
 // mqttEnabled(): with the EMQX env group absent, the whole module is inert and
 // the device transport falls back to HTTP polling.
 
-import { SignJWT } from "jose";
 import { env } from "@/lib/env";
 
 export type MqttCommand = {
@@ -14,8 +13,6 @@ export type MqttCommand = {
   payload: unknown;
 };
 
-const JWT_TTL_SECONDS = 30 * 24 * 60 * 60; // 30-day TTL; re-issued on each full (200) config response — a 304 does not refresh it, so firmware must fetch config in full periodically well inside the TTL.
-
 /** True only when every required EMQX var is present. */
 export function mqttEnabled(): boolean {
   return Boolean(
@@ -23,39 +20,18 @@ export function mqttEnabled(): boolean {
       env.EMQX_API_KEY &&
       env.EMQX_API_SECRET &&
       env.EMQX_WEBHOOK_SECRET &&
-      env.MQTT_JWT_SECRET &&
       env.MQTT_BROKER_HOST,
   );
 }
 
-function jwtKey(): Uint8Array {
-  return new TextEncoder().encode(env.MQTT_JWT_SECRET as string);
-}
-
-/** Sign a per-device connection JWT (30-day TTL; re-issued on each full (200) config response — a 304 does not refresh it, so firmware must fetch config in full periodically well inside the TTL) scoped to this device's topics (EMQX ACL claims). */
-export async function mintDeviceMqttJwt(deviceId: string): Promise<string> {
-  if (!mqttEnabled()) throw new Error("mintDeviceMqttJwt called while MQTT is disabled");
-  const now = Math.floor(Date.now() / 1000);
-  return new SignJWT({
-    acl: {
-      sub: [`d/${deviceId}/cmd`],
-      pub: [`d/${deviceId}/ack`, `d/${deviceId}/hb`],
-    },
-  })
-    .setProtectedHeader({ alg: "HS256" })
-    .setSubject(deviceId)
-    .setIssuedAt(now)
-    .setExpirationTime(now + JWT_TTL_SECONDS)
-    .sign(jwtKey());
-}
-
-/** The `mqtt` block for /api/device/config, or null when disabled. */
+/** The `mqtt` block for /api/device/config, or null when disabled. The device
+ *  authenticates to the broker with its own device key as the MQTT password
+ *  (username = deviceId), so no secret is carried here. */
 export async function buildMqttConfigBlock(deviceId: string): Promise<{
   host: string;
   port: number;
   clientId: string;
   username: string;
-  password: string;
 } | null> {
   if (!mqttEnabled()) return null;
   return {
@@ -63,7 +39,6 @@ export async function buildMqttConfigBlock(deviceId: string): Promise<{
     port: Number(env.MQTT_BROKER_PORT ?? 8883),
     clientId: deviceId,
     username: deviceId,
-    password: await mintDeviceMqttJwt(deviceId),
   };
 }
 
@@ -87,6 +62,59 @@ export function buildPublishRequest(
       payload: JSON.stringify(cmd),
     }),
   };
+}
+
+function emqxAuthUsersBase(): string {
+  return `${(env.EMQX_API_URL as string).replace(/\/$/, "")}/authentication/password_based:built_in_database/users`;
+}
+
+function emqxAuthHeader(): string {
+  return `Basic ${Buffer.from(`${env.EMQX_API_KEY}:${env.EMQX_API_SECRET}`).toString("base64")}`;
+}
+
+/** Provision (or update) the device's built-in-DB MQTT credential. Idempotent:
+ *  a 409 (user exists) updates the password via PUT. No-op false when disabled. */
+export async function provisionDeviceMqtt(deviceId: string, mqttPassword: string): Promise<boolean> {
+  if (!mqttEnabled()) return false;
+  const usersUrl = emqxAuthUsersBase();
+  const headers = { Authorization: emqxAuthHeader(), "Content-Type": "application/json" };
+  try {
+    const res = await fetch(usersUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ user_id: deviceId, password: mqttPassword, is_superuser: false }),
+      signal: AbortSignal.timeout(2000),
+    });
+    if (res.ok) return true;
+    if (res.status === 409) {
+      const upd = await fetch(`${usersUrl}/${deviceId}`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ password: mqttPassword }),
+        signal: AbortSignal.timeout(2000),
+      });
+      return upd.ok;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/** Delete the device's built-in-DB MQTT credential. 404 (already gone) is
+ *  treated as success. No-op false when disabled. */
+export async function deprovisionDeviceMqtt(deviceId: string): Promise<boolean> {
+  if (!mqttEnabled()) return false;
+  try {
+    const res = await fetch(`${emqxAuthUsersBase()}/${deviceId}`, {
+      method: "DELETE",
+      headers: { Authorization: emqxAuthHeader() },
+      signal: AbortSignal.timeout(2000),
+    });
+    return res.ok || res.status === 404;
+  } catch {
+    return false;
+  }
 }
 
 /** Publish a command to the device's cmd topic. No-op + false when disabled or on failure. */

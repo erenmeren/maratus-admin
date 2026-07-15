@@ -9,23 +9,22 @@ vi.mock("@/lib/env", () => ({
 
 import {
   mqttEnabled,
-  mintDeviceMqttJwt,
   buildMqttConfigBlock,
   buildPublishRequest,
   publishCommand,
+  provisionDeviceMqtt,
+  deprovisionDeviceMqtt,
   verifyWebhookSecret,
   parseAckPayload,
   parseHeartbeatPayload,
   parsePresencePayload,
 } from "./mqtt";
-import { jwtVerify } from "jose";
 
 const FULL = {
   EMQX_API_URL: "https://broker.example.com:8443/api/v5",
   EMQX_API_KEY: "key",
   EMQX_API_SECRET: "secret",
   EMQX_WEBHOOK_SECRET: "hook-secret",
-  MQTT_JWT_SECRET: "jwt-secret-jwt-secret-jwt-secret!",
   MQTT_BROKER_HOST: "broker.example.com",
   MQTT_BROKER_PORT: 8883,
 };
@@ -43,29 +42,8 @@ describe("mqttEnabled", () => {
     expect(mqttEnabled()).toBe(true);
   });
   it("is false when one required var is missing", () => {
-    Object.assign(ENV, { ...FULL, MQTT_JWT_SECRET: undefined });
+    Object.assign(ENV, { ...FULL, MQTT_BROKER_HOST: undefined });
     expect(mqttEnabled()).toBe(false);
-  });
-});
-
-describe("mintDeviceMqttJwt", () => {
-  it("throws when MQTT is disabled", async () => {
-    await expect(mintDeviceMqttJwt("d")).rejects.toThrow();
-  });
-  it("signs a JWT with the deviceId subject and per-device ACL claims", async () => {
-    Object.assign(ENV, FULL);
-    const token = await mintDeviceMqttJwt("dev_123");
-    const { payload } = await jwtVerify(
-      token,
-      new TextEncoder().encode(FULL.MQTT_JWT_SECRET),
-    );
-    expect(payload.sub).toBe("dev_123");
-    // EMQX JWT ACL claim shape: acl.{sub|pub} arrays of allowed topics.
-    expect(payload.acl).toMatchObject({
-      sub: ["d/dev_123/cmd"],
-      pub: ["d/dev_123/ack", "d/dev_123/hb"],
-    });
-    expect(typeof payload.exp).toBe("number");
   });
 });
 
@@ -73,17 +51,15 @@ describe("buildMqttConfigBlock", () => {
   it("returns null when disabled", async () => {
     expect(await buildMqttConfigBlock("dev_1")).toBeNull();
   });
-  it("returns host/port/clientId/username/password when enabled", async () => {
+  it("returns host/port/clientId/username when enabled", async () => {
     Object.assign(ENV, FULL);
     const block = await buildMqttConfigBlock("dev_1");
-    expect(block).toMatchObject({
+    expect(block).toEqual({
       host: "broker.example.com",
       port: 8883,
       clientId: "dev_1",
       username: "dev_1",
     });
-    expect(typeof block!.password).toBe("string");
-    expect(block!.password.split(".")).toHaveLength(3); // JWT
   });
 });
 
@@ -135,6 +111,63 @@ describe("publishCommand", () => {
     fetchSpy.mockRejectedValueOnce(new Error("network down")).mockResolvedValueOnce({ ok: true } as Response);
     expect(await publishCommand("dev_9", cmd)).toBe(true);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("provisionDeviceMqtt", () => {
+  it("is a no-op returning false when disabled", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    expect(await provisionDeviceMqtt("dev_1", "pw")).toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+  it("POSTs a built-in-db user and returns true on ok", async () => {
+    Object.assign(ENV, FULL);
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: true, status: 200 } as Response);
+    vi.stubGlobal("fetch", fetchSpy);
+    expect(await provisionDeviceMqtt("dev_9", "secret")).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const [url, opts] = fetchSpy.mock.calls[0];
+    expect(url).toBe("https://broker.example.com:8443/api/v5/authentication/password_based:built_in_database/users");
+    expect(opts.method).toBe("POST");
+    expect(opts.headers.Authorization).toMatch(/^Basic /);
+    expect(JSON.parse(opts.body)).toEqual({ user_id: "dev_9", password: "secret", is_superuser: false });
+    vi.unstubAllGlobals();
+  });
+  it("on 409 conflict updates the password via PUT and returns true", async () => {
+    Object.assign(ENV, FULL);
+    const fetchSpy = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 409 } as Response)
+      .mockResolvedValueOnce({ ok: true, status: 200 } as Response);
+    vi.stubGlobal("fetch", fetchSpy);
+    expect(await provisionDeviceMqtt("dev_9", "secret2")).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    const [url, opts] = fetchSpy.mock.calls[1];
+    expect(url).toBe("https://broker.example.com:8443/api/v5/authentication/password_based:built_in_database/users/dev_9");
+    expect(opts.method).toBe("PUT");
+    expect(JSON.parse(opts.body)).toEqual({ password: "secret2" });
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("deprovisionDeviceMqtt", () => {
+  it("is a no-op returning false when disabled", async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    expect(await deprovisionDeviceMqtt("dev_1")).toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+  it("DELETEs the user and treats 404 as success", async () => {
+    Object.assign(ENV, FULL);
+    const fetchSpy = vi.fn().mockResolvedValue({ ok: false, status: 404 } as Response);
+    vi.stubGlobal("fetch", fetchSpy);
+    expect(await deprovisionDeviceMqtt("dev_9")).toBe(true);
+    const [url, opts] = fetchSpy.mock.calls[0];
+    expect(url).toBe("https://broker.example.com:8443/api/v5/authentication/password_based:built_in_database/users/dev_9");
+    expect(opts.method).toBe("DELETE");
+    vi.unstubAllGlobals();
   });
 });
 

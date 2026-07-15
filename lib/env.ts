@@ -62,8 +62,6 @@ const envSchema = z.object({
   // Shared secret the EMQX Data-Integration webhooks send back to us in the
   // `x-emqx-webhook-secret` header. We reject any webhook that doesn't match.
   EMQX_WEBHOOK_SECRET: z.string().optional(),
-  // HS256 signing secret for the short-lived per-device MQTT connection JWT.
-  MQTT_JWT_SECRET: z.string().optional(),
   // The broker host the device connects to over TLS (mqtts://<host>:<port>),
   // e.g. xxxx.eu-central-1.emqxsl.com — delivered to the device in config.
   MQTT_BROKER_HOST: z.string().optional(),

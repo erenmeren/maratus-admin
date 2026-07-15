@@ -50,6 +50,24 @@ const envSchema = z.object({
   // Shared secret for the scheduled cron endpoint(s). Vercel sends it as
   // `Authorization: Bearer <CRON_SECRET>`. Absent → the cron route returns 503.
   CRON_SECRET: z.string().optional(),
+
+  // ---- EMQX / MQTT device transport ----
+  // All optional as a group. Absent → MQTT is disabled and the device transport
+  // falls back to HTTP polling (mqttEnabled() in lib/mqtt.ts gates on these).
+  // EMQX Cloud Serverless HTTP API base, e.g. https://xxxx.eu-central-1.emqxsl.com:8443/api/v5
+  EMQX_API_URL: z.string().optional(),
+  // EMQX API key/secret (created in the EMQX console → API Keys).
+  EMQX_API_KEY: z.string().optional(),
+  EMQX_API_SECRET: z.string().optional(),
+  // Shared secret the EMQX Data-Integration webhooks send back to us in the
+  // `x-emqx-webhook-secret` header. We reject any webhook that doesn't match.
+  EMQX_WEBHOOK_SECRET: z.string().optional(),
+  // HS256 signing secret for the short-lived per-device MQTT connection JWT.
+  MQTT_JWT_SECRET: z.string().optional(),
+  // The broker host the device connects to over TLS (mqtts://<host>:<port>),
+  // e.g. xxxx.eu-central-1.emqxsl.com — delivered to the device in config.
+  MQTT_BROKER_HOST: z.string().optional(),
+  MQTT_BROKER_PORT: z.coerce.number().default(8883),
 });
 
 export type Env = z.infer<typeof envSchema>;

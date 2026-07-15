@@ -31,16 +31,13 @@ import {
 } from "./db/schema";
 import { effectiveDeviceStatus } from "./device-status";
 import { tenantHealthLevel, type HealthLevel } from "./tenant-health";
-import { computeEcoSavings } from "./eco";
 import {
   bucketsToSeries,
   dayKeys,
   monthKeys,
   computeTrend,
-  toComparisonRows,
   type BucketCount,
   type StoreAnalytics,
-  type StoreComparisonRow,
 } from "./analytics";
 import { computeAlerts, STALE_MINUTES, STUCK_PENDING_MINUTES, INACTIVE_DAYS, type HealthAlert } from "./health";
 import { presignedGetUrl } from "./storage";
@@ -223,7 +220,7 @@ async function loadAllOrgs(opts?: { includeArchived?: boolean }): Promise<OrgBun
 // ---- time helpers -----------------------------------------------------------
 
 // Bucketing is UTC everywhere (matches the SQL date_trunc/extract used by the
-// per-store analytics in getStoreAnalytics/getStoresAnalytics), so "today" and
+// per-store analytics in getStoreAnalytics), so "today" and
 // "this month" agree across every surface regardless of server timezone.
 function startOfToday(): number {
   const n = new Date();
@@ -358,8 +355,8 @@ function summarize(b: OrgBundle): TenantSummary {
 // ---- time series from SQL-aggregated activation buckets ----------------------
 // The bundle already holds GROUP BY counts keyed "YYYY-MM-DD" / "YYYY-MM" (UTC,
 // via date_trunc). bucketsToSeries joins them onto the ordered day/month keys —
-// the same join the per-store analytics (getStoreAnalytics/getStoresAnalytics)
-// use, so org-wide and per-store series can never drift apart. Buckets outside
+// the same join the per-store analytics (getStoreAnalytics) uses, so org-wide
+// and per-store series can never drift apart. Buckets outside
 // the key window are simply not joined (identical to the old all-triggers path,
 // which bucketed everything then dropped out-of-window keys).
 
@@ -828,65 +825,6 @@ export async function getStoreAnalytics(
   return { store, analytics };
 }
 
-/**
- * Cross-store comparison for the tenant Analytics page: per-store rows (activations
- * this month, trend vs last month, eco) sorted by activations, plus a
- * per-store monthly series for the comparison chart. Degrades to empty on error.
- */
-export async function getStoresAnalytics(organizationId: string): Promise<{
-  rows: StoreComparisonRow[];
-  monthlyByStore: { storeId: string; storeName: string; monthly: TimePoint[] }[];
-}> {
-  try {
-    const tenant = await getTenant(organizationId);
-    const stores = tenant.stores;
-    if (stores.length === 0) return { rows: [], monthlyByStore: [] };
-
-    const now = new Date();
-    const since9mo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 8, 1));
-    const monthExpr = sql<string>`to_char(date_trunc('month', ${deviceCommand.createdAt}), 'YYYY-MM')`;
-
-    const perStoreMonth = await db
-      .select({ storeId: deviceTable.storeId, bucket: monthExpr, count: count() })
-      .from(deviceCommand)
-      .innerJoin(deviceTable, eq(deviceCommand.deviceId, deviceTable.id))
-      .where(and(
-        eq(deviceCommand.organizationId, organizationId),
-        eq(deviceCommand.type, "trigger"),
-        eq(deviceCommand.status, "acked"),
-        gte(deviceCommand.createdAt, since9mo),
-      ))
-      .groupBy(deviceTable.storeId, monthExpr);
-
-    const keys = monthKeys(now, 9);
-    const thisKey = keys[keys.length - 1].key;
-    const lastKey = keys[keys.length - 2].key;
-
-    const rows = toComparisonRows(
-      stores.map((s) => ({
-        storeId: s.id,
-        storeName: s.name,
-        current: perStoreMonth.find((r) => r.storeId === s.id && r.bucket === thisKey)?.count ?? 0,
-        previous: perStoreMonth.find((r) => r.storeId === s.id && r.bucket === lastKey)?.count ?? 0,
-      })),
-    );
-
-    const monthlyByStore = stores.map((s) => ({
-      storeId: s.id,
-      storeName: s.name,
-      monthly: bucketsToSeries(
-        perStoreMonth.filter((r) => r.storeId === s.id).map((r) => ({ bucket: r.bucket, count: r.count })),
-        keys,
-      ),
-    }));
-
-    return { rows, monthlyByStore };
-  } catch (err) {
-    console.error("[data] getStoresAnalytics failed", err);
-    return { rows: [], monthlyByStore: [] };
-  }
-}
-
 export async function getDevice(
   deviceId: string,
 ): Promise<{ device: Device; store: Store; tenant: Tenant } | null> {
@@ -916,18 +854,6 @@ export async function getDevice(
     return { device: pooled, store: unassignedStore, tenant };
   }
   return null;
-}
-
-export async function tenantDaily(organizationId: string): Promise<TimePoint[]> {
-  const b = await loadOrg(organizationId);
-  if (!b) return [];
-  return dailySeries(b);
-}
-
-export async function tenantMonthly(organizationId: string): Promise<TimePoint[]> {
-  const b = await loadOrg(organizationId);
-  if (!b) return [];
-  return monthlySeries(b);
 }
 
 // ============================================================================
@@ -994,7 +920,6 @@ export interface CustomerDetail {
     paused: number;
     stuckPendingCount: number;
   };
-  eco: ReturnType<typeof computeEcoSavings>;
   archivedAt: string | null;
   archivedNote: string | null;
 }
@@ -1067,7 +992,6 @@ export async function getCustomerDetail(
     summary,
     devices,
     health: { level, online, offline, paused, stuckPendingCount: stuck },
-    eco: computeEcoSavings(summary.activationsThisMonth),
     archivedAt: b.settings?.archivedAt ? b.settings.archivedAt.toISOString() : null,
     archivedNote: b.settings?.archivedNote ?? null,
   };

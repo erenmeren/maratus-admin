@@ -7,8 +7,6 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -106,47 +104,6 @@ export function DocumentsAreaChart({
   );
 }
 
-/** Generic metric area chart for series like "paper saved (kg) per month". */
-export function MetricAreaChart({
-  data,
-  unit,
-  height = 260,
-}: {
-  data: { label: string; value: number }[];
-  unit?: string;
-  height?: number;
-}) {
-  const interval = data.length > 14 ? Math.floor(data.length / 7) : 0;
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={data} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-        <defs>
-          <linearGradient id="fillMetric" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--chart-1)" stopOpacity={0.3} />
-            <stop offset="100%" stopColor="var(--chart-1)" stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
-        <XAxis dataKey="label" {...AXIS} interval={interval} minTickGap={16} />
-        <YAxis {...AXIS} width={40} tickFormatter={(v) => formatCompact(Number(v))} />
-        <Tooltip
-          content={<ChartTooltip unit={unit} />}
-          cursor={{ stroke: "var(--border)" }}
-        />
-        <Area
-          type="monotone"
-          dataKey="value"
-          stroke="var(--chart-1)"
-          strokeWidth={2}
-          fill="url(#fillMetric)"
-          dot={false}
-          activeDot={{ r: 4, strokeWidth: 0 }}
-        />
-      </AreaChart>
-    </ResponsiveContainer>
-  );
-}
-
 export interface BreakdownDatum {
   label: string;
   value: number;
@@ -194,62 +151,6 @@ export function BreakdownBarChart({
           ))}
         </Bar>
       </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-const COMPARE_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-];
-
-/** Multi-line monthly activations comparison — one line per store. */
-export function StoreCompareChart({
-  data,
-  height = 300,
-}: {
-  data: { storeId: string; storeName: string; monthly: TimePoint[] }[];
-  height?: number;
-}) {
-  if (data.length === 0 || (data[0]?.monthly.length ?? 0) === 0) {
-    return (
-      <div
-        className="flex items-center justify-center text-sm text-muted-foreground"
-        style={{ height }}
-      >
-        No data yet.
-      </div>
-    );
-  }
-  // Merge per-store series into rows keyed by month label: { label, [storeId]: activations }.
-  const rows = data[0].monthly.map((point, i) => {
-    const row: Record<string, string | number> = { label: point.label };
-    for (const s of data) row[s.storeId] = s.monthly[i]?.activations ?? 0;
-    return row;
-  });
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <LineChart data={rows} margin={{ top: 8, right: 8, left: -8, bottom: 0 }}>
-        <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
-        <XAxis dataKey="label" {...AXIS} minTickGap={16} />
-        <YAxis {...AXIS} width={40} />
-        <Tooltip content={<ChartTooltip unit="activations" />} cursor={{ stroke: "var(--border)" }} />
-        {data.map((s, i) => (
-          <Line
-            key={s.storeId}
-            type="monotone"
-            dataKey={s.storeId}
-            name={s.storeName}
-            stroke={COMPARE_COLORS[i % COMPARE_COLORS.length]}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4, strokeWidth: 0 }}
-          />
-        ))}
-      </LineChart>
     </ResponsiveContainer>
   );
 }

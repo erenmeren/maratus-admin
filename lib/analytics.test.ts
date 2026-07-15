@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { dayKeys, monthKeys, bucketsToSeries, countByDayKey, countByMonthKey } from "./analytics";
-import { computeTrend, toComparisonRows } from "./analytics";
+import { computeTrend } from "./analytics";
 
 const NOW = new Date("2026-06-05T12:00:00Z");
 
@@ -44,21 +44,6 @@ describe("computeTrend", () => {
   it("returns null pctChange when previous is 0", () => {
     expect(computeTrend(5, 0).pctChange).toBeNull();
     expect(computeTrend(0, 0).pctChange).toBeNull();
-  });
-});
-
-describe("toComparisonRows", () => {
-  it("maps + sorts by activations desc", () => {
-    const rows = toComparisonRows([
-      { storeId: "a", storeName: "A", current: 3, previous: 2 },
-      { storeId: "b", storeName: "B", current: 10, previous: 5 },
-    ]);
-    expect(rows.map((r) => r.storeId)).toEqual(["b", "a"]);
-    expect(rows[0].trend.pctChange).toBe(100);
-    expect(rows[0].eco.activations).toBe(10);
-  });
-  it("returns [] for empty input", () => {
-    expect(toComparisonRows([])).toEqual([]);
   });
 });
 

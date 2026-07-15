@@ -1,10 +1,9 @@
 // Pure (IO-free) analytics derivations for per-store reporting. The data layer
 // (lib/data.ts) runs thin SQL GROUP BY queries and feeds the compact count rows
-// here; everything testable (series shaping, trend %, eco) lives in this file.
+// here; everything testable (series shaping, trend %) lives in this file.
 // Bucketing is UTC, consistent across keys + SQL.
 
 import type { TimePoint } from "./types";
-import { computeEcoSavings, type EcoSavings } from "./eco";
 
 /** A grouped count row from SQL: a bucket key (day "YYYY-MM-DD" or month "YYYY-MM"). */
 export interface BucketCount { bucket: string; count: number }
@@ -59,31 +58,10 @@ export interface StoreAnalytics {
   monthly: TimePoint[];
   monthTrend: Trend;
 }
-export interface StoreComparisonRow {
-  storeId: string;
-  storeName: string;
-  activationsThisMonth: number;
-  trend: Trend;
-  eco: EcoSavings;
-}
 
 export function computeTrend(current: number, previous: number): Trend {
   const pctChange = previous === 0 ? null : Math.round(((current - previous) / previous) * 100);
   return { current, previous, pctChange };
-}
-
-export function toComparisonRows(
-  input: Array<{ storeId: string; storeName: string; current: number; previous: number }>,
-): StoreComparisonRow[] {
-  return input
-    .map((s) => ({
-      storeId: s.storeId,
-      storeName: s.storeName,
-      activationsThisMonth: s.current,
-      trend: computeTrend(s.current, s.previous),
-      eco: computeEcoSavings(s.current),
-    }))
-    .sort((a, b) => b.activationsThisMonth - a.activationsThisMonth);
 }
 
 /** Group dates into UTC day-key ("YYYY-MM-DD") counts. Pairs with dayKeys. */

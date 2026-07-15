@@ -14,7 +14,7 @@ export type MqttCommand = {
   payload: unknown;
 };
 
-const JWT_TTL_SECONDS = 30 * 24 * 60 * 60; // 30 days; refreshed on every config fetch.
+const JWT_TTL_SECONDS = 30 * 24 * 60 * 60; // 30-day TTL; re-issued on each full (200) config response — a 304 does not refresh it, so firmware must fetch config in full periodically well inside the TTL.
 
 /** True only when every required EMQX var is present. */
 export function mqttEnabled(): boolean {
@@ -32,7 +32,7 @@ function jwtKey(): Uint8Array {
   return new TextEncoder().encode(env.MQTT_JWT_SECRET as string);
 }
 
-/** Sign a per-device connection JWT (30-day TTL, refreshed on every config fetch) scoped to this device's topics (EMQX ACL claims). */
+/** Sign a per-device connection JWT (30-day TTL; re-issued on each full (200) config response — a 304 does not refresh it, so firmware must fetch config in full periodically well inside the TTL) scoped to this device's topics (EMQX ACL claims). */
 export async function mintDeviceMqttJwt(deviceId: string): Promise<string> {
   if (!mqttEnabled()) throw new Error("mintDeviceMqttJwt called while MQTT is disabled");
   const now = Math.floor(Date.now() / 1000);

@@ -13,7 +13,7 @@ import {
 import { AUDIT, recordAudit } from "./audit";
 import { chunk } from "./chunk";
 import { generateDeviceKey, id } from "./ids";
-import { deprovisionDeviceMqtt } from "@/lib/mqtt";
+import { deprovisionDeviceMqtt, provisionDeviceMqtt } from "@/lib/mqtt";
 import type { RegistryAllocationSnapshot, RegistryStatus } from "./provisioning";
 import type { RegistryCsvRow } from "./factory-registry-csv";
 import { clampPage, foldDeallocatedByOrg } from "./factory-registry-fold";
@@ -407,6 +407,16 @@ export async function autoClaimDevice(
     target: { type: "device", id: deviceId },
     metadata: { serial },
   });
+
+  // Provision the device's MQTT credential (device key = MQTT password).
+  // Fail-open + outside the transaction: a broker hiccup must never unwind a
+  // committed claim; the device just uses HTTP polling until reprovisioned.
+  try {
+    await provisionDeviceMqtt(deviceId, key);
+  } catch (err) {
+    console.error("mqtt provision after auto-claim failed", err);
+  }
+
   return { deviceKey: key, deviceId, organizationId: claimedOrganizationId };
 }
 

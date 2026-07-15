@@ -93,10 +93,15 @@ export async function provisionDeviceMqtt(deviceId: string, mqttPassword: string
         body: JSON.stringify({ password: mqttPassword }),
         signal: AbortSignal.timeout(2000),
       });
+      if (!upd.ok) {
+        console.error("mqtt provision failed", { deviceId, status: upd.status });
+      }
       return upd.ok;
     }
+    console.error("mqtt provision failed", { deviceId, status: res.status });
     return false;
-  } catch {
+  } catch (err) {
+    console.error("mqtt provision failed", { deviceId, err });
     return false;
   }
 }
@@ -111,8 +116,12 @@ export async function deprovisionDeviceMqtt(deviceId: string): Promise<boolean> 
       headers: { Authorization: emqxAuthHeader() },
       signal: AbortSignal.timeout(2000),
     });
+    if (!res.ok && res.status !== 404) {
+      console.error("mqtt deprovision failed", { deviceId, status: res.status });
+    }
     return res.ok || res.status === 404;
-  } catch {
+  } catch (err) {
+    console.error("mqtt deprovision failed", { deviceId, err });
     return false;
   }
 }

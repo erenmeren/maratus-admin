@@ -7,6 +7,7 @@ import { db } from "./db";
 import { device as deviceTable, store as storeTable } from "./db/schema";
 import { generateDeviceKey, id } from "./ids";
 import { syncDeviceSubscription } from "./billing/device-subscription";
+import { provisionDeviceMqtt } from "@/lib/mqtt";
 
 export interface ClaimResult {
   deviceId: string;
@@ -74,6 +75,14 @@ export async function claimDevice(
     } catch (err) {
       console.error("device-subscription sync after claim failed", err);
     }
+    // Provision the device's MQTT credential (device key = MQTT password).
+    // Fail-open: a provisioning hiccup must never fail a claim — the device
+    // just uses HTTP polling until it is reprovisioned.
+    try {
+      await provisionDeviceMqtt(existing.id, key);
+    } catch (err) {
+      console.error("mqtt provision after claim failed", err);
+    }
     return { deviceId: existing.id, deviceName: existing.name, deviceKey: key };
   }
 
@@ -109,6 +118,14 @@ export async function claimDevice(
     await syncDeviceSubscription(store.organizationId);
   } catch (err) {
     console.error("device-subscription sync after claim failed", err);
+  }
+  // Provision the device's MQTT credential (device key = MQTT password).
+  // Fail-open: a provisioning hiccup must never fail a claim — the device
+  // just uses HTTP polling until it is reprovisioned.
+  try {
+    await provisionDeviceMqtt(deviceId, key);
+  } catch (err) {
+    console.error("mqtt provision after claim failed", err);
   }
   return { deviceId, deviceName: name, deviceKey: key };
 }

@@ -13,6 +13,7 @@ import {
 import { AUDIT, recordAudit } from "./audit";
 import { chunk } from "./chunk";
 import { generateDeviceKey, id } from "./ids";
+import { deprovisionDeviceMqtt } from "@/lib/mqtt";
 import type { RegistryAllocationSnapshot, RegistryStatus } from "./provisioning";
 import type { RegistryCsvRow } from "./factory-registry-csv";
 import { clampPage, foldDeallocatedByOrg } from "./factory-registry-fold";
@@ -425,7 +426,7 @@ export async function autoClaimDevice(
 export async function returnDeviceToStock(
   deviceId: string,
 ): Promise<{ ok: boolean; changed: boolean; serial: string | null; deviceName: string | null }> {
-  return dbTx.transaction(async (tx) => {
+  const result = await dbTx.transaction(async (tx) => {
     const [dev] = await tx
       .select({ id: deviceTable.id, name: deviceTable.name, serial: deviceTable.serial })
       .from(deviceTable)
@@ -449,6 +450,16 @@ export async function returnDeviceToStock(
     await tx.delete(deviceTable).where(eq(deviceTable.id, deviceId));
     return { ok: true, changed: true, serial: dev.serial, deviceName: dev.name };
   });
+
+  // MQTT deprovision is a network call — never inside the DB transaction
+  // above. Fail-open: a broker hiccup must never fail the return-to-stock.
+  try {
+    await deprovisionDeviceMqtt(deviceId);
+  } catch (err) {
+    console.error("mqtt deprovision after dealloc failed", err);
+  }
+
+  return result;
 }
 
 /**

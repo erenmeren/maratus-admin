@@ -16,6 +16,7 @@ import { AUDIT, recordAudit } from "@/lib/audit";
 import { getBalance } from "@/lib/credits";
 import { getOrgDevicesForOffboard } from "@/lib/data";
 import { syncDeviceSubscription } from "@/lib/billing/device-subscription";
+import { deprovisionDeviceMqtt } from "@/lib/mqtt";
 import {
   returnDeviceToStock,
   retireDeviceWithCustomer,
@@ -118,6 +119,17 @@ export async function offboardCustomerAction(
       });
     }
   }
+  // Deprovision the MQTT broker credential for every returned-to-stock device
+  // (fail-open — a broker hiccup must never fail the offboard). Outside any
+  // DB transaction: each returnDeviceToStock call above already committed.
+  for (const id of returnIds) {
+    try {
+      await deprovisionDeviceMqtt(id);
+    } catch (err) {
+      console.error("mqtt deprovision after offboard failed", err);
+    }
+  }
+
   for (const id of leaveIds) {
     const r = await retireDeviceWithCustomer(id);
     if (r.ok && r.changed) {

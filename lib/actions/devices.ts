@@ -18,6 +18,7 @@ import { recordAudit, AUDIT } from "@/lib/audit";
 import type { DeviceStatus } from "@/lib/types";
 import { isOrgArchived } from "@/lib/archived-guard";
 import { syncDeviceSubscription } from "@/lib/billing/device-subscription";
+import { deprovisionDeviceMqtt } from "@/lib/mqtt";
 
 export interface ActionResult {
   ok: boolean;
@@ -224,6 +225,14 @@ export async function deleteDevice(deviceId: string): Promise<ActionResult> {
     await syncDeviceSubscription(device.organizationId);
   } catch (err) {
     console.error("device-subscription sync after delete failed", err);
+  }
+
+  // Deprovision the device's MQTT broker credential (fail-open — a broker
+  // hiccup must never fail a delete). No-op when MQTT is disabled.
+  try {
+    await deprovisionDeviceMqtt(deviceId);
+  } catch (err) {
+    console.error("mqtt deprovision after delete failed", err);
   }
 
   revalidatePath("/admin/devices");

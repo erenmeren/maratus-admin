@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { device as deviceTable } from "@/lib/db/schema";
 import { authenticateDevice } from "@/lib/device-auth";
 import { getDeviceConfig } from "@/lib/data";
+import { buildMqttConfigBlock } from "@/lib/mqtt";
 
 export const runtime = "nodejs";
 
@@ -27,8 +28,9 @@ export async function GET(req: Request) {
   if (notModified) {
     return new NextResponse(null, { status: 304, headers: { ETag: `"${version}"` } });
   }
-  return NextResponse.json(payload, {
-    status: 200,
-    headers: { ETag: `"${version}"`, "Cache-Control": "no-cache" },
-  });
+  const mqtt = await buildMqttConfigBlock(device.id);
+  return NextResponse.json(
+    { ...payload, ...(mqtt ? { mqtt } : {}) },
+    { status: 200, headers: { ETag: `"${version}"`, "Cache-Control": "no-cache" } },
+  );
 }

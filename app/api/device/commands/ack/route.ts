@@ -6,8 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { deviceCommand } from "@/lib/db/schema";
 import { authenticateDevice } from "@/lib/device-auth";
-import { settleHold, releaseHold } from "@/lib/credits";
-import { creditCostForAction } from "@/lib/trigger-actions";
+import { applyTriggerAck } from "@/lib/trigger-ack";
 
 export const runtime = "nodejs";
 
@@ -29,12 +28,7 @@ export async function POST(req: Request) {
     .set({ status: nextStatus, ackedAt: now, result: body.result ?? null })
     .where(and(eq(deviceCommand.id, body.commandId), eq(deviceCommand.deviceId, device.id), eq(deviceCommand.status, "delivered")))
     .returning({ id: deviceCommand.id, type: deviceCommand.type, action: deviceCommand.action, organizationId: deviceCommand.organizationId, deviceId: deviceCommand.deviceId, billing: deviceCommand.billing });
-  // Included (plan-covered) triggers never move credits; null billing = legacy credit-held rows.
-  if (cmd && cmd.type === "trigger" && cmd.billing !== "included") {
-    const cost = creditCostForAction((cmd.action ?? "show_qr") as "show_qr");
-    if (body.ok) await settleHold({ organizationId: cmd.organizationId, commandId: cmd.id, cost, deviceId: cmd.deviceId });
-    else await releaseHold({ organizationId: cmd.organizationId, commandId: cmd.id, cost, deviceId: cmd.deviceId });
-  }
+  if (cmd) await applyTriggerAck(cmd, body.ok === true);
 
   return NextResponse.json({ ok: true });
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 // We control env per-test by stubbing the env module.
 const ENV: Record<string, string | number | undefined> = {};
@@ -12,6 +12,7 @@ import {
   mintDeviceMqttJwt,
   buildMqttConfigBlock,
   buildPublishRequest,
+  publishCommand,
   verifyWebhookSecret,
   parseAckPayload,
   parseHeartbeatPayload,
@@ -48,6 +49,9 @@ describe("mqttEnabled", () => {
 });
 
 describe("mintDeviceMqttJwt", () => {
+  it("throws when MQTT is disabled", async () => {
+    await expect(mintDeviceMqttJwt("d")).rejects.toThrow();
+  });
   it("signs a JWT with the deviceId subject and per-device ACL claims", async () => {
     Object.assign(ENV, FULL);
     const token = await mintDeviceMqttJwt("dev_123");
@@ -94,6 +98,43 @@ describe("buildPublishRequest", () => {
     const body = JSON.parse(reqData.body);
     expect(body).toMatchObject({ topic: "d/dev_9/cmd", qos: 1, payload_encoding: "plain" });
     expect(JSON.parse(body.payload)).toEqual(cmd);
+  });
+});
+
+describe("publishCommand", () => {
+  const cmd = { commandId: "cmd_1", type: "trigger", action: "show_qr", payload: { url: "https://x" } };
+  let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns false and never calls fetch when disabled", async () => {
+    expect(await publishCommand("dev_1", cmd)).toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("returns true and calls fetch once when enabled and the request succeeds", async () => {
+    Object.assign(ENV, FULL);
+    fetchSpy.mockResolvedValue({ ok: true } as Response);
+    expect(await publishCommand("dev_9", cmd)).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+    const expected = buildPublishRequest("dev_9", cmd);
+    const [url, init] = fetchSpy.mock.calls[0];
+    expect(url).toBe(expected.url);
+    expect(init).toMatchObject({ method: "POST", headers: expected.headers, body: expected.body });
+  });
+
+  it("retries once and returns true when the first attempt rejects but the second succeeds", async () => {
+    Object.assign(ENV, FULL);
+    fetchSpy.mockRejectedValueOnce(new Error("network down")).mockResolvedValueOnce({ ok: true } as Response);
+    expect(await publishCommand("dev_9", cmd)).toBe(true);
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 });
 

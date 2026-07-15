@@ -32,8 +32,9 @@ function jwtKey(): Uint8Array {
   return new TextEncoder().encode(env.MQTT_JWT_SECRET as string);
 }
 
-/** Sign a short-lived connection JWT scoped to this device's topics (EMQX ACL claims). */
+/** Sign a per-device connection JWT (30-day TTL, refreshed on every config fetch) scoped to this device's topics (EMQX ACL claims). */
 export async function mintDeviceMqttJwt(deviceId: string): Promise<string> {
+  if (!mqttEnabled()) throw new Error("mintDeviceMqttJwt called while MQTT is disabled");
   const now = Math.floor(Date.now() / 1000);
   return new SignJWT({
     acl: {

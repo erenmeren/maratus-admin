@@ -3,7 +3,7 @@
 // webhook secret (the device already proved itself to the broker via JWT).
 
 import { NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { deviceCommand } from "@/lib/db/schema";
 import { mqttEnabled, verifyWebhookSecret, parseAckPayload } from "@/lib/mqtt";
@@ -24,15 +24,31 @@ export async function POST(req: Request) {
   const ack = parseAckPayload(raw);
   if (!ack) return NextResponse.json({ error: "Invalid ack payload" }, { status: 400 });
 
+  const clientid = (raw as { clientid?: unknown }).clientid;
+  if (typeof clientid !== "string" || clientid.length === 0) {
+    return NextResponse.json({ error: "Invalid ack payload" }, { status: 400 });
+  }
+
   const now = new Date();
   const nextStatus = ack.ok ? "acked" : "failed";
-  // Guard on "pending" OR "delivered": MQTT commands stay pending (never marked
-  // delivered), while a command that also went out over HTTP polling may be
-  // delivered. Either way, the first ack wins; a duplicate is a no-op.
+  // Scope by deviceId (from the broker-injected clientid, NOT the payload) so a
+  // device can only ack its own commands — commandId alone is device-controlled
+  // and would let one device (and its tenant) ack/cancel another's command.
+  // Guard on "pending" OR "delivered": a command may already have been marked
+  // delivered by an HTTP poll during a transport switch, so an MQTT ack must
+  // still be honored in that state. The deviceId scope plus this being a
+  // terminal-status transition (pending/delivered -> acked/failed) keeps it
+  // idempotent — a second ack over either transport just no-ops.
   const [cmd] = await db
     .update(deviceCommand)
     .set({ status: nextStatus, ackedAt: now, result: ack.result })
-    .where(and(eq(deviceCommand.id, ack.commandId), eq(deviceCommand.status, "pending")))
+    .where(
+      and(
+        eq(deviceCommand.id, ack.commandId),
+        eq(deviceCommand.deviceId, clientid),
+        inArray(deviceCommand.status, ["pending", "delivered"]),
+      ),
+    )
     .returning({
       id: deviceCommand.id,
       type: deviceCommand.type,

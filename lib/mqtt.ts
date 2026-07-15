@@ -95,7 +95,7 @@ export async function publishCommand(deviceId: string, cmd: MqttCommand): Promis
   const { url, headers, body } = buildPublishRequest(deviceId, cmd);
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const res = await fetch(url, { method: "POST", headers, body });
+      const res = await fetch(url, { method: "POST", headers, body, signal: AbortSignal.timeout(2000) });
       if (res.ok) return true;
     } catch {
       // fall through to retry / return false

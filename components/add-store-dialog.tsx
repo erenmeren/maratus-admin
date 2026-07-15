@@ -101,7 +101,7 @@ export function AddStoreDialog() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Used for busiest-times analytics.
+                The store’s local time zone.
               </p>
             </div>
           </div>

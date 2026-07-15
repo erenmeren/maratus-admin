@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { CalendarClock, Clock, Cpu, MapPin, FileText, Router, TrendingUp } from "lucide-react";
+import { Cpu, MapPin, FileText, Router, TrendingUp } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { PageSection } from "@/components/page-section";
 import { KpiCard } from "@/components/kpi-card";
@@ -10,7 +10,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle,  } from "@/c
 import { getStoreAnalytics, getUnclaimedDevices } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
 import { DocumentsAreaChart } from "@/components/charts";
-import { PeakHeatmap } from "@/components/peak-heatmap";
 import { StoreEditButton } from "@/components/store-edit-button";
 import { StoreDeleteButton } from "@/components/store-delete-button";
 import { getArmedAllocationCountByStore } from "@/lib/data";
@@ -34,18 +33,11 @@ export default async function StoreDetailPage({
 
   const online = store.devices.filter((d) => d.status === "online").length;
   const activationsToday = store.devices.reduce((a, d) => a + d.activationsToday, 0);
-  const activationsMonth = store.devices.reduce(
-    (a, d) => a + d.activationsThisMonth,
-    0,
-  );
   const rollup = online
     ? "online"
     : store.devices.some((d) => d.status === "paused")
       ? "paused"
       : "offline";
-  const avgPerPrinter = store.devices.length
-    ? Math.round(activationsMonth / store.devices.length)
-    : 0;
 
   return (
     <>
@@ -81,9 +73,9 @@ export default async function StoreDetailPage({
         {canClaim && <ClaimDeviceDialog storeId={store.id} />}
       </PageHeader>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
-          label="Printers"
+          label="Devices"
           value={`${online}/${store.devices.length}`}
           hint="online"
           icon={Cpu}
@@ -95,40 +87,10 @@ export default async function StoreDetailPage({
         />
         <KpiCard
           label="Activations this month"
-          value={formatNumber(activationsMonth)}
-          icon={FileText}
-        />
-        <KpiCard
-          label="Avg / printer"
-          value={formatNumber(avgPerPrinter)}
-          hint="activations this month"
-        />
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <KpiCard
-          label="Activations this month"
           value={formatNumber(analytics.monthTrend.current)}
           delta={analytics.monthTrend.pctChange ?? undefined}
           hint="vs last month"
           icon={TrendingUp}
-        />
-        <KpiCard
-          label="Paper saved"
-          value={`${analytics.eco.paperKg.toFixed(1)} kg`}
-          hint="this month"
-        />
-        <KpiCard
-          label="Busiest day"
-          value={analytics.peak.busiestDowLabel ?? "—"}
-          hint="last 90 days"
-          icon={CalendarClock}
-        />
-        <KpiCard
-          label="Peak hour"
-          value={analytics.peak.peakHourLabel ?? "—"}
-          hint="last 90 days"
-          icon={Clock}
         />
       </div>
 
@@ -142,19 +104,7 @@ export default async function StoreDetailPage({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Busiest times</CardTitle>
-          <CardDescription>
-            Activations by day of week and hour, last 90 days
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <PeakHeatmap heatmap={analytics.heatmap} timezone={store.timezone} />
-        </CardContent>
-      </Card>
-
-      <PageSection title="Printers in this store">
+      <PageSection title="Devices in this store">
         {store.devices.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {store.devices.map((d) => (
@@ -167,10 +117,10 @@ export default async function StoreDetailPage({
               <span className="flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <Cpu className="size-6" />
               </span>
-              <p className="text-sm font-medium">No printers here yet</p>
+              <p className="text-sm font-medium">No devices here yet</p>
               {canClaim && (
                 <p className="max-w-xs text-xs text-muted-foreground">
-                  Claim a printer with its pairing code to start issuing
+                  Claim a device with its pairing code to start issuing
                   activations at this store.
                 </p>
               )}
@@ -185,11 +135,11 @@ export default async function StoreDetailPage({
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Router className="size-4 text-muted-foreground" />
-              Unclaimed printers
+              Unclaimed devices
             </CardTitle>
             <CardDescription>
               {unclaimed.length} device{unclaimed.length > 1 ? "s" : ""} waiting
-              to be provisioned. Use a pairing code with “Claim printer” above.
+              to be provisioned. Use a pairing code with “Claim device” above.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-2 sm:grid-cols-2">

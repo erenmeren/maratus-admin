@@ -85,16 +85,16 @@ export function ClaimDeviceDialog({ storeId }: { storeId: string }) {
       <DialogTrigger asChild>
         <Button size="sm">
           <Plus className="size-4" />
-          Claim printer
+          Claim device
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         {!issued ? (
           <form onSubmit={handleSubmit}>
             <DialogHeader>
-              <DialogTitle>Claim a printer</DialogTitle>
+              <DialogTitle>Claim a device</DialogTitle>
               <DialogDescription>
-                Enter the pairing code shown on the printer screen to bind it to
+                Enter the pairing code shown on the device screen to bind it to
                 this store.
               </DialogDescription>
             </DialogHeader>
@@ -130,7 +130,7 @@ export function ClaimDeviceDialog({ storeId }: { storeId: string }) {
                 ) : (
                   <KeyRound className="size-4" />
                 )}
-                {loading ? "Claiming…" : "Claim printer"}
+                {loading ? "Claiming…" : "Claim device"}
               </Button>
             </DialogFooter>
           </form>
@@ -145,7 +145,7 @@ export function ClaimDeviceDialog({ storeId }: { storeId: string }) {
               </DialogTitle>
               <DialogDescription>
                 It will activate automatically within a few seconds — watch the
-                printer screen return to the home screen.
+                device screen return to the home screen.
               </DialogDescription>
             </DialogHeader>
 

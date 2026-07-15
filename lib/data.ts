@@ -37,7 +37,6 @@ import {
   dayKeys,
   monthKeys,
   computeTrend,
-  buildHeatmap,
   toComparisonRows,
   type BucketCount,
   type StoreAnalytics,
@@ -295,7 +294,10 @@ function mapDevice(
     storeId: d.storeId ?? "",
     tenantId: organizationId,
     name: d.name,
-    status: d.status,
+    // Effective status: the stored column is only reconciled to "offline" by the
+    // daily health cron, so derive from lastSeenAt here — every view-model
+    // consumer (dashboard, store detail, device cards) sees the truth live.
+    status: effectiveDeviceStatus(d.status, d.lastSeenAt, new Date()),
     ipAddress: d.ipAddress ?? "—",
     connectionType: d.connectionType,
     firmwareVersion: d.firmwareVersion,
@@ -783,9 +785,9 @@ export async function getStore(
 }
 
 /**
- * Per-store analytics: daily/monthly activation series, this-vs-last-month trend,
- * eco savings for this month, and busiest day-of-week / peak hour. Returns the
- * store too so the page can render without a second lookup. null if not found.
+ * Per-store analytics: daily/monthly activation series and this-vs-last-month
+ * trend. Returns the store too so the page can render without a second lookup.
+ * null if not found.
  */
 export async function getStoreAnalytics(
   storeId: string,
@@ -797,15 +799,9 @@ export async function getStoreAnalytics(
 
   const since30 = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - 29));
   const since9mo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 8, 1));
-  const since90 = new Date(now.getTime() - 90 * 86_400_000);
 
   const dayExpr = sql<string>`to_char(date_trunc('day', ${deviceCommand.createdAt}), 'YYYY-MM-DD')`;
   const monthExpr = sql<string>`to_char(date_trunc('month', ${deviceCommand.createdAt}), 'YYYY-MM')`;
-  // created_at is `timestamp` (no tz) storing UTC wall-clock, so re-anchor to UTC
-  // before converting to the store's local zone — the double AT TIME ZONE is required.
-  const localTs = sql`((${deviceCommand.createdAt} AT TIME ZONE 'UTC') AT TIME ZONE ${store.timezone})`;
-  const dowExpr = sql<number>`extract(dow from ${localTs})::int`;
-  const hourExpr = sql<number>`extract(hour from ${localTs})::int`;
   const scoped = (since: Date) =>
     and(
       eq(deviceTable.storeId, storeId),
@@ -814,10 +810,9 @@ export async function getStoreAnalytics(
       gte(deviceCommand.createdAt, since),
     );
 
-  const [dailyRows, monthlyRows, gridRows] = await Promise.all([
+  const [dailyRows, monthlyRows] = await Promise.all([
     db.select({ bucket: dayExpr, count: count() }).from(deviceCommand).innerJoin(deviceTable, eq(deviceCommand.deviceId, deviceTable.id)).where(scoped(since30)).groupBy(dayExpr),
     db.select({ bucket: monthExpr, count: count() }).from(deviceCommand).innerJoin(deviceTable, eq(deviceCommand.deviceId, deviceTable.id)).where(scoped(since9mo)).groupBy(monthExpr),
-    db.select({ dow: dowExpr, hour: hourExpr, count: count() }).from(deviceCommand).innerJoin(deviceTable, eq(deviceCommand.deviceId, deviceTable.id)).where(scoped(since90)).groupBy(sql`1`, sql`2`),
   ]);
 
   const daily = bucketsToSeries(dailyRows, dayKeys(now, 30));
@@ -825,14 +820,10 @@ export async function getStoreAnalytics(
   const thisMonth = monthly[monthly.length - 1]?.activations ?? 0;
   const lastMonth = monthly[monthly.length - 2]?.activations ?? 0;
 
-  const heatmap = buildHeatmap(gridRows);
   const analytics: StoreAnalytics = {
     daily,
     monthly,
     monthTrend: computeTrend(thisMonth, lastMonth),
-    eco: computeEcoSavings(thisMonth),
-    peak: heatmap.peak,
-    heatmap,
   };
   return { store, analytics };
 }
@@ -1017,19 +1008,17 @@ export async function getCustomerDetail(
   const summary = summarize(b);
   const now = new Date();
 
-  // Apply effective status locally (mapDevice stays raw globally).
+  // mapDevice already derives the effective status; just add display context.
   const devices: DeviceRow[] = [
     ...tenant.stores.flatMap((store) =>
       store.devices.map((d) => ({
         ...d,
-        status: effectiveDeviceStatus(d.status, d.lastSeenAt ? new Date(d.lastSeenAt) : null, now),
         tenantName: tenant.name,
         storeName: store.name,
       })),
     ),
     ...tenant.unassignedDevices.map((d) => ({
       ...d,
-      status: effectiveDeviceStatus(d.status, d.lastSeenAt ? new Date(d.lastSeenAt) : null, now),
       tenantName: tenant.name,
       storeName: "—",
     })),

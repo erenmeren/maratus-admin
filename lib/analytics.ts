@@ -1,15 +1,13 @@
 // Pure (IO-free) analytics derivations for per-store reporting. The data layer
 // (lib/data.ts) runs thin SQL GROUP BY queries and feeds the compact count rows
-// here; everything testable (series shaping, trend %, peak selection, revenue,
-// eco) lives in this file. Bucketing is UTC, consistent across keys + SQL.
+// here; everything testable (series shaping, trend %, eco) lives in this file.
+// Bucketing is UTC, consistent across keys + SQL.
 
 import type { TimePoint } from "./types";
 import { computeEcoSavings, type EcoSavings } from "./eco";
 
 /** A grouped count row from SQL: a bucket key (day "YYYY-MM-DD" or month "YYYY-MM"). */
 export interface BucketCount { bucket: string; count: number }
-export interface DowCount { dow: number; count: number }   // dow 0..6 (Sun..Sat, Postgres)
-export interface HourCount { hour: number; count: number } // hour 0..23
 export interface BucketKey { key: string; label: string }
 
 /** n UTC day keys ending on `now`'s date, oldest first. */
@@ -56,27 +54,10 @@ export interface Trend {
   /** Percent change vs previous; null when previous is 0 (undefined ratio). */
   pctChange: number | null;
 }
-export interface Peak {
-  busiestDow: number | null;
-  busiestDowLabel: string | null;
-  busiestDowCount: number;
-  peakHour: number | null;
-  peakHourLabel: string | null;
-  peakHourCount: number;
-}
-export interface Heatmap {
-  grid: number[][]; // [7][24] — grid[dow][hour] = activation count (dow 0=Sun..6=Sat)
-  max: number;      // largest single-cell count (0 when empty); drives intensity
-  total: number;
-  peak: Peak;       // busiest day + peak hour, derived from the grid
-}
 export interface StoreAnalytics {
   daily: TimePoint[];
   monthly: TimePoint[];
   monthTrend: Trend;
-  eco: EcoSavings;
-  peak: Peak;
-  heatmap: Heatmap;
 }
 export interface StoreComparisonRow {
   storeId: string;
@@ -86,80 +67,9 @@ export interface StoreComparisonRow {
   eco: EcoSavings;
 }
 
-const DOW_LABELS = ["Sundays", "Mondays", "Tuesdays", "Wednesdays", "Thursdays", "Fridays", "Saturdays"];
-
 export function computeTrend(current: number, previous: number): Trend {
   const pctChange = previous === 0 ? null : Math.round(((current - previous) / previous) * 100);
   return { current, previous, pctChange };
-}
-
-export function dowLabel(dow: number): string {
-  return DOW_LABELS[dow] ?? "";
-}
-
-export function hourLabel(hour: number): string {
-  const to12 = (h: number) => ({
-    base: h % 12 === 0 ? 12 : h % 12,
-    period: h < 12 ? "am" : "pm",
-  });
-  const start = to12(hour);
-  const end = to12((hour + 1) % 24);
-  return start.period === end.period
-    ? `${start.base}–${end.base}${end.period}`
-    : `${start.base}${start.period}–${end.base}${end.period}`;
-}
-
-/** Returns the bucket with the most activations; on a tie the first in input order wins. Empty/all-zero → null fields. */
-export function pickPeakDow(rows: DowCount[]): { dow: number | null; count: number; label: string | null } {
-  let best: DowCount | null = null;
-  for (const r of rows) if (!best || r.count > best.count) best = r;
-  if (!best || best.count === 0) return { dow: null, count: 0, label: null };
-  return { dow: best.dow, count: best.count, label: dowLabel(best.dow) };
-}
-
-/** Returns the bucket with the most activations; on a tie the first in input order wins. Empty/all-zero → null fields. */
-export function pickPeakHour(rows: HourCount[]): { hour: number | null; count: number; label: string | null } {
-  let best: HourCount | null = null;
-  for (const r of rows) if (!best || r.count > best.count) best = r;
-  if (!best || best.count === 0) return { hour: null, count: 0, label: null };
-  return { hour: best.hour, count: best.count, label: hourLabel(best.hour) };
-}
-
-export function buildPeak(dowRows: DowCount[], hourRows: HourCount[]): Peak {
-  const d = pickPeakDow(dowRows);
-  const h = pickPeakHour(hourRows);
-  return {
-    busiestDow: d.dow, busiestDowLabel: d.label, busiestDowCount: d.count,
-    peakHour: h.hour, peakHourLabel: h.label, peakHourCount: h.count,
-  };
-}
-
-/**
- * Build a 7×24 day-of-week × hour grid from sparse SQL count rows. The busiest
- * day and peak hour are derived from the grid via buildPeak (so KPIs and heatmap
- * share one source of truth). Out-of-range dow/hour rows are ignored.
- */
-export function buildHeatmap(rows: { dow: number; hour: number; count: number }[]): Heatmap {
-  const grid: number[][] = Array.from({ length: 7 }, () => new Array(24).fill(0));
-  let total = 0;
-  for (const r of rows) {
-    if (r.dow < 0 || r.dow > 6 || r.hour < 0 || r.hour > 23) continue;
-    grid[r.dow][r.hour] += r.count;
-    total += r.count;
-  }
-  let max = 0;
-  for (const row of grid) for (const c of row) if (c > max) max = c;
-
-  const dowTotals: DowCount[] = grid.map((row, dow) => ({
-    dow,
-    count: row.reduce((a, c) => a + c, 0),
-  }));
-  const hourTotals: HourCount[] = Array.from({ length: 24 }, (_, hour) => ({
-    hour,
-    count: grid.reduce((a, row) => a + row[hour], 0),
-  }));
-
-  return { grid, max, total, peak: buildPeak(dowTotals, hourTotals) };
 }
 
 export function toComparisonRows(

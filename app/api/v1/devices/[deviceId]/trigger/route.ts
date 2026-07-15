@@ -9,6 +9,7 @@ import { reserveTrigger, cancelTriggerReservation } from "@/lib/trigger-billing"
 import { releaseExpiredHolds } from "@/lib/credit-holds";
 import { effectiveDeviceStatus } from "@/lib/device-status";
 import { id } from "@/lib/ids";
+import { publishCommand } from "@/lib/mqtt";
 
 export const runtime = "nodejs";
 const TTL_MS = 60_000;
@@ -92,6 +93,16 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
     await db.delete(apiIdempotency).where(and(eq(apiIdempotency.key, idemKey), eq(apiIdempotency.organizationId, auth.organizationId)));
     return apiError("internal_error", "Could not enqueue the command.", 500);
   }
+
+  // Best-effort publish over MQTT. The DB row is already the source of record;
+  // if this fails (or MQTT is disabled), the device gets the command via HTTP
+  // polling and/or the heartbeat republish, so we never block the 202 on it.
+  await publishCommand(deviceId, {
+    commandId,
+    type: "trigger",
+    action: v.action,
+    payload: v.payload,
+  });
 
   return apiJson(body, 202);
 }

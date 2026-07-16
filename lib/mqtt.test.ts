@@ -129,7 +129,7 @@ describe("provisionDeviceMqtt", () => {
     expect(await provisionDeviceMqtt("dev_9", "secret")).toBe(true);
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     const [url, opts] = fetchSpy.mock.calls[0];
-    expect(url).toBe("https://broker.example.com:8443/api/v5/authentication/password_based:built_in_database/users");
+    expect(url).toBe("https://broker.example.com:8443/api/v5/authentication/password_based%3Abuilt_in_database/users");
     expect(opts.method).toBe("POST");
     expect(opts.headers.Authorization).toMatch(/^Basic /);
     expect(JSON.parse(opts.body)).toEqual({ user_id: "dev_9", password: "secret", is_superuser: false });
@@ -144,7 +144,7 @@ describe("provisionDeviceMqtt", () => {
     expect(await provisionDeviceMqtt("dev_9", "secret2")).toBe(true);
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     const [url, opts] = fetchSpy.mock.calls[1];
-    expect(url).toBe("https://broker.example.com:8443/api/v5/authentication/password_based:built_in_database/users/dev_9");
+    expect(url).toBe("https://broker.example.com:8443/api/v5/authentication/password_based%3Abuilt_in_database/users/dev_9");
     expect(opts.method).toBe("PUT");
     expect(JSON.parse(opts.body)).toEqual({ password: "secret2" });
     vi.unstubAllGlobals();
@@ -165,7 +165,7 @@ describe("deprovisionDeviceMqtt", () => {
     vi.stubGlobal("fetch", fetchSpy);
     expect(await deprovisionDeviceMqtt("dev_9")).toBe(true);
     const [url, opts] = fetchSpy.mock.calls[0];
-    expect(url).toBe("https://broker.example.com:8443/api/v5/authentication/password_based:built_in_database/users/dev_9");
+    expect(url).toBe("https://broker.example.com:8443/api/v5/authentication/password_based%3Abuilt_in_database/users/dev_9");
     expect(opts.method).toBe("DELETE");
     vi.unstubAllGlobals();
   });

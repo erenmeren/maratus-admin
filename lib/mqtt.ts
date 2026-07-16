@@ -65,7 +65,10 @@ export function buildPublishRequest(
 }
 
 function emqxAuthUsersBase(): string {
-  return `${(env.EMQX_API_URL as string).replace(/\/$/, "")}/authentication/password_based:built_in_database/users`;
+  // The authenticator id's colon MUST be percent-encoded (%3A). EMQX Cloud
+  // Serverless returns 403 for the literal-colon path but 200 for the encoded
+  // one (verified live against the deployment API).
+  return `${(env.EMQX_API_URL as string).replace(/\/$/, "")}/authentication/password_based%3Abuilt_in_database/users`;
 }
 
 function emqxAuthHeader(): string {

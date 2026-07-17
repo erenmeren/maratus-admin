@@ -116,12 +116,13 @@ ekranları içerir:
 
 1. **Panel (Dashboard)**
 2. **Mağazalar (Stores)**
-3. **Marka (Branding)**
+3. **Cihazlar (Devices)**
 4. **Cihaz Ayarları (Device Settings)**
-5. **Üyeler (Members)**
-6. **Faturalandırma (Billing)**
-7. **API**
-8. **Etkinlik (Activity)**
+5. **Marka (Branding)**
+6. **Üyeler (Members)**
+7. **Faturalandırma (Billing)**
+8. **API**
+9. **Etkinlik (Activity)**
 
 Bu ekranların her biri, kılavuzun ilerleyen bölümlerinde ayrıntılı olarak
 anlatılacaktır.
@@ -558,7 +559,69 @@ bölümü bulunur.
   ürün yazılımı güncelleme; durum olarak genellikle **"pending"**
   (bekliyor) veya **"acked"** (onaylandı) görürsünüz.
 
-## 7. Marka (Branding)
+## 7. Cihazlar (Devices)
+
+### Bu ekran ne işe yarar?
+
+**Cihazlar (Devices)** ekranı (adres: **`/tenant/devices`**) — başlığı
+"**Devices**" — kiracınızın **tüm mağazalarındaki bütün yazıcıları** tek bir
+düz listede, bir arada gösterir. Bölüm 6'daki mağaza detayı ekranı yazıcıları
+**mağaza mağaza** gösterirken, bu ekran aynı yazıcıları **filo genelinde** tek
+bakışta görmenizi, aramanızı ve duruma göre süzmenizi sağlar; ayrıca henüz bir
+mağazaya bağlanmamış (havuzdaki) yazıcıları da içerir. Başlığın altında
+"**{n} printers · {n} online**" (n yazıcı · n çevrimiçi) biçiminde bir özet
+bulunur.
+
+**Sahip (Owner)** ve **Yönetici (Admin)** rolündeki kullanıcılar bu ekrandan
+bir yazıcıyı doğrudan bir mağazaya **atayabilir veya taşıyabilir**; **Üye
+(Member)** rolündeki kullanıcılar için ekran **salt-okunurdur** (işlem sütunu
+görünmez).
+
+### Ekranda neler var?
+
+- **Arama kutusu:** "**Search by device, serial or store…**" (cihaz, seri
+  numarası veya mağazaya göre ara) yer tutucu metniyle; yazdıkça liste
+  süzülür. Cihaz adı, seri numarası veya bağlı olduğu mağaza adına göre arama
+  yapar.
+- **Durum sekmeleri (yanlarında sayılarla):**
+  - **Tümü (All)** — tüm yazıcılar,
+  - **Çevrimiçi (Online)**, **Çevrimdışı (Offline)**, **Duraklatılmış
+    (Paused)** — cihazın güncel durumuna göre,
+  - **Atanmamış (Unassigned)** — sahiplenilmiş ama henüz hiçbir mağazaya
+    bağlanmamış, kiracı **havuzundaki** yazıcılar.
+- **Cihaz tablosu** — sütunlar:
+  - **Cihaz (Device):** yazıcının adı ve (varsa) altında **seri numarası**.
+    Yazıcı bir mağazaya atanmışsa ada tıklamak sizi o yazıcının **Cihaz
+    Detayı** ekranına götürür (bkz. Bölüm 6); atanmamış yazıcılarda ad
+    bağlantı değildir.
+  - **Mağaza (Store):** yazıcının bağlı olduğu mağazanın adı; atanmamışsa
+    "**—**" görünür.
+  - **Durum (Status):** bir **durum rozeti (status badge)**.
+  - **Son görülme (Last seen):** yazıcının en son ne zaman bağlandığı
+    ("2 minutes ago" gibi göreli biçimde).
+  - **İşlem sütunu** (yalnızca **Sahip/Yönetici**): her satırda, yazıcı
+    havuzdaysa **"Mağazaya ata (Assign to store)"**, zaten bir mağazadaysa
+    **"Mağazaya taşı (Move to store)"** düğmesi bulunur. Düğmeye basınca bir
+    **mağaza seçme diyaloğu (store picker)** açılır; hedef mağazayı seçtiğinizde
+    yazıcı oraya atanır/taşınır.
+- **Sayfalama (pagination):** liste bir sayfaya sığmayacak kadar uzunsa altta
+  **Önceki/Sonraki (Previous/Next)** bağlantılarıyla sayfalar arasında
+  gezinirsiniz (sayfa başına 50 yazıcı).
+
+### İpuçları
+
+- Bu ekran ile **Mağaza Detayı** ekranı (Bölüm 6) aynı yazıcıları farklı iki
+  açıdan gösterir: burada **filo genelinde** arama/süzme yaparsınız, orada ise
+  **tek bir mağazanın** yazıcılarını yönetirsiniz. Yeni yazıcı **sahiplenme
+  (claim)** işlemi yalnızca mağaza detayı ekranından yapılır.
+- **Atanmamış (Unassigned)** sekmesi, bir mağazası silindiği için havuza düşen
+  veya henüz bir mağazaya yerleştirilmemiş yazıcıları bulmanın en hızlı
+  yoludur; oradan tek tıkla bir mağazaya atayabilirsiniz.
+- Bir yazıcıyı duraklatmak/etkinleştirmek veya uzaktan komut göndermek gibi
+  ayrıntılı işlemler için ada tıklayıp **Cihaz Detayı** ekranına gidin (bkz.
+  Bölüm 6).
+
+## 8. Marka (Branding)
 
 ### Bu ekran ne işe yarar?
 
@@ -705,7 +768,7 @@ devre dışıdır.
 - Kaydettiğiniz değişiklikler yazıcılara **anında** yansımaz; yazıcılar bir
   sonraki senkronizasyonda (sync) yeni yapılandırmayı alır.
 
-## 8. Cihaz Ayarları (Device Settings)
+## 9. Cihaz Ayarları (Device Settings)
 
 ### Bu ekran ne işe yarar?
 
@@ -804,7 +867,7 @@ ekran **salt-okunur (read-only)**'dur.
 - **Üye (Member)** rolündeyseniz bu ekranın tamamı salt-okunurdur; kaydet
   çubuğunda her zaman "**Read only**" görürsünüz.
 
-## 9. Üyeler (Members)
+## 10. Üyeler (Members)
 
 ### Bu ekran ne işe yarar?
 
@@ -924,7 +987,7 @@ işlem düğmesini görmezler, yalnızca üye ve davet listelerini görüntüley
   salt-okunurdur: davet formunu göremez, hiçbir satırda işlem düğmesi
   göremezsiniz.
 
-## 10. Faturalandırma & Krediler (Billing)
+## 11. Faturalandırma & Krediler (Billing)
 
 ### Bu ekran ne işe yarar?
 
@@ -1037,7 +1100,7 @@ kredi satın alma dahil aynı işlemleri yapabilir.
   işlem sonuçlandığında (başarı ya da hata) bu tutar serbest kalır veya
   kesin olarak harcanır.
 
-## 11. API
+## 12. API
 
 ### Bu ekran ne işe yarar?
 
@@ -1195,7 +1258,7 @@ işlemini göremezler.
   için **"API'yi kullanma (Using the API)"** kartındaki **`/api/v1/openapi.json`** bağlantısını
   kullanın.
 
-## 12. Etkinlik (Activity)
+## 13. Etkinlik (Activity)
 
 ### Bu ekran ne işe yarar?
 
@@ -1250,7 +1313,7 @@ kısıtlaması yoktur.
 
 - **İşlem (Action)** sütunundaki etiketler ve **Yapan (Actor)** sütunundaki
   rozet metinleri (device/system) **Türkçeleştirilmemiştir**; Bölüm 6'daki
-  komut geçmişi tablosuna ve Bölüm 9'daki rol değerlerine benzer bir
+  komut geçmişi tablosuna ve Bölüm 10'daki rol değerlerine benzer bir
   istisnadır.
 - **Hedef (Target)** sütunundaki tire ("—") bir hata değildir; yalnızca o
   eylemin belirli bir kayda uygulanmadığını gösterir (örn. bazı
@@ -1261,7 +1324,7 @@ kısıtlaması yoktur.
   görürsünüz; hiçbir işlem düğmesi veya düzenleme kontrolü hiçbir role
   görünmez.
 
-## 13. Rozetler ve Terimler (Sözlük)
+## 14. Rozetler ve Terimler (Sözlük)
 
 Bu bölüm, kılavuz boyunca karşınıza çıkan durum rozetlerini ve rolleri tek
 bir referans tablosunda toplar, ardından sık kullanılan terimleri kısaca
@@ -1269,7 +1332,7 @@ tanımlar. Her rozetin/rolün nerede ve nasıl kullanıldığı önceki bölüml
 (özellikle Bölüm 2, 5, 6) ayrıntılı olarak anlatılmıştır; burada yalnızca
 hızlı bir başvuru kaynağı sunulur.
 
-### 13.1 Cihaz durumu (Device status)
+### 14.1 Cihaz durumu (Device status)
 
 Bu durum, **Cihaz Detayı** ekranındaki (Bölüm 6) Duraklat kontrolü kartında
 doğrudan gösterilir ve **Mağaza detayı**'ndaki (Bölüm 6) cihaz kartlarının
@@ -1287,7 +1350,7 @@ görülmemiş olsa bile, gösterilen durum her zaman **Duraklatıldı
 (Paused)**'dır — duraklatma her koşulda önceliklidir; "Duraklatıldı" bir
 cihaz asla "Çevrimdışı" olarak görünmez.
 
-### 13.2 Mağaza durumu (rollup)
+### 14.2 Mağaza durumu (rollup)
 
 **Mağazalar (Stores)** tablosundaki (Bölüm 5) ve **Mağaza detayı**
 başlığındaki (Bölüm 6) durum rozeti, aynı üç değeri (**Çevrimiçi (Online)**
@@ -1302,11 +1365,11 @@ durumundan türetilir:
 3. Yukarıdaki iki durum da geçerli değilse (yani tüm cihazlar çevrimdışıysa
    veya mağazada hiç cihaz yoksa), mağaza rozeti **Çevrimdışı**'dır.
 
-### 13.3 Roller (Owner / Admin / Member)
+### 14.3 Roller (Owner / Admin / Member)
 
 | Rol | Yetkiler |
 |---|---|
-| **Sahip (Owner)** | Kiracıdaki tüm yönetimsel işlemleri yapabilir. Bu rol **silinemez** ve **davet/rol değiştirme yoluyla asla düşürülemez** — sunucu tarafında da korunur (bkz. Bölüm 9). |
+| **Sahip (Owner)** | Kiracıdaki tüm yönetimsel işlemleri yapabilir. Bu rol **silinemez** ve **davet/rol değiştirme yoluyla asla düşürülemez** — sunucu tarafında da korunur (bkz. Bölüm 10). |
 | **Yönetici (Admin)** | Sahip (Owner) ile **aynı yönetimsel yetkilere** sahiptir: mağaza ekleme/düzenleme, yazıcı sahiplenme, marka/cihaz ayarlarını düzenleme, üye davet etme/rol değiştirme/kaldırma, API anahtarı oluşturma/iptal etme. |
 | **Üye (Member)** | Çoğu ekranda **salt-okunur (read-only)**'dur: mağaza ekleyemez/düzenleyemez, marka veya cihaz ayarlarını düzenleyemez, üye yönetemez, API anahtarı oluşturamaz/iptal edemez, uzaktan komut gönderemez. **Aşağıdaki önemli istisnaya bakın.** |
 
@@ -1323,7 +1386,7 @@ durumundan türetilir:
 > kısıtlama, cihazın **çevrimdışı** olmamasıdır — çevrimdışı bir cihazın
 > durumu hiçbir rol tarafından değiştirilemez (bkz. 15.1).
 
-### 13.4 Sözlük (Terimler)
+### 14.4 Sözlük (Terimler)
 
 - **Kiracı (Tenant / Organization):** Ditto Admin'de sizin firmanızı temsil
   eden organizasyon; tipik olarak bir mağaza zincirinin tamamını kapsar
@@ -1344,7 +1407,7 @@ durumundan türetilir:
 - **Kredi (Credit — ön ödemeli/prepaid):** Ditto'nun ücretlendirme birimi;
   her tetikleme kiracının bakiyesinden 1 kredi rezerve eder, işlem
   başarıyla tamamlanınca (ack ile) bu kredi kesin olarak düşülür
-  (bkz. Bölüm 2.5, Bölüm 10).
+  (bkz. Bölüm 2.5, Bölüm 11).
 - **Eşleştirme kodu (Pairing code):** Sahiplenilmemiş bir cihazın ekranında
   görünen, o cihazı bir mağazaya bağlamak (claim) için kullanılan kod
   (bkz. Bölüm 6, Yazıcı sahiplenme).
@@ -1359,7 +1422,7 @@ durumundan türetilir:
   config/Identify/Update firmware) komutlardan biri; cihaza anında değil,
   cihazın bir sonraki bağlantı kontrolünde (check-in) ulaşır (bkz. Bölüm 6).
 
-## 14. Sık Sorulanlar / Sorun Giderme
+## 15. Sık Sorulanlar / Sorun Giderme
 
 **Bir cihaz neden "Çevrimdışı (Offline)" görünüyor?**
 Bir cihaz, ya hiç görülmemişse ya da son görülme zamanının üzerinden
@@ -1367,15 +1430,15 @@ Bir cihaz, ya hiç görülmemişse ya da son görülme zamanının üzerinden
 Cihaz ayrıca **duraklatılmış (Paused)** durumdaysa, kaç dakikadır
 görülmediğine bakılmaksızın durum her zaman "Duraklatıldı (Paused)" olarak
 gösterilir — duraklatma her koşulda önceliklidir, "Duraklatıldı" bir cihaz
-asla "Çevrimdışı" görünmez (bkz. Bölüm 13.1).
+asla "Çevrimdışı" görünmez (bkz. Bölüm 14.1).
 
 **Kredi nasıl satın alınır?**
-**Faturalandırma (Billing)** ekranına gidin (Bölüm 10) ve **"Krediler
+**Faturalandırma (Billing)** ekranına gidin (Bölüm 11) ve **"Krediler
 (Credits)"** bölümündeki paketlerden birinin **"{n} kredi satın al (Buy {n}
 credits)"** düğmesine tıklayın. **Önemli:** Kurulumunuzda Stripe
 yapılandırılmamışsa veya hiç kredi paketi tanımlanmamışsa, bu satın alma
 bölümü ekranda **hiç görünmez** — bu bir hata değildir, bu durumda krediler
-yalnızca platform tarafından manuel olarak tanımlanabilir (bkz. Bölüm 10'deki
+yalnızca platform tarafından manuel olarak tanımlanabilir (bkz. Bölüm 11'deki
 "Önemli" notu).
 
 **Bir yazıcıyı nasıl eklerim?**
@@ -1394,7 +1457,7 @@ otomatik olarak etkinleşir (bkz. Bölüm 6, "Adım adım: Yazıcı sahiplenme")
 bile bu değer kalıcı olarak saklanmaz; sayfa yeniden yüklendiğinde eski
 haline sıfırlanır. Kalıcı bir marka adı/logosu göstermek için **Screen**
 bölümündeki nesneleri (metin/logo/görsel) kullanmanız gerekir (bkz.
-Bölüm 7).
+Bölüm 8).
 
 **API anahtarı "read-only" deniyor ama neden cihaz tetikleyip kredi
 harcayabiliyor?**
@@ -1405,7 +1468,7 @@ kapsamı (izni) verilirse, bu anahtar `POST
 cihazı tetikleyebilir ve bu işlem kiracınızın **kredi bakiyesinden kredi
 harcar** — yani "salt-okunur" değil, gerçek bir **yazma (write)** eylemidir.
 Bu kapsamı yalnızca gerçekten cihaz tetiklemesi gereken entegrasyonlara
-verin (bkz. Bölüm 11'teki "Önemli" notu).
+verin (bkz. Bölüm 12'teki "Önemli" notu).
 
 **Bir üyeyi neden admin yapamıyorum / kaldıramıyorum?**
 İki olası neden vardır: (1) Rol değiştirme ve kaldırma işlemlerini yalnızca
@@ -1415,4 +1478,4 @@ yapabilir — **Üye (Member)** rolündeyseniz bu işlemleri hiç göremezsiniz.
 rolündeyse, bu işlem **hiçbir zaman** yapılamaz — owner rolü hem davetle
 verilemez hem de sonradan değiştirilemez/kaldırılamaz; bu ekranda o satırda
 işlem düğmeleri hiç görünmez, sunucu tarafında da aynı koruma vardır
-(bkz. Bölüm 9).
+(bkz. Bölüm 10).

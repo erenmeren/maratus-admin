@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { ListControls } from "@/components/list-controls";
 import { PaginationBar } from "@/components/pagination-bar";
+import { UnclaimedDeviceDelete } from "@/components/unclaimed-device-delete";
 import { Card } from "@/components/ui/card";
 import {
   Table,
@@ -68,12 +69,13 @@ export default async function FleetPage({
               <TableHead>Status</TableHead>
               <TableHead>Last seen</TableHead>
               <TableHead>Firmware</TableHead>
+              <TableHead className="w-10" />
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
                   {status === "pool"
                     ? "No unassigned devices."
                     : status === "unclaimed"
@@ -115,6 +117,11 @@ export default async function FleetPage({
                       <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
                         update
                       </span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    {!d.claimed && (
+                      <UnclaimedDeviceDelete deviceId={d.id} deviceName={d.name} />
                     )}
                   </TableCell>
                 </TableRow>

@@ -266,6 +266,11 @@ export const device = pgTable(
       .notNull(),
     firmwareVersion: text("firmware_version").default("2.4.1").notNull(),
     lastSeenAt: timestamp("last_seen_at"),
+    // Free internal DRAM (bytes) reported on the MQTT heartbeat. lastHeapFree is
+    // the most recent reading; minHeapFree is the lowest ever seen (worst-case
+    // concurrent-TLS peak). Both null until a heap-reporting firmware checks in.
+    lastHeapFree: integer("last_heap_free"),
+    minHeapFree: integer("min_heap_free"),
     // One-time human-friendly code used to claim an unprovisioned device.
     pairingCode: text("pairing_code").unique(),
     // SHA-256 hash of the device's bearer key (raw key shown once at claim).

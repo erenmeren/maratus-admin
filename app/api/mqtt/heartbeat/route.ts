@@ -35,6 +35,14 @@ export async function POST(req: Request) {
     .set({
       lastSeenAt: now,
       ...(hb.version ? { firmwareVersion: hb.version } : {}),
+      // Remote memory-soak telemetry: store the latest free-internal-DRAM reading
+      // and track the lowest-ever (worst-case concurrent-TLS peak) atomically.
+      ...(hb.heap !== null
+        ? {
+            lastHeapFree: hb.heap,
+            minHeapFree: sql`LEAST(COALESCE(${deviceTable.minHeapFree}, ${hb.heap}), ${hb.heap})`,
+          }
+        : {}),
       // Atomic in-DB decision: never resurrect a paused device, even under
       // concurrent writes (no stale JS-side status read driving this write).
       status: sql`CASE WHEN ${deviceTable.status} = 'paused' THEN ${deviceTable.status} ELSE 'online' END`,

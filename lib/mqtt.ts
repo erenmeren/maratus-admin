@@ -168,9 +168,18 @@ export function parseAckPayload(
   };
 }
 
-export function parseHeartbeatPayload(raw: unknown): { version: string | null } | null {
+export function parseHeartbeatPayload(
+  raw: unknown,
+): { version: string | null; heap: number | null } | null {
   if (!isObject(raw)) return null;
-  return { version: typeof raw.version === "string" ? raw.version : null };
+  // heap = free internal DRAM (bytes); accept only a finite non-negative int.
+  const h = raw.heap;
+  const heap =
+    typeof h === "number" && Number.isFinite(h) && h >= 0 ? Math.round(h) : null;
+  return {
+    version: typeof raw.version === "string" ? raw.version : null,
+    heap,
+  };
 }
 
 export function parsePresencePayload(

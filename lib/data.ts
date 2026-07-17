@@ -867,6 +867,46 @@ export async function getTenantSummaries(opts?: {
   return bundles.map(summarize);
 }
 
+export type CustomerViewFilter = "active" | "archived" | "all";
+
+export interface AdminCustomerListPage {
+  rows: TenantSummary[];
+  total: number;
+  counts: { active: number; archived: number; all: number };
+}
+
+/** Searchable + paginated admin customers list. Mirrors getAdminDevicesPage's
+ *  { rows, total, counts } shape so the page reuses ListControls + PaginationBar.
+ *
+ *  Reuses getTenantSummaries (which loads every org bundle) then filters and
+ *  paginates in JS — the numbers stay bit-identical to the customer detail
+ *  pages with zero risk of aggregate-SQL drift, and it's no heavier than the
+ *  list already was. When the org count reaches fleet scale (thousands), this
+ *  should become a SQL aggregate page query like getAdminDevicesPage. */
+export async function getAdminCustomersPage(opts: {
+  q: string;
+  view: CustomerViewFilter;
+  page: number;
+}): Promise<AdminCustomerListPage> {
+  const all = await getTenantSummaries({ includeArchived: true });
+  const counts = {
+    all: all.length,
+    active: all.filter((c) => c.archivedAt === null).length,
+    archived: all.filter((c) => c.archivedAt !== null).length,
+  };
+  const needle = opts.q.toLowerCase();
+  const filtered = all
+    .filter((c) => {
+      if (opts.view === "active" && c.archivedAt !== null) return false;
+      if (opts.view === "archived" && c.archivedAt === null) return false;
+      if (needle && !c.name.toLowerCase().includes(needle)) return false;
+      return true;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const start = (opts.page - 1) * PAGE_SIZE;
+  return { rows: filtered.slice(start, start + PAGE_SIZE), total: filtered.length, counts };
+}
+
 export interface AdminOverview {
   activationsThisMonth: number;
   activeDevices: number;

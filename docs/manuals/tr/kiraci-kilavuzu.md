@@ -119,11 +119,9 @@ ekranları içerir:
 3. **Marka (Branding)**
 4. **Cihaz Ayarları (Device Settings)**
 5. **Üyeler (Members)**
-6. **Raporlar (Reports)**
-7. **Analitik (Analytics)**
-8. **Faturalandırma (Billing)**
-9. **API**
-10. **Etkinlik (Activity)**
+6. **Faturalandırma (Billing)**
+7. **API**
+8. **Etkinlik (Activity)**
 
 Bu ekranların her biri, kılavuzun ilerleyen bölümlerinde ayrıntılı olarak
 anlatılacaktır.
@@ -188,24 +186,19 @@ yap (Sign out)**.
 Giriş yaptıktan sonra kiracı kullanıcısı olarak indiğiniz ilk ekran, **Panel
 (Dashboard)** ekranıdır (adres: **`/tenant`**). Bu ekran, kiracınızın
 (mağaza zincirinizin) o günkü ve son 30 günkü **kağıtsız ödeme/QR akışı**
-performansını tek bakışta özetler: kaç aktivasyon yapıldığını, kaç yazıcının
-çevrimiçi olduğunu, çevresel etkiyi ve hangi mağazaların en yoğun olduğunu
-gösterir. **Bu ekranda herhangi bir işlem yapılmaz** — yalnızca bilgi
-kartları ve bağlantılar (linkler) bulunur; veri ekleyen, değiştiren veya
+performansını tek bakışta özetler: kaç aktivasyon yapıldığını ve kaç
+yazıcının çevrimiçi olduğunu gösterir. **Bu ekranda herhangi bir işlem
+yapılmaz** — yalnızca bilgi kartları bulunur; veri ekleyen, değiştiren veya
 silen hiçbir kontrol yoktur.
 
 ### Ekranda neler var?
 
 - **Başlık ve açıklama:** Üstte "**Welcome back, {adınız}**" biçiminde
   kişiselleştirilmiş bir karşılama başlığı ve altında "**Here's how
-  {kiracı adınız}'s paperless checkout is doing today.**" açıklaması yer
-  alır.
-- **Tarih çipi:** Başlığın yanında bir takvim ikonuyla birlikte bir tarih
-  görürsünüz. **Önemli:** Bu tarih çipi **sabit (hardcoded) olarak
-  "May 30, 2026" yazar** — ekranı hangi gün açarsanız açın değişmez ve
-  **gerçek/güncel tarihi yansıtmaz**. Bunu bir hata veya bilgi olarak
-  değerlendirmeyin; gerçek tarih için bilgisayarınızın/tarayıcınızın kendi
-  saatine bakın.
+  {kiracı adınız} is doing today.**" açıklaması yer alır.
+- **Tarih çipi:** Başlığın yanında bir takvim ikonuyla birlikte **bugünün
+  tarihi** görünür (örneğin "**July 17, 2026**"); bu tarih, ekranı açtığınız
+  güne göre gerçek zamanlı olarak güncellenir.
 - **3 KPI (temel performans göstergesi) kartı:**
   - **Bugünkü aktivasyonlar (Activations today):** O güne ait aktivasyon
     sayısı. Kartta bir de "**+6.4%**" delta (değişim) rozeti ve "**vs.
@@ -224,35 +217,16 @@ silen hiçbir kontrol yoktur.
 - **"Aktivasyonlar zaman içinde (Activations over time)" kartı:**
   Açıklaması "**Daily activations, last 30 days**" (son 30 günün günlük
   aktivasyonları); bir **alan grafiği (area chart)** ile gösterilir.
-- **"Eko etki (Eco impact)" kartı:** Üstte "**From {n} paperless documents
-  this month.**" (bu ay {n} kağıtsız belgeden) açıklaması bulunur. Altında
-  4 istatistik kutusu vardır:
-  - **Ağaç (trees)** — kurtarılan kağıt miktarının kaç ağaca denk geldiği,
-  - **Kâğıt (paper)** — basılmamış kağıt miktarı,
-  - **Su (water)** — tasarruf edilen su miktarı,
-  - **CO₂e** — önlenen CO₂e (karbon eşdeğeri) emisyonu.
-- **"En yoğun mağazalar (Busiest stores)" kartı:** Açıklaması "**Activations
-  this month, by branch**" (bu ay mağaza bazında aktivasyonlar). Kartın
-  sağ üst köşesinde **"Tüm mağazalar (All stores)"** bağlantısı bulunur;
-  bu bağlantı sizi **Mağazalar (Stores)** ekranına (**`/tenant/stores`**)
-  götürür. Kartın içinde, aylık aktivasyon sayısına göre en yoğun **en
-  fazla 4 mağaza** birer döşeme (tile) olarak listelenir; her döşemede
-  mağaza adı, "**{n} printers · {n} online**" (yazıcı sayısı ve çevrimiçi
-  sayısı) bilgisi, o ayki aktivasyon sayısı ve bir **durum rozeti (status
-  badge)** görünür. Bir döşemeye tıklarsanız ilgili mağazanın detay
-  sayfasına gidersiniz.
 
 ### İpuçları
 
 - Panel ekranındaki hiçbir kart veya sayı üzerinde düzenleme yapamazsınız;
   bu ekran salt bilgilendirme amaçlıdır. Mağaza eklemek/düzenlemek gibi
   işlemler için **Mağazalar (Stores)** ekranına gidin (bkz. Bölüm 5).
-- Tarih çipinin ve iki KPI kartındaki yüzde delta değerlerinin **sabit
-  (hardcoded)** olduğunu unutmayın — bunları gerçek zamanlı veri gibi
-  yorumlamayın. Sadece **Aktif cihazlar** KPI'ı ve grafikteki/mağaza
-  kartlarındaki sayılar gerçek veriye dayanır.
-- En yoğun mağazaları tam listesiyle görmek için "**Tüm mağazalar (All
-  stores)**" bağlantısını kullanın.
+- İki KPI kartındaki (Bugünkü/Bu ayki aktivasyonlar) yüzde delta
+  değerlerinin **sabit (hardcoded)** olduğunu unutmayın — bunları gerçek
+  zamanlı veri gibi yorumlamayın. Sadece **Aktif cihazlar** KPI'ı ve
+  grafikteki sayılar gerçek veriye dayanır.
 
 ## 5. Mağazalar (Stores)
 
@@ -311,8 +285,8 @@ kullanıcılar bu ekranı yalnızca **salt-okunur (read-only)** olarak görür.
      alırsınız.
    - **Adres (Address)** — isteğe bağlıdır.
    - **Saat dilimi (Timezone)** — önceden seçili bir varsayılan değerle
-     gelir; altında "**Used for busiest-times analytics.**" (en yoğun
-     saat analitiği için kullanılır) açıklaması bulunur.
+     gelir; altında "**The store's local time zone.**" (mağazanın yerel
+     saat dilimi) açıklaması bulunur.
 3. Vazgeçmek isterseniz **İptal (Cancel)** düğmesine tıklayın; kaydetmek
    için **"Mağaza ekle (Add store)"** düğmesine tıklayın (işlem sürerken
    düğme metni "**Adding…**" olarak değişir).
@@ -351,8 +325,9 @@ kullanıcılar bu ekranı yalnızca **salt-okunur (read-only)** olarak görür.
 - **Mağaza adı (Store name)** her iki diyalogda da **zorunlu** tek alandır;
   **Adres (Address)** boş bırakılabilir.
 - **Saat dilimi (Timezone)** seçimi yalnızca kozmetik değildir — mağazanın
-  en yoğun saat analitiğini doğru hesaplamak için kullanılır, bu nedenle
-  mağazanın gerçek saat dilimini seçmeniz önerilir.
+  aktivasyon istatistiklerini mağazanın yerel gününe göre doğru hesaplamak
+  için kullanılır, bu nedenle mağazanın gerçek saat dilimini seçmeniz
+  önerilir.
 
 ## 6. Mağaza Detayı ve Cihaz Yönetimi
 
@@ -360,8 +335,8 @@ kullanıcılar bu ekranı yalnızca **salt-okunur (read-only)** olarak görür.
 
 **Mağaza detayı** ekranı (adres: **`/tenant/stores/{storeId}`**), tek bir
 mağazanın (şubenin) ayrıntılı görünümüdür: o mağazadaki tüm **cihazları
-(yazıcıları)**, mağazaya özgü aktivasyon/eko istatistiklerini ve zaman içi
-grafiklerini bir arada gösterir. Bu ekran aynı zamanda yeni bir yazıcının
+(yazıcıları)**, mağazaya özgü aktivasyon istatistiklerini ve zaman içi
+grafiğini bir arada gösterir. Bu ekran aynı zamanda yeni bir yazıcının
 mağazaya **sahiplenilmesi (claim)** ve mevcut yazıcıların **duraklatılıp
 etkinleştirilmesi** için giriş noktasıdır. **Sahip (Owner)** ve **Yönetici
 (Admin)** rolündeki kullanıcılar burada yazıcı sahiplenebilir ve mağaza
@@ -390,32 +365,19 @@ yönlendirir.
   (Member) rolündeki kullanıcılar bu iki düğmeyi görmez.
 - Başlığın altında bir harita pini ikonuyla birlikte mağazanın **adresi**
   yer alır.
-- **KPI (temel performans göstergesi) satır 1** — 4 kart:
-  - **Yazıcılar (Printers):** "**{çevrimiçi}/{toplam}**" biçiminde, altında
+- **KPI (temel performans göstergesi) satırı — 3 kart:**
+  - **Cihazlar (Devices):** "**{çevrimiçi}/{toplam}**" biçiminde, altında
     "**online**" ibaresi.
   - **Bugünkü aktivasyonlar (Activations today).**
-  - **Bu ayki aktivasyonlar (Activations this month).**
-  - **Yazıcı başına ortalama (Avg / printer):** altında "**activations
-    this month**" ibaresi.
-- **KPI satır 2** — 4 kart daha:
   - **Bu ayki aktivasyonlar (Activations this month):** bu kartta bir
     **delta (değişim) rozeti** ve "**vs last month**" (geçen ayla
     karşılaştırma) ibaresi bulunur. **Önemli:** Panel (Dashboard)
     ekranındaki delta değerlerinin aksine (bkz. Bölüm 4), buradaki delta
     **sabit değildir** — mağazanın gerçek geçen-ay verisiyle
     karşılaştırılarak hesaplanan **gerçek** bir yüzdedir.
-  - **Kağıt tasarrufu (Paper saved):** "**{kg} kg**" biçiminde, altında
-    "**this month**" (bu ay) ibaresi.
-  - **En yoğun gün (Busiest day):** altında "**last 90 days**" (son 90 gün)
-    ibaresi.
-  - **Yoğunluk saati (Peak hour):** altında "**last 90 days**" (son 90 gün)
-    ibaresi.
 - **"Aktivasyonlar zaman içinde (Activations over time)" kartı:** açıklaması
   "**Daily activations, last 30 days**" (son 30 günün günlük
   aktivasyonları); bir alan grafiği (area chart) ile gösterilir.
-- **"Yoğun zamanlar (Busiest times)" kartı:** açıklaması "**Activations by
-  day of week and hour, last 90 days**" (haftanın günü ve saatine göre
-  aktivasyonlar, son 90 gün); bir **ısı haritası (heatmap)** ile gösterilir.
 - **"Bu mağazadaki yazıcılar (Printers in this store)" bölümü:** mağazaya
   bağlı her cihaz için bir **cihaz kartı** gösteren bir ızgara
   (grid). Mağazada henüz cihaz yoksa "**No printers here yet**" (henüz
@@ -962,168 +924,7 @@ işlem düğmesini görmezler, yalnızca üye ve davet listelerini görüntüley
   salt-okunurdur: davet formunu göremez, hiçbir satırda işlem düğmesi
   göremezsiniz.
 
-## 10. Raporlar (Reports)
-
-### Bu ekran ne işe yarar?
-
-**Raporlar (Reports)** ekranı (adres: **`/tenant/reports`**) — başlığı
-"**Reports**", açıklaması "**Activations, breakdowns, and eco savings across
-your fleet.**" (filonuz genelinde aktivasyonlar, kırılımlar ve eko
-tasarruflar) — kiracınızın tüm mağaza ve cihazları genelindeki aktivasyon
-verilerini zaman içinde, mağazaya göre ve cihaza göre kırılımlarla birlikte
-gösterir; ayrıca eko (çevresel) tasarruf verilerini sunar ve tüm bu verileri
-tek bir CSV dosyası olarak dışa aktarmanızı sağlar. **Bu ekranda herhangi bir
-düzenleme kontrolü yoktur** — salt bilgilendirme ve dışa aktarma amaçlıdır;
-**Sahip (Owner)**, **Yönetici (Admin)** ve **Üye (Member)** rolündeki tüm
-kullanıcılar bu ekranı **aynı şekilde** görür, rol kısıtlaması yoktur.
-
-### Ekranda neler var?
-
-- **Başlık ve açıklama:** "**Reports**" / "**Activations, breakdowns, and
-  eco savings across your fleet.**"; sağ üstte **"Raporu dışa aktar (Export
-  report)"** düğmesi (bir indirme simgesiyle birlikte).
-- **"Aktivasyonlar zaman içinde (Activations over time)" kartı:** açıklaması
-  "**Monthly activations, last 9 months**" (son 9 ayın aylık
-  aktivasyonları); bir alan grafiği (area chart) ile gösterilir.
-- İki sütunlu bir ızgara:
-  - **"Mağazaya göre (By store)" kartı:** açıklaması "**Activations this
-    month, per branch**" (bu ay, şube bazında aktivasyonlar); yatay bir çubuk
-    grafiği (bar chart) ile gösterilir. Mağazalar, bu ayki aktivasyon
-    sayısına göre **çoktan aza** sıralanır.
-  - **"Cihaza göre (By device)" kartı:** açıklaması "**Top printers by
-    activations this month**" (bu ay en çok aktivasyon yapan yazıcılar); yine
-    çubuk grafiği ile, bu ayki aktivasyona göre en yoğun **en fazla 8 cihaz**
-    listelenir. Her çubuğun etiketi "**{mağaza adının ilk kelimesi} ·
-    {cihaz adı}**" biçimindedir.
-- 3 sütunlu bir ızgara (ilk kart 2 sütun kaplar):
-  - **"Zaman içinde eko tasarruf (Eco savings over time)" kartı:** açıklaması
-    "**Paper saved per month (kg)**" (ay bazında tasarruf edilen kağıt, kg);
-    bir alan grafiği ile gösterilir.
-  - **"Eko etki (Eco impact)" kartı:** Panel (Dashboard) ekranındaki (bkz.
-    Bölüm 4) aynı karttır — "**From {n} paperless documents {dönem}.**"
-    açıklaması ve **Ağaç (trees)**, **Kâğıt (paper)**, **Su (water)**, **CO₂e**
-    istatistik kutuları. **Fark:** burada dönem metni "**last 9 months**"
-    (son 9 ay) yazar — Panel ekranındaki "this month" (bu ay) yerine, son 9
-    aylık toplam aktivasyona göre hesaplanır.
-- **QUIRK — düşük öncelikli not:** **"Mağazaya göre (By store)"** kartında
-  (ve dışa aktarılan CSV'nin **"Mağazaya göre (By store)"** bölümünde) mağaza
-  adlarının
-  başındaki sabit "**Roastwell **" öneki otomatik olarak kırpılır. Bu, bir
-  demo kalıntısıdır ve yalnızca bu tam metinle başlayan mağaza adlarını
-  etkiler; "Cihaza göre (By device)" kartındaki etiketler bu kırpmadan
-  etkilenmez.
-
-### Adım adım: Raporu dışa aktarma (CSV)
-
-1. Sol menüden **Raporlar (Reports)** ekranına gidin.
-2. Sağ üstteki **"Raporu dışa aktar (Export report)"** düğmesine tıklayın.
-3. Tarayıcınız herhangi bir diyalog göstermeden anında bir **CSV** dosyası
-   indirir; dosya adı **`{kiracı-adının-küçük-harfli-tireli-hali}-report.csv`**
-   biçimindedir (örnek: "Roastwell Coffee" adlı bir kiracı için
-   "**roastwell-coffee-report.csv**").
-4. CSV dosyasının sütunları **Bölüm (Section)**, **Etiket (Label)**,
-   **Aktivasyonlar (Activations)**'tır; tek dosya içinde 3 bölüm art arda yer
-   alır: **Aylık (Monthly)** (Aktivasyonlar zaman içinde kartındaki 9 aylık
-   veriyle eşleşir), **Mağazaya göre (By store)** (Mağazaya göre kartıyla
-   eşleşir, "Roastwell " öneki kırpılmış olarak) ve **Cihaza göre (By
-   device)** (Cihaza göre kartındaki en fazla 8 satırla eşleşir).
-5. İndirme tamamlandığında ekranın altında **"Export ready"** (dışa aktarma
-   hazır) başlıklı bir başarı bildirimi görünür; açıklamasında "**{n} rows →
-   {dosya adı}**" (kaç satırın hangi dosyaya aktarıldığı) yazar.
-
-### İpuçları
-
-- Bu ekranda **hiçbir rol kısıtlaması yoktur** — Sahip, Yönetici ve Üye
-  rolündeki herkes aynı kartları görür ve raporu aynı şekilde dışa aktarabilir.
-- Dışa aktarma tamamen tarayıcı içinde (istemci tarafında) gerçekleşir;
-  sunucuya ayrı bir istek gitmez, indirme anında başlar.
-- **"Eko etki (Eco impact)"** kartındaki 4 istatistik kutusunun (Ağaç/Kâğıt/
-  Su/CO₂e) ayrıntılı açıklaması için Bölüm 4'e bakın; buradaki tek fark
-  dönemin "son 9 ay" olmasıdır.
-- "Roastwell " önek kırpma davranışı yalnızca kozmetik bir demo kalıntısıdır;
-  bir hata olarak yorumlamayın.
-
-## 11. Analitik (Analytics)
-
-### Bu ekran ne işe yarar?
-
-**Analitik (Analytics)** ekranı (adres: **`/tenant/analytics`**) — başlığı
-"**Analytics**", açıklaması "**Compare activation volume and trends across
-your stores.**" (mağazalarınız arasındaki aktivasyon hacmini ve eğilimlerini
-karşılaştırın) — kiracınıza bağlı **mağazaları birbiriyle karşılaştırmanızı**
-sağlar: her mağazanın bu ayki aktivasyon sayısı, geçen aya göre eğilimi
-(artış/azalış/yeni) ve son 9 aylık aylık seyri (trajectory). Raporlar
-ekranı gibi bu ekran da **salt bilgilendirme ve dışa aktarma** amaçlıdır;
-**Sahip (Owner)**, **Yönetici (Admin)** ve **Üye (Member)** rolündeki tüm
-kullanıcılar aynı görünümü görür, rol kısıtlaması yoktur.
-
-### Ekranda neler var?
-
-- **Başlık ve açıklama:** "**Analytics**" / "**Compare activation volume
-  and trends across your stores.**"; sağ üstte **"Analitiği dışa aktar
-  (Export analytics)"** düğmesi — bu düğme, aşağıda anlatılan boş durumda
-  bile her zaman görünür.
-- **Boş durum:** kiracınızda hiç mağaza yoksa, ortalanmış bir kart içinde
-  "**No store data yet**" (henüz mağaza verisi yok) başlığı ve altında
-  "**Once your stores start showing QR codes, comparisons show up here.**"
-  (mağazalarınız QR kod göstermeye başladığında karşılaştırmalar burada
-  görünür) açıklaması gösterilir.
-- Mağazanız varsa, sırasıyla 3 kart görünür (tüm kartlarda mağazalar bu ayki
-  aktivasyon sayısına göre **çoktan aza** sıralanır):
-  - **"Mağazaya göre aktivasyonlar (Activations by store)" kartı:**
-    açıklaması "**This month, highest first**" (bu ay, en yüksekten
-    başlayarak); çubuk grafiği (bar chart) ile gösterilir.
-  - **"Mağaza karşılaştırması (Store comparison)" kartı:** açıklaması
-    "**This month vs last, per store**" (mağaza bazında bu ay - geçen ay
-    karşılaştırması); her mağaza için bir satır listeler. Her satırda solda
-    mağaza adı ve altında "**{n} activations**" (bu ayki aktivasyon sayısı)
-    yer alır; sağda bir **eğilim (trend)** etiketi bulunur:
-    - Mağazanın **geçen ay** hiç aktivasyonu yoksa (sayı 0 ise; bu, yeni
-      eklenmiş bir mağaza için de geçerli olabilir ya da geçen ay basitçe
-      hiç aktivasyon üretmemiş olabilir), etiket gri renkte **"yeni
-      (new)"** yazar.
-    - Aksi halde, bu ayki sayı geçen aya göre **artmışsa** yeşil renkte bir
-      **▲** oku ile birlikte yüzde değişim ("**▲ {n}%**") gösterilir;
-      **azalmışsa** kırmızı renkte bir **▼** oku ile birlikte yüzde
-      değişimin mutlak değeri ("**▼ {n}%**") gösterilir.
-  - **"Yörüngeler (Trajectories)" kartı:** açıklaması "**Monthly activations
-    per store, last 9 months**" (mağaza bazında son 9 ayın aylık
-    aktivasyonları); her mağaza için ayrı bir çizgiyle son 9 aylık seyri
-    gösteren bir grafikle sunulur.
-
-### Adım adım: Analitiği dışa aktarma (CSV)
-
-1. Sol menüden **Analitik (Analytics)** ekranına gidin.
-2. Sağ üstteki **"Analitiği dışa aktar (Export analytics)"** düğmesine
-   tıklayın.
-3. Tarayıcınız anında sabit adlı bir **CSV** dosyası indirir: **`store-
-   analytics.csv`** — Raporlar ekranının aksine, bu dosya adı kiracınıza
-   göre değişmez, her zaman aynıdır.
-4. CSV dosyasının sütunları **Mağaza (Store)**, **Aktivasyonlar (bu ay)
-   (Activations (this month))**, **Trend yüzdesi (Trend %)** ve **Kâğıt
-   tasarrufu (kg) (Paper saved (kg))**'dır; her mağaza için bir satır bulunur.
-   Bir mağaza "yeni (new)" durumundaysa (geçen ay verisi yoksa), **Trend
-   yüzdesi** sütununda bir yüzde yerine tire ("**—**") görünür.
-5. İndirme tamamlandığında "**Export ready**" başarı bildirimi görünür;
-   açıklamasında "**{n} rows → store-analytics.csv**" yazar. Boş durumda
-   (hiç mağaza yoksa) bu işlem yine de çalışır ama **0 satır** içeren bir
-   dosya indirir.
-
-### İpuçları
-
-- Eğilim rozetlerini yorumlarken şunu unutmayın: gri **"yeni (new)"**
-  etiketi yalnızca "yeni açılmış mağaza" anlamına gelmez — mağazanın **geçen
-  ay** hiç aktivasyonu olmadığı her durumda görünür.
-- **"Mağazaya göre aktivasyonlar"** ve **"Mağaza karşılaştırması"**
-  kartlarındaki mağaza sıralaması aynıdır: bu ayki aktivasyon sayısına göre
-  çoktan aza.
-- **"Analitiği dışa aktar (Export analytics)"** düğmesi, hiç mağaza
-  verisi olmasa (boş durumda) bile her zaman görünür ve tıklanabilir.
-- Bu ekranda da hiçbir düzenleme kontrolü yoktur; rolünüz ne olursa olsun
-  (Sahip/Yönetici/Üye) aynı verileri görür ve aynı şekilde dışa
-  aktarabilirsiniz.
-
-## 12. Faturalandırma & Krediler (Billing)
+## 10. Faturalandırma & Krediler (Billing)
 
 ### Bu ekran ne işe yarar?
 
@@ -1236,7 +1037,7 @@ kredi satın alma dahil aynı işlemleri yapabilir.
   işlem sonuçlandığında (başarı ya da hata) bu tutar serbest kalır veya
   kesin olarak harcanır.
 
-## 13. API
+## 11. API
 
 ### Bu ekran ne işe yarar?
 
@@ -1394,7 +1195,7 @@ işlemini göremezler.
   için **"API'yi kullanma (Using the API)"** kartındaki **`/api/v1/openapi.json`** bağlantısını
   kullanın.
 
-## 14. Etkinlik (Activity)
+## 12. Etkinlik (Activity)
 
 ### Bu ekran ne işe yarar?
 
@@ -1460,7 +1261,7 @@ kısıtlaması yoktur.
   görürsünüz; hiçbir işlem düğmesi veya düzenleme kontrolü hiçbir role
   görünmez.
 
-## 15. Rozetler ve Terimler (Sözlük)
+## 13. Rozetler ve Terimler (Sözlük)
 
 Bu bölüm, kılavuz boyunca karşınıza çıkan durum rozetlerini ve rolleri tek
 bir referans tablosunda toplar, ardından sık kullanılan terimleri kısaca
@@ -1468,7 +1269,7 @@ tanımlar. Her rozetin/rolün nerede ve nasıl kullanıldığı önceki bölüml
 (özellikle Bölüm 2, 5, 6) ayrıntılı olarak anlatılmıştır; burada yalnızca
 hızlı bir başvuru kaynağı sunulur.
 
-### 15.1 Cihaz durumu (Device status)
+### 13.1 Cihaz durumu (Device status)
 
 Bu durum, **Cihaz Detayı** ekranındaki (Bölüm 6) Duraklat kontrolü kartında
 doğrudan gösterilir ve **Mağaza detayı**'ndaki (Bölüm 6) cihaz kartlarının
@@ -1486,7 +1287,7 @@ görülmemiş olsa bile, gösterilen durum her zaman **Duraklatıldı
 (Paused)**'dır — duraklatma her koşulda önceliklidir; "Duraklatıldı" bir
 cihaz asla "Çevrimdışı" olarak görünmez.
 
-### 15.2 Mağaza durumu (rollup)
+### 13.2 Mağaza durumu (rollup)
 
 **Mağazalar (Stores)** tablosundaki (Bölüm 5) ve **Mağaza detayı**
 başlığındaki (Bölüm 6) durum rozeti, aynı üç değeri (**Çevrimiçi (Online)**
@@ -1501,7 +1302,7 @@ durumundan türetilir:
 3. Yukarıdaki iki durum da geçerli değilse (yani tüm cihazlar çevrimdışıysa
    veya mağazada hiç cihaz yoksa), mağaza rozeti **Çevrimdışı**'dır.
 
-### 15.3 Roller (Owner / Admin / Member)
+### 13.3 Roller (Owner / Admin / Member)
 
 | Rol | Yetkiler |
 |---|---|
@@ -1522,7 +1323,7 @@ durumundan türetilir:
 > kısıtlama, cihazın **çevrimdışı** olmamasıdır — çevrimdışı bir cihazın
 > durumu hiçbir rol tarafından değiştirilemez (bkz. 15.1).
 
-### 15.4 Sözlük (Terimler)
+### 13.4 Sözlük (Terimler)
 
 - **Kiracı (Tenant / Organization):** Ditto Admin'de sizin firmanızı temsil
   eden organizasyon; tipik olarak bir mağaza zincirinin tamamını kapsar
@@ -1543,7 +1344,7 @@ durumundan türetilir:
 - **Kredi (Credit — ön ödemeli/prepaid):** Ditto'nun ücretlendirme birimi;
   her tetikleme kiracının bakiyesinden 1 kredi rezerve eder, işlem
   başarıyla tamamlanınca (ack ile) bu kredi kesin olarak düşülür
-  (bkz. Bölüm 2.5, Bölüm 12).
+  (bkz. Bölüm 2.5, Bölüm 10).
 - **Eşleştirme kodu (Pairing code):** Sahiplenilmemiş bir cihazın ekranında
   görünen, o cihazı bir mağazaya bağlamak (claim) için kullanılan kod
   (bkz. Bölüm 6, Yazıcı sahiplenme).
@@ -1557,12 +1358,8 @@ durumundan türetilir:
   kontrol (Remote control)" bölümünden gönderilen (Reboot/Refresh
   config/Identify/Update firmware) komutlardan biri; cihaza anında değil,
   cihazın bir sonraki bağlantı kontrolünde (check-in) ulaşır (bkz. Bölüm 6).
-- **Eko etki (Eco impact):** Kağıtsız aktivasyonların tahmini çevresel
-  karşılığı; Ağaç (trees), Kâğıt (paper), Su (water) ve CO₂e istatistik
-  kutularıyla Panel ve Raporlar ekranlarında gösterilir (bkz. Bölüm 4,
-  Bölüm 10).
 
-## 16. Sık Sorulanlar / Sorun Giderme
+## 14. Sık Sorulanlar / Sorun Giderme
 
 **Bir cihaz neden "Çevrimdışı (Offline)" görünüyor?**
 Bir cihaz, ya hiç görülmemişse ya da son görülme zamanının üzerinden
@@ -1570,15 +1367,15 @@ Bir cihaz, ya hiç görülmemişse ya da son görülme zamanının üzerinden
 Cihaz ayrıca **duraklatılmış (Paused)** durumdaysa, kaç dakikadır
 görülmediğine bakılmaksızın durum her zaman "Duraklatıldı (Paused)" olarak
 gösterilir — duraklatma her koşulda önceliklidir, "Duraklatıldı" bir cihaz
-asla "Çevrimdışı" görünmez (bkz. Bölüm 15.1).
+asla "Çevrimdışı" görünmez (bkz. Bölüm 13.1).
 
 **Kredi nasıl satın alınır?**
-**Faturalandırma (Billing)** ekranına gidin (Bölüm 12) ve **"Krediler
+**Faturalandırma (Billing)** ekranına gidin (Bölüm 10) ve **"Krediler
 (Credits)"** bölümündeki paketlerden birinin **"{n} kredi satın al (Buy {n}
 credits)"** düğmesine tıklayın. **Önemli:** Kurulumunuzda Stripe
 yapılandırılmamışsa veya hiç kredi paketi tanımlanmamışsa, bu satın alma
 bölümü ekranda **hiç görünmez** — bu bir hata değildir, bu durumda krediler
-yalnızca platform tarafından manuel olarak tanımlanabilir (bkz. Bölüm 12'deki
+yalnızca platform tarafından manuel olarak tanımlanabilir (bkz. Bölüm 10'deki
 "Önemli" notu).
 
 **Bir yazıcıyı nasıl eklerim?**
@@ -1608,7 +1405,7 @@ kapsamı (izni) verilirse, bu anahtar `POST
 cihazı tetikleyebilir ve bu işlem kiracınızın **kredi bakiyesinden kredi
 harcar** — yani "salt-okunur" değil, gerçek bir **yazma (write)** eylemidir.
 Bu kapsamı yalnızca gerçekten cihaz tetiklemesi gereken entegrasyonlara
-verin (bkz. Bölüm 13'teki "Önemli" notu).
+verin (bkz. Bölüm 11'teki "Önemli" notu).
 
 **Bir üyeyi neden admin yapamıyorum / kaldıramıyorum?**
 İki olası neden vardır: (1) Rol değiştirme ve kaldırma işlemlerini yalnızca

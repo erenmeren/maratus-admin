@@ -484,9 +484,8 @@ sağlandı"), "Credits granted" ("Kredi yüklendi"), "Device paused/resumed"
    - **Adres (Address)** — isteğe bağlıdır; yer tutucu "412 Market St, San
      Francisco, CA".
    - **Saat dilimi (Timezone)** — açılır bir liste (dropdown); önceden
-     tanımlı bir varsayılan değerle gelir. Altında "Used for busiest-times
-     analytics." ("En yoğun saatler analizinde kullanılır.") açıklaması yer
-     alır.
+     tanımlı bir varsayılan değerle gelir. Altında "The store's local time
+     zone." ("Mağazanın yerel saat dilimi.") açıklaması yer alır.
 3. **Şube adı (Branch name)** alanını doldurun — bu alan zorunludur.
    Dilerseniz **Adres (Address)** alanını doldurun ve **Saat dilimi
    (Timezone)** seçimini değiştirin.

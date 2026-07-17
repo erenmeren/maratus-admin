@@ -195,7 +195,7 @@ function LoginForm() {
         </p>
       </div>
 
-      {/* Brand / eco side */}
+      {/* Brand side */}
       <div className="relative hidden overflow-hidden bg-primary lg:block">
         <div className="absolute inset-0 bg-grid text-primary-foreground/10" />
         <div className="absolute -right-24 -top-24 size-96 rounded-full bg-primary-foreground/10 blur-2xl" />
@@ -213,12 +213,12 @@ function LoginForm() {
             </h2>
             <p className="max-w-md text-primary-foreground/80">
               Ditto printers turn every checkout into a QR code. Customers scan,
-              download, and walk away — no thermal paper, no waste.
+              download, and walk away — no thermal paper, no reprints.
             </p>
             <div className="grid grid-cols-3 gap-4 pt-2">
               {[
                 { k: "1.2M", v: "documents digitized" },
-                { k: "3.8t", v: "paper saved" },
+                { k: "4.5M", v: "customer scans" },
                 { k: "240+", v: "printers online" },
               ].map((s) => (
                 <div key={s.v}>

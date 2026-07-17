@@ -134,7 +134,7 @@ export function SignupForm() {
         </p>
       </div>
 
-      {/* Brand / eco side */}
+      {/* Brand side */}
       <div className="relative hidden overflow-hidden bg-primary lg:block">
         <div className="absolute inset-0 bg-grid text-primary-foreground/10" />
         <div className="absolute -right-24 -top-24 size-96 rounded-full bg-primary-foreground/10 blur-2xl" />

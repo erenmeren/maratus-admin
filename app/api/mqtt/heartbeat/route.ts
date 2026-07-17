@@ -16,16 +16,24 @@ export async function POST(req: Request) {
   if (!mqttEnabled()) return NextResponse.json({ error: "MQTT disabled" }, { status: 503 });
   if (!verifyWebhookSecret(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  // Read as text first so a malformed body can be logged (the EMQX rule's body
+  // template is easy to misconfigure — surface the actual payload on rejection).
+  const bodyText = await req.text();
   let raw: unknown;
   try {
-    raw = await req.json();
+    raw = JSON.parse(bodyText);
   } catch {
+    console.error("[mqtt/heartbeat] malformed body:", bodyText.slice(0, 300));
     return NextResponse.json({ error: "Malformed body" }, { status: 400 });
   }
   const hb = parseHeartbeatPayload(raw);
-  if (!hb) return NextResponse.json({ error: "Invalid heartbeat payload" }, { status: 400 });
+  if (!hb) {
+    console.error("[mqtt/heartbeat] invalid payload:", bodyText.slice(0, 300));
+    return NextResponse.json({ error: "Invalid heartbeat payload" }, { status: 400 });
+  }
   const clientid = (raw as { clientid?: unknown }).clientid;
   if (typeof clientid !== "string" || clientid.length === 0) {
+    console.error("[mqtt/heartbeat] missing clientid:", bodyText.slice(0, 300));
     return NextResponse.json({ error: "Invalid heartbeat payload" }, { status: 400 });
   }
 

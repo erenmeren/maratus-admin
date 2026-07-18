@@ -184,11 +184,14 @@ export function parseHeartbeatPayload(raw: unknown): {
   fonts: number | null;
   afetch: number | null;
   aimg: number | null;
+  cfgimg: number | null;
+  cfgstat: number | null;
+  cfgparse: number | null;
 } | null {
   if (!isObject(raw)) return null;
   // heap = free internal DRAM (bytes); fonts = font-cache slots in use (both
-  // non-negative). afetch/aimg are image-render diagnostics that can be negative
-  // (e.g. -1 TLS error), so accept any finite int for those.
+  // non-negative). The image diagnostics (afetch/aimg/cfgimg/cfgstat/cfgparse)
+  // can be negative (e.g. -1 TLS error), so accept any finite int for those.
   const nonNegInt = (v: unknown): number | null =>
     typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.round(v) : null;
   const anyInt = (v: unknown): number | null =>
@@ -199,6 +202,9 @@ export function parseHeartbeatPayload(raw: unknown): {
     fonts: nonNegInt(raw.fonts),
     afetch: anyInt(raw.afetch),
     aimg: anyInt(raw.aimg),
+    cfgimg: anyInt(raw.cfgimg),
+    cfgstat: anyInt(raw.cfgstat),
+    cfgparse: anyInt(raw.cfgparse),
   };
 }
 

@@ -202,29 +202,32 @@ describe("parseAckPayload", () => {
 });
 
 describe("parseHeartbeatPayload", () => {
+  // Full null-default shape; override only the fields under test.
+  const hb = (o: Record<string, unknown> = {}) => ({
+    version: null, heap: null, fonts: null, afetch: null, aimg: null,
+    cfgimg: null, cfgstat: null, cfgparse: null, ...o,
+  });
   it("parses a version and defaults it to null", () => {
-    expect(parseHeartbeatPayload({ version: "2.13.0" })).toEqual({ version: "2.13.0", heap: null, fonts: null, afetch: null, aimg: null });
-    expect(parseHeartbeatPayload({})).toEqual({ version: null, heap: null, fonts: null, afetch: null, aimg: null });
+    expect(parseHeartbeatPayload({ version: "2.13.0" })).toEqual(hb({ version: "2.13.0" }));
+    expect(parseHeartbeatPayload({})).toEqual(hb());
   });
   it("parses free-heap bytes and font-slot count, rounding them", () => {
-    expect(parseHeartbeatPayload({ version: "2.13.0", heap: 236480, fonts: 12 })).toEqual({
-      version: "2.13.0",
-      heap: 236480,
-      fonts: 12,
-      afetch: null,
-      aimg: null,
-    });
-    expect(parseHeartbeatPayload({ heap: 200000.7 })).toEqual({ version: null, heap: 200001, fonts: null, afetch: null, aimg: null });
+    expect(parseHeartbeatPayload({ version: "2.13.0", heap: 236480, fonts: 12 })).toEqual(
+      hb({ version: "2.13.0", heap: 236480, fonts: 12 }),
+    );
+    expect(parseHeartbeatPayload({ heap: 200000.7 })).toEqual(hb({ heap: 200001 }));
   });
   it("rejects a non-numeric, negative, or non-finite heap/fonts", () => {
-    expect(parseHeartbeatPayload({ heap: "lots" })).toEqual({ version: null, heap: null, fonts: null, afetch: null, aimg: null });
-    expect(parseHeartbeatPayload({ heap: -5 })).toEqual({ version: null, heap: null, fonts: null, afetch: null, aimg: null });
-    expect(parseHeartbeatPayload({ heap: Infinity })).toEqual({ version: null, heap: null, fonts: null, afetch: null, aimg: null });
-    expect(parseHeartbeatPayload({ fonts: -1 })).toEqual({ version: null, heap: null, fonts: null, afetch: null, aimg: null });
+    expect(parseHeartbeatPayload({ heap: "lots" })).toEqual(hb());
+    expect(parseHeartbeatPayload({ heap: -5 })).toEqual(hb());
+    expect(parseHeartbeatPayload({ heap: Infinity })).toEqual(hb());
+    expect(parseHeartbeatPayload({ fonts: -1 })).toEqual(hb());
   });
-  it("parses image diagnostics, allowing negative afetch/aimg", () => {
-    expect(parseHeartbeatPayload({ afetch: -1, aimg: 0 })).toEqual({ version: null, heap: null, fonts: null, afetch: -1, aimg: 0 });
-    expect(parseHeartbeatPayload({ afetch: 200, aimg: 1 })).toEqual({ version: null, heap: null, fonts: null, afetch: 200, aimg: 1 });
+  it("parses image diagnostics, allowing negative values", () => {
+    expect(parseHeartbeatPayload({ afetch: -1, aimg: 0 })).toEqual(hb({ afetch: -1, aimg: 0 }));
+    expect(parseHeartbeatPayload({ afetch: 200, aimg: 1, cfgimg: 1, cfgstat: 200, cfgparse: 0 })).toEqual(
+      hb({ afetch: 200, aimg: 1, cfgimg: 1, cfgstat: 200, cfgparse: 0 }),
+    );
   });
   it("rejects non-objects", () => {
     expect(parseHeartbeatPayload(null)).toBeNull();

@@ -203,20 +203,22 @@ describe("parseAckPayload", () => {
 
 describe("parseHeartbeatPayload", () => {
   it("parses a version and defaults it to null", () => {
-    expect(parseHeartbeatPayload({ version: "2.13.0" })).toEqual({ version: "2.13.0", heap: null });
-    expect(parseHeartbeatPayload({})).toEqual({ version: null, heap: null });
+    expect(parseHeartbeatPayload({ version: "2.13.0" })).toEqual({ version: "2.13.0", heap: null, fonts: null });
+    expect(parseHeartbeatPayload({})).toEqual({ version: null, heap: null, fonts: null });
   });
-  it("parses free-heap bytes and rounds them", () => {
-    expect(parseHeartbeatPayload({ version: "2.13.0", heap: 236480 })).toEqual({
+  it("parses free-heap bytes and font-slot count, rounding them", () => {
+    expect(parseHeartbeatPayload({ version: "2.13.0", heap: 236480, fonts: 12 })).toEqual({
       version: "2.13.0",
       heap: 236480,
+      fonts: 12,
     });
-    expect(parseHeartbeatPayload({ heap: 200000.7 })).toEqual({ version: null, heap: 200001 });
+    expect(parseHeartbeatPayload({ heap: 200000.7 })).toEqual({ version: null, heap: 200001, fonts: null });
   });
-  it("rejects a non-numeric, negative, or non-finite heap", () => {
-    expect(parseHeartbeatPayload({ heap: "lots" })).toEqual({ version: null, heap: null });
-    expect(parseHeartbeatPayload({ heap: -5 })).toEqual({ version: null, heap: null });
-    expect(parseHeartbeatPayload({ heap: Infinity })).toEqual({ version: null, heap: null });
+  it("rejects a non-numeric, negative, or non-finite heap/fonts", () => {
+    expect(parseHeartbeatPayload({ heap: "lots" })).toEqual({ version: null, heap: null, fonts: null });
+    expect(parseHeartbeatPayload({ heap: -5 })).toEqual({ version: null, heap: null, fonts: null });
+    expect(parseHeartbeatPayload({ heap: Infinity })).toEqual({ version: null, heap: null, fonts: null });
+    expect(parseHeartbeatPayload({ fonts: -1 })).toEqual({ version: null, heap: null, fonts: null });
   });
   it("rejects non-objects", () => {
     expect(parseHeartbeatPayload(null)).toBeNull();

@@ -180,15 +180,16 @@ export function parseAckPayload(
 
 export function parseHeartbeatPayload(
   raw: unknown,
-): { version: string | null; heap: number | null } | null {
+): { version: string | null; heap: number | null; fonts: number | null } | null {
   if (!isObject(raw)) return null;
-  // heap = free internal DRAM (bytes); accept only a finite non-negative int.
-  const h = raw.heap;
-  const heap =
-    typeof h === "number" && Number.isFinite(h) && h >= 0 ? Math.round(h) : null;
+  // heap = free internal DRAM (bytes); fonts = font-cache slots in use. Accept
+  // only finite non-negative ints; anything else → null.
+  const nonNegInt = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.round(v) : null;
   return {
     version: typeof raw.version === "string" ? raw.version : null,
-    heap,
+    heap: nonNegInt(raw.heap),
+    fonts: nonNegInt(raw.fonts),
   };
 }
 

@@ -271,6 +271,11 @@ export const device = pgTable(
     // concurrent-TLS peak). Both null until a heap-reporting firmware checks in.
     lastHeapFree: integer("last_heap_free"),
     minHeapFree: integer("min_heap_free"),
+    // Font-cache slots in use (0..32), reported on the heartbeat. A jump here
+    // alongside a heap drop attributes a one-time internal-DRAM step to font-face
+    // creation (e.g. first Settings render) rather than a leak; also flags a
+    // device approaching the 32-slot cap (where it degrades to the default font).
+    lastFontSlots: integer("last_font_slots"),
     // One-time human-friendly code used to claim an unprovisioned device.
     pairingCode: text("pairing_code").unique(),
     // SHA-256 hash of the device's bearer key (raw key shown once at claim).

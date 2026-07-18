@@ -56,6 +56,7 @@ export async function POST(req: Request) {
             minHeapFree: sql`LEAST(COALESCE(${deviceTable.minHeapFree}, ${hb.heap}), ${hb.heap})`,
           }
         : {}),
+      ...(hb.fonts !== null ? { lastFontSlots: hb.fonts } : {}),
       // Atomic in-DB decision: never resurrect a paused device, even under
       // concurrent writes (no stale JS-side status read driving this write).
       status: sql`CASE WHEN ${deviceTable.status} = 'paused' THEN ${deviceTable.status} ELSE 'online' END`,

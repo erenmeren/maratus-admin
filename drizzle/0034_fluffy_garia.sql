@@ -1,0 +1,1 @@
+ALTER TABLE "device" ADD COLUMN "last_font_slots" integer;

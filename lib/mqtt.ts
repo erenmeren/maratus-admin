@@ -42,6 +42,16 @@ export async function buildMqttConfigBlock(deviceId: string): Promise<{
   };
 }
 
+/** Org/env-stable identity of the mqtt config block (enabled + broker host+port)
+ *  for the device-config ETag. The per-device clientId/username are the stable
+ *  device id and never change, so they're excluded — but toggling MQTT on/off or
+ *  moving brokers MUST invalidate a device's cached (304) config so it picks up
+ *  or drops the mqtt block instead of running on stale transport settings. */
+export function mqttConfigFingerprint(): string | null {
+  if (!mqttEnabled()) return null;
+  return `${env.MQTT_BROKER_HOST}:${Number(env.MQTT_BROKER_PORT ?? 8883)}`;
+}
+
 /** Build the EMQX HTTP Publish API request for a device command (QoS 1). */
 export function buildPublishRequest(
   deviceId: string,

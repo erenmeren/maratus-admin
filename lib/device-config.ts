@@ -19,6 +19,10 @@ export interface ConfigVersionInput {
   screenSleepEnabled: boolean;
   screenSleepTimeoutSeconds: number;
   settingsPasswordHash: string | null;
+  /** Org/env-stable mqtt transport identity (enabled + broker host:port), or null
+   *  when MQTT is off. Included so toggling MQTT or changing brokers invalidates a
+   *  device's cached config and pushes/drops the mqtt block. */
+  mqttFingerprint: string | null;
 }
 
 export function computeConfigVersion(input: ConfigVersionInput): string {
@@ -35,6 +39,7 @@ export function computeConfigVersion(input: ConfigVersionInput): string {
     input.screenSleepEnabled,
     input.screenSleepTimeoutSeconds,
     input.settingsPasswordHash ?? null,
+    input.mqttFingerprint ?? null,
   ]);
   return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
 }

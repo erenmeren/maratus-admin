@@ -49,7 +49,7 @@ import { normalizeDeviceSettings } from "@/lib/device-settings";
 import { rollupByDevice } from "@/lib/credit-usage";
 import { rollupCredits, type CreditsOverview } from "@/lib/credits-overview";
 import { getBalance } from "./credits";
-import { publishCommand } from "./mqtt";
+import { publishCommand, mqttConfigFingerprint } from "./mqtt";
 import { AUDIT } from "@/lib/audit";
 import { DEFAULT_INCLUDED_TRIGGERS, monthKey } from "@/lib/billing-plan";
 import { getOrgUsageForMonth } from "@/lib/device-usage";
@@ -1229,6 +1229,7 @@ export async function getDeviceConfig(
     screenSleepEnabled: ds.screenSleepEnabled,
     screenSleepTimeoutSeconds: ds.screenSleepTimeoutSeconds,
     settingsPasswordHash: s?.deviceSettingsPasswordHash ?? null,
+    mqttFingerprint: mqttConfigFingerprint(),
   });
 
   if (etagMatches(ifNoneMatch, version)) {

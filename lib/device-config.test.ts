@@ -15,6 +15,7 @@ const base: ConfigVersionInput = {
   screenSleepEnabled: false,
   screenSleepTimeoutSeconds: 300,
   settingsPasswordHash: null,
+  mqttFingerprint: null,
 };
 
 describe("computeConfigVersion", () => {
@@ -37,6 +38,7 @@ describe("computeConfigVersion", () => {
       printerScreens: null, printerLayout: null, brandColor: null, brandBg: null,
       brandFg: null, brandMuted: null, qrVisibleSeconds: 60, screenBrightness: 100,
       screenSleepEnabled: false, screenSleepTimeoutSeconds: 300, settingsPasswordHash: null,
+      mqttFingerprint: null,
     };
     const a = computeConfigVersion({ ...base2, organizationName: "Acme" });
     const b = computeConfigVersion({ ...base2, organizationName: "Beta" });
@@ -52,6 +54,16 @@ describe("computeConfigVersion — device settings", () => {
     expect(computeConfigVersion({ ...base, screenSleepEnabled: true })).not.toBe(v);
     expect(computeConfigVersion({ ...base, screenSleepTimeoutSeconds: 600 })).not.toBe(v);
     expect(computeConfigVersion({ ...base, settingsPasswordHash: "abc" })).not.toBe(v);
+  });
+});
+
+describe("computeConfigVersion — mqtt transport", () => {
+  it("changes when MQTT is toggled or the broker changes", () => {
+    const off = computeConfigVersion(base); // mqttFingerprint: null
+    const on = computeConfigVersion({ ...base, mqttFingerprint: "broker.example.com:8883" });
+    const moved = computeConfigVersion({ ...base, mqttFingerprint: "other.example.com:8883" });
+    expect(on).not.toBe(off); // enabling MQTT invalidates a cached config
+    expect(moved).not.toBe(on); // changing brokers invalidates it too
   });
 });
 

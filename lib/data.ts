@@ -49,6 +49,7 @@ import { normalizeDeviceSettings } from "@/lib/device-settings";
 import { rollupByDevice } from "@/lib/credit-usage";
 import { rollupCredits, type CreditsOverview } from "@/lib/credits-overview";
 import { getBalance } from "./credits";
+import { publishCommand } from "./mqtt";
 import { AUDIT } from "@/lib/audit";
 import { DEFAULT_INCLUDED_TRIGGERS, monthKey } from "@/lib/billing-plan";
 import { getOrgUsageForMonth } from "@/lib/device-usage";
@@ -1303,14 +1304,27 @@ export async function enqueueConfigChangedForOrg(
     .from(deviceTable)
     .where(eq(deviceTable.organizationId, organizationId));
   if (devices.length === 0) return;
-  await db.insert(deviceCommand).values(
-    devices.map((d) => ({
-      id: genId("cmd"),
-      deviceId: d.id,
-      organizationId,
-      type: "config-changed" as const,
-      createdByUserId: createdByUserId ?? undefined,
-    })),
+  const rows = devices.map((d) => ({
+    id: genId("cmd"),
+    deviceId: d.id,
+    organizationId,
+    type: "config-changed" as const,
+    createdByUserId: createdByUserId ?? undefined,
+  }));
+  await db.insert(deviceCommand).values(rows);
+  // Best-effort immediate MQTT push so a connected device refreshes its config
+  // now instead of waiting for the ~5-min heartbeat republish (which is also
+  // skipped across a reconnect). HTTP-polling devices still pick it up via the
+  // command poll, and the heartbeat republish stays the fallback for both.
+  await Promise.all(
+    rows.map((r) =>
+      publishCommand(r.deviceId, {
+        commandId: r.id,
+        type: "config-changed",
+        action: null,
+        payload: null,
+      }),
+    ),
   );
 }
 

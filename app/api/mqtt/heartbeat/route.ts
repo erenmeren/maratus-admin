@@ -3,7 +3,7 @@
 // than ~1 minute, bounding a lost publish to one heartbeat interval.
 
 import { NextResponse } from "next/server";
-import { and, eq, lt, sql } from "drizzle-orm";
+import { and, eq, gt, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { device as deviceTable, deviceCommand } from "@/lib/db/schema";
 import { mqttEnabled, verifyWebhookSecret, parseHeartbeatPayload, publishCommand } from "@/lib/mqtt";
@@ -11,6 +11,11 @@ import { mqttEnabled, verifyWebhookSecret, parseHeartbeatPayload, publishCommand
 export const runtime = "nodejs";
 
 const REPUBLISH_AFTER_MS = 60_000;
+// Stop resending a command that has gone this long without an ack. Without an
+// upper bound, a command whose ack never lands (e.g. a config-changed that the
+// device applied but whose ack was lost) is republished on every heartbeat
+// forever, making the device re-fetch its config every ~5 min indefinitely.
+const REPUBLISH_UNTIL_MS = 15 * 60_000;
 
 export async function POST(req: Request) {
   if (!mqttEnabled()) return NextResponse.json({ error: "MQTT disabled" }, { status: 503 });
@@ -59,7 +64,8 @@ export async function POST(req: Request) {
     .returning({ id: deviceTable.id });
   if (!dev) return NextResponse.json({ error: "Unknown device" }, { status: 404 });
 
-  // Republish stale pending commands so a lost publish self-heals.
+  // Republish stale pending commands so a lost publish self-heals — but only
+  // within a bounded age window, so an un-acked command can't loop forever.
   const stale = await db
     .select({
       id: deviceCommand.id,
@@ -73,6 +79,7 @@ export async function POST(req: Request) {
         eq(deviceCommand.deviceId, dev.id),
         eq(deviceCommand.status, "pending"),
         lt(deviceCommand.createdAt, new Date(now.getTime() - REPUBLISH_AFTER_MS)),
+        gt(deviceCommand.createdAt, new Date(now.getTime() - REPUBLISH_UNTIL_MS)),
       ),
     );
   for (const cmd of stale) {

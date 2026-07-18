@@ -36,9 +36,20 @@ export async function POST(req: Request) {
     console.error("[mqtt/heartbeat] invalid payload:", bodyText.slice(0, 300));
     return NextResponse.json({ error: "Invalid heartbeat payload" }, { status: 400 });
   }
-  const clientid = (raw as { clientid?: unknown }).clientid;
-  if (typeof clientid !== "string" || clientid.length === 0) {
-    console.error("[mqtt/heartbeat] missing clientid:", bodyText.slice(0, 300));
+  // Device identity comes from the authenticated MQTT username. Prefer the
+  // x-device-id header (lets the EMQX rule forward the raw device payload via
+  // ${payload} so every current + future field arrives without a rule edit);
+  // fall back to a clientid field in the body for the older rule shape.
+  const headerId = req.headers.get("x-device-id")?.trim();
+  const bodyId = (raw as { clientid?: unknown }).clientid;
+  const clientid =
+    headerId && headerId.length > 0
+      ? headerId
+      : typeof bodyId === "string"
+        ? bodyId
+        : "";
+  if (clientid.length === 0) {
+    console.error("[mqtt/heartbeat] missing device id:", bodyText.slice(0, 300));
     return NextResponse.json({ error: "Invalid heartbeat payload" }, { status: 400 });
   }
 

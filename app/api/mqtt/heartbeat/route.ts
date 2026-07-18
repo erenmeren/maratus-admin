@@ -42,6 +42,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid heartbeat payload" }, { status: 400 });
   }
 
+  // Image-render diagnostics (temporary): surface the device's last asset-fetch
+  // status + image render state so a "logo won't show" issue can be pinned to
+  // fetch vs decode/render from the runtime logs.
+  if (hb.afetch !== null || hb.aimg !== null) {
+    console.log(`[mqtt/heartbeat] ${clientid} afetch=${hb.afetch} aimg=${hb.aimg}`);
+  }
+
   const now = new Date();
   const [dev] = await db
     .update(deviceTable)

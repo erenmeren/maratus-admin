@@ -178,18 +178,27 @@ export function parseAckPayload(
   };
 }
 
-export function parseHeartbeatPayload(
-  raw: unknown,
-): { version: string | null; heap: number | null; fonts: number | null } | null {
+export function parseHeartbeatPayload(raw: unknown): {
+  version: string | null;
+  heap: number | null;
+  fonts: number | null;
+  afetch: number | null;
+  aimg: number | null;
+} | null {
   if (!isObject(raw)) return null;
-  // heap = free internal DRAM (bytes); fonts = font-cache slots in use. Accept
-  // only finite non-negative ints; anything else → null.
+  // heap = free internal DRAM (bytes); fonts = font-cache slots in use (both
+  // non-negative). afetch/aimg are image-render diagnostics that can be negative
+  // (e.g. -1 TLS error), so accept any finite int for those.
   const nonNegInt = (v: unknown): number | null =>
     typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.round(v) : null;
+  const anyInt = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) ? Math.round(v) : null;
   return {
     version: typeof raw.version === "string" ? raw.version : null,
     heap: nonNegInt(raw.heap),
     fonts: nonNegInt(raw.fonts),
+    afetch: anyInt(raw.afetch),
+    aimg: anyInt(raw.aimg),
   };
 }
 

@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/table";
 import { getTenantStoresPage } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
+import { canManageTenant } from "@/lib/roles";
 import { formatNumber } from "@/lib/format";
 import { parseListParams } from "@/lib/list-params";
 
@@ -29,8 +30,7 @@ export default async function StoresPage({
   const { q, page } = parseListParams(await searchParams);
   const { rows: stores, total, fleet } = await getTenantStoresPage(organizationId, { q, page });
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  const canManage =
-    !!membership && ["owner", "admin"].includes(membership.role);
+  const canManage = canManageTenant(membership?.role);
   const params: Record<string, string> = {};
   if (q) params.q = q;
 

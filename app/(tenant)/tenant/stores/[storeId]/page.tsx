@@ -29,7 +29,7 @@ export default async function StoreDetailPage({
   const { store, analytics } = result;
   const membership = ctx.organizations.find((o) => o.id === organizationId);
   const canManage = canManageTenant(membership?.role);
-  const canClaim = !!membership && ["owner", "admin"].includes(membership.role);
+  const canClaim = canManage;
   const unclaimed = canClaim ? await getUnclaimedDevices(organizationId) : [];
   const armedByStore = canClaim ? await getArmedAllocationCountByStore(organizationId) : {};
 

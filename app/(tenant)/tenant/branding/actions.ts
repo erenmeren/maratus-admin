@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { tenantSettings } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
+import { canManageTenant } from "@/lib/roles";
 import { isValidHex } from "@/lib/color";
 import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "@/lib/printer-layout";
 import { id } from "@/lib/ids";
@@ -33,7 +34,7 @@ export async function saveBranding(
 
   // Authorize: only owners/admins of the active org may change branding.
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  if (!membership || !["owner", "admin"].includes(membership.role)) {
+  if (!membership || !canManageTenant(membership.role)) {
     return { ok: false, error: "You don't have permission to edit branding." };
   }
 

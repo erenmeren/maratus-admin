@@ -12,6 +12,7 @@ import {
   store as storeTable,
 } from "@/lib/db/schema";
 import { requirePlatformAdmin, requireTenant } from "@/lib/session";
+import { canManageTenant } from "@/lib/roles";
 import { id } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { normalizeTimezone } from "@/lib/timezones";
@@ -30,7 +31,7 @@ export async function createStore(
 
   // Authorize: only owners/admins may add stores.
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  if (!membership || !["owner", "admin"].includes(membership.role)) {
+  if (!membership || !canManageTenant(membership.role)) {
     return { ok: false, error: "You don't have permission to add stores." };
   }
 
@@ -121,7 +122,7 @@ export async function updateStore(
   const { ctx, organizationId } = await requireTenant();
 
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  if (!membership || !["owner", "admin"].includes(membership.role)) {
+  if (!membership || !canManageTenant(membership.role)) {
     return { ok: false, error: "You don't have permission to edit stores." };
   }
 
@@ -206,7 +207,7 @@ export async function deleteStore(storeId: string): Promise<DeleteStoreResult> {
   const { ctx, organizationId } = await requireTenant();
 
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  if (!membership || !["owner", "admin"].includes(membership.role)) {
+  if (!membership || !canManageTenant(membership.role)) {
     return { ok: false, error: "You don't have permission to delete stores." };
   }
 

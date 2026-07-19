@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/page-header";
 import { BrandingStudio } from "@/components/branding-studio/branding-studio";
 import { getTenant, getTenantBranding } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
+import { canManageTenant } from "@/lib/roles";
 
 export default async function BrandingPage() {
   const { ctx, organizationId } = await requireTenant();
@@ -11,7 +12,7 @@ export default async function BrandingPage() {
   ]);
 
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  const canEdit = !!membership && ["owner", "admin"].includes(membership.role);
+  const canEdit = canManageTenant(membership?.role);
 
   return (
     <>

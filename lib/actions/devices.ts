@@ -362,7 +362,7 @@ export async function assignDeviceToStore(
   const { ctx, organizationId } = await requireTenant();
 
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  if (!membership || !["owner", "admin"].includes(membership.role)) {
+  if (!membership || !canManageTenant(membership.role)) {
     return { ok: false, error: "You don't have permission to manage devices." };
   }
 

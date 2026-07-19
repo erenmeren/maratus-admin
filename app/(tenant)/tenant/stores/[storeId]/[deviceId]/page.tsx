@@ -12,6 +12,7 @@ import { getDevice, getDeviceCommands, getTenantStores } from "@/lib/data";
 import { db } from "@/lib/db";
 import { firmwareRelease } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
+import { canManageTenant } from "@/lib/roles";
 import { formatNumber, timeAgo } from "@/lib/format";
 
 export default async function DeviceDetailPage({
@@ -29,7 +30,7 @@ export default async function DeviceDetailPage({
   const commands = await getDeviceCommands(device.id);
 
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  const canManage = !!membership && ["owner", "admin"].includes(membership.role);
+  const canManage = canManageTenant(membership?.role);
   const otherStores = canManage
     ? (await getTenantStores(organizationId))
         .filter((s) => s.id !== storeId)

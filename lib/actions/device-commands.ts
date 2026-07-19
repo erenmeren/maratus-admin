@@ -6,6 +6,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { device as deviceTable, deviceCommand } from "@/lib/db/schema";
 import { getContext } from "@/lib/session";
+import { canManageTenant } from "@/lib/roles";
 import { isValidCommandType } from "@/lib/device-commands";
 import { id as genId } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
@@ -26,7 +27,7 @@ export async function enqueueDeviceCommand(deviceId: string, type: string): Prom
 
   const isPlatformAdmin = ctx.user.role === "platform_admin";
   const orgRole = ctx.organizations.find((o) => o.id === dev.organizationId)?.role;
-  const canCommand = isPlatformAdmin || orgRole === "owner" || orgRole === "admin";
+  const canCommand = isPlatformAdmin || canManageTenant(orgRole);
   if (!canCommand) return { ok: false, error: "Not allowed." };
 
   await db.insert(deviceCommand).values({

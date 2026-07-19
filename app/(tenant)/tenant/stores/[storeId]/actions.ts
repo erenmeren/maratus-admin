@@ -11,6 +11,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { store as storeTable } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
+import { canManageTenant } from "@/lib/roles";
 import { claimDevice } from "@/lib/documents";
 import { recordAudit, AUDIT } from "@/lib/audit";
 
@@ -29,7 +30,7 @@ export async function claimDeviceAction(
 
   // Authorize: only owners/admins may provision devices.
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  if (!membership || !["owner", "admin"].includes(membership.role)) {
+  if (!membership || !canManageTenant(membership.role)) {
     return { ok: false, error: "You don't have permission to claim devices." };
   }
 

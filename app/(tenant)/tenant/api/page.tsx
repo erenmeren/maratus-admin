@@ -7,11 +7,12 @@ import {
 } from "@/components/ui/table";
 import { getApiKeys } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
+import { canManageTenant } from "@/lib/roles";
 
 export default async function ApiKeysPage() {
   const { ctx, organizationId } = await requireTenant();
   const role = ctx.organizations.find((o) => o.id === organizationId)?.role;
-  const canManage = !!role && ["owner", "admin"].includes(role);
+  const canManage = canManageTenant(role);
   const keys = await getApiKeys(organizationId);
   const active = keys.filter((k) => !k.revokedAt);
 

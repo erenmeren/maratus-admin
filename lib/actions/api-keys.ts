@@ -5,13 +5,10 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { apiKey as apiKeyTable } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
+import { canManageTenant } from "@/lib/roles";
 import { id, generateApiKey } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { sanitizeScopes, DEFAULT_KEY_SCOPES } from "@/lib/api-scopes";
-
-function canManage(role: string | undefined): boolean {
-  return !!role && ["owner", "admin"].includes(role);
-}
 
 export interface CreateApiKeyResult {
   ok: boolean;
@@ -22,7 +19,7 @@ export interface CreateApiKeyResult {
 export async function createApiKey(formData: FormData): Promise<CreateApiKeyResult> {
   const { ctx, organizationId } = await requireTenant();
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  if (!canManage(membership?.role)) return { ok: false, error: "You don't have permission to create API keys." };
+  if (!canManageTenant(membership?.role)) return { ok: false, error: "You don't have permission to create API keys." };
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { ok: false, error: "Key name is required." };
@@ -64,7 +61,7 @@ export interface RevokeApiKeyResult {
 export async function revokeApiKey(keyId: string): Promise<RevokeApiKeyResult> {
   const { ctx, organizationId } = await requireTenant();
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  if (!canManage(membership?.role)) return { ok: false, error: "You don't have permission to revoke API keys." };
+  if (!canManageTenant(membership?.role)) return { ok: false, error: "You don't have permission to revoke API keys." };
 
   const [existing] = await db
     .select({ id: apiKeyTable.id })

@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { tenantSettings } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
+import { canManageTenant } from "@/lib/roles";
 import { normalizeDeviceSettings, hashSettingsPassword } from "@/lib/device-settings";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { enqueueConfigChangedForOrg } from "@/lib/data";
@@ -22,7 +23,7 @@ export async function saveDeviceSettings(
   const { ctx, organizationId } = await requireTenant();
 
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  if (!membership || !["owner", "admin"].includes(membership.role)) {
+  if (!membership || !canManageTenant(membership.role)) {
     return { ok: false, error: "You don't have permission to edit device settings." };
   }
 

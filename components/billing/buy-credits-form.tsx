@@ -55,9 +55,14 @@ function CreditCheckoutForm() {
 interface Props {
   packs: CreditPack[];
   availableCredits: number;
+  canManage?: boolean;
 }
 
-export function BuyCreditsSection({ packs, availableCredits }: Props) {
+export function BuyCreditsSection({
+  packs,
+  availableCredits,
+  canManage = true,
+}: Props) {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [activePack, setActivePack] = useState<string | null>(null);
   const [loading, setLoading] = useState<string | null>(null);
@@ -65,6 +70,22 @@ export function BuyCreditsSection({ packs, availableCredits }: Props) {
 
   if (!stripePromise || packs.length === 0) {
     return null;
+  }
+
+  // Members are read-only for billing: show the balance but no purchase controls.
+  if (!canManage) {
+    return (
+      <section className="flex flex-col gap-3">
+        <h2 className="text-lg font-medium">Credits</h2>
+        <p className="text-sm text-muted-foreground">
+          Available:{" "}
+          <span className="font-medium text-foreground">{availableCredits}</span>
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Only owners and admins can buy credits.
+        </p>
+      </section>
+    );
   }
 
   async function buy(packId: string) {

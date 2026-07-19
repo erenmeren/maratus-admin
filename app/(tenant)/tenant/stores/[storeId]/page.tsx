@@ -9,6 +9,7 @@ import { ClaimDeviceDialog } from "@/components/claim-device-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle,  } from "@/components/ui/card";
 import { getStoreAnalytics, getUnclaimedDevices } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
+import { canManageTenant } from "@/lib/roles";
 import { DocumentsAreaChart } from "@/components/charts";
 import { StoreEditButton } from "@/components/store-edit-button";
 import { StoreDeleteButton } from "@/components/store-delete-button";
@@ -27,6 +28,7 @@ export default async function StoreDetailPage({
 
   const { store, analytics } = result;
   const membership = ctx.organizations.find((o) => o.id === organizationId);
+  const canManage = canManageTenant(membership?.role);
   const canClaim = !!membership && ["owner", "admin"].includes(membership.role);
   const unclaimed = canClaim ? await getUnclaimedDevices(organizationId) : [];
   const armedByStore = canClaim ? await getArmedAllocationCountByStore(organizationId) : {};
@@ -108,7 +110,7 @@ export default async function StoreDetailPage({
         {store.devices.length > 0 ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {store.devices.map((d) => (
-              <DeviceCard key={d.id} device={d} />
+              <DeviceCard key={d.id} device={d} canManage={canManage} />
             ))}
           </div>
         ) : (

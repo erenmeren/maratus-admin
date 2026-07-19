@@ -1,5 +1,6 @@
 // app/(tenant)/tenant/billing/page.tsx
 import { requireTenant } from "@/lib/session";
+import { canManageTenant } from "@/lib/roles";
 import {
   getCreditUsageByDevice,
   deviceNamesForOrg,
@@ -15,7 +16,10 @@ import { PageSection } from "@/components/page-section";
 import { formatNumber } from "@/lib/format";
 
 export default async function TenantBillingPage() {
-  const { organizationId } = await requireTenant();
+  const { ctx, organizationId } = await requireTenant();
+  const canManage = canManageTenant(
+    ctx.organizations.find((o) => o.id === organizationId)?.role,
+  );
   const [balance, usage, deviceNames, deviceUsage, tenant] = await Promise.all([
     getBalance(organizationId),
     getCreditUsageByDevice(organizationId, currentMonthStart()),
@@ -30,7 +34,11 @@ export default async function TenantBillingPage() {
     <>
       <PageHeader title="Billing" description="Manage your prepaid credit balance." />
 
-      <BuyCreditsSection packs={packs} availableCredits={balance.available} />
+      <BuyCreditsSection
+        packs={packs}
+        availableCredits={balance.available}
+        canManage={canManage}
+      />
 
       <PageSection title="Credit usage this month">
         <p className="text-sm text-muted-foreground">

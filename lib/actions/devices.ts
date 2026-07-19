@@ -12,6 +12,7 @@ import {
   store as storeTable,
 } from "@/lib/db/schema";
 import { requirePlatformAdmin, requireTenant } from "@/lib/session";
+import { canManageTenant } from "@/lib/roles";
 import { getTenantStoreOptions } from "@/lib/data";
 import { id, pairingCode } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
@@ -32,6 +33,13 @@ export async function setDeviceActive(
   active: boolean,
 ): Promise<ActionResult> {
   const { ctx, organizationId } = await requireTenant();
+
+  // Members are read-only for device operations; only owners/admins may
+  // pause/resume (mirrors assignDeviceToStore + enqueueDeviceCommand).
+  const role = ctx.organizations.find((o) => o.id === organizationId)?.role;
+  if (!canManageTenant(role)) {
+    return { ok: false, error: "You don't have permission to manage devices." };
+  }
 
   const [device] = await db
     .select()

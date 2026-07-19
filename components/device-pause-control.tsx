@@ -12,10 +12,12 @@ export function DevicePauseControl({
   deviceId,
   deviceName,
   initialStatus,
+  canManage = true,
 }: {
   deviceId: string;
   deviceName: string;
   initialStatus: DeviceStatus;
+  canManage?: boolean;
 }) {
   const [status, setStatus] = React.useState(initialStatus);
   const [pending, setPending] = React.useState(false);
@@ -52,24 +54,26 @@ export function DevicePauseControl({
           </p>
         </div>
       </div>
-      <Button
-        variant={status === "online" ? "outline" : "default"}
-        size="sm"
-        disabled={offline || pending}
-        onClick={toggle}
-      >
-        {pending ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : status === "online" ? (
-          <>
-            <Pause className="size-4" /> Pause
-          </>
-        ) : (
-          <>
-            <Play className="size-4" /> Activate
-          </>
-        )}
-      </Button>
+      {canManage && (
+        <Button
+          variant={status === "online" ? "outline" : "default"}
+          size="sm"
+          disabled={offline || pending}
+          onClick={toggle}
+        >
+          {pending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : status === "online" ? (
+            <>
+              <Pause className="size-4" /> Pause
+            </>
+          ) : (
+            <>
+              <Play className="size-4" /> Activate
+            </>
+          )}
+        </Button>
+      )}
     </div>
   );
 }

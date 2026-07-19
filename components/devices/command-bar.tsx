@@ -11,9 +11,23 @@ const ACTIONS: { type: string; label: string }[] = [
   { type: "firmware-update", label: "Update firmware" },
 ];
 
-export function CommandBar({ deviceId }: { deviceId: string }) {
+export function CommandBar({
+  deviceId,
+  canManage = true,
+}: {
+  deviceId: string;
+  canManage?: boolean;
+}) {
   const [msg, setMsg] = useState<string | null>(null);
   const [pending, start] = useTransition();
+
+  if (!canManage) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Only owners and admins can send remote commands.
+      </p>
+    );
+  }
 
   function send(type: string) {
     setMsg(null);

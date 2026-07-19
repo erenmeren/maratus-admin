@@ -13,7 +13,13 @@ import type { Device } from "@/lib/types";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-export function DeviceCard({ device }: { device: Device }) {
+export function DeviceCard({
+  device,
+  canManage = true,
+}: {
+  device: Device;
+  canManage?: boolean;
+}) {
   const [status, setStatus] = React.useState(device.status);
   const [pending, setPending] = React.useState(false);
   const offline = status === "offline";
@@ -103,12 +109,14 @@ export function DeviceCard({ device }: { device: Device }) {
         >
           {offline ? "Unreachable" : status === "online" ? "Active" : "Paused"}
         </Label>
-        <Switch
-          id={`toggle-${device.id}`}
-          checked={status === "online"}
-          disabled={offline || pending}
-          onCheckedChange={toggle}
-        />
+        {canManage && (
+          <Switch
+            id={`toggle-${device.id}`}
+            checked={status === "online"}
+            disabled={offline || pending}
+            onCheckedChange={toggle}
+          />
+        )}
       </div>
     </Card>
   );

@@ -121,6 +121,7 @@ export default async function DeviceDetailPage({
               deviceId={device.id}
               deviceName={device.name}
               initialStatus={device.status}
+              canManage={canManage}
             />
             {canManage && otherStores.length > 0 && (
               <DeviceMoveControl
@@ -154,7 +155,7 @@ export default async function DeviceDetailPage({
 
       <section className="flex flex-col gap-3">
         <h2 className="text-lg font-medium">Remote control</h2>
-        <CommandBar deviceId={device.id} />
+        <CommandBar deviceId={device.id} canManage={canManage} />
         {commands.length > 0 && (
           <table className="w-full text-sm">
             <thead><tr className="text-left text-muted-foreground"><th className="py-2">Command</th><th>Status</th><th>Queued</th></tr></thead>

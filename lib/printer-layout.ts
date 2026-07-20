@@ -6,7 +6,6 @@
 // can never break the render — v1 layouts are reset to the default.
 import { isValidTimezone } from "./timezones";
 import { MIN_BOX } from "./printer-geometry";
-import { defaultImageUrl } from "./default-images";
 
 export const PRINTER_SCREENS = ["idle", "processing", "qr", "sent", "error", "paused", "setup"] as const;
 export type PrinterScreen = (typeof PRINTER_SCREENS)[number];
@@ -250,11 +249,12 @@ export function seededScreen(screen: PrinterScreen): ScreenLayout {
       // From SentScreen (printer-preview.tsx): check image + title/subtext/footer. The
       // icon object type was retired 2026-07-20; this seeds the bundled check image
       // (public/defaults/check.png) via a relative path — seededScreen runs client-side
-      // too (editor "Reset layout"), so it can't depend on server-only env (defaultImageUrl).
-      // lib/data.ts absolutizes "/defaults/…" urls for device consumption.
+      // too (editor "Reset layout"), so it can't depend on a server-only env var to
+      // build an absolute URL. lib/data.ts absolutizes "/defaults/…" urls for device
+      // consumption.
       return {
         objects: [
-          obj({ id: "icon", type: "image", x: 0.4, y: 0.22, w: 0.2, h: 0.2, z: 0, image: { url: "/defaults/check.png" } }),
+          obj({ id: "decoration", type: "image", x: 0.4, y: 0.22, w: 0.2, h: 0.2, z: 0, image: { url: "/defaults/check.png" } }),
           obj({ id: "text-title", type: "text", x: 0.1, y: 0.48, w: 0.8, h: 0.08, z: 1, text: "Your document is on its way", fontSize: 26, align: "center" }),
           obj({ id: "text-sub", type: "text", x: 0.15, y: 0.58, w: 0.7, h: 0.06, z: 2, text: "Check your phone — all set. Thank you!", fontSize: 16, align: "center" }),
           obj({ id: "text-footer", type: "text", x: 0.2, y: 0.82, w: 0.6, h: 0.05, z: 3, text: "Returning to start…", fontSize: 14, align: "center" }),
@@ -265,7 +265,7 @@ export function seededScreen(screen: PrinterScreen): ScreenLayout {
       // See the "sent" case above for why this is a relative "/defaults/…" path.
       return {
         objects: [
-          obj({ id: "icon", type: "image", x: 0.42, y: 0.22, w: 0.16, h: 0.16, z: 0, image: { url: "/defaults/wifi-off.png" } }),
+          obj({ id: "decoration", type: "image", x: 0.42, y: 0.22, w: 0.16, h: 0.16, z: 0, image: { url: "/defaults/wifi-off.png" } }),
           obj({ id: "text-title", type: "text", x: 0.1, y: 0.44, w: 0.8, h: 0.08, z: 1, text: "We couldn't send your document", fontSize: 24, align: "center" }),
           obj({ id: "text-sub", type: "text", x: 0.15, y: 0.54, w: 0.7, h: 0.06, z: 2, text: "The device is offline right now.", fontSize: 16, align: "center" }),
           obj({ id: "text-pill", type: "text", x: 0.15, y: 0.72, w: 0.7, h: 0.08, z: 3, text: "Please ask a team member for a paper document", fontSize: 15, align: "center" }),
@@ -483,9 +483,9 @@ function sanitizeObject(raw: unknown, fallbackZ: number): PrinterObject | null {
     if (ic.source === "upload" && typeof ic.url === "string" && ic.url) {
       url = ic.url;
     } else if (ic.preset === "check") {
-      url = defaultImageUrl("check");
+      url = "/defaults/check.png";
     } else if (ic.preset === "wifi-off") {
-      url = defaultImageUrl("wifi-off");
+      url = "/defaults/wifi-off.png";
     } else {
       return null;
     }

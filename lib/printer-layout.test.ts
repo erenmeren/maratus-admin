@@ -113,14 +113,14 @@ describe("seededScreen", () => {
   });
 
   it("seeds the sent screen with a check image", () => {
-    const sent = seededScreen("sent").objects.find((o) => o.id === "icon");
+    const sent = seededScreen("sent").objects.find((o) => o.id === "decoration");
     expect(sent).toBeDefined();
     expect(sent!.type).toBe("image");
     expect(sent!.image?.url).toMatch(/\/defaults\/check\.png$/);
   });
 
   it("seeds the error screen with a wifi-off image", () => {
-    const err = seededScreen("error").objects.find((o) => o.id === "icon");
+    const err = seededScreen("error").objects.find((o) => o.id === "decoration");
     expect(err).toBeDefined();
     expect(err!.type).toBe("image");
     expect(err!.image?.url).toMatch(/\/defaults\/wifi-off\.png$/);
@@ -311,6 +311,22 @@ describe("legacy icon → image conversion", () => {
   it("drops a legacy icon with any other preset (no image equivalent)", () => {
     const cfg = cfgWithIcon({ source: "preset", preset: "heart" });
     expect(idleObj(cfg)).toBeUndefined();
+  });
+
+  it("drops a malformed legacy icon with no icon field, without throwing", () => {
+    // A second, valid object keeps the screen non-empty so the drop is observed
+    // directly rather than confounded with sanitizeScreen's empty-screen fallback.
+    const raw = {
+      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
+      screens: { idle: { objects: [
+        { id: "i1", type: "icon", x: 0.4, y: 0.4, w: 0.2, h: 0.2, visible: true, z: 0 },
+        { id: "wifi", type: "wifi", x: 0.82, y: 0.04, w: 0.1, h: 0.06, visible: true, z: 1 },
+      ] } },
+    };
+    expect(() => normalizePrinterConfig(raw)).not.toThrow();
+    const cfg = normalizePrinterConfig(raw);
+    expect(idleObj(cfg)).toBeUndefined();
+    expect(cfg.screens.idle.objects.find((o) => o.id === "wifi")).toBeDefined();
   });
 
   it("drops signedUrl from an uploaded icon — it is never persisted", () => {

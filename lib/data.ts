@@ -1076,9 +1076,9 @@ export async function tenantNameOf(organizationId: string): Promise<string> {
 
 /**
  * True for an `image.url` that's already directly fetchable: a bundled default
- * (seededScreen's "/defaults/…" path, or a legacy-icon conversion's absolute
- * defaultImageUrl) rather than a private R2 object key — those must NOT be run
- * through presignedGetUrl (it would sign a key that doesn't exist in the bucket).
+ * (seededScreen's "/defaults/…" path, also used by the legacy-icon conversion)
+ * rather than a private R2 object key — those must NOT be run through
+ * presignedGetUrl (it would sign a key that doesn't exist in the bucket).
  */
 export function isDirectAssetUrl(url: string): boolean {
   return url.startsWith("/") || /^https?:\/\//i.test(url);

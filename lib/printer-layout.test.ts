@@ -87,8 +87,6 @@ describe("objectLabel", () => {
 
 import {
   PRINTER_SCREENS,
-  ICON_PRESETS,
-  DEFAULT_ICON_PRESET,
   seededScreen,
   type PrinterObject,
 } from "./printer-layout";
@@ -114,15 +112,18 @@ describe("seededScreen", () => {
     }
   });
 
-  it("seeds the sent screen with an accent circle check icon", () => {
-    const sent = seededScreen("sent").objects.find((o) => o.type === "icon");
+  it("seeds the sent screen with a check image", () => {
+    const sent = seededScreen("sent").objects.find((o) => o.id === "decoration");
     expect(sent).toBeDefined();
-    expect(sent!.icon).toMatchObject({ source: "preset", preset: "check", circle: true, tint: "accent" });
+    expect(sent!.type).toBe("image");
+    expect(sent!.image?.url).toMatch(/\/defaults\/check\.png$/);
   });
 
-  it("seeds the error screen with an accent wifi-off icon", () => {
-    const err = seededScreen("error").objects.find((o) => o.type === "icon");
-    expect(err!.icon).toMatchObject({ source: "preset", preset: "wifi-off", tint: "accent" });
+  it("seeds the error screen with a wifi-off image", () => {
+    const err = seededScreen("error").objects.find((o) => o.id === "decoration");
+    expect(err).toBeDefined();
+    expect(err!.type).toBe("image");
+    expect(err!.image?.url).toMatch(/\/defaults\/wifi-off\.png$/);
   });
 
   it("seeds idle with clock/wifi and no placeholder text labels", () => {
@@ -136,12 +137,6 @@ describe("seededScreen", () => {
     for (const screen of PRINTER_SCREENS) {
       expect(seededScreen(screen).objects.some((o) => o.type === "logo")).toBe(false);
     }
-  });
-});
-
-describe("allowlist", () => {
-  it("DEFAULT_ICON_PRESET is in ICON_PRESETS", () => {
-    expect((ICON_PRESETS as readonly string[]).includes(DEFAULT_ICON_PRESET)).toBe(true);
   });
 });
 
@@ -240,19 +235,7 @@ describe("normalizePrinterConfig", () => {
     expect(cfg.screens.sent.objects.length).toBeGreaterThan(0);
   });
 
-  it("drops an unknown icon preset to the default and keeps the object", () => {
-    const cfg = normalizePrinterConfig({
-      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
-      screens: { idle: { objects: [
-        { id: "i1", type: "icon", x: 0.4, y: 0.4, w: 0.2, h: 0.2, visible: true, z: 0,
-          icon: { source: "preset", preset: "definitely-not-a-real-icon" } },
-      ] } },
-    });
-    const icon = cfg.screens.idle.objects.find((o) => o.type === "icon");
-    expect(icon!.icon!.preset).toBe("check");
-  });
-
-  it("caps addable (text+icon) objects per screen at MAX_CUSTOM", () => {
+  it("caps addable (text+image) objects per screen at MAX_CUSTOM", () => {
     const many = Array.from({ length: MAX_CUSTOM + 10 }, (_, i) => ({
       id: `t${i}`, type: "text", x: 0.1, y: 0.1, w: 0.3, h: 0.1, visible: true, z: i, text: `t${i}`,
     }));
@@ -260,7 +243,7 @@ describe("normalizePrinterConfig", () => {
       version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
       screens: { idle: { objects: many } },
     });
-    const addable = cfg.screens.idle.objects.filter((o) => o.type === "text" || o.type === "icon");
+    const addable = cfg.screens.idle.objects.filter((o) => o.type === "text" || o.type === "image");
     expect(addable.length).toBeLessThanOrEqual(MAX_CUSTOM);
   });
 
@@ -290,35 +273,76 @@ describe("normalizePrinterConfig", () => {
     expect(cfg.screens.idle.objects.filter((o) => o.type === "qr")).toHaveLength(1);
   });
 
-  it("drops signedUrl from upload icons — it is never persisted", () => {
+});
+
+// ─── Legacy icon → image conversion (icon object type retired 2026-07-20) ────
+
+describe("legacy icon → image conversion", () => {
+  const cfgWithIcon = (icon: Record<string, unknown>) => normalizePrinterConfig({
+    version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
+    screens: { idle: { objects: [
+      { id: "i1", type: "icon", x: 0.4, y: 0.4, w: 0.2, h: 0.2, visible: true, z: 0, icon },
+    ] } },
+  });
+  const idleObj = (cfg: ReturnType<typeof normalizePrinterConfig>) =>
+    cfg.screens.idle.objects.find((o) => o.id === "i1");
+
+  it("converts a legacy uploaded icon to an image", () => {
+    const cfg = cfgWithIcon({ source: "upload", url: "https://r2/x.png" });
+    const o = idleObj(cfg);
+    expect(o?.type).toBe("image");
+    expect(o?.image?.url).toBe("https://r2/x.png");
+  });
+
+  it("converts a legacy check preset icon to the default image", () => {
+    const cfg = cfgWithIcon({ source: "preset", preset: "check" });
+    const o = idleObj(cfg);
+    expect(o?.type).toBe("image");
+    expect(o?.image?.url).toMatch(/\/defaults\/check\.png$/);
+  });
+
+  it("converts a legacy wifi-off preset icon to the default image", () => {
+    const cfg = cfgWithIcon({ source: "preset", preset: "wifi-off" });
+    const o = idleObj(cfg);
+    expect(o?.type).toBe("image");
+    expect(o?.image?.url).toMatch(/\/defaults\/wifi-off\.png$/);
+  });
+
+  it("drops a legacy icon with any other preset (no image equivalent)", () => {
+    const cfg = cfgWithIcon({ source: "preset", preset: "heart" });
+    expect(idleObj(cfg)).toBeUndefined();
+  });
+
+  it("drops a malformed legacy icon with no icon field, without throwing", () => {
+    // A second, valid object keeps the screen non-empty so the drop is observed
+    // directly rather than confounded with sanitizeScreen's empty-screen fallback.
+    const raw = {
+      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
+      screens: { idle: { objects: [
+        { id: "i1", type: "icon", x: 0.4, y: 0.4, w: 0.2, h: 0.2, visible: true, z: 0 },
+        { id: "wifi", type: "wifi", x: 0.82, y: 0.04, w: 0.1, h: 0.06, visible: true, z: 1 },
+      ] } },
+    };
+    expect(() => normalizePrinterConfig(raw)).not.toThrow();
+    const cfg = normalizePrinterConfig(raw);
+    expect(idleObj(cfg)).toBeUndefined();
+    expect(cfg.screens.idle.objects.find((o) => o.id === "wifi")).toBeDefined();
+  });
+
+  it("drops signedUrl from an uploaded icon — it is never persisted", () => {
     // Simulate what getTenantBranding sends to the client: an upload icon that has
     // both the canonical R2 key in `url` and an ephemeral presigned URL in `signedUrl`.
-    // normalizePrinterConfig must strip `signedUrl` so it never round-trips back on save.
-    const cfg = normalizePrinterConfig({
-      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
-      screens: {
-        idle: {
-          objects: [
-            {
-              id: "icon-1", type: "icon", x: 0.4, y: 0.4, w: 0.2, h: 0.2, visible: true, z: 0,
-              icon: {
-                source: "upload",
-                url: "branding/o/icons/x",
-                signedUrl: "https://r2.example.com/branding/o/icons/x?X-Amz-Expires=300&sig=abc",
-                tint: "accent",
-                circle: false,
-              },
-            },
-          ],
-        },
-      },
+    const cfg = cfgWithIcon({
+      source: "upload",
+      url: "branding/o/icons/x",
+      signedUrl: "https://r2.example.com/branding/o/icons/x?X-Amz-Expires=300&sig=abc",
+      tint: "accent",
+      circle: false,
     });
-    const icon = cfg.screens.idle.objects.find((o) => o.type === "icon");
-    expect(icon).toBeDefined();
-    // The R2 key must be preserved.
-    expect(icon!.icon!.url).toBe("branding/o/icons/x");
-    // The ephemeral display URL must be stripped by normalize.
-    expect(icon!.icon!.signedUrl).toBeUndefined();
+    const o = idleObj(cfg);
+    expect(o?.type).toBe("image");
+    expect(o?.image?.url).toBe("branding/o/icons/x");
+    expect(o?.image?.signedUrl).toBeUndefined();
   });
 });
 

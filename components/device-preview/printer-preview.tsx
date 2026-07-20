@@ -11,7 +11,6 @@ import {
   type PrinterObject,
   type PrinterScreen,
 } from "@/lib/printer-layout";
-import { resolveIconComponent } from "@/lib/printer-icons";
 import { cn } from "@/lib/utils";
 
 // Re-export PrinterScreen so existing callers of `import { PrinterScreen } from ".../printer-preview"` keep working.
@@ -133,7 +132,7 @@ export function PrinterPreview({
 
 /**
  * Renders one printer object filling its absolutely-positioned box. Text wraps
- * inside the box at its own font size; logo/clock/wifi/icon size deterministically
+ * inside the box at its own font size; logo/clock/wifi/image size deterministically
  * from the box (no transform scale, no DOM measurement). Shared by the read-only
  * preview and the editor stage.
  */
@@ -155,8 +154,6 @@ export function ObjectVisual({
       return <ClockObject object={object} timezone={config.clockTimezone} clock24h={config.clock24h} />;
     case "wifi":
       return <WifiObject object={object} level={config.wifiLevel} />;
-    case "icon":
-      return <IconObject object={object} brand={brand} />;
     case "image":
       return <ImageObject object={object} />;
     case "qr":
@@ -261,41 +258,6 @@ function WifiObject({ object, level }: { object: PrinterObject; level: number })
 }
 
 /* ── New widget renderers (lifted from the former per-screen JSX) ────── */
-
-/**
- * IconObject — lifted from SentScreen's hard-coded check SVG and generalised.
- * Renders a curated lucide preset or an uploaded R2 image (presigned by the
- * data layer) with optional tint and circular background.
- */
-function IconObject({ object, brand: _brand }: { object: PrinterObject; brand: PrinterBrand }) {
-  const ic = object.icon ?? { source: "preset" as const };
-  const tintVar =
-    ic.tint === "muted" ? "var(--k-muted)" :
-    ic.tint === "none" ? "var(--k-fg)" :
-    "var(--k-accent)"; // "warn" (legacy stored configs) renders as accent — error screen uses brand colors
-  const Inner = () =>
-    ic.source === "upload" && ic.url ? (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={ic.signedUrl ?? ic.url} alt="" className="size-full object-contain" />
-    ) : (
-      (() => {
-        const Glyph = resolveIconComponent(ic.preset);
-        return <Glyph className="size-full" style={{ color: ic.circle ? "var(--k-bg)" : tintVar }} strokeWidth={2.5} />;
-      })()
-    );
-  if (ic.circle) {
-    return (
-      <div className="flex size-full items-center justify-center rounded-full p-[18%]" style={{ background: tintVar, boxShadow: "0 22px 50px -14px var(--k-accent-soft)" }}>
-        <Inner />
-      </div>
-    );
-  }
-  return (
-    <div className="flex size-full items-center justify-center" style={{ color: tintVar }}>
-      <Inner />
-    </div>
-  );
-}
 
 function ImageObject({ object }: { object: PrinterObject }) {
   const src = object.image?.signedUrl ?? object.image?.url ?? null;

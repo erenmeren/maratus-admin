@@ -29,7 +29,7 @@ export function PrinterControls({
   // Clock + Wi-Fi can be re-added from the buttons above; the remaining widgets
   // (QR, spinner, countdown…) can't, so they stay hide-only.
   const deletable = (t: string) =>
-    t === "text" || t === "icon" || t === "image" || t === "clock" || t === "wifi";
+    t === "text" || t === "image" || t === "clock" || t === "wifi";
 
   return (
     <div className="space-y-4">

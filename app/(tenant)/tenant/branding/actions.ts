@@ -15,10 +15,10 @@ import { canManageTenant } from "@/lib/roles";
 import { isValidHex } from "@/lib/color";
 import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "@/lib/printer-layout";
 import { id } from "@/lib/ids";
-import { deleteObject, iconStorageKey, imageStorageKey, putObject } from "@/lib/storage";
+import { deleteObject, imageStorageKey, putObject } from "@/lib/storage";
 import { normalizeUploadImage } from "@/lib/image";
 import { recordAudit, AUDIT } from "@/lib/audit";
-import { enqueueConfigChangedForOrg } from "@/lib/data";
+import { enqueueConfigChangedForOrg, isDirectAssetUrl } from "@/lib/data";
 
 export interface SaveBrandingResult {
   ok: boolean;
@@ -63,44 +63,6 @@ export async function saveBranding(
       printerConfig = normalizePrinterConfig(JSON.parse(screensRaw));
     } catch {
       printerConfig = undefined; // ignore malformed JSON; leave config unchanged
-    }
-  }
-
-  // Process newly-uploaded icon files. The client sets icon.url = "pending:<objectId>"
-  // and sends the file under "icon:<objectId>". Rewrite urls to the stored R2 key.
-  if (printerConfig !== undefined) {
-    for (const screen of PRINTER_SCREENS) {
-      for (const o of printerConfig.screens[screen].objects) {
-        if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url?.startsWith("pending:")) {
-          const objectId = o.icon.url.slice("pending:".length);
-          const file = formData.get(`icon:${objectId}`);
-          if (file instanceof File && file.size > 0) {
-            if (!file.type.startsWith("image/")) {
-              return { ok: false, error: "Icon must be an image file." };
-            }
-            if (file.size > MAX_LOGO_BYTES) {
-              return { ok: false, error: "Icon must be under 2 MB." };
-            }
-            let bytes: Buffer;
-            try {
-              bytes = await normalizeUploadImage(Buffer.from(await file.arrayBuffer()));
-            } catch {
-              return { ok: false, error: "Couldn't process that icon — try a PNG or JPEG." };
-            }
-            const key = iconStorageKey(organizationId, id("icon"));
-            try {
-              await putObject(key, bytes, "image/png");
-              o.icon = { ...o.icon, url: key };
-            } catch (err) {
-              console.error("Icon upload failed", err);
-              return { ok: false, error: "Icon upload failed. Try again." };
-            }
-          } else {
-            // No file provided for this pending marker — fall back to preset.
-            o.icon = { source: "preset", tint: o.icon.tint, circle: o.icon.circle };
-          }
-        }
-      }
     }
   }
 
@@ -154,8 +116,8 @@ export async function saveBranding(
       }
     : undefined;
 
-  // Capture current state for cleanup (previous icon keys and image keys).
-  const previousIconKeys = new Set<string>();
+  // Capture current state for cleanup (previous image keys). Bundled default
+  // images (seeded, or converted from a legacy icon) aren't R2 objects — skip them.
   const previousImageKeys = new Set<string>();
   if (printerConfig !== undefined) {
     const [existing] = await db
@@ -171,10 +133,7 @@ export async function saveBranding(
       const prevConfig = normalizePrinterConfig(existing.printerScreens ?? existing.printerLayout);
       for (const screen of PRINTER_SCREENS) {
         for (const o of prevConfig.screens[screen].objects) {
-          if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) {
-            previousIconKeys.add(o.icon.url);
-          }
-          if (o.type === "image" && o.image?.url) {
+          if (o.type === "image" && o.image?.url && !isDirectAssetUrl(o.image.url)) {
             previousImageKeys.add(o.image.url);
           }
         }
@@ -207,28 +166,15 @@ export async function saveBranding(
       },
     });
 
-  // --- Clean up orphaned icon objects (best-effort) ----------------------
-  // Keys that were in the previous config but are absent from the new one.
-  if (printerConfig !== undefined) {
-    const newIconKeys = new Set<string>();
-    for (const screen of PRINTER_SCREENS) {
-      for (const o of printerConfig.screens[screen].objects) {
-        if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) {
-          newIconKeys.add(o.icon.url);
-        }
-      }
-    }
-    const orphaned = [...previousIconKeys].filter((k) => !newIconKeys.has(k));
-    await Promise.all(orphaned.map((k) => deleteObject(k)));
-  }
-
   // --- Clean up orphaned image objects (best-effort) ---------------------
   // Keys that were in the previous config but are absent from the new one.
   if (printerConfig !== undefined) {
     const newImageKeys = new Set<string>();
     for (const screen of PRINTER_SCREENS) {
       for (const o of printerConfig.screens[screen].objects) {
-        if (o.type === "image" && o.image?.url) newImageKeys.add(o.image.url);
+        if (o.type === "image" && o.image?.url && !isDirectAssetUrl(o.image.url)) {
+          newImageKeys.add(o.image.url);
+        }
       }
     }
     const orphaned = [...previousImageKeys].filter((k) => !newImageKeys.has(k));

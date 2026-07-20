@@ -89,7 +89,7 @@ export function usePrinterEditor({
 
   const selected = objects.find((o) => o.id === selectedId) ?? null;
   const selBox = selected && selected.visible ? toBox(selected) : null;
-  const addableCount = objects.filter((o) => o.type === "text" || o.type === "icon" || o.type === "image").length;
+  const addableCount = objects.filter((o) => o.type === "text" || o.type === "image").length;
   const atCustomCap = addableCount >= MAX_CUSTOM;
   const hasClock = objects.some((o) => o.type === "clock");
   const hasWifi = objects.some((o) => o.type === "wifi");

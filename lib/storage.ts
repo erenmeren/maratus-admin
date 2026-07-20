@@ -86,14 +86,6 @@ export function logoStorageKey(
   return `logos/${organizationId}/${assetId}`;
 }
 
-/** Object key convention for a tenant's uploaded printer icon. */
-export function iconStorageKey(
-  organizationId: string,
-  assetId: string,
-): string {
-  return `branding/${organizationId}/icons/${assetId}`;
-}
-
 /** Object key convention for a tenant's uploaded printer image. */
 export function imageStorageKey(
   organizationId: string,

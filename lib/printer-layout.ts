@@ -6,13 +6,14 @@
 // can never break the render — v1 layouts are reset to the default.
 import { isValidTimezone } from "./timezones";
 import { MIN_BOX } from "./printer-geometry";
+import { defaultImageUrl } from "./default-images";
 
 export const PRINTER_SCREENS = ["idle", "processing", "qr", "sent", "error", "paused", "setup"] as const;
 export type PrinterScreen = (typeof PRINTER_SCREENS)[number];
 
 export const OBJECT_TYPES = [
   "text", "logo", "clock", "wifi",
-  "icon", "image",
+  "image",
   "qr", "spinner", "countdown", "pairingCode", "steps",
 ] as const;
 export type PrinterObjectType = (typeof OBJECT_TYPES)[number];
@@ -37,7 +38,6 @@ export const TYPE_LABEL: Record<PrinterObjectType, string> = {
   logo: "Brand name",
   clock: "Clock",
   wifi: "Wi-Fi signal",
-  icon: "Icon",
   image: "Image",
   qr: "QR code",
   spinner: "Spinner",
@@ -45,25 +45,6 @@ export const TYPE_LABEL: Record<PrinterObjectType, string> = {
   pairingCode: "Pairing code",
   steps: "Steps",
 };
-
-export const ICON_PRESETS = [
-  "check", "check-circle", "heart", "star", "gift", "mail", "thumbs-up", "smile",
-  "clock", "bell", "alert-triangle", "wifi-off", "sparkles", "party-popper",
-  "badge-check", "coffee",
-] as const;
-export type IconPreset = (typeof ICON_PRESETS)[number];
-export const DEFAULT_ICON_PRESET: IconPreset = "check";
-export type IconTint = "accent" | "muted" | "none";
-
-export interface PrinterIcon {
-  source: "preset" | "upload";
-  preset?: IconPreset;
-  url?: string;
-  /** Display-only presigned URL for an uploaded icon; NEVER persisted (normalize drops it). */
-  signedUrl?: string;
-  tint?: IconTint;
-  circle?: boolean;
-}
 
 export interface PrinterImage {
   url?: string;
@@ -92,7 +73,6 @@ export interface PrinterObject {
   text?: string;
   fontSize?: number; // px on the 720 reference
   align?: TextAlign;
-  icon?: PrinterIcon; // icon objects
   image?: PrinterImage; // image objects
   clock?: PrinterClockOptions; // clock objects
 }
@@ -168,7 +148,7 @@ export const DEFAULT_PRINTER_LAYOUT: PrinterLayout = defaultLayout();
 
 const DEFAULT_FONT: Record<PrinterObjectType, number> = {
   text: 24, logo: 24, clock: 24, wifi: 24,
-  icon: 24, image: 24, qr: 24, spinner: 24, countdown: 24, pairingCode: 24, steps: 24,
+  image: 24, qr: 24, spinner: 24, countdown: 24, pairingCode: 24, steps: 24,
 };
 
 /** Short random suffix for generated object ids. */
@@ -267,20 +247,25 @@ export function seededScreen(screen: PrinterScreen): ScreenLayout {
         ],
       };
     case "sent":
-      // From SentScreen (printer-preview.tsx): check icon (circle) + title/subtext/footer.
+      // From SentScreen (printer-preview.tsx): check image + title/subtext/footer. The
+      // icon object type was retired 2026-07-20; this seeds the bundled check image
+      // (public/defaults/check.png) via a relative path — seededScreen runs client-side
+      // too (editor "Reset layout"), so it can't depend on server-only env (defaultImageUrl).
+      // lib/data.ts absolutizes "/defaults/…" urls for device consumption.
       return {
         objects: [
-          obj({ id: "icon", type: "icon", x: 0.4, y: 0.22, w: 0.2, h: 0.2, z: 0, icon: { source: "preset", preset: "check", circle: true, tint: "accent" } }),
+          obj({ id: "icon", type: "image", x: 0.4, y: 0.22, w: 0.2, h: 0.2, z: 0, image: { url: "/defaults/check.png" } }),
           obj({ id: "text-title", type: "text", x: 0.1, y: 0.48, w: 0.8, h: 0.08, z: 1, text: "Your document is on its way", fontSize: 26, align: "center" }),
           obj({ id: "text-sub", type: "text", x: 0.15, y: 0.58, w: 0.7, h: 0.06, z: 2, text: "Check your phone — all set. Thank you!", fontSize: 16, align: "center" }),
           obj({ id: "text-footer", type: "text", x: 0.2, y: 0.82, w: 0.6, h: 0.05, z: 3, text: "Returning to start…", fontSize: 14, align: "center" }),
         ],
       };
     case "error":
-      // From ErrorScreen (printer-preview.tsx): wifi-off icon + headline + subtext + pill.
+      // From ErrorScreen (printer-preview.tsx): wifi-off image + headline + subtext + pill.
+      // See the "sent" case above for why this is a relative "/defaults/…" path.
       return {
         objects: [
-          obj({ id: "icon", type: "icon", x: 0.42, y: 0.22, w: 0.16, h: 0.16, z: 0, icon: { source: "preset", preset: "wifi-off", tint: "accent", circle: false } }),
+          obj({ id: "icon", type: "image", x: 0.42, y: 0.22, w: 0.16, h: 0.16, z: 0, image: { url: "/defaults/wifi-off.png" } }),
           obj({ id: "text-title", type: "text", x: 0.1, y: 0.44, w: 0.8, h: 0.08, z: 1, text: "We couldn't send your document", fontSize: 24, align: "center" }),
           obj({ id: "text-sub", type: "text", x: 0.15, y: 0.54, w: 0.7, h: 0.06, z: 2, text: "The device is offline right now.", fontSize: 16, align: "center" }),
           obj({ id: "text-pill", type: "text", x: 0.15, y: 0.72, w: 0.7, h: 0.08, z: 3, text: "Please ask a team member for a paper document", fontSize: 15, align: "center" }),
@@ -417,24 +402,6 @@ export function normalizePrinterLayout(raw: unknown): PrinterLayout {
 
 // ─── Task 2: v2→v3 migration + normalizePrinterConfig ──────────────────────────
 
-// "warn" was retired 2026-07-12 (error screen now uses brand colors like every
-// other screen); stored configs carrying it normalize to "accent" below.
-const ICON_TINTS = ["accent", "muted", "none"] as const satisfies readonly IconTint[];
-
-function sanitizeIcon(raw: unknown): PrinterIcon {
-  const r = (raw ?? {}) as Record<string, unknown>;
-  const source = r.source === "upload" ? "upload" : "preset";
-  const tint = ICON_TINTS.includes(r.tint as IconTint) ? (r.tint as IconTint) : "accent";
-  const circle = typeof r.circle === "boolean" ? r.circle : false;
-  if (source === "upload" && typeof r.url === "string" && r.url) {
-    return { source: "upload", url: r.url, tint, circle };
-  }
-  const preset = (ICON_PRESETS as readonly string[]).includes(r.preset as string)
-    ? (r.preset as IconPreset)
-    : DEFAULT_ICON_PRESET;
-  return { source: "preset", preset, tint, circle };
-}
-
 function sanitizeImage(raw: unknown): PrinterImage {
   const r = (raw ?? {}) as Record<string, unknown>;
   // Keep only the canonical R2 key; drop signedUrl (display-only) and anything else.
@@ -482,7 +449,11 @@ const WIDGET_BOX: Record<WidgetType, Pick<PrinterObject, "x" | "y" | "w" | "h">>
 function sanitizeObject(raw: unknown, fallbackZ: number): PrinterObject | null {
   const o = (raw ?? {}) as Record<string, unknown>;
   const type = o.type;
-  if (!(OBJECT_TYPES as readonly string[]).includes(type as string)) return null;
+  // "icon" was retired 2026-07-20 and is no longer a valid PrinterObjectType, but
+  // it's still recognized here (bypassing the OBJECT_TYPES membership check) so a
+  // legacy stored icon object reaches the conversion branch below instead of being
+  // silently dropped by the unknown-type guard.
+  if (type !== "icon" && !(OBJECT_TYPES as readonly string[]).includes(type as string)) return null;
   // Brand-name wordmark retired 2026-07-13 — drop stored logo objects everywhere.
   if (type === "logo") return null;
   const z = typeof o.z === "number" && Number.isFinite(o.z) ? o.z : fallbackZ;
@@ -503,10 +474,25 @@ function sanitizeObject(raw: unknown, fallbackZ: number): PrinterObject | null {
     };
   }
   if (type === "icon") {
+    // Icon objects were retired 2026-07-20; convert any legacy stored icon into
+    // an image (backward compat). Uploaded icons keep their R2 key; a "check" or
+    // "wifi-off" preset maps to the matching bundled default image; any other
+    // preset has no image equivalent, so the object is dropped.
+    const ic = (o.icon ?? {}) as Record<string, unknown>;
+    let url: string | undefined;
+    if (ic.source === "upload" && typeof ic.url === "string" && ic.url) {
+      url = ic.url;
+    } else if (ic.preset === "check") {
+      url = defaultImageUrl("check");
+    } else if (ic.preset === "wifi-off") {
+      url = defaultImageUrl("wifi-off");
+    } else {
+      return null;
+    }
     return {
-      id, type: "icon", z, visible, name,
+      id, type: "image", z, visible, name,
       ...sanitizeBox(o, { x: 0.4, y: 0.4, w: 0.2, h: 0.2 }),
-      icon: sanitizeIcon(o.icon),
+      image: sanitizeImage({ url }),
     };
   }
   if (type === "image") {
@@ -545,7 +531,7 @@ function sanitizeScreen(raw: unknown, screen: PrinterScreen): ScreenLayout {
   for (const item of list) {
     const o = sanitizeObject(item, zNext++);
     if (!o) continue;
-    if (o.type === "text" || o.type === "icon" || o.type === "image") {
+    if (o.type === "text" || o.type === "image") {
       if (addable >= MAX_CUSTOM) continue;
       addable++;
     } else {

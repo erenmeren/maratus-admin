@@ -41,6 +41,7 @@ import {
 } from "./analytics";
 import { computeAlerts, STALE_MINUTES, STUCK_PENDING_MINUTES, INACTIVE_DAYS, type HealthAlert } from "./health";
 import { presignedGetUrl } from "./storage";
+import { env } from "@/lib/env";
 import { resolveBrandTokens } from "./color";
 import { ianaToPosix } from "./posix-tz";
 import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "./printer-layout";
@@ -1073,13 +1074,29 @@ export async function tenantNameOf(organizationId: string): Promise<string> {
 // Branding (tenant_settings)
 // ============================================================================
 
+/**
+ * True for an `image.url` that's already directly fetchable: a bundled default
+ * (seededScreen's "/defaults/…" path, or a legacy-icon conversion's absolute
+ * defaultImageUrl) rather than a private R2 object key — those must NOT be run
+ * through presignedGetUrl (it would sign a key that doesn't exist in the bucket).
+ */
+export function isDirectAssetUrl(url: string): boolean {
+  return url.startsWith("/") || /^https?:\/\//i.test(url);
+}
+
+/** Absolutize a seeded "/defaults/…" path for a non-browser consumer (the
+ *  device); already-absolute URLs and R2 keys pass through unchanged. */
+function absolutizeLocalAsset(url: string): string {
+  return url.startsWith("/") ? `${env.BETTER_AUTH_URL.replace(/\/$/, "")}${url}` : url;
+}
+
 export interface TenantBranding {
   brandColor: string;
   /** Printer theme tokens (bg/fg/muted resolved with defaults when unset). */
   brandBg: string;
   brandFg: string;
   brandMuted: string;
-  /** Normalized v3 printer config (uploaded icon + image keys are presigned for display). */
+  /** Normalized v3 printer config (uploaded image keys are presigned for display). */
   printerConfig: PrinterConfig;
   staffPin: string;
 }
@@ -1100,23 +1117,21 @@ export async function getTenantBranding(
   // Overlay it so the Branding preview's countdown reflects the canonical value.
   config.qrTimeoutSeconds = normalizeDeviceSettings({ qrVisibleSeconds: s?.qrVisibleSeconds }).qrVisibleSeconds;
 
-  // Presign every uploaded icon + image key across all screens (collect → presign → map back).
+  // Presign every uploaded image key across all screens (collect → presign → map
+  // back). Bundled default images (seeded defaults, or converted from legacy
+  // icons) are already directly fetchable and skip presigning.
   const assetKeys = new Set<string>();
   for (const screen of PRINTER_SCREENS) {
     for (const o of config.screens[screen].objects) {
-      if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) assetKeys.add(o.icon.url);
-      if (o.type === "image" && o.image?.url) assetKeys.add(o.image.url);
+      if (o.type === "image" && o.image?.url && !isDirectAssetUrl(o.image.url)) assetKeys.add(o.image.url);
     }
   }
   const signed = new Map<string, string>();
   await Promise.all([...assetKeys].map(async (k) => signed.set(k, await presignedGetUrl(k))));
   for (const screen of PRINTER_SCREENS) {
     for (const o of config.screens[screen].objects) {
-      if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) {
-        o.icon = { ...o.icon, signedUrl: signed.get(o.icon.url) ?? undefined };
-      }
-      if (o.type === "image" && o.image?.url) {
-        o.image = { ...o.image, signedUrl: signed.get(o.image.url) ?? undefined };
+      if (o.type === "image" && o.image?.url && signed.has(o.image.url)) {
+        o.image = { ...o.image, signedUrl: signed.get(o.image.url) };
       }
     }
   }
@@ -1170,7 +1185,7 @@ export async function getTenantDeviceSettings(
   return { ...ds, hasPassword: !!s?.deviceSettingsPasswordHash };
 }
 
-/** Payload served to a device over GET /api/device/config (icons + images presigned). */
+/** Payload served to a device over GET /api/device/config (images presigned). */
 export interface DeviceConfigPayload {
   version: string;
   brandColor: string;
@@ -1178,7 +1193,7 @@ export interface DeviceConfigPayload {
   brandFg: string;
   brandMuted: string;
   wordmark: string; // brand wordmark text (= organization name) for the logo widget
-  config: PrinterConfig; // uploaded icon + image keys presigned for rendering
+  config: PrinterConfig; // uploaded image keys presigned for rendering
   device: {
     brightness: number; // 10..100
     sleep: { enabled: boolean; timeoutSeconds: number };
@@ -1238,23 +1253,32 @@ export async function getDeviceConfig(
 
   const config = normalizePrinterConfig(s?.printerScreens ?? s?.printerLayout);
 
-  // Presign uploaded icon + image keys across all screens (collect → presign → map back).
+  // Bundled default images use a relative "/defaults/…" path so seededScreen can
+  // run client-side too (the editor's "Reset layout" button); the device is a
+  // plain HTTP client with no page origin to resolve that against, so absolutize
+  // it here before the payload goes out.
+  for (const screen of PRINTER_SCREENS) {
+    for (const o of config.screens[screen].objects) {
+      if (o.type === "image" && o.image?.url?.startsWith("/")) {
+        o.image = { ...o.image, url: absolutizeLocalAsset(o.image.url) };
+      }
+    }
+  }
+
+  // Presign uploaded image keys across all screens (collect → presign → map
+  // back). Bundled default images (already directly fetchable) skip presigning.
   const assetKeys = new Set<string>();
   for (const screen of PRINTER_SCREENS) {
     for (const o of config.screens[screen].objects) {
-      if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) assetKeys.add(o.icon.url);
-      if (o.type === "image" && o.image?.url) assetKeys.add(o.image.url);
+      if (o.type === "image" && o.image?.url && !isDirectAssetUrl(o.image.url)) assetKeys.add(o.image.url);
     }
   }
   const signed = new Map<string, string>();
   await Promise.all([...assetKeys].map(async (k) => signed.set(k, await presignedGetUrl(k))));
   for (const screen of PRINTER_SCREENS) {
     for (const o of config.screens[screen].objects) {
-      if (o.type === "icon" && o.icon?.source === "upload" && o.icon.url) {
-        o.icon = { ...o.icon, signedUrl: signed.get(o.icon.url) ?? undefined };
-      }
-      if (o.type === "image" && o.image?.url) {
-        o.image = { ...o.image, signedUrl: signed.get(o.image.url) ?? undefined };
+      if (o.type === "image" && o.image?.url && signed.has(o.image.url)) {
+        o.image = { ...o.image, signedUrl: signed.get(o.image.url) };
       }
     }
   }

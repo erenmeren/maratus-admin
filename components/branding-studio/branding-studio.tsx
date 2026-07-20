@@ -180,7 +180,10 @@ export function BrandingStudio(props: BrandingVariantProps) {
 
           {/* FILMSTRIP — all 7 screens as live thumbnails */}
           <div className="relative z-10 border-t border-white/10 bg-zinc-950/60 px-4 py-3 backdrop-blur lg:pl-[21.5rem]">
-            <div className="flex gap-3 overflow-x-auto pb-1">
+            {/* p-1.5 gives the active thumbnail's ring-2 + shadow room inside the
+                scroll box — overflow-x-auto forces overflow-y to auto, which would
+                otherwise clip the top ring and the leftmost item's left ring. */}
+            <div className="flex gap-3 overflow-x-auto p-1.5">
               {SCREENS.map((s) => {
                 const active = s.value === draft.screen;
                 return (

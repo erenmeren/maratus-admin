@@ -51,6 +51,11 @@ export async function setDevicePin(a: {
   if (a.device.pinnedUrl === a.url) {
     return { ok: true, noop: true, pinnedAt: a.device.pinnedAt ?? new Date() };
   }
+  // The spend and the device update below are separate statements (neon-http
+  // has no interactive transactions). Charge-first so a crash between them
+  // fails safe for the business: charged, pin unapplied, next PUT of the same
+  // URL would no-op — an accepted, unlikely loss, matching the codebase's
+  // existing non-transactional style.
   const spent = await spendCredit({
     organizationId: a.organizationId,
     deviceId: a.device.id,

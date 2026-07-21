@@ -3,8 +3,13 @@
 // changes; identical URL is a free no-op). DELETE — clear the pin (free).
 // Requires the devices:pin scope. Idempotency-Key is OPTIONAL on PUT (PUT is
 // naturally idempotent; the header only guards the double-charge on a retried
-// change). Known conscious trade-off: two concurrent PUTs with the same key can
-// each charge once (no claim-first gate like trigger) — last-writer-wins.
+// or concurrent change). When provided, the key is claimed (inserted) BEFORE
+// charging — mirroring /trigger — so two concurrent PUTs with the same key
+// spend at most one credit: the loser of the insert race replays the winner's
+// claimed response instead of charging again, and a failed charge deletes the
+// claim so a retry can proceed. Stored keys are prefixed "pin:" because the
+// apiIdempotency table is shared with /trigger, and without the prefix a key
+// reused across endpoints would replay the other endpoint's stored response.
 
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -44,16 +49,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ deviceId
     return apiError("insufficient_scope", "API key lacks the devices:pin scope.", 403);
   }
 
-  const idemKey = req.headers.get("idempotency-key")?.trim() || null;
-  if (idemKey) {
-    const [prior] = await db
-      .select()
-      .from(apiIdempotency)
-      .where(and(eq(apiIdempotency.key, idemKey), eq(apiIdempotency.organizationId, auth.organizationId)))
-      .limit(1);
-    if (prior) return apiJson(prior.responseBody, prior.responseStatus);
-  }
-
   let raw: unknown;
   try {
     raw = await req.json();
@@ -70,6 +65,44 @@ export async function PUT(req: Request, { params }: { params: Promise<{ deviceId
     return apiError("org_archived", "Organization is archived.", 403);
   }
 
+  // Free no-op: identical URL, no idempotency claim, no charge.
+  if (dev.pinnedUrl === v.url) {
+    const pinnedAt = (dev.pinnedAt ?? new Date()).toISOString();
+    return apiJson(pinBody(deviceId, { url: v.url, pinnedAt }), 200);
+  }
+
+  // apiIdempotency is shared with /trigger, so the key is namespaced to this
+  // endpoint — otherwise a key reused across endpoints would replay the
+  // wrong endpoint's stored response (e.g. a trigger's 202 body here).
+  const idemKey = req.headers.get("idempotency-key")?.trim() || null;
+  const nsKey = idemKey ? `pin:${idemKey}` : null;
+
+  if (nsKey) {
+    // Claim the key BEFORE charging — the insert conflict is the concurrency
+    // gate (mirrors /trigger). The placeholder body is overwritten below once
+    // the real pinnedAt is known; a concurrent loser that reads it in the
+    // narrow window before the overwrite gets a near-correct timestamp.
+    const claimedAt = new Date();
+    const placeholder = pinBody(deviceId, { url: v.url, pinnedAt: claimedAt.toISOString() });
+    const claim = await db
+      .insert(apiIdempotency)
+      .values({ key: nsKey, organizationId: auth.organizationId, responseStatus: 200, responseBody: placeholder, commandId: null })
+      .onConflictDoNothing()
+      .returning({ key: apiIdempotency.key });
+    if (claim.length === 0) {
+      // Another request (concurrent or prior) already claimed this key — replay its stored response.
+      const [existing] = await db
+        .select()
+        .from(apiIdempotency)
+        .where(and(eq(apiIdempotency.key, nsKey), eq(apiIdempotency.organizationId, auth.organizationId)))
+        .limit(1);
+      if (existing) return apiJson(existing.responseBody, existing.responseStatus);
+      return apiError("conflict", "Concurrent request in progress.", 409);
+    }
+  }
+
+  // We own the claim (or none was requested). Charge; on failure, release the
+  // claim so a retry can proceed.
   const res = await setDevicePin({
     organizationId: auth.organizationId,
     device: { id: dev.id, pinnedUrl: dev.pinnedUrl, pinnedAt: dev.pinnedAt },
@@ -77,14 +110,19 @@ export async function PUT(req: Request, { params }: { params: Promise<{ deviceId
     actor: { type: "system" },
     via: "api",
   });
-  if (!res.ok) return apiError("insufficient_credits", "Not enough credits.", 402);
+  if (!res.ok) {
+    if (nsKey) {
+      await db.delete(apiIdempotency).where(and(eq(apiIdempotency.key, nsKey), eq(apiIdempotency.organizationId, auth.organizationId)));
+    }
+    return apiError("insufficient_credits", "Not enough credits.", 402);
+  }
 
   const body = pinBody(deviceId, { url: v.url, pinnedAt: res.pinnedAt.toISOString() });
-  if (idemKey && !res.noop) {
+  if (nsKey) {
     await db
-      .insert(apiIdempotency)
-      .values({ key: idemKey, organizationId: auth.organizationId, responseStatus: 200, responseBody: body, commandId: null })
-      .onConflictDoNothing();
+      .update(apiIdempotency)
+      .set({ responseBody: body })
+      .where(and(eq(apiIdempotency.key, nsKey), eq(apiIdempotency.organizationId, auth.organizationId)));
   }
   return apiJson(body, 200);
 }

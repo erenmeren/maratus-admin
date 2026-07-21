@@ -23,6 +23,7 @@
             "name": "Idempotency-Key",
             "in": "header",
             "required": false,
+            "description": "Optional key guarding a retried or concurrent URL change. Keys are scoped to this endpoint; reusing a key replays the prior response for the same URL-change request.",
             "schema": { "type": "string" }
           }
         ],

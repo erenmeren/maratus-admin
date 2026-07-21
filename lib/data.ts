@@ -1200,6 +1200,7 @@ export interface DeviceConfigPayload {
     settingsPasswordHash: string | null;
     settingsPasswordSalt: string | null;
   };
+  pin: { url: string } | null;
 }
 
 /**
@@ -1210,6 +1211,7 @@ export interface DeviceConfigPayload {
 export async function getDeviceConfig(
   organizationId: string,
   ifNoneMatch?: string | null,
+  pin?: { url: string | null },
 ): Promise<{ version: string; notModified: boolean; payload: DeviceConfigPayload | null }> {
   const [s] = await db
     .select()
@@ -1245,6 +1247,7 @@ export async function getDeviceConfig(
     screenSleepTimeoutSeconds: ds.screenSleepTimeoutSeconds,
     settingsPasswordHash: s?.deviceSettingsPasswordHash ?? null,
     mqttFingerprint: mqttConfigFingerprint(),
+    pinnedUrl: pin?.url ?? null,
   });
 
   if (etagMatches(ifNoneMatch, version)) {
@@ -1311,6 +1314,7 @@ export async function getDeviceConfig(
         settingsPasswordHash: s?.deviceSettingsPasswordHash ?? null,
         settingsPasswordSalt: s?.deviceSettingsPasswordSalt ?? null,
       },
+      pin: pin?.url ? { url: pin.url } : null,
     },
   };
 }

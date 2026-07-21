@@ -16,6 +16,7 @@ const base: ConfigVersionInput = {
   screenSleepTimeoutSeconds: 300,
   settingsPasswordHash: null,
   mqttFingerprint: null,
+  pinnedUrl: null,
 };
 
 describe("computeConfigVersion", () => {
@@ -38,7 +39,7 @@ describe("computeConfigVersion", () => {
       printerScreens: null, printerLayout: null, brandColor: null, brandBg: null,
       brandFg: null, brandMuted: null, qrVisibleSeconds: 60, screenBrightness: 100,
       screenSleepEnabled: false, screenSleepTimeoutSeconds: 300, settingsPasswordHash: null,
-      mqttFingerprint: null,
+      mqttFingerprint: null, pinnedUrl: null,
     };
     const a = computeConfigVersion({ ...base2, organizationName: "Acme" });
     const b = computeConfigVersion({ ...base2, organizationName: "Beta" });
@@ -64,6 +65,14 @@ describe("computeConfigVersion — mqtt transport", () => {
     const moved = computeConfigVersion({ ...base, mqttFingerprint: "other.example.com:8883" });
     expect(on).not.toBe(off); // enabling MQTT invalidates a cached config
     expect(moved).not.toBe(on); // changing brokers invalidates it too
+  });
+});
+
+describe("computeConfigVersion — pinned QR", () => {
+  it("changes the version when the pinned QR url changes", () => {
+    const unpinned = computeConfigVersion({ ...base, pinnedUrl: null });
+    const pinned = computeConfigVersion({ ...base, pinnedUrl: "https://example.com/menu" });
+    expect(pinned).not.toEqual(unpinned);
   });
 });
 

@@ -16,7 +16,11 @@ export async function GET(req: Request) {
   if (!device) return NextResponse.json({ error: "Unknown or missing device key" }, { status: 401 });
 
   const ifNoneMatch = req.headers.get("if-none-match");
-  const { version, notModified, payload } = await getDeviceConfig(device.organizationId, ifNoneMatch);
+  const { version, notModified, payload } = await getDeviceConfig(
+    device.organizationId,
+    ifNoneMatch,
+    { url: device.pinnedUrl ?? null },
+  );
 
   // Heartbeat: bump lastSeenAt + mark online (unless paused).
   const now = new Date();

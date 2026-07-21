@@ -19,7 +19,7 @@ export const STARTER_CREDITS = 50;
 type LedgerRow = {
   organizationId: string;
   deviceId?: string | null;
-  kind: "grant" | "purchase" | "hold" | "settle" | "release";
+  kind: "grant" | "purchase" | "hold" | "settle" | "release" | "spend";
   credits: number;
   action?: string | null;
   commandId?: string | null;
@@ -141,6 +141,44 @@ export async function releaseHold(a: {
     commandId: a.commandId,
     balanceAfterAvailable: updated.available,
   });
+}
+
+/** Atomically spend `cost` straight from `available` (no hold) iff
+ *  available >= cost. Used for pinned-QR changes: the pin is durable state
+ *  that cannot "fail to display", so there is nothing to settle or refund
+ *  later — reserve→settle→release would only add an inconsistent hold-expiry
+ *  path for offline devices. */
+export async function spendCredit(a: {
+  organizationId: string;
+  deviceId: string;
+  action: string;
+  cost: number;
+  createdByUserId?: string | null;
+}): Promise<{ ok: true; availableAfter: number } | { ok: false; reason: "insufficient" }> {
+  const [updated] = await db
+    .update(creditBalance)
+    .set({
+      available: sql`${creditBalance.available} - ${a.cost}`,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(creditBalance.organizationId, a.organizationId),
+        gte(creditBalance.available, a.cost),
+      ),
+    )
+    .returning({ available: creditBalance.available });
+  if (!updated) return { ok: false, reason: "insufficient" };
+  await ledger({
+    organizationId: a.organizationId,
+    deviceId: a.deviceId,
+    kind: "spend",
+    credits: a.cost,
+    action: a.action,
+    balanceAfterAvailable: updated.available,
+    createdByUserId: a.createdByUserId ?? null,
+  });
+  return { ok: true, availableAfter: updated.available };
 }
 
 /** Add credits. The ledger row (unique on kind+idempotencyKey where the key is

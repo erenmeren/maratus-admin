@@ -75,6 +75,7 @@ export function rollupCredits(
         acc.lifetimePurchased += row.credits;
         break;
       case "settle":
+      case "spend":
         consumed += row.credits;
         if (row.createdAt >= monthStart) {
           acc.consumedThisMonth += row.credits;

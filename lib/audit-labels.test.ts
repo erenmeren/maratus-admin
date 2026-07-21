@@ -8,6 +8,8 @@ describe("actionLabel", () => {
     expect(actionLabel("invoice.sent")).toBe("Invoice sent");
     expect(actionLabel("credits.purchased")).toBe("Credits purchased");
     expect(actionLabel("invoice.payment_failed")).toBe("Payment failed");
+    expect(actionLabel("device.pin_set")).toBe("Pinned QR set");
+    expect(actionLabel("device.pin_cleared")).toBe("Pinned QR removed");
   });
   it("falls back to humanizeAction for an unmapped action", () => {
     expect(actionLabel("foo.bar_baz")).toBe("Foo: Bar baz");

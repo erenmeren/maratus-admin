@@ -6,6 +6,7 @@
 import { useEffect, useState, useTransition } from "react";
 import { Pin, PinOff } from "lucide-react";
 import QRCode from "qrcode";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -35,7 +36,6 @@ export function DevicePinControl(props: {
   const [qr, setQr] = useState<{ url: string; dataUrl: string } | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draftUrl, setDraftUrl] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -55,29 +55,32 @@ export function DevicePinControl(props: {
   const willCharge = draftUrl.trim() !== (pinnedUrl ?? "");
 
   function submit() {
-    setError(null);
+    // Capture before dispatch: resubmitting the identical URL is a free
+    // no-op server-side (pinnedAt untouched), so don't bump "Pinned …" then.
+    const isRealChange = draftUrl.trim() !== (pinnedUrl ?? "");
     startTransition(async () => {
       const res = await setDevicePinAction(props.deviceId, draftUrl.trim());
       if (!res.ok) {
-        setError(res.error ?? "Something went wrong.");
+        toast.error("Couldn't update pinned QR", { description: res.error });
         return;
       }
       setPinnedUrl(res.pinnedUrl ?? null);
-      setPinnedAt(new Date().toISOString());
+      if (isRealChange) setPinnedAt(new Date().toISOString());
       setDialogOpen(false);
+      toast.success("Pinned QR updated");
     });
   }
 
   function remove() {
-    setError(null);
     startTransition(async () => {
       const res = await clearDevicePinAction(props.deviceId);
       if (!res.ok) {
-        setError(res.error ?? "Something went wrong.");
+        toast.error("Couldn't remove pinned QR", { description: res.error });
         return;
       }
       setPinnedUrl(null);
       setPinnedAt(null);
+      toast.success("Pinned QR removed");
     });
   }
 
@@ -109,7 +112,6 @@ export function DevicePinControl(props: {
             No pinned QR. The device shows its idle screen when not triggered.
           </p>
         )}
-        {error && <p className="text-xs text-destructive">{error}</p>}
         {props.canManage && (
           <div className="flex gap-2">
             <Dialog

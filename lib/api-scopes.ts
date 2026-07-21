@@ -1,4 +1,4 @@
-export const API_SCOPES = ["usage:read", "devices:trigger"] as const;
+export const API_SCOPES = ["usage:read", "devices:trigger", "devices:pin"] as const;
 export type ApiScope = (typeof API_SCOPES)[number];
 export const DEFAULT_KEY_SCOPES: ApiScope[] = ["usage:read"];
 

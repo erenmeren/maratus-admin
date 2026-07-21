@@ -5,7 +5,7 @@
 export interface CreditLedgerRow {
   orgId: string;
   name: string;
-  kind: "grant" | "purchase" | "hold" | "settle" | "release";
+  kind: "grant" | "purchase" | "hold" | "settle" | "release" | "spend";
   credits: number;
   createdAt: Date;
 }

@@ -7,7 +7,7 @@ describe("openapi.json", () => {
   });
   it("declares exactly the implemented paths", () => {
     expect(Object.keys((openapi as { paths: Record<string, unknown> }).paths).sort()).toEqual(
-      ["/devices/{deviceId}/trigger", "/usage"],
+      ["/devices/{deviceId}/pin", "/devices/{deviceId}/trigger", "/usage"],
     );
   });
   it("documents the trigger endpoint as a POST with a required JSON body", () => {

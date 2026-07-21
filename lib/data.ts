@@ -10,7 +10,7 @@
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
 //   • activationsToday / activationsThisMonth are derived from acked device-trigger commands
 
-import { and, asc, count, desc, eq, gte, isNotNull, lt, max, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, lt, max, ne, sql } from "drizzle-orm";
 import { db } from "./db";
 import { id as genId } from "@/lib/ids";
 import {
@@ -305,6 +305,8 @@ function mapDevice(
     activationsToday: todayBy.get(d.id) ?? 0,
     activationsThisMonth: monthBy.get(d.id) ?? 0,
     claimed: d.claimedAt !== null,
+    pinnedUrl: d.pinnedUrl,
+    pinnedAt: d.pinnedAt ? d.pinnedAt.toISOString() : null,
   };
 }
 
@@ -1848,7 +1850,7 @@ export async function getApiUsage(organizationId: string): Promise<ApiUsageData>
       .from(creditLedgerTable)
       .where(and(
         eq(creditLedgerTable.organizationId, organizationId),
-        eq(creditLedgerTable.kind, "settle"),
+        inArray(creditLedgerTable.kind, ["settle", "spend"]),
         gte(creditLedgerTable.createdAt, monthStart),
       )),
     db
@@ -1895,7 +1897,7 @@ export async function getCreditUsageByDevice(organizationId: string, since: Date
     .where(
       and(
         eq(creditLedgerTable.organizationId, organizationId),
-        eq(creditLedgerTable.kind, "settle"),
+        inArray(creditLedgerTable.kind, ["settle", "spend"]),
         gte(creditLedgerTable.createdAt, since),
       ),
     );
@@ -1913,7 +1915,7 @@ export async function getCreditUsageAllOrgs(since: Date) {
     })
     .from(creditLedgerTable)
     .leftJoin(orgTable, eq(orgTable.id, creditLedgerTable.organizationId))
-    .where(and(eq(creditLedgerTable.kind, "settle"), gte(creditLedgerTable.createdAt, since)))
+    .where(and(inArray(creditLedgerTable.kind, ["settle", "spend"]), gte(creditLedgerTable.createdAt, since)))
     .groupBy(creditLedgerTable.organizationId, orgTable.name)
     .orderBy(desc(sql`sum(${creditLedgerTable.credits})`));
 }

@@ -554,6 +554,7 @@ export interface DeviceListRow {
   storeName: string | null;
   status: DeviceStatus;
   lastSeen: string;
+  pinnedUrl: string | null;
 }
 
 export interface DeviceListPage {
@@ -578,7 +579,7 @@ export async function getTenantDevicesPage(
   const [pageRes, countRes] = await Promise.all([
     db.execute(sql`
       select d.id, d.name, d.serial, d.store_id, s.name as store_name, d.status,
-             coalesce(d.last_seen_at, d.created_at) as last_seen
+             coalesce(d.last_seen_at, d.created_at) as last_seen, d.pinned_url
       from device d
       left join store s on s.id = d.store_id
       where d.organization_id = ${organizationId}
@@ -605,6 +606,7 @@ export async function getTenantDevicesPage(
   type Row = {
     id: string; name: string; serial: string | null; store_id: string | null;
     store_name: string | null; status: string; last_seen: string | Date;
+    pinned_url: string | null;
   };
   const rows = (pageRes.rows as Row[]).map((r) => ({
     id: r.id,
@@ -614,6 +616,7 @@ export async function getTenantDevicesPage(
     storeName: r.store_name,
     status: r.status as DeviceStatus,
     lastSeen: new Date(r.last_seen).toISOString(),
+    pinnedUrl: r.pinned_url,
   }));
   const c = countRes.rows[0] as {
     all_count: number; online: number; offline: number; paused: number; pool: number;

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Cable, Cpu, Globe, HardDrive, FileText, Wifi, Tag } from "lucide-react";
+import { Cable, Cpu, Globe, HardDrive, FileText, Pin, Wifi, Tag } from "lucide-react";
 import { desc, eq } from "drizzle-orm";
 import { PageHeader } from "@/components/page-header";
 import { SectionHeader } from "@/components/section-header";
@@ -69,6 +69,7 @@ export default async function AdminDeviceDetailPage({
       mono: true,
     },
     { icon: Tag, label: "Serial", value: serialInfo?.serial ?? "—", mono: true },
+    { icon: Pin, label: "Pinned QR", value: device.pinnedUrl ?? "—", mono: true },
   ];
 
   return (

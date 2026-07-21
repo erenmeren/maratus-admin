@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { DevicePauseControl } from "@/components/device-pause-control";
 import { DeviceMoveControl } from "@/components/device-move-control";
+import { DevicePinControl } from "@/components/device-pin-control";
 import { Card, CardContent, CardHeader, CardTitle,  } from "@/components/ui/card";
 import { CommandBar } from "@/components/devices/command-bar";
 import { getDevice, getDeviceCommands, getTenantStores } from "@/lib/data";
@@ -13,6 +14,7 @@ import { db } from "@/lib/db";
 import { firmwareRelease } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
 import { canManageTenant } from "@/lib/roles";
+import { getBalance } from "@/lib/credits";
 import { formatNumber, timeAgo } from "@/lib/format";
 
 export default async function DeviceDetailPage({
@@ -28,6 +30,7 @@ export default async function DeviceDetailPage({
 
   const { device, store } = result;
   const commands = await getDeviceCommands(device.id);
+  const balance = await getBalance(organizationId);
 
   const membership = ctx.organizations.find((o) => o.id === organizationId);
   const canManage = canManageTenant(membership?.role);
@@ -132,6 +135,13 @@ export default async function DeviceDetailPage({
               />
             )}
           </div>
+          <DevicePinControl
+            deviceId={device.id}
+            initialPinnedUrl={device.pinnedUrl}
+            initialPinnedAt={device.pinnedAt}
+            creditsAvailable={balance.available}
+            canManage={canManage}
+          />
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Connectivity</CardTitle>

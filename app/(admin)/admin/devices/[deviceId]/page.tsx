@@ -76,7 +76,7 @@ export default async function AdminDeviceDetailPage({
     <>
       <PageHeader
         title={device.name}
-        description={`Printer at ${store.name}`}
+        description={`Screen at ${store.name}`}
         backHref="/admin/devices"
         backLabel="Device Fleet"
       />

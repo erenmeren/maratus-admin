@@ -41,7 +41,7 @@ export default async function TenantDashboardPage() {
         <KpiCard
           label="Active devices"
           value={`${dash.activeDevices}/${dash.totalDevices}`}
-          hint="printers online now"
+          hint="screens online now"
           icon={Cpu}
         />
       </div>

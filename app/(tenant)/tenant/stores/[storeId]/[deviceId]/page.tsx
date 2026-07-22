@@ -99,7 +99,7 @@ export default async function DeviceDetailPage({
         {store.name}
       </Link>
 
-      <PageHeader title={device.name} description={`Printer in ${store.name}`} />
+      <PageHeader title={device.name} description={`Screen in ${store.name}`} />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">

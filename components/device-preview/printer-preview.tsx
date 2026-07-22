@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
-import { FauxQR } from "./qr-code";
+import { QrSvg } from "@/components/qr-svg";
 import { PrinterClock } from "./printer-clock";
 import { resolveBrandTokens, withAlpha } from "@/lib/color";
 import {
@@ -270,9 +270,13 @@ function ImageObject({ object }: { object: PrinterObject }) {
   );
 }
 
+// Illustrative-only value for editor/studio previews — no real device trigger
+// URL is available in this context, so the QR just needs to look right.
+const PREVIEW_QR_VALUE = "https://ditto.app";
+
 /**
  * QrObject — lifted from the QR screen's QR card and the SetupScreen's compact
- * QR. Renders a faux QR inside a white card at size-full.
+ * QR. Renders a styled QR (rounded dot modules) inside a white card at size-full.
  */
 function QrObject({ object }: { object: PrinterObject }) {
   const compact = object.w < 0.25;
@@ -295,7 +299,10 @@ function QrObject({ object }: { object: PrinterObject }) {
             }
       }
     >
-      <FauxQR seed={11} style={{ width: "100%", height: "100%", color: "#0b0b0c", display: "block" }} />
+      <QrSvg
+        value={PREVIEW_QR_VALUE}
+        style={{ width: "100%", height: "100%", color: "#0b0b0c", display: "block" }}
+      />
     </div>
   );
 }

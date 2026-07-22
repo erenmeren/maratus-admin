@@ -50,7 +50,7 @@ export default async function FleetPage({
     <>
       <PageHeader
         title="Device Fleet"
-        description={`${formatNumber(counts.all)} printers · ${formatNumber(counts.online)} online across every customer`}
+        description={`${formatNumber(counts.all)} screens · ${formatNumber(counts.online)} online across every customer`}
       />
 
       <ListControls

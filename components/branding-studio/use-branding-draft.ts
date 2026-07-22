@@ -37,6 +37,7 @@ export const SCREENS: { value: PrinterScreen; label: string }[] = [
   { value: "error", label: "Error / offline" },
   { value: "paused", label: "Paused" },
   { value: "setup", label: "Setup / pairing" },
+  { value: "pinned", label: "Pinned" },
 ];
 
 export interface BrandingDraft {

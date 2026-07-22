@@ -46,7 +46,7 @@ export function AddStoreDialog() {
     }
     setOpen(false);
     toast.success("Store added", {
-      description: `${fd.get("name")} is ready for printers.`,
+      description: `${fd.get("name")} is ready for screens.`,
     });
     router.refresh();
   }

@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/select";
 import { assignDeviceToStore } from "@/lib/actions/devices";
 
-/** Tenant-side "move this printer to another branch" (owner/admin; server re-checks). */
+/** Tenant-side "move this screen to another branch" (owner/admin; server re-checks). */
 export function DeviceMoveControl({
   deviceId,
   deviceName,

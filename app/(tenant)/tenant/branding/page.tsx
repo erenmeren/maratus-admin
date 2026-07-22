@@ -18,7 +18,7 @@ export default async function BrandingPage() {
     <>
       <PageHeader
         title="Branding"
-        description="Customize how your printers look to customers. Changes preview live."
+        description="Customize how your screens look to customers. Changes preview live."
       />
       <BrandingStudio
         initialColor={branding.brandColor}

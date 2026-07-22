@@ -140,6 +140,28 @@ describe("seededScreen", () => {
   });
 });
 
+// ─── "pinned" screen (2026-07-22) ────────────────────────────────────────────
+
+describe("pinned screen", () => {
+  it("is included in PRINTER_SCREENS", () => {
+    expect(PRINTER_SCREENS).toContain("pinned");
+  });
+
+  it("seeds a qr object and a 'Scan to continue' heading, with no countdown", () => {
+    const { objects } = seededScreen("pinned");
+    expect(objects.some((o) => o.type === "qr")).toBe(true);
+    expect(objects.some((o) => o.type === "countdown")).toBe(false);
+    const heading = objects.find((o) => o.id === "text-heading");
+    expect(heading?.text).toBe("Scan to continue");
+  });
+
+  it("otherwise matches the qr screen's seed (minus the countdown object)", () => {
+    const qr = seededScreen("qr").objects.filter((o) => o.type !== "countdown");
+    const pinned = seededScreen("pinned").objects;
+    expect(pinned).toEqual(qr);
+  });
+});
+
 // ─── Task 2: v2→v3 migration + normalizePrinterConfig ──────────────────────────
 
 import {
@@ -233,6 +255,18 @@ describe("normalizePrinterConfig", () => {
       screens: { idle: { objects: [] } }, // others absent
     });
     expect(cfg.screens.sent.objects.length).toBeGreaterThan(0);
+  });
+
+  it("seeds a pinned screen for a legacy v3 config that predates it", () => {
+    // A stored config from before the "pinned" screen existed — screens.pinned
+    // is simply absent from the persisted JSON.
+    const cfg = normalizePrinterConfig({
+      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3,
+      screens: { idle: { objects: [] }, qr: { objects: [] } }, // no "pinned" key at all
+    });
+    expect(cfg.screens.pinned.objects.length).toBeGreaterThan(0);
+    expect(cfg.screens.pinned.objects.some((o) => o.type === "qr")).toBe(true);
+    expect(cfg.screens.pinned.objects.some((o) => o.type === "countdown")).toBe(false);
   });
 
   it("caps addable (text+image) objects per screen at MAX_CUSTOM", () => {

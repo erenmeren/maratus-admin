@@ -3,10 +3,10 @@
 // Pinned-QR card for the tenant device detail page. Members see read-only
 // state; owners/admins can set/change (1 credit) or remove (free) the pin.
 
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Pin, PinOff } from "lucide-react";
-import QRCode from "qrcode";
 import { toast } from "sonner";
+import { QrSvg } from "@/components/qr-svg";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -31,25 +31,9 @@ export function DevicePinControl(props: {
 }) {
   const [pinnedUrl, setPinnedUrl] = useState(props.initialPinnedUrl);
   const [pinnedAt, setPinnedAt] = useState(props.initialPinnedAt);
-  // Tracks which URL the cached data-URL was rendered for, so a stale QR
-  // never flashes for a different (or removed) pinned URL.
-  const [qr, setQr] = useState<{ url: string; dataUrl: string } | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draftUrl, setDraftUrl] = useState("");
   const [pending, startTransition] = useTransition();
-
-  useEffect(() => {
-    if (!pinnedUrl) return;
-    let cancelled = false;
-    QRCode.toDataURL(pinnedUrl, { margin: 1, width: 192 }).then((dataUrl) => {
-      if (!cancelled) setQr({ url: pinnedUrl, dataUrl });
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [pinnedUrl]);
-
-  const qrDataUrl = qr && qr.url === pinnedUrl ? qr.dataUrl : null;
 
   const isChange = pinnedUrl !== null;
   const willCharge = draftUrl.trim() !== (pinnedUrl ?? "");
@@ -94,14 +78,12 @@ export function DevicePinControl(props: {
       <CardContent className="space-y-3 text-sm">
         {pinnedUrl ? (
           <>
-            {qrDataUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={qrDataUrl}
-                alt="Pinned QR preview"
-                className="mx-auto size-32 rounded-lg border bg-white p-1.5"
-              />
-            )}
+            <QrSvg
+              value={pinnedUrl}
+              className="mx-auto block size-32 rounded-lg border bg-white p-1.5"
+              style={{ color: "#0b0b0c" }}
+              ariaLabel="Pinned QR preview"
+            />
             <p className="break-all font-mono text-xs text-muted-foreground">{pinnedUrl}</p>
             {pinnedAt && (
               <p className="text-xs text-muted-foreground">Pinned {timeAgo(pinnedAt)}</p>

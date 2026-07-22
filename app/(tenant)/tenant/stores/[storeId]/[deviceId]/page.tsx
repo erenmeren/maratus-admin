@@ -219,10 +219,6 @@ export default async function DeviceDetailPage({
                 <span className="text-muted-foreground">Store</span>
                 <span className="font-medium">{store.name}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Firmware</span>
-                <span className="font-mono">v{device.firmwareVersion}</span>
-              </div>
             </CardContent>
           </Card>
         </div>

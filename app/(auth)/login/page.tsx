@@ -66,7 +66,7 @@ function LoginForm() {
                 Welcome back
               </h1>
               <p className="text-sm text-muted-foreground">
-                Sign in to manage your printers, stores, and triggered content.
+                Sign in to manage your screens, stores, and triggered content.
               </p>
             </div>
 
@@ -219,7 +219,7 @@ function LoginForm() {
               {[
                 { k: "1.2M", v: "activations delivered" },
                 { k: "4.5M", v: "customer scans" },
-                { k: "240+", v: "printers online" },
+                { k: "240+", v: "screens online" },
               ].map((s) => (
                 <div key={s.v}>
                   <p className="font-display text-2xl font-bold">{s.k}</p>

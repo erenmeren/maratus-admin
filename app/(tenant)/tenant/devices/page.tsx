@@ -46,7 +46,7 @@ export default async function DevicesPage({
     <>
       <PageHeader
         title="Devices"
-        description={`${formatNumber(counts.all)} printers · ${formatNumber(counts.online)} online`}
+        description={`${formatNumber(counts.all)} screens · ${formatNumber(counts.online)} online`}
       />
 
       <ListControls initialQ={q} placeholder="Search by device, serial or store…" tabs={tabs} />

@@ -47,7 +47,7 @@ export default async function AdminOverviewPage() {
         <KpiCard
           label="Active devices"
           value={`${o.activeDevices}/${o.totalDevices}`}
-          hint="printers online"
+          hint="screens online"
           icon={Cpu}
         />
         <KpiCard

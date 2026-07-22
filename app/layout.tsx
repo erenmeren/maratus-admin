@@ -22,7 +22,7 @@ const mono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Ditto — Admin Console",
   description:
-    "Ditto admin console: manage printers, stores, and triggered content.",
+    "Ditto admin console: manage screens, stores, and triggered content.",
 };
 
 export default function RootLayout({

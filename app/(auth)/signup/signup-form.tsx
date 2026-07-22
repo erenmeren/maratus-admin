@@ -151,7 +151,7 @@ export function SignupForm() {
               Every screen, one trigger away.
             </h2>
             <p className="max-w-md text-primary-foreground/80">
-              Set up your stores, pair your printers, and start showing content
+              Set up your stores, pair your screens, and start showing content
               your customers can scan on the spot.
             </p>
             <div className="grid grid-cols-3 gap-4 pt-2">

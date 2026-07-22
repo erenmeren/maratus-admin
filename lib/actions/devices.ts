@@ -202,7 +202,7 @@ export async function reassignDevice(
 }
 
 /**
- * Permanently delete a device (platform-admin). Its document history is removed
+ * Permanently delete a device (platform-admin). Its command history is removed
  * too (FK cascade), so this is destructive — the UI confirms first.
  */
 export async function deleteDevice(deviceId: string): Promise<ActionResult> {

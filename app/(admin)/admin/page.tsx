@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowUpRight, Cpu, FileText, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
-import { DocumentsAreaChart } from "@/components/charts";
+import { ActivationsAreaChart } from "@/components/charts";
 import { TenantStatusBadge } from "@/components/tenant-status-badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -64,7 +64,7 @@ export default async function AdminOverviewPage() {
           <CardDescription>Monthly activations, all customers</CardDescription>
         </CardHeader>
         <CardContent>
-          <DocumentsAreaChart data={o.monthly} />
+          <ActivationsAreaChart data={o.monthly} />
         </CardContent>
       </Card>
 

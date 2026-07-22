@@ -22,7 +22,7 @@ describe("computeAlerts", () => {
   it("no alerts when everything is clear", () => {
     expect(computeAlerts({ staleCount: 0, stuckPendingCount: 0, inactiveTenants: [] })).toEqual([]);
   });
-  it("warns on stale devices and stuck documents", () => {
+  it("warns on stale devices and stuck triggers", () => {
     const a = computeAlerts({ staleCount: 3, stuckPendingCount: 2, inactiveTenants: [] });
     expect(a.map((x) => x.key)).toEqual(["devices-stale", "documents-stuck"]);
     expect(a.every((x) => x.severity === "warning")).toBe(true);

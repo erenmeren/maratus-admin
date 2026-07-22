@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle,  } from "@/c
 import { getStoreAnalytics, getUnclaimedDevices } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
 import { canManageTenant } from "@/lib/roles";
-import { DocumentsAreaChart } from "@/components/charts";
+import { ActivationsAreaChart } from "@/components/charts";
 import { StoreEditButton } from "@/components/store-edit-button";
 import { StoreDeleteButton } from "@/components/store-delete-button";
 import { getArmedAllocationCountByStore } from "@/lib/data";
@@ -102,7 +102,7 @@ export default async function StoreDetailPage({
           <CardDescription>Daily activations, last 30 days</CardDescription>
         </CardHeader>
         <CardContent>
-          <DocumentsAreaChart data={analytics.daily} height={260} />
+          <ActivationsAreaChart data={analytics.daily} height={260} />
         </CardContent>
       </Card>
 

@@ -23,7 +23,7 @@ describe("tenantHealthLevel", () => {
   it("warning when some (but not all) devices are offline", () => {
     expect(tenantHealthLevel({ ...base, onlineCount: 2, offlineCount: 1 }, now)).toBe("warning");
   });
-  it("warning on stuck-pending documents", () => {
+  it("warning on stuck-pending triggers", () => {
     expect(tenantHealthLevel({ ...base, stuckPendingCount: 2 }, now)).toBe("warning");
   });
   it("warning when inactive beyond INACTIVE_DAYS", () => {

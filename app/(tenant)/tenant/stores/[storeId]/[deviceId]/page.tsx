@@ -120,20 +120,20 @@ export default async function DeviceDetailPage({
             <CardHeader>
               <CardTitle className="text-base">Device details</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-px overflow-hidden rounded-xl border sm:grid-cols-2">
+            <CardContent className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
               {specs.map((s) => (
                 <div
                   key={s.label}
-                  className="flex items-center gap-3 bg-card p-4"
+                  className="flex items-center gap-3"
                 >
-                  <span className="flex size-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
                     <s.icon className="size-4" />
                   </span>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">{s.label}</p>
                     <p
                       className={
-                        s.mono ? "font-mono text-sm" : "text-sm font-medium"
+                        s.mono ? "truncate font-mono text-sm" : "text-sm font-medium"
                       }
                     >
                       {s.value}

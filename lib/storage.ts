@@ -1,8 +1,8 @@
 // Cloudflare R2 (S3-compatible) object storage.
 //
 // Objects are PRIVATE — the bucket is never public. Access is granted only via
-// short-lived presigned GET URLs minted on demand server-side. Used for both
-// rendered documents and tenant logo assets.
+// short-lived presigned GET URLs minted on demand server-side. Used for tenant
+// branding assets and firmware binaries.
 
 import {
   DeleteObjectCommand,

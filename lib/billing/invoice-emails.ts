@@ -29,7 +29,7 @@ export function emailLayout(bodyHtml: string): string {
     `<div style="font-weight:700;font-size:18px;margin-bottom:20px">${BRAND}</div>` +
     bodyHtml +
     `<hr style="border:none;border-top:1px solid #eee;margin:28px 0"/>` +
-    `<p style="color:#888;font-size:12px">${BRAND} — paperless documents. Manage billing in your dashboard.</p>` +
+    `<p style="color:#888;font-size:12px">${BRAND} — connected screens. Manage billing in your dashboard.</p>` +
     `</div>`
   );
 }

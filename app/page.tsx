@@ -14,12 +14,12 @@ export default async function Home() {
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 bg-background px-6 text-center">
       <div className="flex flex-col items-center gap-4">
         <h1 className="max-w-2xl text-4xl font-semibold tracking-tight text-foreground sm:text-5xl">
-          Paper documents, gone.
+          Any content, one scan away.
         </h1>
         <p className="max-w-md text-lg text-muted-foreground">
-          Ditto turns every checkout into a QR code your customers scan for an
-          instant digital document. Manage your stores, devices, and billing from
-          one console.
+          Trigger a Ditto screen from your own systems and a QR appears — menus,
+          campaigns, receipts, anything you host. Manage your stores, devices,
+          and billing from one console.
         </p>
       </div>
       <div className="flex flex-col gap-3 sm:flex-row">

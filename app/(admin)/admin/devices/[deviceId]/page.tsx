@@ -92,10 +92,10 @@ export default async function AdminDeviceDetailPage({
             <CardHeader>
               <CardTitle className="text-base">Device details</CardTitle>
             </CardHeader>
-            <CardContent className="grid gap-px overflow-hidden rounded-xl border sm:grid-cols-2">
+            <CardContent className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
               {specs.map((s) => (
-                <div key={s.label} className="flex items-center gap-3 bg-card p-4">
-                  <span className="flex size-9 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+                <div key={s.label} className="flex items-center gap-3">
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
                     <s.icon className="size-4" />
                   </span>
                   <div>

@@ -117,6 +117,25 @@ export default async function DeviceDetailPage({
               ))}
             </CardContent>
           </Card>
+
+          <section className="flex flex-col gap-3">
+            <h2 className="text-lg font-medium">Remote control</h2>
+            <CommandBar deviceId={device.id} canManage={canManage} />
+            {commands.length > 0 && (
+              <table className="w-full text-sm">
+                <thead><tr className="text-left text-muted-foreground"><th className="py-2">Command</th><th>Status</th><th>Queued</th></tr></thead>
+                <tbody>
+                  {commands.map((c) => (
+                    <tr key={c.id} className="border-t">
+                      <td className="py-2">{c.type}</td>
+                      <td>{c.status}</td>
+                      <td>{c.createdAt.slice(0, 19).replace("T", " ")}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </section>
         </div>
 
         <div className="space-y-4">
@@ -163,25 +182,6 @@ export default async function DeviceDetailPage({
           </Card>
         </div>
       </div>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Remote control</h2>
-        <CommandBar deviceId={device.id} canManage={canManage} />
-        {commands.length > 0 && (
-          <table className="w-full text-sm">
-            <thead><tr className="text-left text-muted-foreground"><th className="py-2">Command</th><th>Status</th><th>Queued</th></tr></thead>
-            <tbody>
-              {commands.map((c) => (
-                <tr key={c.id} className="border-t">
-                  <td className="py-2">{c.type}</td>
-                  <td>{c.status}</td>
-                  <td>{c.createdAt.slice(0, 19).replace("T", " ")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
     </>
   );
 }

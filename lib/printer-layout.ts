@@ -7,7 +7,10 @@
 import { isValidTimezone } from "./timezones";
 import { MIN_BOX } from "./printer-geometry";
 
-export const PRINTER_SCREENS = ["idle", "processing", "qr", "sent", "error", "paused", "setup"] as const;
+// "pinned" appended LAST (2026-07-22) — every existing use of PRINTER_SCREENS
+// iterates with for-of (verified: no index-based access), so appending at the
+// end can't disturb any positional assumption.
+export const PRINTER_SCREENS = ["idle", "processing", "qr", "sent", "error", "paused", "setup", "pinned"] as const;
 export type PrinterScreen = (typeof PRINTER_SCREENS)[number];
 
 export const OBJECT_TYPES = [
@@ -279,6 +282,10 @@ export function seededScreen(screen: PrinterScreen): ScreenLayout {
           obj({ id: "text-sub", type: "text", x: 0.15, y: 0.56, w: 0.7, h: 0.06, z: 2, text: "This screen is paused right now.", fontSize: 16, align: "center" }),
         ],
       };
+    case "pinned":
+      // The QR seed minus its countdown — a pinned URL has no expiry, so there's
+      // nothing to count down to. Same heading/hint copy as the qr screen.
+      return { objects: seededScreen("qr").objects.filter((o) => o.type !== "countdown") };
     case "setup":
       // From SetupScreen (printer-preview.tsx): heading + steps + pairingCode + qr.
       return {

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { desc } from "drizzle-orm";
-import { ArrowLeft, Cable, Cpu, Globe, HardDrive, FileText, Wifi,  } from "lucide-react";
+import { ArrowLeft, Cable, Cpu, Globe, HardDrive, QrCode, Wifi } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { DevicePauseControl } from "@/components/device-pause-control";
@@ -17,6 +17,32 @@ import { canManageTenant } from "@/lib/roles";
 import { getBalance } from "@/lib/credits";
 import { formatNumber, timeAgo } from "@/lib/format";
 
+// Friendly names for the raw deviceCommand type/status values shown in the
+// command-history table (raw values pass through for anything unmapped).
+const COMMAND_LABELS: Record<string, string> = {
+  trigger: "Trigger",
+  reboot: "Reboot",
+  refresh: "Refresh config",
+  identify: "Identify",
+  "config-changed": "Config sync",
+  "firmware-update": "Firmware update",
+  pin: "Pinned QR update",
+};
+const STATUS_LABELS: Record<string, string> = {
+  pending: "Queued",
+  delivered: "Delivered",
+  acked: "Completed",
+  failed: "Failed",
+  expired: "Expired",
+};
+const STATUS_DOTS: Record<string, string> = {
+  pending: "bg-amber-500",
+  delivered: "bg-sky-500",
+  acked: "bg-emerald-500",
+  failed: "bg-red-500",
+  expired: "bg-muted-foreground/40",
+};
+
 export default async function DeviceDetailPage({
   params,
 }: {
@@ -29,7 +55,7 @@ export default async function DeviceDetailPage({
   if (result.store.id !== storeId) notFound();
 
   const { device, store } = result;
-  const commands = await getDeviceCommands(device.id);
+  const commands = await getDeviceCommands(device.id, 8);
   const balance = await getBalance(organizationId);
 
   const membership = ctx.organizations.find((o) => o.id === organizationId);
@@ -81,12 +107,12 @@ export default async function DeviceDetailPage({
             <KpiCard
               label="Activations today"
               value={formatNumber(device.activationsToday)}
-              icon={FileText}
+              icon={QrCode}
             />
             <KpiCard
               label="Activations this month"
               value={formatNumber(device.activationsThisMonth)}
-              icon={FileText}
+              icon={QrCode}
             />
           </div>
 
@@ -117,6 +143,44 @@ export default async function DeviceDetailPage({
               ))}
             </CardContent>
           </Card>
+
+          <section className="flex flex-col gap-3">
+            <h2 className="text-lg font-medium">Remote control</h2>
+            <CommandBar deviceId={device.id} canManage={canManage} />
+            {commands.length > 0 && (
+              <div className="overflow-hidden rounded-xl border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-muted/40 text-left text-xs text-muted-foreground">
+                      <th className="px-4 py-2.5 font-medium">Command</th>
+                      <th className="px-4 py-2.5 font-medium">Status</th>
+                      <th className="px-4 py-2.5 text-right font-medium">Queued</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y">
+                    {commands.map((c) => (
+                      <tr key={c.id}>
+                        <td className="px-4 py-2.5 font-medium">
+                          {COMMAND_LABELS[c.type] ?? c.type}
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className="inline-flex items-center gap-1.5">
+                            <span
+                              className={`size-1.5 rounded-full ${STATUS_DOTS[c.status] ?? "bg-muted-foreground/40"}`}
+                            />
+                            {STATUS_LABELS[c.status] ?? c.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums">
+                          {timeAgo(c.createdAt)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
         </div>
 
         <div className="space-y-4">
@@ -155,33 +219,10 @@ export default async function DeviceDetailPage({
                 <span className="text-muted-foreground">Store</span>
                 <span className="font-medium">{store.name}</span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Firmware</span>
-                <span className="font-mono">v{device.firmwareVersion}</span>
-              </div>
             </CardContent>
           </Card>
         </div>
       </div>
-
-      <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Remote control</h2>
-        <CommandBar deviceId={device.id} canManage={canManage} />
-        {commands.length > 0 && (
-          <table className="w-full text-sm">
-            <thead><tr className="text-left text-muted-foreground"><th className="py-2">Command</th><th>Status</th><th>Queued</th></tr></thead>
-            <tbody>
-              {commands.map((c) => (
-                <tr key={c.id} className="border-t">
-                  <td className="py-2">{c.type}</td>
-                  <td>{c.status}</td>
-                  <td>{c.createdAt.slice(0, 19).replace("T", " ")}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
     </>
   );
 }

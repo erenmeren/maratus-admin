@@ -1,7 +1,7 @@
 import { CalendarDays, Cpu, FileText } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
-import { DocumentsAreaChart } from "@/components/charts";
+import { ActivationsAreaChart } from "@/components/charts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTenantDashboard } from "@/lib/data";
 import { requireTenant } from "@/lib/session";
@@ -52,7 +52,7 @@ export default async function TenantDashboardPage() {
           <CardDescription>Daily activations, last 30 days</CardDescription>
         </CardHeader>
         <CardContent>
-          <DocumentsAreaChart data={dash.daily} />
+          <ActivationsAreaChart data={dash.daily} />
         </CardContent>
       </Card>
     </>

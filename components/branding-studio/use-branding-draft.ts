@@ -32,7 +32,7 @@ export interface BrandingVariantProps {
 export const SCREENS: { value: PrinterScreen; label: string }[] = [
   { value: "idle", label: "Idle / ready" },
   { value: "processing", label: "Processing" },
-  { value: "qr", label: "Document ready" },
+  { value: "qr", label: "QR ready" },
   { value: "sent", label: "Sent ✓" },
   { value: "error", label: "Error / offline" },
   { value: "paused", label: "Paused" },

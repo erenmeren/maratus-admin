@@ -271,7 +271,7 @@ function ImageObject({ object }: { object: PrinterObject }) {
 }
 
 /**
- * QrObject — lifted from DocumentScreen's QR card and the SetupScreen's compact
+ * QrObject — lifted from the QR screen's QR card and the SetupScreen's compact
  * QR. Renders a faux QR inside a white card at size-full.
  */
 function QrObject({ object }: { object: PrinterObject }) {
@@ -317,7 +317,7 @@ function SpinnerObject({ object: _object }: { object: PrinterObject }) {
 }
 
 /**
- * CountdownObject — lifted from DocumentScreen's "Code expires" progress bar.
+ * CountdownObject — lifted from the QR screen's "Code expires" progress bar.
  * Preview values (remain/progress) are fixed for the mockup; the live printer
  * app substitutes real values via its own render path.
  */

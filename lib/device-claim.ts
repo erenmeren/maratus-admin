@@ -1,6 +1,6 @@
-// Public document access (by token) + device provisioning.
-// Separate from lib/data.ts because these are capability-scoped, not
-// organization-scoped: the token IS the access grant.
+// Device claiming + unclaimed-device inventory (tenant-scoped device
+// provisioning). Separate from lib/data.ts because claiming is keyed by the
+// one-time pairing code, not the caller's organization.
 
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "./db";

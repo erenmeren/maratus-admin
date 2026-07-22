@@ -1386,9 +1386,9 @@ export async function getArmedAllocationCountByStore(
   return out;
 }
 
-// Device provisioning helpers live in lib/documents.ts (claimDevice,
+// Device provisioning helpers live in lib/device-claim.ts (claimDevice,
 // getUnclaimedDevices) — re-exported here so callers have one data entrypoint.
-export { claimDevice, getUnclaimedDevices } from "./documents";
+export { claimDevice, getUnclaimedDevices } from "./device-claim";
 
 // ============================================================================
 // Tenant billing view-model (subscription status, saved card, invoices).
@@ -1830,7 +1830,7 @@ export async function getApiKeys(organizationId: string): Promise<ApiKeyRow[]> {
 }
 
 // ============================================================================
-// Public API v1 — cursor document list + usage aggregate
+// Public API v1 — usage aggregate
 // ============================================================================
 
 export interface ApiUsageData {

@@ -12,7 +12,7 @@ import { db } from "@/lib/db";
 import { store as storeTable } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
 import { canManageTenant } from "@/lib/roles";
-import { claimDevice } from "@/lib/documents";
+import { claimDevice } from "@/lib/device-claim";
 import { recordAudit, AUDIT } from "@/lib/audit";
 
 export interface ClaimDeviceResult {

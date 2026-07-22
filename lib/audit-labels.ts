@@ -23,6 +23,8 @@ export const AUDIT_LABELS: Record<string, string> = {
   "device.deleted": "Device deleted",
   "device.paused": "Device paused",
   "device.resumed": "Device resumed",
+  "device.pin_set": "Pinned QR set",
+  "device.pin_cleared": "Pinned QR removed",
   "device.claimed": "Device claimed",
   "device.went_offline": "Device went offline",
   "store.created": "Store created",

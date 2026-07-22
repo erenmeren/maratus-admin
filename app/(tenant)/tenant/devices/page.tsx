@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Pin } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { ListControls } from "@/components/list-controls";
@@ -74,12 +75,22 @@ export default async function DevicesPage({
                   <TableCell>
                     {d.storeId ? (
                       <Link href={`/tenant/stores/${d.storeId}/${d.id}`} className="flex flex-col">
-                        <span className="font-medium">{d.name}</span>
+                        <span className="flex items-center gap-1.5 font-medium">
+                          {d.name}
+                          {d.pinnedUrl && (
+                            <Pin className="size-3.5 shrink-0 text-muted-foreground" aria-label="Pinned QR active" />
+                          )}
+                        </span>
                         {d.serial && <span className="font-mono text-xs text-muted-foreground">{d.serial}</span>}
                       </Link>
                     ) : (
                       <span className="flex flex-col">
-                        <span className="font-medium">{d.name}</span>
+                        <span className="flex items-center gap-1.5 font-medium">
+                          {d.name}
+                          {d.pinnedUrl && (
+                            <Pin className="size-3.5 shrink-0 text-muted-foreground" aria-label="Pinned QR active" />
+                          )}
+                        </span>
                         {d.serial && <span className="font-mono text-xs text-muted-foreground">{d.serial}</span>}
                       </span>
                     )}

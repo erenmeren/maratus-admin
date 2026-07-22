@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Cable, ChevronRight, Cpu, Wifi } from "lucide-react";
+import { Cable, ChevronRight, Cpu, Pin, Wifi } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
@@ -56,6 +56,9 @@ export function DeviceCard({
             <div className="min-w-0">
               <p className="flex items-center gap-1.5 font-medium">
                 {device.name}
+                {device.pinnedUrl && (
+                  <Pin className="size-3.5 shrink-0 text-muted-foreground" aria-label="Pinned QR active" />
+                )}
                 <ChevronRight className="size-3.5 text-muted-foreground" />
               </p>
               <p className="truncate font-mono text-xs text-muted-foreground">

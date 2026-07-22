@@ -8,6 +8,65 @@
   "servers": [{ "url": "/api/v1" }],
   "security": [{ "bearerAuth": [] }],
   "paths": {
+    "/devices/{deviceId}/pin": {
+      "put": {
+        "summary": "Set or replace the device's pinned QR",
+        "description": "Pins a URL that the device displays as a persistent QR while idle. Changing the URL costs 1 credit; re-sending the identical URL is a free no-op. An optional Idempotency-Key header guards retried changes.",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Optional key guarding a retried or concurrent URL change. Keys are scoped to this endpoint; reusing a key replays the prior response for the same URL-change request.",
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["url"],
+                "properties": {
+                  "url": { "type": "string", "format": "uri", "maxLength": 2048 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Pin state after the call." },
+          "402": { "description": "Not enough credits." },
+          "403": { "description": "Missing devices:pin scope, or organization archived." },
+          "404": { "description": "Device not found." },
+          "422": { "description": "Invalid body or URL." }
+        }
+      },
+      "delete": {
+        "summary": "Clear the device's pinned QR",
+        "description": "Free. Idempotent — deleting a non-existent pin succeeds.",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Pin cleared (pin: null)." },
+          "403": { "description": "Missing devices:pin scope." },
+          "404": { "description": "Device not found." }
+        }
+      }
+    },
     "/devices/{deviceId}/trigger": {
       "post": {
         "summary": "Trigger a device",

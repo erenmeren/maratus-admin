@@ -23,6 +23,9 @@ export interface ConfigVersionInput {
    *  when MQTT is off. Included so toggling MQTT or changing brokers invalidates a
    *  device's cached config and pushes/drops the mqtt block. */
   mqttFingerprint: string | null;
+  /** The requesting device's pinned-QR URL (per-device!). Folded into the ETag
+   *  so a pin change is never swallowed by the org-level 304 short-circuit. */
+  pinnedUrl: string | null;
 }
 
 export function computeConfigVersion(input: ConfigVersionInput): string {
@@ -40,6 +43,7 @@ export function computeConfigVersion(input: ConfigVersionInput): string {
     input.screenSleepTimeoutSeconds,
     input.settingsPasswordHash ?? null,
     input.mqttFingerprint ?? null,
+    input.pinnedUrl ?? null,
   ]);
   return createHash("sha256").update(canonical).digest("hex").slice(0, 32);
 }

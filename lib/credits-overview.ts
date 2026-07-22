@@ -5,7 +5,7 @@
 export interface CreditLedgerRow {
   orgId: string;
   name: string;
-  kind: "grant" | "purchase" | "hold" | "settle" | "release";
+  kind: "grant" | "purchase" | "hold" | "settle" | "release" | "spend";
   credits: number;
   createdAt: Date;
 }
@@ -75,6 +75,7 @@ export function rollupCredits(
         acc.lifetimePurchased += row.credits;
         break;
       case "settle":
+      case "spend":
         consumed += row.credits;
         if (row.createdAt >= monthStart) {
           acc.consumedThisMonth += row.credits;

@@ -105,7 +105,7 @@ export function ApiKeyCreateDialog() {
                     <span className="font-mono">{s}</span>
                   </label>
                 ))}
-                <p className="text-xs text-muted-foreground">devices:trigger lets this key trigger devices and spend credits.</p>
+                <p className="text-xs text-muted-foreground">devices:trigger lets this key trigger devices and spend credits. devices:pin lets it set or clear a device&apos;s pinned QR (1 credit per change).</p>
               </fieldset>
             </div>
             <DialogFooter>

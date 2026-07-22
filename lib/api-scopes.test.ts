@@ -10,11 +10,12 @@ describe("api scopes", () => {
     expect(hasScope(["devices:trigger"], "devices:trigger")).toBe(true);
     expect(hasScope(["usage:read"], "devices:trigger")).toBe(false);
     expect(hasScope([], "devices:trigger")).toBe(false);
+    expect(hasScope(["devices:pin"], "devices:pin")).toBe(true);
   });
   it("sanitizeScopes keeps only known scopes, dedupes, drops junk", () => {
     expect(sanitizeScopes(["devices:trigger", "devices:trigger", "nope", 5 as never]))
       .toEqual(["devices:trigger"]);
     expect(sanitizeScopes("notanarray" as never)).toEqual([]);
-    expect(new Set(API_SCOPES).has("usage:read")).toBe(true);
+    expect(API_SCOPES).toEqual(["usage:read", "devices:trigger", "devices:pin"]);
   });
 });

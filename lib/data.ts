@@ -10,7 +10,7 @@
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
 //   • activationsToday / activationsThisMonth are derived from acked device-trigger commands
 
-import { and, asc, count, desc, eq, gte, isNotNull, lt, max, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, lt, max, ne, sql } from "drizzle-orm";
 import { db } from "./db";
 import { id as genId } from "@/lib/ids";
 import {
@@ -305,6 +305,8 @@ function mapDevice(
     activationsToday: todayBy.get(d.id) ?? 0,
     activationsThisMonth: monthBy.get(d.id) ?? 0,
     claimed: d.claimedAt !== null,
+    pinnedUrl: d.pinnedUrl,
+    pinnedAt: d.pinnedAt ? d.pinnedAt.toISOString() : null,
   };
 }
 
@@ -552,6 +554,7 @@ export interface DeviceListRow {
   storeName: string | null;
   status: DeviceStatus;
   lastSeen: string;
+  pinnedUrl: string | null;
 }
 
 export interface DeviceListPage {
@@ -576,7 +579,7 @@ export async function getTenantDevicesPage(
   const [pageRes, countRes] = await Promise.all([
     db.execute(sql`
       select d.id, d.name, d.serial, d.store_id, s.name as store_name, d.status,
-             coalesce(d.last_seen_at, d.created_at) as last_seen
+             coalesce(d.last_seen_at, d.created_at) as last_seen, d.pinned_url
       from device d
       left join store s on s.id = d.store_id
       where d.organization_id = ${organizationId}
@@ -603,6 +606,7 @@ export async function getTenantDevicesPage(
   type Row = {
     id: string; name: string; serial: string | null; store_id: string | null;
     store_name: string | null; status: string; last_seen: string | Date;
+    pinned_url: string | null;
   };
   const rows = (pageRes.rows as Row[]).map((r) => ({
     id: r.id,
@@ -612,6 +616,7 @@ export async function getTenantDevicesPage(
     storeName: r.store_name,
     status: r.status as DeviceStatus,
     lastSeen: new Date(r.last_seen).toISOString(),
+    pinnedUrl: r.pinned_url,
   }));
   const c = countRes.rows[0] as {
     all_count: number; online: number; offline: number; paused: number; pool: number;
@@ -1200,6 +1205,7 @@ export interface DeviceConfigPayload {
     settingsPasswordHash: string | null;
     settingsPasswordSalt: string | null;
   };
+  pin: { url: string } | null;
 }
 
 /**
@@ -1210,6 +1216,7 @@ export interface DeviceConfigPayload {
 export async function getDeviceConfig(
   organizationId: string,
   ifNoneMatch?: string | null,
+  pin?: { url: string | null },
 ): Promise<{ version: string; notModified: boolean; payload: DeviceConfigPayload | null }> {
   const [s] = await db
     .select()
@@ -1245,6 +1252,7 @@ export async function getDeviceConfig(
     screenSleepTimeoutSeconds: ds.screenSleepTimeoutSeconds,
     settingsPasswordHash: s?.deviceSettingsPasswordHash ?? null,
     mqttFingerprint: mqttConfigFingerprint(),
+    pinnedUrl: pin?.url ?? null,
   });
 
   if (etagMatches(ifNoneMatch, version)) {
@@ -1311,6 +1319,7 @@ export async function getDeviceConfig(
         settingsPasswordHash: s?.deviceSettingsPasswordHash ?? null,
         settingsPasswordSalt: s?.deviceSettingsPasswordSalt ?? null,
       },
+      pin: pin?.url ? { url: pin.url } : null,
     },
   };
 }
@@ -1844,7 +1853,7 @@ export async function getApiUsage(organizationId: string): Promise<ApiUsageData>
       .from(creditLedgerTable)
       .where(and(
         eq(creditLedgerTable.organizationId, organizationId),
-        eq(creditLedgerTable.kind, "settle"),
+        inArray(creditLedgerTable.kind, ["settle", "spend"]),
         gte(creditLedgerTable.createdAt, monthStart),
       )),
     db
@@ -1891,7 +1900,7 @@ export async function getCreditUsageByDevice(organizationId: string, since: Date
     .where(
       and(
         eq(creditLedgerTable.organizationId, organizationId),
-        eq(creditLedgerTable.kind, "settle"),
+        inArray(creditLedgerTable.kind, ["settle", "spend"]),
         gte(creditLedgerTable.createdAt, since),
       ),
     );
@@ -1909,7 +1918,7 @@ export async function getCreditUsageAllOrgs(since: Date) {
     })
     .from(creditLedgerTable)
     .leftJoin(orgTable, eq(orgTable.id, creditLedgerTable.organizationId))
-    .where(and(eq(creditLedgerTable.kind, "settle"), gte(creditLedgerTable.createdAt, since)))
+    .where(and(inArray(creditLedgerTable.kind, ["settle", "spend"]), gte(creditLedgerTable.createdAt, since)))
     .groupBy(creditLedgerTable.organizationId, orgTable.name)
     .orderBy(desc(sql`sum(${creditLedgerTable.credits})`));
 }

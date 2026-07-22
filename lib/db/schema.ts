@@ -290,6 +290,11 @@ export const device = pgTable(
     // A second physical device tried to claim this serial (unique-index hit);
     // this row's serial stayed null and the admin UI shows a warning.
     serialConflict: boolean("serial_conflict").default(false).notNull(),
+    // Pinned QR: when set, the device shows this URL as a persistent QR while
+    // idle (triggers temporarily override, then return to it). Null = no pin.
+    // Setting/changing costs 1 credit (kind "spend"); clearing is free.
+    pinnedUrl: text("pinned_url"),
+    pinnedAt: timestamp("pinned_at"),
     createdAt: timestamp("created_at")
       .$defaultFn(() => new Date())
       .notNull(),
@@ -353,7 +358,7 @@ export const deviceCommand = pgTable(
     id: text("id").primaryKey(),
     deviceId: text("device_id").notNull().references(() => device.id, { onDelete: "cascade" }),
     organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
-    type: text("type", { enum: ["reboot", "refresh", "identify", "config-changed", "firmware-update", "trigger"] }).notNull(),
+    type: text("type", { enum: ["reboot", "refresh", "identify", "config-changed", "firmware-update", "trigger", "pin"] }).notNull(),
     status: text("status", { enum: ["pending", "delivered", "acked", "failed", "expired"] }).default("pending").notNull(),
     result: text("result"),
     action: text("action"),
@@ -416,7 +421,7 @@ export const creditLedger = pgTable(
     id: text("id").primaryKey(),
     organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
     deviceId: text("device_id").references(() => device.id, { onDelete: "set null" }),
-    kind: text("kind", { enum: ["grant", "purchase", "hold", "settle", "release"] }).notNull(),
+    kind: text("kind", { enum: ["grant", "purchase", "hold", "settle", "release", "spend"] }).notNull(),
     credits: integer("credits").notNull(),
     action: text("action"),
     commandId: text("command_id"),

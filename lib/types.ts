@@ -22,6 +22,8 @@ export interface Device {
   activationsToday: number;
   activationsThisMonth: number;
   claimed: boolean;
+  pinnedUrl: string | null;
+  pinnedAt: string | null; // ISO
 }
 
 export interface Store {

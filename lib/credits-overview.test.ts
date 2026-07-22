@@ -13,6 +13,7 @@ describe("rollupCredits", () => {
     { orgId: "org_a", name: "Acme", kind: "settle" as const, credits: 5, createdAt: new Date("2026-07-03T00:00:00Z") },
     { orgId: "org_a", name: "Acme", kind: "hold" as const, credits: 3, createdAt: new Date("2026-07-03T00:00:00Z") },
     { orgId: "org_a", name: "Acme", kind: "release" as const, credits: 3, createdAt: new Date("2026-07-03T00:00:00Z") },
+    { orgId: "org_a", name: "Acme", kind: "spend" as const, credits: 1, createdAt: new Date("2026-07-04T00:00:00Z") },
     // Beta
     { orgId: "org_b", name: "Beta", kind: "grant" as const, credits: 20, createdAt: new Date("2026-05-01T00:00:00Z") },
     { orgId: "org_b", name: "Beta", kind: "purchase" as const, credits: 50, createdAt: new Date("2026-06-10T00:00:00Z") },
@@ -31,22 +32,29 @@ describe("rollupCredits", () => {
     const r = rollupCredits(ledgerRows, balances, now);
     expect(r.totals.granted).toBe(70); // 50 + 20
     expect(r.totals.purchased).toBe(170); // 100 + 20 + 50
-    expect(r.totals.consumed).toBe(23); // 10 + 5 + 8
+    expect(r.totals.consumed).toBe(24); // 10 + 5 + 8 + 1(spend)
     expect(r.totals.outstanding).toBe(390); // 150 + 40 + 200
+  });
+
+  it("counts spend kind as consumed, same bucket as settle", () => {
+    const r = rollupCredits(ledgerRows, balances, now);
+    const acme = r.perTenant.find((t) => t.orgId === "org_a")!;
+    // Acme's settle(5, in-month) + spend(1, in-month) = 6.
+    expect(acme.consumedThisMonth).toBe(6);
   });
 
   it("ignores hold/release kinds in the totals", () => {
     const r = rollupCredits(ledgerRows, balances, now);
     // hold(3)/release(3) for org_a must not leak into any total.
-    expect(r.totals.granted + r.totals.purchased + r.totals.consumed).toBe(70 + 170 + 23);
+    expect(r.totals.granted + r.totals.purchased + r.totals.consumed).toBe(70 + 170 + 24);
   });
 
-  it("computes consumedThisMonth as settle credits >= UTC start-of-month, inclusive", () => {
+  it("computes consumedThisMonth as settle/spend credits >= UTC start-of-month, inclusive", () => {
     const r = rollupCredits(ledgerRows, balances, now);
     const acme = r.perTenant.find((t) => t.orgId === "org_a")!;
     const beta = r.perTenant.find((t) => t.orgId === "org_b")!;
-    // Acme: only the 2026-07-03 settle(5) is in-month; the 2026-06-20 settle(10) is not.
-    expect(acme.consumedThisMonth).toBe(5);
+    // Acme: 2026-07-03 settle(5) + 2026-07-04 spend(1) are in-month; the 2026-06-20 settle(10) is not.
+    expect(acme.consumedThisMonth).toBe(6);
     // Beta: settle(8) lands exactly on the month boundary — must be included.
     expect(beta.consumedThisMonth).toBe(8);
   });

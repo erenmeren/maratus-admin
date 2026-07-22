@@ -32,6 +32,8 @@ export const AUDIT = {
   deviceDeleted: "device.deleted",
   devicePaused: "device.paused",
   deviceResumed: "device.resumed",
+  devicePinSet: "device.pin_set",
+  devicePinCleared: "device.pin_cleared",
   deviceClaimed: "device.claimed",
   deviceWentOffline: "device.went_offline",
   storeCreated: "store.created",

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { desc } from "drizzle-orm";
-import { ArrowLeft, Cable, Cpu, Globe, HardDrive, FileText, Wifi,  } from "lucide-react";
+import { ArrowLeft, Cable, Cpu, Globe, HardDrive, QrCode, Wifi } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { DevicePauseControl } from "@/components/device-pause-control";
@@ -107,12 +107,12 @@ export default async function DeviceDetailPage({
             <KpiCard
               label="Activations today"
               value={formatNumber(device.activationsToday)}
-              icon={FileText}
+              icon={QrCode}
             />
             <KpiCard
               label="Activations this month"
               value={formatNumber(device.activationsThisMonth)}
-              icon={FileText}
+              icon={QrCode}
             />
           </div>
 

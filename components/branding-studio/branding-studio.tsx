@@ -178,7 +178,7 @@ export function BrandingStudio(props: BrandingVariantProps) {
             </div>
           </div>
 
-          {/* FILMSTRIP — all 7 screens as live thumbnails */}
+          {/* FILMSTRIP — all screens as live thumbnails */}
           <div className="relative z-10 border-t border-white/10 bg-zinc-950/60 px-4 py-3 backdrop-blur lg:pl-[21.5rem]">
             {/* p-1.5 gives the active thumbnail's ring-2 + shadow room inside the
                 scroll box — overflow-x-auto forces overflow-y to auto, which would

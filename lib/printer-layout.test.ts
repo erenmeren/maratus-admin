@@ -547,6 +547,102 @@ describe("per-screen colors", () => {
 
 import { withScreenObjects, withScreenColors, createTextObject as mkText } from "./printer-layout";
 
+// ─── QR style (shape + colors, 2026-07-23) ───────────────────────────────────
+
+import { sanitizeQrStyle, DEFAULT_QR_STYLE } from "./printer-layout";
+
+describe("sanitizeQrStyle", () => {
+  it("passes a valid shape + high-contrast pair through unchanged", () => {
+    const s = sanitizeQrStyle({ qrShape: "dots", qrFg: "#003366", qrBg: "#f0f0f0" });
+    expect(s).toEqual({ qrShape: "dots", qrFg: "#003366", qrBg: "#f0f0f0" });
+  });
+
+  it("falls back to the default shape/colors for null/garbage input", () => {
+    expect(sanitizeQrStyle(null)).toEqual(DEFAULT_QR_STYLE);
+    expect(sanitizeQrStyle(undefined)).toEqual(DEFAULT_QR_STYLE);
+    expect(sanitizeQrStyle("nope")).toEqual(DEFAULT_QR_STYLE);
+    expect(sanitizeQrStyle({})).toEqual(DEFAULT_QR_STYLE);
+  });
+
+  it("resets an unknown shape to 'rounded' but keeps valid colors", () => {
+    const s = sanitizeQrStyle({ qrShape: "spiky", qrFg: "#111111", qrBg: "#ffffff" });
+    expect(s.qrShape).toBe("rounded");
+    expect(s.qrFg).toBe("#111111");
+    expect(s.qrBg).toBe("#ffffff");
+  });
+
+  it("defaults a malformed hex field individually (not the whole pair)", () => {
+    const s = sanitizeQrStyle({ qrShape: "classic", qrFg: "not-a-color", qrBg: "#ffffff" });
+    expect(s.qrShape).toBe("classic");
+    expect(s.qrFg).toBe(DEFAULT_QR_STYLE.qrFg);
+    expect(s.qrBg).toBe("#ffffff");
+  });
+
+  it("expands 3-digit hex shorthand", () => {
+    const s = sanitizeQrStyle({ qrShape: "rounded", qrFg: "#000", qrBg: "#fff" });
+    expect(s.qrFg).toBe("#000000");
+    expect(s.qrBg).toBe("#ffffff");
+  });
+
+  it("resets BOTH colors to defaults on low contrast (< 4:1), even if otherwise valid hex", () => {
+    const s = sanitizeQrStyle({ qrShape: "soft", qrFg: "#888888", qrBg: "#999999" });
+    expect(s.qrShape).toBe("soft"); // shape is independent of the color guard
+    expect(s.qrFg).toBe(DEFAULT_QR_STYLE.qrFg);
+    expect(s.qrBg).toBe(DEFAULT_QR_STYLE.qrBg);
+  });
+
+  it("resets BOTH colors to defaults when fg is lighter than bg (inverted), even with high contrast", () => {
+    const s = sanitizeQrStyle({ qrShape: "rounded", qrFg: "#ffffff", qrBg: "#111111" });
+    expect(s.qrFg).toBe(DEFAULT_QR_STYLE.qrFg);
+    expect(s.qrBg).toBe(DEFAULT_QR_STYLE.qrBg);
+  });
+
+  it("the default pair itself satisfies the guard (darker fg, ratio ≥ 4:1)", () => {
+    const s = sanitizeQrStyle({ qrShape: "rounded", qrFg: DEFAULT_QR_STYLE.qrFg, qrBg: DEFAULT_QR_STYLE.qrBg });
+    expect(s.qrFg).toBe(DEFAULT_QR_STYLE.qrFg);
+    expect(s.qrBg).toBe(DEFAULT_QR_STYLE.qrBg);
+  });
+});
+
+describe("normalizePrinterConfig — QR style", () => {
+  it("defaults qrShape/qrFg/qrBg at the top level for garbage input", () => {
+    const cfg = normalizePrinterConfig(null);
+    expect(cfg.qrShape).toBe(DEFAULT_QR_STYLE.qrShape);
+    expect(cfg.qrFg).toBe(DEFAULT_QR_STYLE.qrFg);
+    expect(cfg.qrBg).toBe(DEFAULT_QR_STYLE.qrBg);
+  });
+
+  it("passes through a valid stored qrShape/qrFg/qrBg at the top level (v3)", () => {
+    const cfg = normalizePrinterConfig({
+      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60,
+      qrShape: "classic", qrFg: "#002200", qrBg: "#eeeeee",
+      screens: {},
+    });
+    expect(cfg.qrShape).toBe("classic");
+    expect(cfg.qrFg).toBe("#002200");
+    expect(cfg.qrBg).toBe("#eeeeee");
+  });
+
+  it("defaults qrShape/qrFg/qrBg when migrating a v2 layout (predates the fields)", () => {
+    const cfg = normalizePrinterConfig(defaultLayout());
+    expect(cfg.qrShape).toBe(DEFAULT_QR_STYLE.qrShape);
+    expect(cfg.qrFg).toBe(DEFAULT_QR_STYLE.qrFg);
+    expect(cfg.qrBg).toBe(DEFAULT_QR_STYLE.qrBg);
+  });
+
+  it("round-trips a normalized style through re-normalization", () => {
+    const once = normalizePrinterConfig({
+      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60,
+      qrShape: "dots", qrFg: "#123456", qrBg: "#fafafa",
+      screens: {},
+    });
+    const twice = normalizePrinterConfig(once);
+    expect(twice.qrShape).toBe(once.qrShape);
+    expect(twice.qrFg).toBe(once.qrFg);
+    expect(twice.qrBg).toBe(once.qrBg);
+  });
+});
+
 describe("screen updaters", () => {
   const colors: ScreenColors = { accent: "#10a765", bg: "#ffffff", fg: "#111111", muted: "#8a8a8a" };
   const cfg = () => {

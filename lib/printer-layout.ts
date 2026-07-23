@@ -6,6 +6,10 @@
 // can never break the render — v1 layouts are reset to the default.
 import { isValidTimezone } from "./timezones";
 import { MIN_BOX } from "./printer-geometry";
+import { contrastRatio, luminance } from "./color";
+import { QR_SHAPES, type QrShape } from "./qr-svg";
+
+export { QR_SHAPES, type QrShape } from "./qr-svg";
 
 // "pinned" appended LAST (2026-07-22) — every existing use of PRINTER_SCREENS
 // iterates with for-of (verified: no index-based access), so appending at the
@@ -106,6 +110,10 @@ export interface PrinterConfig {
   clock24h: boolean;
   wifiLevel: number; // 0..4
   qrTimeoutSeconds: number; // QR screen display timeout, 15..180
+  /** QR appearance (org-wide — one brand, one QR look). See sanitizeQrStyle. */
+  qrShape: QrShape;
+  qrFg: string; // #rrggbb
+  qrBg: string; // #rrggbb
   screens: Record<PrinterScreen, ScreenLayout>;
 }
 
@@ -441,6 +449,59 @@ function sanitizeScreenColors(raw: unknown): ScreenColors | null {
   return out as ScreenColors;
 }
 
+// ─── QR style (shape + colors), 2026-07-23 ───────────────────────────────────
+// Org-wide QR appearance — one brand, one QR look — stored inside the printer
+// config JSON top-level (next to clockTimezone/qrTimeoutSeconds). Guardrailed
+// so a merchant can never save an unscannable combination: fg must be darker
+// than bg (relative luminance) AND contrast ratio ≥ 4:1, or both colors reset.
+
+export interface QrStyle {
+  qrShape: QrShape;
+  qrFg: string; // #rrggbb
+  qrBg: string; // #rrggbb
+}
+
+export const DEFAULT_QR_STYLE: QrStyle = {
+  qrShape: "rounded", // today's live look
+  qrFg: "#111111",
+  qrBg: "#ffffff",
+};
+
+const MIN_QR_CONTRAST = 4;
+
+/** 6-digit #-prefixed lowercase hex (expanding 3-digit shorthand), or `fallback`
+ *  when malformed — each color field defaults independently, not as a pair. */
+function normalizeHex(raw: unknown, fallback: string): string {
+  const m = typeof raw === "string" ? raw.match(HEX) : null;
+  if (!m) return fallback;
+  const hex = m[1].toLowerCase();
+  return `#${hex.length === 3 ? [...hex].map((c) => c + c).join("") : hex}`;
+}
+
+/**
+ * Coerce arbitrary stored data into a valid QrStyle. Pure — never throws.
+ * Unknown shape → "rounded". Malformed hex → that field's own default. Then,
+ * independent of shape, the resulting fg/bg pair must have fg strictly darker
+ * than bg (relative luminance) AND contrast ratio ≥ 4:1 — otherwise BOTH
+ * colors (not the shape) reset to the defaults, guaranteeing every saved QR
+ * stays scannable.
+ */
+export function sanitizeQrStyle(raw: unknown): QrStyle {
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const qrShape = (QR_SHAPES as readonly string[]).includes(r.qrShape as string)
+    ? (r.qrShape as QrShape)
+    : DEFAULT_QR_STYLE.qrShape;
+  const fg = normalizeHex(r.qrFg, DEFAULT_QR_STYLE.qrFg);
+  const bg = normalizeHex(r.qrBg, DEFAULT_QR_STYLE.qrBg);
+
+  const fgDarker = luminance(fg) < luminance(bg);
+  const ratio = contrastRatio(fg, bg);
+  if (!fgDarker || ratio < MIN_QR_CONTRAST) {
+    return { qrShape, qrFg: DEFAULT_QR_STYLE.qrFg, qrBg: DEFAULT_QR_STYLE.qrBg };
+  }
+  return { qrShape, qrFg: fg, qrBg: bg };
+}
+
 /** Default box for a widget singleton (used when a stored object is malformed). */
 const WIDGET_BOX: Record<WidgetType, Pick<PrinterObject, "x" | "y" | "w" | "h">> = {
   clock: { x: 0.25, y: 0.52, w: 0.5, h: 0.18 },
@@ -570,6 +631,7 @@ export function migrateV2ToConfig(layout: PrinterLayout): PrinterConfig {
     clock24h: layout.clock24h,
     wifiLevel: layout.wifiLevel,
     qrTimeoutSeconds: 60,
+    ...DEFAULT_QR_STYLE, // v2 predates QR style — always the default look
     screens,
   };
 }
@@ -590,7 +652,7 @@ export function normalizePrinterConfig(raw: unknown): PrinterConfig {
   const seededAll = (): PrinterConfig => {
     const screens = {} as Record<PrinterScreen, ScreenLayout>;
     for (const s of PRINTER_SCREENS) screens[s] = seededScreen(s);
-    return { version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60, screens };
+    return { version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60, ...DEFAULT_QR_STYLE, screens };
   };
 
   if (!r || typeof r !== "object" || r.version !== 3) return seededAll();
@@ -609,6 +671,7 @@ export function normalizePrinterConfig(raw: unknown): PrinterConfig {
     clock24h: typeof cfg.clock24h === "boolean" ? cfg.clock24h : false,
     wifiLevel: clamp(Math.round(num(cfg.wifiLevel, 3)), 0, 4),
     qrTimeoutSeconds: clamp(Math.round(num(cfg.qrTimeoutSeconds, 60)), 15, 180),
+    ...sanitizeQrStyle(cfg),
     screens,
   };
 }

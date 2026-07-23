@@ -6,7 +6,6 @@
 // can never break the render — v1 layouts are reset to the default.
 import { isValidTimezone } from "./timezones";
 import { MIN_BOX } from "./printer-geometry";
-import { contrastRatio, luminance } from "./color";
 import { QR_SHAPES, type QrShape } from "./qr-svg";
 
 export { QR_SHAPES, type QrShape } from "./qr-svg";
@@ -452,8 +451,8 @@ function sanitizeScreenColors(raw: unknown): ScreenColors | null {
 // ─── QR style (shape + colors), 2026-07-23 ───────────────────────────────────
 // Org-wide QR appearance — one brand, one QR look — stored inside the printer
 // config JSON top-level (next to clockTimezone/qrTimeoutSeconds). Guardrailed
-// so a merchant can never save an unscannable combination: fg must be darker
-// than bg (relative luminance) AND contrast ratio ≥ 4:1, or both colors reset.
+// Colors are the merchant's free choice (including low-contrast or inverted
+// pairs) — only malformed hex falls back to a default, per product decision.
 
 export interface QrStyle {
   qrShape: QrShape;
@@ -467,8 +466,6 @@ export const DEFAULT_QR_STYLE: QrStyle = {
   qrBg: "#ffffff",
 };
 
-const MIN_QR_CONTRAST = 4;
-
 /** 6-digit #-prefixed lowercase hex (expanding 3-digit shorthand), or `fallback`
  *  when malformed — each color field defaults independently, not as a pair. */
 function normalizeHex(raw: unknown, fallback: string): string {
@@ -480,26 +477,19 @@ function normalizeHex(raw: unknown, fallback: string): string {
 
 /**
  * Coerce arbitrary stored data into a valid QrStyle. Pure — never throws.
- * Unknown shape → "rounded". Malformed hex → that field's own default. Then,
- * independent of shape, the resulting fg/bg pair must have fg strictly darker
- * than bg (relative luminance) AND contrast ratio ≥ 4:1 — otherwise BOTH
- * colors (not the shape) reset to the defaults, guaranteeing every saved QR
- * stays scannable.
+ * Unknown shape → "rounded". Malformed hex → that field's own default.
+ * Colors are otherwise unconstrained — scannability is the merchant's call.
  */
 export function sanitizeQrStyle(raw: unknown): QrStyle {
   const r = (raw ?? {}) as Record<string, unknown>;
   const qrShape = (QR_SHAPES as readonly string[]).includes(r.qrShape as string)
     ? (r.qrShape as QrShape)
     : DEFAULT_QR_STYLE.qrShape;
-  const fg = normalizeHex(r.qrFg, DEFAULT_QR_STYLE.qrFg);
-  const bg = normalizeHex(r.qrBg, DEFAULT_QR_STYLE.qrBg);
-
-  const fgDarker = luminance(fg) < luminance(bg);
-  const ratio = contrastRatio(fg, bg);
-  if (!fgDarker || ratio < MIN_QR_CONTRAST) {
-    return { qrShape, qrFg: DEFAULT_QR_STYLE.qrFg, qrBg: DEFAULT_QR_STYLE.qrBg };
-  }
-  return { qrShape, qrFg: fg, qrBg: bg };
+  return {
+    qrShape,
+    qrFg: normalizeHex(r.qrFg, DEFAULT_QR_STYLE.qrFg),
+    qrBg: normalizeHex(r.qrBg, DEFAULT_QR_STYLE.qrBg),
+  };
 }
 
 /** Default box for a widget singleton (used when a stored object is malformed). */

@@ -584,20 +584,20 @@ describe("sanitizeQrStyle", () => {
     expect(s.qrBg).toBe("#ffffff");
   });
 
-  it("resets BOTH colors to defaults on low contrast (< 4:1), even if otherwise valid hex", () => {
+  it("keeps a low-contrast pair as chosen (scannability is the merchant's call)", () => {
     const s = sanitizeQrStyle({ qrShape: "soft", qrFg: "#888888", qrBg: "#999999" });
-    expect(s.qrShape).toBe("soft"); // shape is independent of the color guard
-    expect(s.qrFg).toBe(DEFAULT_QR_STYLE.qrFg);
-    expect(s.qrBg).toBe(DEFAULT_QR_STYLE.qrBg);
+    expect(s.qrShape).toBe("soft");
+    expect(s.qrFg).toBe("#888888");
+    expect(s.qrBg).toBe("#999999");
   });
 
-  it("resets BOTH colors to defaults when fg is lighter than bg (inverted), even with high contrast", () => {
+  it("keeps an inverted (light-on-dark) pair as chosen", () => {
     const s = sanitizeQrStyle({ qrShape: "rounded", qrFg: "#ffffff", qrBg: "#111111" });
-    expect(s.qrFg).toBe(DEFAULT_QR_STYLE.qrFg);
-    expect(s.qrBg).toBe(DEFAULT_QR_STYLE.qrBg);
+    expect(s.qrFg).toBe("#ffffff");
+    expect(s.qrBg).toBe("#111111");
   });
 
-  it("the default pair itself satisfies the guard (darker fg, ratio ≥ 4:1)", () => {
+  it("the default pair passes through unchanged", () => {
     const s = sanitizeQrStyle({ qrShape: "rounded", qrFg: DEFAULT_QR_STYLE.qrFg, qrBg: DEFAULT_QR_STYLE.qrBg });
     expect(s.qrFg).toBe(DEFAULT_QR_STYLE.qrFg);
     expect(s.qrBg).toBe(DEFAULT_QR_STYLE.qrBg);

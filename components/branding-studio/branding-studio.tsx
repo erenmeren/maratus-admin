@@ -18,7 +18,6 @@ import {
   Plus,
   RotateCcw,
   Save,
-  TriangleAlert,
 } from "lucide-react";
 import { PrinterPreview } from "@/components/device-preview/printer-preview";
 import { PrinterStage } from "@/components/device-preview/printer-editor/printer-stage";
@@ -39,7 +38,7 @@ import {
   ZOOM_DEFAULT,
 } from "@/lib/branding-shell";
 import { isValidHex, withAlpha } from "@/lib/color";
-import { screenColors, sanitizeQrStyle, QR_SHAPES, type QrShape, type ScreenColors } from "@/lib/printer-layout";
+import { screenColors, QR_SHAPES, type QrShape, type ScreenColors } from "@/lib/printer-layout";
 import { QrSvg } from "@/components/qr-svg";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -528,11 +527,6 @@ function QrStylePanel({ draft }: { draft: BrandingDraft }) {
   const set = (p: Partial<{ qrShape: QrShape; qrFg: string; qrBg: string }>) =>
     draft.editor.setShared(p);
 
-  // Would the guardrail (fg darker than bg + contrast ≥ 4:1) reset these colors
-  // on save? Compare the live pair against what sanitizeQrStyle would keep.
-  const sanitized = sanitizeQrStyle({ qrShape, qrFg, qrBg });
-  const willReset = !eq(sanitized.qrFg, qrFg) || !eq(sanitized.qrBg, qrBg);
-
   return (
     <section className="space-y-2.5 border-t pt-4">
       <div className="space-y-1">
@@ -579,13 +573,6 @@ function QrStylePanel({ draft }: { draft: BrandingDraft }) {
         <ColorField label="QR background" value={qrBg} onChange={(v) => set({ qrBg: v })} disabled={draft.disabled} />
       </div>
 
-      {willReset && (
-        <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-amber-600 dark:text-amber-400">
-          <TriangleAlert className="mt-px size-3.5 shrink-0" />
-          Low contrast — these colors won&apos;t scan reliably, so Ditto will reset
-          them to the defaults when you save.
-        </p>
-      )}
     </section>
   );
 }

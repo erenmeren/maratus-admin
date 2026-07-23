@@ -6,9 +6,9 @@
 // can never break the render — v1 layouts are reset to the default.
 import { isValidTimezone } from "./timezones";
 import { MIN_BOX } from "./printer-geometry";
-import { QR_SHAPES, type QrShape } from "./qr-svg";
+import { QR_SHAPES, type QrShape, QR_CORNERS, type QrCorner } from "./qr-svg";
 
-export { QR_SHAPES, type QrShape } from "./qr-svg";
+export { QR_SHAPES, type QrShape, QR_CORNERS, type QrCorner } from "./qr-svg";
 
 // "pinned" appended LAST (2026-07-22) — every existing use of PRINTER_SCREENS
 // iterates with for-of (verified: no index-based access), so appending at the
@@ -113,6 +113,10 @@ export interface PrinterConfig {
   qrShape: QrShape;
   qrFg: string; // #rrggbb
   qrBg: string; // #rrggbb
+  /** QR background corner treatment — see sanitizeQrStyle (2026-07-23 addendum). */
+  qrCorner: QrCorner;
+  /** Soft drop-shadow under the QR background — see sanitizeQrStyle (2026-07-23 addendum). */
+  qrShadow: boolean;
   screens: Record<PrinterScreen, ScreenLayout>;
 }
 
@@ -458,12 +462,16 @@ export interface QrStyle {
   qrShape: QrShape;
   qrFg: string; // #rrggbb
   qrBg: string; // #rrggbb
+  qrCorner: QrCorner;
+  qrShadow: boolean;
 }
 
 export const DEFAULT_QR_STYLE: QrStyle = {
   qrShape: "rounded", // today's live look
   qrFg: "#111111",
   qrBg: "#ffffff",
+  qrCorner: "rounded", // today's live look (studio preview) — see 2026-07-23 addendum
+  qrShadow: false, // device render has no shadow; default matches it
 };
 
 /** 6-digit #-prefixed lowercase hex (expanding 3-digit shorthand), or `fallback`
@@ -479,16 +487,22 @@ function normalizeHex(raw: unknown, fallback: string): string {
  * Coerce arbitrary stored data into a valid QrStyle. Pure — never throws.
  * Unknown shape → "rounded". Malformed hex → that field's own default.
  * Colors are otherwise unconstrained — scannability is the merchant's call.
+ * Unknown corner → "rounded". Non-boolean shadow → false (2026-07-23 addendum).
  */
 export function sanitizeQrStyle(raw: unknown): QrStyle {
   const r = (raw ?? {}) as Record<string, unknown>;
   const qrShape = (QR_SHAPES as readonly string[]).includes(r.qrShape as string)
     ? (r.qrShape as QrShape)
     : DEFAULT_QR_STYLE.qrShape;
+  const qrCorner = (QR_CORNERS as readonly string[]).includes(r.qrCorner as string)
+    ? (r.qrCorner as QrCorner)
+    : DEFAULT_QR_STYLE.qrCorner;
   return {
     qrShape,
     qrFg: normalizeHex(r.qrFg, DEFAULT_QR_STYLE.qrFg),
     qrBg: normalizeHex(r.qrBg, DEFAULT_QR_STYLE.qrBg),
+    qrCorner,
+    qrShadow: typeof r.qrShadow === "boolean" ? r.qrShadow : DEFAULT_QR_STYLE.qrShadow,
   };
 }
 

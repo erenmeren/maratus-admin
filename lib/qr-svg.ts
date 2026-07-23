@@ -78,3 +78,19 @@ export const QR_SHAPE_GEOMETRY: Record<QrShape, QrShapeGeometry> = {
   // Smaller, more separated dots (diameter = 0.7 × module → r = 0.35).
   dots: { moduleKind: "circle", moduleRx: 0, moduleR: 0.35, finderRadiusRatio: 1 / 3 },
 };
+
+// ─── QR background corner + shadow, 2026-07-23 addendum ─────────────────────
+// Independent of module `shape` — governs the QR's own background surface
+// (the plate the modules sit on), matching the on-device render. See
+// lib/printer-layout.ts sanitizeQrStyle + the 2026-07-23 spec addendum.
+
+export const QR_CORNERS = ["square", "rounded"] as const;
+export type QrCorner = (typeof QR_CORNERS)[number];
+
+/** Background-rect corner radius, in px, for an SVG of the given pixel
+ *  dimension: ~6% of `dim` when "rounded", 0 when "square". Pure — used by
+ *  both the SVG bg rect (components/qr-svg.tsx) and any caller that needs to
+ *  mirror the same radius on a wrapping element. */
+export function qrBackgroundRadius(dim: number, corner: QrCorner): number {
+  return corner === "rounded" ? dim * 0.06 : 0;
+}

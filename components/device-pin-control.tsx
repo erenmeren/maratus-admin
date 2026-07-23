@@ -21,7 +21,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { setDevicePinAction, clearDevicePinAction } from "@/lib/actions/pin";
 import { timeAgo } from "@/lib/format";
-import { DEFAULT_QR_STYLE, type QrShape } from "@/lib/printer-layout";
+import { DEFAULT_QR_STYLE, type QrCorner, type QrShape } from "@/lib/printer-layout";
+import { cn } from "@/lib/utils";
 
 export function DevicePinControl(props: {
   deviceId: string;
@@ -33,6 +34,8 @@ export function DevicePinControl(props: {
   qrShape?: QrShape;
   qrFg?: string;
   qrBg?: string;
+  qrCorner?: QrCorner;
+  qrShadow?: boolean;
 }) {
   const [pinnedUrl, setPinnedUrl] = useState(props.initialPinnedUrl);
   const [pinnedAt, setPinnedAt] = useState(props.initialPinnedAt);
@@ -88,7 +91,13 @@ export function DevicePinControl(props: {
               shape={props.qrShape ?? DEFAULT_QR_STYLE.qrShape}
               fg={props.qrFg ?? DEFAULT_QR_STYLE.qrFg}
               bg={props.qrBg ?? DEFAULT_QR_STYLE.qrBg}
-              className="mx-auto block size-32 rounded-lg border p-1.5"
+              corner={props.qrCorner ?? DEFAULT_QR_STYLE.qrCorner}
+              shadow={false}
+              className={cn(
+                "mx-auto block size-32 border p-1.5",
+                (props.qrCorner ?? DEFAULT_QR_STYLE.qrCorner) === "rounded" ? "rounded-lg" : "rounded-none",
+                (props.qrShadow ?? DEFAULT_QR_STYLE.qrShadow) && "shadow-md",
+              )}
               style={{ background: props.qrBg ?? DEFAULT_QR_STYLE.qrBg }}
               ariaLabel="Pinned QR preview"
             />

@@ -7,7 +7,7 @@
 
 import * as React from "react";
 import QRCode from "qrcode";
-import { darkDots, finderOrigins, QR_SHAPE_GEOMETRY, type QrShape } from "@/lib/qr-svg";
+import { darkDots, finderOrigins, qrBackgroundRadius, QR_SHAPE_GEOMETRY, type QrCorner, type QrShape } from "@/lib/qr-svg";
 import { DEFAULT_QR_STYLE } from "@/lib/printer-layout";
 
 const UNIT = 4; // px per module at scale 1 (matches FauxQR's design-time unit)
@@ -20,6 +20,8 @@ export function QrSvg({
   shape = DEFAULT_QR_STYLE.qrShape,
   fg = DEFAULT_QR_STYLE.qrFg,
   bg = DEFAULT_QR_STYLE.qrBg,
+  corner = DEFAULT_QR_STYLE.qrCorner,
+  shadow = DEFAULT_QR_STYLE.qrShadow,
 }: {
   value: string;
   className?: string;
@@ -32,6 +34,10 @@ export function QrSvg({
   fg?: string;
   /** Background (incl. quiet zone) color. Defaults to the org default (#ffffff). */
   bg?: string;
+  /** Background-plate corner treatment. Defaults to the org default ("rounded"). */
+  corner?: QrCorner;
+  /** Soft drop-shadow under the background plate. Defaults to the org default (false). */
+  shadow?: boolean;
 }) {
   const built = React.useMemo(() => {
     try {
@@ -40,6 +46,10 @@ export function QrSvg({
       return null;
     }
   }, [value]);
+
+  // useId output contains ":" which is invalid unescaped inside a CSS url()
+  // reference — strip it so `filter={\`url(#${filterId})\`}` resolves.
+  const filterId = `qr-shadow-${React.useId().replace(/:/g, "")}`;
 
   if (!built) return null;
 
@@ -59,7 +69,25 @@ export function QrSvg({
       aria-label={ariaLabel}
       aria-hidden={ariaLabel ? undefined : true}
     >
-      <rect width={dim} height={dim} fill={bg} />
+      {shadow && (
+        <defs>
+          <filter id={filterId} x="-30%" y="-30%" width="160%" height="160%">
+            <feDropShadow
+              dx="0"
+              dy={dim * 0.015}
+              stdDeviation={dim * 0.02}
+              floodColor="rgba(15,20,40,0.35)"
+            />
+          </filter>
+        </defs>
+      )}
+      <rect
+        width={dim}
+        height={dim}
+        rx={qrBackgroundRadius(dim, corner)}
+        fill={bg}
+        filter={shadow ? `url(#${filterId})` : undefined}
+      />
       <g>
         {dots.map(({ row, col }) =>
           geo.moduleKind === "circle" ? (

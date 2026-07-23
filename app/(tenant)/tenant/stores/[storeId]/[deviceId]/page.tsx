@@ -209,6 +209,8 @@ export default async function DeviceDetailPage({
             qrShape={qrStyle.qrShape}
             qrFg={qrStyle.qrFg}
             qrBg={qrStyle.qrBg}
+            qrCorner={qrStyle.qrCorner}
+            qrShadow={qrStyle.qrShadow}
           />
           <Card>
             <CardHeader>

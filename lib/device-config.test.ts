@@ -89,6 +89,17 @@ describe("computeConfigVersion — QR style", () => {
     expect(withStyle("rounded", "#111111", "#eeeeee")).not.toBe(v);
     expect(withStyle("rounded", "#111111", "#ffffff")).toBe(v); // stable for identical style
   });
+
+  // qrCorner/qrShadow (2026-07-23 addendum) live alongside qrShape/qrFg/qrBg,
+  // same top-level-in-printerScreens path — same "covered by the whole blob"
+  // reasoning, pinned down for one of the two new fields.
+  it("changes when qrCorner changes within printerScreens", () => {
+    const withCorner = (qrCorner: string) =>
+      computeConfigVersion({ ...base, printerScreens: { version: 3, qrShape: "rounded", qrCorner } });
+    const v = withCorner("rounded");
+    expect(withCorner("square")).not.toBe(v);
+    expect(withCorner("rounded")).toBe(v); // stable for identical corner
+  });
 });
 
 describe("etagMatches", () => {

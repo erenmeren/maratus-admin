@@ -276,12 +276,16 @@ const PREVIEW_QR_VALUE = "https://ditto.app";
 
 /**
  * QrObject — lifted from the QR screen's QR card and the SetupScreen's compact
- * QR. Renders the org's styled QR (shape/colors from config.qrShape/qrFg/qrBg)
- * inside a card sized to match — the card background matches qrBg so the
- * quiet zone reads as one continuous surface, not a mismatched border.
+ * QR. Renders the org's styled QR (shape/colors/corner/shadow from
+ * config.qrShape/qrFg/qrBg/qrCorner/qrShadow) inside a card sized to match —
+ * the card background matches qrBg so the quiet zone reads as one continuous
+ * surface, not a mismatched border. Corner + shadow used to be hard-coded
+ * (always rounded, always shadowed) which drifted from the device's square,
+ * shadowless render — both now follow the org setting (2026-07-23 addendum).
  */
 function QrObject({ object, config }: { object: PrinterObject; config: PrinterConfig }) {
   const compact = object.w < 0.25;
+  const rounded = config.qrCorner === "rounded";
   return (
     <div
       className="flex size-full items-center justify-center"
@@ -289,15 +293,18 @@ function QrObject({ object, config }: { object: PrinterObject; config: PrinterCo
         compact
           ? {
               background: config.qrBg,
-              borderRadius: cq(14),
+              borderRadius: rounded ? cq(14) : 0,
               padding: cq(10),
               border: "1px solid var(--k-hairline)",
+              boxShadow: config.qrShadow ? "0 8px 20px -10px rgba(15,20,40,0.35)" : undefined,
             }
           : {
               background: config.qrBg,
-              borderRadius: cq(32),
+              borderRadius: rounded ? cq(32) : 0,
               padding: cq(20),
-              boxShadow: "0 24px 60px -18px rgba(15,20,40,0.30), 0 2px 8px rgba(15,20,40,0.06)",
+              boxShadow: config.qrShadow
+                ? "0 24px 60px -18px rgba(15,20,40,0.30), 0 2px 8px rgba(15,20,40,0.06)"
+                : undefined,
             }
       }
     >
@@ -306,6 +313,8 @@ function QrObject({ object, config }: { object: PrinterObject; config: PrinterCo
         shape={config.qrShape}
         fg={config.qrFg}
         bg={config.qrBg}
+        corner={config.qrCorner}
+        shadow={false}
         style={{ width: "100%", height: "100%", display: "block" }}
       />
     </div>

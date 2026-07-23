@@ -16,6 +16,7 @@ import {
   Minus,
   Palette,
   Plus,
+  QrCode,
   RotateCcw,
   Save,
 } from "lucide-react";
@@ -38,7 +39,7 @@ import {
   ZOOM_DEFAULT,
 } from "@/lib/branding-shell";
 import { isValidHex, withAlpha } from "@/lib/color";
-import { screenColors, QR_SHAPES, type QrShape, type ScreenColors } from "@/lib/printer-layout";
+import { screenColors, QR_SHAPES, QR_CORNERS, type QrCorner, type QrShape, type ScreenColors } from "@/lib/printer-layout";
 import { QrSvg } from "@/components/qr-svg";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -319,6 +320,9 @@ function ControlPanel({ draft }: { draft: BrandingDraft }) {
             <TabsTrigger value="theme">
               <Palette className="size-3.5" /> Theme
             </TabsTrigger>
+            <TabsTrigger value="qr">
+              <QrCode className="size-3.5" /> QR
+            </TabsTrigger>
             <TabsTrigger value="screen">
               <LayoutGrid className="size-3.5" /> Screen
             </TabsTrigger>
@@ -328,6 +332,10 @@ function ControlPanel({ draft }: { draft: BrandingDraft }) {
         <div className="max-h-[24rem] min-h-0 flex-1 overflow-y-auto p-4 lg:max-h-none">
           <TabsContent value="theme" className="mt-0 space-y-5">
             <ThemePanel draft={draft} />
+          </TabsContent>
+
+          <TabsContent value="qr" className="mt-0 space-y-4">
+            <QrStylePanel draft={draft} />
           </TabsContent>
 
           <TabsContent value="screen" className="mt-0 space-y-4">
@@ -501,9 +509,6 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
         </div>
       </section>
 
-      {/* QR style — org-wide (every screen's QR uses this look) */}
-      <QrStylePanel draft={draft} />
-
       {/* Per-screen override — scoped to the active screen (picked in the filmstrip) */}
       <ScreenColorsPanel draft={draft} />
     </>
@@ -517,63 +522,124 @@ const QR_SHAPE_LABEL: Record<QrShape, string> = {
   dots: "Dots",
 };
 
+const QR_CORNER_LABEL: Record<QrCorner, string> = {
+  square: "Square",
+  rounded: "Rounded",
+};
+
 // Illustrative-only value — same one QrObject (printer-preview) uses for mockups.
 const QR_STYLE_PREVIEW_VALUE = "https://ditto.app";
 
-/** Org-wide QR shape + colors. Saved through the same config JSON as everything
- *  else (draft.config.qrShape/qrFg/qrBg, set via editor.setShared). */
+/** Org-wide QR shape, colors, background corner + shadow — its own studio tab
+ *  (moved out of Theme 2026-07-23 so the theme panel isn't as crowded). Saved
+ *  through the same config JSON as everything else (draft.config.qrShape/
+ *  qrFg/qrBg/qrCorner/qrShadow, set via editor.setShared). */
 function QrStylePanel({ draft }: { draft: BrandingDraft }) {
-  const { qrShape, qrFg, qrBg } = draft.config;
-  const set = (p: Partial<{ qrShape: QrShape; qrFg: string; qrBg: string }>) =>
-    draft.editor.setShared(p);
+  const { qrShape, qrFg, qrBg, qrCorner, qrShadow } = draft.config;
+  const set = (
+    p: Partial<{ qrShape: QrShape; qrFg: string; qrBg: string; qrCorner: QrCorner; qrShadow: boolean }>,
+  ) => draft.editor.setShared(p);
 
   return (
-    <section className="space-y-2.5 border-t pt-4">
-      <div className="space-y-1">
-        <PanelLabel>QR style</PanelLabel>
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
-          Applies to every QR on every screen — device, pinned, and setup.
-        </p>
-      </div>
+    <>
+      <section className="space-y-2.5">
+        <div className="space-y-1">
+          <PanelLabel>Shape</PanelLabel>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            Applies to every QR on every screen — device, pinned, and setup.
+          </p>
+        </div>
 
-      <div className="grid grid-cols-4 gap-2">
-        {QR_SHAPES.map((s) => {
-          const active = s === qrShape;
-          return (
-            <button
-              key={s}
-              type="button"
-              disabled={draft.disabled}
-              onClick={() => set({ qrShape: s })}
-              aria-pressed={active}
-              className={cn(
-                "flex flex-col items-center gap-1.5 rounded-lg border p-2 ring-offset-2 ring-offset-card transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm disabled:pointer-events-none disabled:opacity-60",
-                active && "ring-2",
-              )}
-              style={active ? ({ "--tw-ring-color": draft.color } as React.CSSProperties) : undefined}
-            >
-              <span className="flex size-10 items-center justify-center rounded-md p-1" style={{ background: qrBg }}>
-                <QrSvg
-                  value={QR_STYLE_PREVIEW_VALUE}
-                  shape={s}
-                  fg={qrFg}
-                  bg={qrBg}
-                  style={{ width: "100%", height: "100%", display: "block" }}
-                  ariaLabel={`${QR_SHAPE_LABEL[s]} QR style preview`}
-                />
-              </span>
-              <span className="text-[10px] font-medium text-muted-foreground">{QR_SHAPE_LABEL[s]}</span>
-            </button>
-          );
-        })}
-      </div>
+        <div className="grid grid-cols-4 gap-2">
+          {QR_SHAPES.map((s) => {
+            const active = s === qrShape;
+            return (
+              <button
+                key={s}
+                type="button"
+                disabled={draft.disabled}
+                onClick={() => set({ qrShape: s })}
+                aria-pressed={active}
+                className={cn(
+                  "flex flex-col items-center gap-1.5 rounded-lg border p-2 ring-offset-2 ring-offset-card transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm disabled:pointer-events-none disabled:opacity-60",
+                  active && "ring-2",
+                )}
+                style={active ? ({ "--tw-ring-color": draft.color } as React.CSSProperties) : undefined}
+              >
+                <span className="flex size-10 items-center justify-center rounded-md p-1" style={{ background: qrBg }}>
+                  <QrSvg
+                    value={QR_STYLE_PREVIEW_VALUE}
+                    shape={s}
+                    fg={qrFg}
+                    bg={qrBg}
+                    style={{ width: "100%", height: "100%", display: "block" }}
+                    ariaLabel={`${QR_SHAPE_LABEL[s]} QR style preview`}
+                  />
+                </span>
+                <span className="text-[10px] font-medium text-muted-foreground">{QR_SHAPE_LABEL[s]}</span>
+              </button>
+            );
+          })}
+        </div>
 
-      <div className="space-y-3 pt-1">
-        <ColorField label="QR color" value={qrFg} onChange={(v) => set({ qrFg: v })} disabled={draft.disabled} />
-        <ColorField label="QR background" value={qrBg} onChange={(v) => set({ qrBg: v })} disabled={draft.disabled} />
-      </div>
+        <div className="space-y-3 pt-1">
+          <ColorField label="QR color" value={qrFg} onChange={(v) => set({ qrFg: v })} disabled={draft.disabled} />
+          <ColorField label="QR background" value={qrBg} onChange={(v) => set({ qrBg: v })} disabled={draft.disabled} />
+        </div>
+      </section>
 
-    </section>
+      {/* Background plate — corner + shadow. Used to be hard-coded (always
+       *  rounded, always shadowed) in the preview while the device rendered
+       *  square + shadowless; both are now an org-wide choice (2026-07-23). */}
+      <section className="space-y-2.5 border-t pt-4">
+        <div className="space-y-1">
+          <PanelLabel>Background plate</PanelLabel>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            The surface behind the code — corner rounding and drop shadow.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2">
+          {QR_CORNERS.map((c) => {
+            const active = c === qrCorner;
+            return (
+              <button
+                key={c}
+                type="button"
+                disabled={draft.disabled}
+                onClick={() => set({ qrCorner: c })}
+                aria-pressed={active}
+                className={cn(
+                  "flex flex-col items-center gap-1.5 rounded-lg border p-2 ring-offset-2 ring-offset-card transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm disabled:pointer-events-none disabled:opacity-60",
+                  active && "ring-2",
+                )}
+                style={active ? ({ "--tw-ring-color": draft.color } as React.CSSProperties) : undefined}
+              >
+                <span
+                  className="flex size-10 items-center justify-center"
+                  style={{ background: qrBg, borderRadius: c === "rounded" ? 8 : 0 }}
+                >
+                  <span className="size-5" style={{ background: qrFg, borderRadius: c === "rounded" ? 2 : 0 }} />
+                </span>
+                <span className="text-[10px] font-medium text-muted-foreground">{QR_CORNER_LABEL[c]}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center justify-between pt-1">
+          <Label htmlFor="qr-shadow-switch" className="text-xs">
+            Drop shadow
+          </Label>
+          <Switch
+            id="qr-shadow-switch"
+            checked={qrShadow}
+            disabled={draft.disabled}
+            onCheckedChange={(on) => set({ qrShadow: on })}
+          />
+        </div>
+      </section>
+    </>
   );
 }
 

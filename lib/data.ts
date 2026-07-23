@@ -44,7 +44,7 @@ import { presignedGetUrl } from "./storage";
 import { env } from "@/lib/env";
 import { resolveBrandTokens } from "./color";
 import { ianaToPosix } from "./posix-tz";
-import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "./printer-layout";
+import { normalizePrinterConfig, sanitizeQrStyle, PRINTER_SCREENS, type PrinterConfig, type QrStyle } from "./printer-layout";
 import { computeConfigVersion, etagMatches } from "@/lib/device-config";
 import { normalizeDeviceSettings } from "@/lib/device-settings";
 import { rollupByDevice } from "@/lib/credit-usage";
@@ -1093,6 +1093,25 @@ export function isDirectAssetUrl(url: string): boolean {
  *  device); already-absolute URLs and R2 keys pass through unchanged. */
 function absolutizeLocalAsset(url: string): string {
   return url.startsWith("/") ? `${env.BETTER_AUTH_URL.replace(/\/$/, "")}${url}` : url;
+}
+
+/**
+ * The org's QR appearance (shape + colors) only — a minimal read for callers
+ * (e.g. the device pin-control card) that just need to render an on-brand QR
+ * preview and don't want getTenantBranding's full image-presigning cost.
+ */
+export async function getOrgQrStyle(organizationId: string): Promise<QrStyle> {
+  const [s] = await db
+    .select({
+      printerScreens: settingsTable.printerScreens,
+      printerLayout: settingsTable.printerLayout,
+    })
+    .from(settingsTable)
+    .where(eq(settingsTable.organizationId, organizationId))
+    .limit(1);
+  // v2 layouts (printerLayout only) predate qrShape/qrFg/qrBg entirely —
+  // sanitizeQrStyle falls back to the defaults for them regardless.
+  return sanitizeQrStyle(s?.printerScreens ?? s?.printerLayout);
 }
 
 export interface TenantBranding {

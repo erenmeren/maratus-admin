@@ -157,7 +157,7 @@ export function ObjectVisual({
     case "image":
       return <ImageObject object={object} />;
     case "qr":
-      return <QrObject object={object} />;
+      return <QrObject object={object} config={config} />;
     case "spinner":
       return <SpinnerObject object={object} />;
     case "countdown":
@@ -276,9 +276,11 @@ const PREVIEW_QR_VALUE = "https://ditto.app";
 
 /**
  * QrObject — lifted from the QR screen's QR card and the SetupScreen's compact
- * QR. Renders a styled QR (rounded dot modules) inside a white card at size-full.
+ * QR. Renders the org's styled QR (shape/colors from config.qrShape/qrFg/qrBg)
+ * inside a card sized to match — the card background matches qrBg so the
+ * quiet zone reads as one continuous surface, not a mismatched border.
  */
-function QrObject({ object }: { object: PrinterObject }) {
+function QrObject({ object, config }: { object: PrinterObject; config: PrinterConfig }) {
   const compact = object.w < 0.25;
   return (
     <div
@@ -286,13 +288,13 @@ function QrObject({ object }: { object: PrinterObject }) {
       style={
         compact
           ? {
-              background: "#fff",
+              background: config.qrBg,
               borderRadius: cq(14),
               padding: cq(10),
               border: "1px solid var(--k-hairline)",
             }
           : {
-              background: "#fff",
+              background: config.qrBg,
               borderRadius: cq(32),
               padding: cq(20),
               boxShadow: "0 24px 60px -18px rgba(15,20,40,0.30), 0 2px 8px rgba(15,20,40,0.06)",
@@ -301,7 +303,10 @@ function QrObject({ object }: { object: PrinterObject }) {
     >
       <QrSvg
         value={PREVIEW_QR_VALUE}
-        style={{ width: "100%", height: "100%", color: "#0b0b0c", display: "block" }}
+        shape={config.qrShape}
+        fg={config.qrFg}
+        bg={config.qrBg}
+        style={{ width: "100%", height: "100%", display: "block" }}
       />
     </div>
   );

@@ -76,6 +76,21 @@ describe("computeConfigVersion — pinned QR", () => {
   });
 });
 
+describe("computeConfigVersion — QR style", () => {
+  // qrShape/qrFg/qrBg live top-level inside printerScreens (no dedicated ETag
+  // input) — this pins down that they're covered anyway, since the whole blob
+  // participates via the "any renderable input changes" test above.
+  it("changes when qrShape, qrFg, or qrBg change within printerScreens", () => {
+    const withStyle = (qrShape: string, qrFg: string, qrBg: string) =>
+      computeConfigVersion({ ...base, printerScreens: { version: 3, qrShape, qrFg, qrBg } });
+    const v = withStyle("rounded", "#111111", "#ffffff");
+    expect(withStyle("classic", "#111111", "#ffffff")).not.toBe(v);
+    expect(withStyle("rounded", "#222222", "#ffffff")).not.toBe(v);
+    expect(withStyle("rounded", "#111111", "#eeeeee")).not.toBe(v);
+    expect(withStyle("rounded", "#111111", "#ffffff")).toBe(v); // stable for identical style
+  });
+});
+
 describe("etagMatches", () => {
   it("matches quoted, weak, and bare forms", () => {
     expect(etagMatches('"abc"', "abc")).toBe(true);

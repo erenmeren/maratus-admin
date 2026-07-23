@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { isFinderCell, finderOrigins, darkDots } from "./qr-svg";
+import { isFinderCell, finderOrigins, darkDots, QR_SHAPES, QR_SHAPE_GEOMETRY } from "./qr-svg";
 
 describe("isFinderCell", () => {
   const size = 21; // smallest real QR (version 1)
@@ -58,5 +58,44 @@ describe("darkDots", () => {
 
   it("returns nothing when the matrix is entirely light", () => {
     expect(darkDots(21, () => false)).toEqual([]);
+  });
+});
+
+// ─── QR style shapes (2026-07-23) ────────────────────────────────────────────
+
+describe("QR_SHAPE_GEOMETRY", () => {
+  it("has an entry for every shape in QR_SHAPES", () => {
+    for (const shape of QR_SHAPES) {
+      expect(QR_SHAPE_GEOMETRY[shape]).toBeDefined();
+    }
+  });
+
+  it("classic renders sharp squares (no rounding anywhere)", () => {
+    const g = QR_SHAPE_GEOMETRY.classic;
+    expect(g.moduleKind).toBe("rect");
+    expect(g.moduleRx).toBe(0);
+    expect(g.finderRadiusRatio).toBe(0);
+  });
+
+  it("soft renders rounded-corner squares with rx ≈ 0.25 × module", () => {
+    const g = QR_SHAPE_GEOMETRY.soft;
+    expect(g.moduleKind).toBe("rect");
+    expect(g.moduleRx).toBeCloseTo(0.25);
+  });
+
+  it("rounded (today's live look) renders circles", () => {
+    const g = QR_SHAPE_GEOMETRY.rounded;
+    expect(g.moduleKind).toBe("circle");
+    expect(g.moduleR).toBeGreaterThan(0);
+  });
+
+  it("dots renders circles with diameter ≥ 0.7 × module (r ≥ 0.35)", () => {
+    const g = QR_SHAPE_GEOMETRY.dots;
+    expect(g.moduleKind).toBe("circle");
+    expect(g.moduleR).toBeGreaterThanOrEqual(0.35);
+  });
+
+  it("dots modules are smaller than rounded's (visually distinct)", () => {
+    expect(QR_SHAPE_GEOMETRY.dots.moduleR).toBeLessThan(QR_SHAPE_GEOMETRY.rounded.moduleR);
   });
 });

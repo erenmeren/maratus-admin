@@ -18,6 +18,7 @@ import {
   Plus,
   RotateCcw,
   Save,
+  TriangleAlert,
 } from "lucide-react";
 import { PrinterPreview } from "@/components/device-preview/printer-preview";
 import { PrinterStage } from "@/components/device-preview/printer-editor/printer-stage";
@@ -38,7 +39,8 @@ import {
   ZOOM_DEFAULT,
 } from "@/lib/branding-shell";
 import { isValidHex, withAlpha } from "@/lib/color";
-import { screenColors, type ScreenColors } from "@/lib/printer-layout";
+import { screenColors, sanitizeQrStyle, QR_SHAPES, type QrShape, type ScreenColors } from "@/lib/printer-layout";
+import { QrSvg } from "@/components/qr-svg";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -500,9 +502,91 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
         </div>
       </section>
 
+      {/* QR style — org-wide (every screen's QR uses this look) */}
+      <QrStylePanel draft={draft} />
+
       {/* Per-screen override — scoped to the active screen (picked in the filmstrip) */}
       <ScreenColorsPanel draft={draft} />
     </>
+  );
+}
+
+const QR_SHAPE_LABEL: Record<QrShape, string> = {
+  classic: "Classic",
+  soft: "Soft",
+  rounded: "Rounded",
+  dots: "Dots",
+};
+
+// Illustrative-only value — same one QrObject (printer-preview) uses for mockups.
+const QR_STYLE_PREVIEW_VALUE = "https://ditto.app";
+
+/** Org-wide QR shape + colors. Saved through the same config JSON as everything
+ *  else (draft.config.qrShape/qrFg/qrBg, set via editor.setShared). */
+function QrStylePanel({ draft }: { draft: BrandingDraft }) {
+  const { qrShape, qrFg, qrBg } = draft.config;
+  const set = (p: Partial<{ qrShape: QrShape; qrFg: string; qrBg: string }>) =>
+    draft.editor.setShared(p);
+
+  // Would the guardrail (fg darker than bg + contrast ≥ 4:1) reset these colors
+  // on save? Compare the live pair against what sanitizeQrStyle would keep.
+  const sanitized = sanitizeQrStyle({ qrShape, qrFg, qrBg });
+  const willReset = !eq(sanitized.qrFg, qrFg) || !eq(sanitized.qrBg, qrBg);
+
+  return (
+    <section className="space-y-2.5 border-t pt-4">
+      <div className="space-y-1">
+        <PanelLabel>QR style</PanelLabel>
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          Applies to every QR on every screen — device, pinned, and setup.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2">
+        {QR_SHAPES.map((s) => {
+          const active = s === qrShape;
+          return (
+            <button
+              key={s}
+              type="button"
+              disabled={draft.disabled}
+              onClick={() => set({ qrShape: s })}
+              aria-pressed={active}
+              className={cn(
+                "flex flex-col items-center gap-1.5 rounded-lg border p-2 ring-offset-2 ring-offset-card transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm disabled:pointer-events-none disabled:opacity-60",
+                active && "ring-2",
+              )}
+              style={active ? ({ "--tw-ring-color": draft.color } as React.CSSProperties) : undefined}
+            >
+              <span className="flex size-10 items-center justify-center rounded-md p-1" style={{ background: qrBg }}>
+                <QrSvg
+                  value={QR_STYLE_PREVIEW_VALUE}
+                  shape={s}
+                  fg={qrFg}
+                  bg={qrBg}
+                  style={{ width: "100%", height: "100%", display: "block" }}
+                  ariaLabel={`${QR_SHAPE_LABEL[s]} QR style preview`}
+                />
+              </span>
+              <span className="text-[10px] font-medium text-muted-foreground">{QR_SHAPE_LABEL[s]}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="space-y-3 pt-1">
+        <ColorField label="QR color" value={qrFg} onChange={(v) => set({ qrFg: v })} disabled={draft.disabled} />
+        <ColorField label="QR background" value={qrBg} onChange={(v) => set({ qrBg: v })} disabled={draft.disabled} />
+      </div>
+
+      {willReset && (
+        <p className="flex items-start gap-1.5 text-[11px] leading-relaxed text-amber-600 dark:text-amber-400">
+          <TriangleAlert className="mt-px size-3.5 shrink-0" />
+          Low contrast — these colors won&apos;t scan reliably, so Ditto will reset
+          them to the defaults when you save.
+        </p>
+      )}
+    </section>
   );
 }
 

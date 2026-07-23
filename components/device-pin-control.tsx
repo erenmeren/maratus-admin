@@ -21,6 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { setDevicePinAction, clearDevicePinAction } from "@/lib/actions/pin";
 import { timeAgo } from "@/lib/format";
+import { DEFAULT_QR_STYLE, type QrShape } from "@/lib/printer-layout";
 
 export function DevicePinControl(props: {
   deviceId: string;
@@ -28,6 +29,10 @@ export function DevicePinControl(props: {
   initialPinnedAt: string | null;
   creditsAvailable: number;
   canManage: boolean;
+  /** Org-wide QR style (Branding → QR style); defaults match the org default look. */
+  qrShape?: QrShape;
+  qrFg?: string;
+  qrBg?: string;
 }) {
   const [pinnedUrl, setPinnedUrl] = useState(props.initialPinnedUrl);
   const [pinnedAt, setPinnedAt] = useState(props.initialPinnedAt);
@@ -80,8 +85,11 @@ export function DevicePinControl(props: {
           <>
             <QrSvg
               value={pinnedUrl}
-              className="mx-auto block size-32 rounded-lg border bg-white p-1.5"
-              style={{ color: "#0b0b0c" }}
+              shape={props.qrShape ?? DEFAULT_QR_STYLE.qrShape}
+              fg={props.qrFg ?? DEFAULT_QR_STYLE.qrFg}
+              bg={props.qrBg ?? DEFAULT_QR_STYLE.qrBg}
+              className="mx-auto block size-32 rounded-lg border p-1.5"
+              style={{ background: props.qrBg ?? DEFAULT_QR_STYLE.qrBg }}
               ariaLabel="Pinned QR preview"
             />
             <p className="break-all font-mono text-xs text-muted-foreground">{pinnedUrl}</p>

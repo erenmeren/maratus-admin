@@ -28,6 +28,15 @@ export function readableOn(hex: string): string {
   return luminance(hex) > 0.5 ? "#0b1220" : "#ffffff";
 }
 
+/** WCAG contrast ratio (1–21) between two colors, order-independent. */
+export function contrastRatio(hexA: string, hexB: string): number {
+  const la = luminance(hexA);
+  const lb = luminance(hexB);
+  const lighter = Math.max(la, lb);
+  const darker = Math.min(la, lb);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
 /** rgba() string from a hex + alpha. */
 export function withAlpha(hex: string, alpha: number): string {
   const [r, g, b] = hexToRgb(hex);

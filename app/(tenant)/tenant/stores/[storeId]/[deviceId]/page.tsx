@@ -9,7 +9,7 @@ import { DeviceMoveControl } from "@/components/device-move-control";
 import { DevicePinControl } from "@/components/device-pin-control";
 import { Card, CardContent, CardHeader, CardTitle,  } from "@/components/ui/card";
 import { CommandBar } from "@/components/devices/command-bar";
-import { getDevice, getDeviceCommands, getTenantStores } from "@/lib/data";
+import { getDevice, getDeviceCommands, getTenantStores, getOrgQrStyle } from "@/lib/data";
 import { db } from "@/lib/db";
 import { firmwareRelease } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
@@ -57,6 +57,7 @@ export default async function DeviceDetailPage({
   const { device, store } = result;
   const commands = await getDeviceCommands(device.id, 8);
   const balance = await getBalance(organizationId);
+  const qrStyle = await getOrgQrStyle(organizationId);
 
   const membership = ctx.organizations.find((o) => o.id === organizationId);
   const canManage = canManageTenant(membership?.role);
@@ -205,6 +206,9 @@ export default async function DeviceDetailPage({
             initialPinnedAt={device.pinnedAt}
             creditsAvailable={balance.available}
             canManage={canManage}
+            qrShape={qrStyle.qrShape}
+            qrFg={qrStyle.qrFg}
+            qrBg={qrStyle.qrBg}
           />
           <Card>
             <CardHeader>

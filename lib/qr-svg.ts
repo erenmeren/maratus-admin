@@ -44,3 +44,37 @@ export function darkDots(size: number, isDark: (row: number, col: number) => boo
   }
   return dots;
 }
+
+// ─── QR style (shape + colors), 2026-07-23 ───────────────────────────────────
+// Org-wide QR appearance, stored in the printer config JSON (see
+// lib/printer-layout.ts sanitizeQrStyle). Geometry here is pure data — no
+// DOM/React — so it's shared by components/qr-svg.tsx (render) and tested
+// directly.
+
+export const QR_SHAPES = ["classic", "soft", "rounded", "dots"] as const;
+export type QrShape = (typeof QR_SHAPES)[number];
+
+/** Per-shape rendering geometry, expressed as fractions of one module unit
+ *  (finderRadiusRatio is a fraction of each finder rect's OWN edge length,
+ *  matching the existing "rounded" finder math). */
+export interface QrShapeGeometry {
+  moduleKind: "rect" | "circle";
+  /** Rect corner radius, as a fraction of the module unit (rect shapes only). */
+  moduleRx: number;
+  /** Circle radius, as a fraction of the module unit (circle shapes only). */
+  moduleR: number;
+  /** Finder-pattern corner radius, as a fraction of the finder rect's own size. */
+  finderRadiusRatio: number;
+}
+
+export const QR_SHAPE_GEOMETRY: Record<QrShape, QrShapeGeometry> = {
+  // Plain squares — no rounding anywhere, closest to a "stock" QR code.
+  classic: { moduleKind: "rect", moduleRx: 0, moduleR: 0, finderRadiusRatio: 0 },
+  // Rounded-corner squares — a gentle, modern square look.
+  soft: { moduleKind: "rect", moduleRx: 0.25, moduleR: 0, finderRadiusRatio: 1 / 8 },
+  // Today's live look — dot modules, rounded finder squares. Unchanged from
+  // the pre-QR-style-options render (r ≈ 0.425 × module, ratio 1/3).
+  rounded: { moduleKind: "circle", moduleRx: 0, moduleR: 0.425, finderRadiusRatio: 1 / 3 },
+  // Smaller, more separated dots (diameter = 0.7 × module → r = 0.35).
+  dots: { moduleKind: "circle", moduleRx: 0, moduleR: 0.35, finderRadiusRatio: 1 / 3 },
+};

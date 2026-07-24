@@ -1,5 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { isFinderCell, finderOrigins, darkDots, QR_SHAPES, QR_SHAPE_GEOMETRY } from "./qr-svg";
+import {
+  isFinderCell,
+  finderOrigins,
+  darkDots,
+  QR_SHAPES,
+  QR_SHAPE_GEOMETRY,
+  qrShadowFilterSpec,
+  qrShadowBoxShadow,
+} from "./qr-svg";
 
 describe("isFinderCell", () => {
   const size = 21; // smallest real QR (version 1)
@@ -97,5 +105,82 @@ describe("QR_SHAPE_GEOMETRY", () => {
 
   it("dots modules are smaller than rounded's (visually distinct)", () => {
     expect(QR_SHAPE_GEOMETRY.dots.moduleR).toBeLessThan(QR_SHAPE_GEOMETRY.rounded.moduleR);
+  });
+});
+
+// ─── QR background-plate shadow: SVG filter + CSS box-shadow (2026-07-24) ───
+
+describe("qrShadowFilterSpec", () => {
+  it("emits nothing for mode 'none'", () => {
+    expect(qrShadowFilterSpec("none", 50, "#000000")).toBeNull();
+  });
+
+  it("emits a single feDropShadow spec for mode 'drop'", () => {
+    const spec = qrShadowFilterSpec("drop", 50, "#ff0000");
+    expect(spec).not.toBeNull();
+    expect(spec!.kind).toBe("drop");
+    if (spec!.kind === "drop") {
+      expect(spec!.dy).toBeGreaterThan(0);
+      expect(spec!.stdDeviation).toBeGreaterThan(0);
+      expect(spec!.floodColor).toMatch(/^rgba\(255, 0, 0, [\d.]+\)$/);
+    }
+  });
+
+  it("emits two stacked Gaussian-blur std-deviations (tight < wide) for mode 'neon'", () => {
+    const spec = qrShadowFilterSpec("neon", 50, "#00ff00");
+    expect(spec).not.toBeNull();
+    expect(spec!.kind).toBe("neon");
+    if (spec!.kind === "neon") {
+      const [tight, wide] = spec!.stdDeviations;
+      expect(tight).toBeGreaterThan(0);
+      expect(wide).toBeGreaterThan(tight);
+      expect(spec!.color).toBe("#00ff00");
+    }
+  });
+
+  it("drop's stdDeviation and opacity increase monotonically with strength", () => {
+    const low = qrShadowFilterSpec("drop", 0, "#000000")!;
+    const high = qrShadowFilterSpec("drop", 100, "#000000")!;
+    expect(low.kind).toBe("drop");
+    expect(high.kind).toBe("drop");
+    if (low.kind === "drop" && high.kind === "drop") {
+      expect(high.stdDeviation).toBeGreaterThan(low.stdDeviation);
+    }
+  });
+
+  it("neon's blur radii increase monotonically with strength", () => {
+    const low = qrShadowFilterSpec("neon", 0, "#000000")!;
+    const high = qrShadowFilterSpec("neon", 100, "#000000")!;
+    if (low.kind === "neon" && high.kind === "neon") {
+      expect(high.stdDeviations[0]).toBeGreaterThan(low.stdDeviations[0]);
+      expect(high.stdDeviations[1]).toBeGreaterThan(low.stdDeviations[1]);
+    }
+  });
+});
+
+describe("qrShadowBoxShadow", () => {
+  it("returns undefined for mode 'none'", () => {
+    expect(qrShadowBoxShadow("none", 50, "#000000")).toBeUndefined();
+  });
+
+  it("returns a downward-offset rgba shadow for mode 'drop'", () => {
+    const css = qrShadowBoxShadow("drop", 50, "#000000");
+    expect(css).toMatch(/^0 2px [\d.]+px rgba\(0, 0, 0, [\d.]+\)$/);
+  });
+
+  it("returns two zero-offset full-color glows for mode 'neon', the second double the first", () => {
+    const css = qrShadowBoxShadow("neon", 50, "#00ffcc");
+    const m = css!.match(/^0 0 ([\d.]+)px #00ffcc, 0 0 ([\d.]+)px #00ffcc$/);
+    expect(m).not.toBeNull();
+    const [, first, second] = m!;
+    expect(Number(second)).toBeCloseTo(Number(first) * 2);
+  });
+
+  it("mode 'none' vs 'drop' vs 'neon' produce distinct output for the same strength/color", () => {
+    const args = [60, "#111111"] as const;
+    const drop = qrShadowBoxShadow("drop", ...args);
+    const neon = qrShadowBoxShadow("neon", ...args);
+    expect(drop).not.toBe(neon);
+    expect(qrShadowBoxShadow("none", ...args)).toBeUndefined();
   });
 });

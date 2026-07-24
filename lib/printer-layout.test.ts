@@ -559,7 +559,9 @@ describe("sanitizeQrStyle", () => {
       qrFg: "#003366",
       qrBg: "#f0f0f0",
       qrCorner: DEFAULT_QR_STYLE.qrCorner,
-      qrShadow: DEFAULT_QR_STYLE.qrShadow,
+      qrShadowMode: DEFAULT_QR_STYLE.qrShadowMode,
+      qrShadowStrength: DEFAULT_QR_STYLE.qrShadowStrength,
+      qrShadowColor: DEFAULT_QR_STYLE.qrShadowColor,
     });
   });
 
@@ -615,35 +617,84 @@ describe("sanitizeQrStyle", () => {
 // the studio preview hard-coded rounded corners + a shadow while the device
 // rendered square + shadowless; both are now an org-wide, config-driven choice.
 
-describe("sanitizeQrStyle — corner + shadow", () => {
-  it("defaults qrCorner to 'rounded' and qrShadow to false for garbage/missing input", () => {
-    expect(sanitizeQrStyle(null)).toMatchObject({ qrCorner: "rounded", qrShadow: false });
-    expect(sanitizeQrStyle(undefined)).toMatchObject({ qrCorner: "rounded", qrShadow: false });
-    expect(sanitizeQrStyle({})).toMatchObject({ qrCorner: "rounded", qrShadow: false });
+describe("sanitizeQrStyle — corner", () => {
+  it("defaults qrCorner to 'rounded' for garbage/missing input", () => {
+    expect(sanitizeQrStyle(null)).toMatchObject({ qrCorner: "rounded" });
+    expect(sanitizeQrStyle(undefined)).toMatchObject({ qrCorner: "rounded" });
+    expect(sanitizeQrStyle({})).toMatchObject({ qrCorner: "rounded" });
   });
 
-  it("passes a valid corner + shadow pair through unchanged", () => {
-    const s = sanitizeQrStyle({ qrCorner: "square", qrShadow: true });
-    expect(s.qrCorner).toBe("square");
-    expect(s.qrShadow).toBe(true);
+  it("passes a valid corner through unchanged", () => {
+    expect(sanitizeQrStyle({ qrCorner: "square" }).qrCorner).toBe("square");
   });
 
   it("resets an unknown corner value to 'rounded'", () => {
     const s = sanitizeQrStyle({ qrCorner: "beveled" });
     expect(s.qrCorner).toBe("rounded");
   });
+});
 
-  it("coerces a non-boolean qrShadow to false", () => {
-    expect(sanitizeQrStyle({ qrShadow: "yes" }).qrShadow).toBe(false);
-    expect(sanitizeQrStyle({ qrShadow: 1 }).qrShadow).toBe(false);
-    expect(sanitizeQrStyle({ qrShadow: null }).qrShadow).toBe(false);
+// ─── QR background-plate shadow: mode + strength + color (2026-07-24) ───────
+// Replaces the old boolean `qrShadow` with a 3-way mode ("none" | "drop" |
+// "neon"), a 0..100 intensity, and a color — see sanitizeQrStyle.
+
+describe("sanitizeQrStyle — shadow mode/strength/color", () => {
+  it("defaults to mode 'none', strength 50, color #000000 for garbage/missing input", () => {
+    for (const input of [null, undefined, "nope", {}]) {
+      expect(sanitizeQrStyle(input)).toMatchObject({
+        qrShadowMode: "none",
+        qrShadowStrength: 50,
+        qrShadowColor: "#000000",
+      });
+    }
   });
 
-  it("keeps qrShadow: false explicit (not just absent)", () => {
-    expect(sanitizeQrStyle({ qrCorner: "square", qrShadow: false })).toMatchObject({
-      qrCorner: "square",
-      qrShadow: false,
-    });
+  it("passes a valid mode/strength/color through unchanged", () => {
+    const s = sanitizeQrStyle({ qrShadowMode: "neon", qrShadowStrength: 80, qrShadowColor: "#ff00aa" });
+    expect(s.qrShadowMode).toBe("neon");
+    expect(s.qrShadowStrength).toBe(80);
+    expect(s.qrShadowColor).toBe("#ff00aa");
+  });
+
+  it("resets an unknown mode value to 'none'", () => {
+    expect(sanitizeQrStyle({ qrShadowMode: "glow" }).qrShadowMode).toBe("none");
+    expect(sanitizeQrStyle({ qrShadowMode: 1 }).qrShadowMode).toBe("none");
+  });
+
+  it("migrates a legacy boolean qrShadow: true to mode 'drop'", () => {
+    expect(sanitizeQrStyle({ qrShadow: true }).qrShadowMode).toBe("drop");
+  });
+
+  it("migrates a legacy boolean qrShadow: false (or absent) to mode 'none'", () => {
+    expect(sanitizeQrStyle({ qrShadow: false }).qrShadowMode).toBe("none");
+    expect(sanitizeQrStyle({}).qrShadowMode).toBe("none");
+  });
+
+  it("a valid stored qrShadowMode wins over a legacy qrShadow boolean", () => {
+    expect(sanitizeQrStyle({ qrShadowMode: "neon", qrShadow: false }).qrShadowMode).toBe("neon");
+    expect(sanitizeQrStyle({ qrShadowMode: "none", qrShadow: true }).qrShadowMode).toBe("none");
+  });
+
+  it("clamps strength above 100 down to 100, and below 0 up to 0", () => {
+    expect(sanitizeQrStyle({ qrShadowStrength: 150 }).qrShadowStrength).toBe(100);
+    expect(sanitizeQrStyle({ qrShadowStrength: -5 }).qrShadowStrength).toBe(0);
+  });
+
+  it("rounds a non-integer strength", () => {
+    expect(sanitizeQrStyle({ qrShadowStrength: 42.7 }).qrShadowStrength).toBe(43);
+  });
+
+  it("coerces a non-numeric strength to the default (50)", () => {
+    expect(sanitizeQrStyle({ qrShadowStrength: "high" }).qrShadowStrength).toBe(50);
+    expect(sanitizeQrStyle({ qrShadowStrength: null }).qrShadowStrength).toBe(50);
+  });
+
+  it("defaults a malformed shadow-color hex to #000000", () => {
+    expect(sanitizeQrStyle({ qrShadowColor: "not-a-color" }).qrShadowColor).toBe("#000000");
+  });
+
+  it("expands 3-digit shadow-color hex shorthand", () => {
+    expect(sanitizeQrStyle({ qrShadowColor: "#f0a" }).qrShadowColor).toBe("#ff00aa");
   });
 });
 
@@ -685,37 +736,54 @@ describe("normalizePrinterConfig — QR style", () => {
     expect(twice.qrBg).toBe(once.qrBg);
   });
 
-  it("defaults qrCorner/qrShadow at the top level for garbage input", () => {
+  it("defaults qrCorner/qrShadowMode/qrShadowStrength/qrShadowColor at the top level for garbage input", () => {
     const cfg = normalizePrinterConfig(null);
     expect(cfg.qrCorner).toBe(DEFAULT_QR_STYLE.qrCorner);
-    expect(cfg.qrShadow).toBe(DEFAULT_QR_STYLE.qrShadow);
+    expect(cfg.qrShadowMode).toBe(DEFAULT_QR_STYLE.qrShadowMode);
+    expect(cfg.qrShadowStrength).toBe(DEFAULT_QR_STYLE.qrShadowStrength);
+    expect(cfg.qrShadowColor).toBe(DEFAULT_QR_STYLE.qrShadowColor);
   });
 
-  it("passes through a valid stored qrCorner/qrShadow at the top level (v3)", () => {
+  it("passes through a valid stored qrCorner/qrShadowMode/qrShadowStrength/qrShadowColor at the top level (v3)", () => {
     const cfg = normalizePrinterConfig({
       version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60,
-      qrShape: "classic", qrFg: "#002200", qrBg: "#eeeeee", qrCorner: "square", qrShadow: true,
+      qrShape: "classic", qrFg: "#002200", qrBg: "#eeeeee", qrCorner: "square",
+      qrShadowMode: "neon", qrShadowStrength: 75, qrShadowColor: "#00ffff",
       screens: {},
     });
     expect(cfg.qrCorner).toBe("square");
-    expect(cfg.qrShadow).toBe(true);
+    expect(cfg.qrShadowMode).toBe("neon");
+    expect(cfg.qrShadowStrength).toBe(75);
+    expect(cfg.qrShadowColor).toBe("#00ffff");
   });
 
-  it("defaults qrCorner/qrShadow when migrating a v2 layout (predates the fields)", () => {
+  it("migrates a legacy top-level boolean qrShadow (v3, predates the mode field)", () => {
+    const cfg = normalizePrinterConfig({
+      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60,
+      qrShadow: true,
+      screens: {},
+    });
+    expect(cfg.qrShadowMode).toBe("drop");
+  });
+
+  it("defaults qrCorner/qrShadowMode when migrating a v2 layout (predates the fields)", () => {
     const cfg = normalizePrinterConfig(defaultLayout());
     expect(cfg.qrCorner).toBe(DEFAULT_QR_STYLE.qrCorner);
-    expect(cfg.qrShadow).toBe(DEFAULT_QR_STYLE.qrShadow);
+    expect(cfg.qrShadowMode).toBe(DEFAULT_QR_STYLE.qrShadowMode);
   });
 
-  it("round-trips qrCorner/qrShadow through re-normalization", () => {
+  it("round-trips qrCorner/qrShadowMode/qrShadowStrength/qrShadowColor through re-normalization", () => {
     const once = normalizePrinterConfig({
       version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60,
-      qrShape: "dots", qrFg: "#123456", qrBg: "#fafafa", qrCorner: "square", qrShadow: true,
+      qrShape: "dots", qrFg: "#123456", qrBg: "#fafafa", qrCorner: "square",
+      qrShadowMode: "drop", qrShadowStrength: 33, qrShadowColor: "#123123",
       screens: {},
     });
     const twice = normalizePrinterConfig(once);
     expect(twice.qrCorner).toBe(once.qrCorner);
-    expect(twice.qrShadow).toBe(once.qrShadow);
+    expect(twice.qrShadowMode).toBe(once.qrShadowMode);
+    expect(twice.qrShadowStrength).toBe(once.qrShadowStrength);
+    expect(twice.qrShadowColor).toBe(once.qrShadowColor);
   });
 });
 

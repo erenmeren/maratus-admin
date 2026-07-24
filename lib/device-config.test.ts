@@ -100,6 +100,24 @@ describe("computeConfigVersion — QR style", () => {
     expect(withCorner("square")).not.toBe(v);
     expect(withCorner("rounded")).toBe(v); // stable for identical corner
   });
+
+  // qrShadowMode/qrShadowStrength/qrShadowColor (2026-07-24, replacing the old
+  // boolean qrShadow) live alongside the other QR-style fields, same
+  // top-level-in-printerScreens path — same "covered by the whole blob"
+  // reasoning as qrShape/qrFg/qrBg/qrCorner above.
+  it("changes when qrShadowMode, qrShadowStrength, or qrShadowColor change within printerScreens", () => {
+    const withShadow = (qrShadowMode: string, qrShadowStrength: number, qrShadowColor: string) =>
+      computeConfigVersion({
+        ...base,
+        printerScreens: { version: 3, qrShape: "rounded", qrShadowMode, qrShadowStrength, qrShadowColor },
+      });
+    const v = withShadow("none", 50, "#000000");
+    expect(withShadow("drop", 50, "#000000")).not.toBe(v);
+    expect(withShadow("neon", 50, "#000000")).not.toBe(v);
+    expect(withShadow("none", 75, "#000000")).not.toBe(v);
+    expect(withShadow("none", 50, "#ff0000")).not.toBe(v);
+    expect(withShadow("none", 50, "#000000")).toBe(v); // stable for identical shadow settings
+  });
 });
 
 describe("etagMatches", () => {

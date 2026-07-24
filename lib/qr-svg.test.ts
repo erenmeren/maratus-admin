@@ -5,8 +5,11 @@ import {
   darkDots,
   QR_SHAPES,
   QR_SHAPE_GEOMETRY,
+  qrCornerRadiusPx,
+  qrShadowParams,
   qrShadowFilterSpec,
   qrShadowBoxShadow,
+  qrShadowCss,
 } from "./qr-svg";
 
 describe("isFinderCell", () => {
@@ -108,15 +111,80 @@ describe("QR_SHAPE_GEOMETRY", () => {
   });
 });
 
-// ─── QR background-plate shadow: SVG filter + CSS box-shadow (2026-07-24) ───
+// ─── QR background corner radius (2026-07-23 addendum; slider 2026-07-24) ───
+
+describe("qrCornerRadiusPx", () => {
+  it("is 0 (square) at v=0, for any dim", () => {
+    expect(qrCornerRadiusPx(100, 0)).toBe(0);
+    expect(qrCornerRadiusPx(720, 0)).toBe(0);
+  });
+
+  it("is ~30% of dim at v=100 (pill-ish)", () => {
+    expect(qrCornerRadiusPx(100, 100)).toBe(30);
+    expect(qrCornerRadiusPx(200, 100)).toBe(60);
+  });
+
+  it("is ~half of the v=100 radius at v=50", () => {
+    expect(qrCornerRadiusPx(100, 50)).toBe(15);
+  });
+
+  it("scales linearly with dim for a fixed v", () => {
+    expect(qrCornerRadiusPx(200, 50)).toBeCloseTo(qrCornerRadiusPx(100, 50) * 2);
+  });
+
+  it("increases monotonically with v", () => {
+    const radii = [0, 25, 50, 75, 100].map((v) => qrCornerRadiusPx(200, v));
+    for (let i = 1; i < radii.length; i++) expect(radii[i]).toBeGreaterThan(radii[i - 1]);
+  });
+});
+
+// ─── QR background-plate shadow: canonical params + SVG filter + CSS
+// box-shadow (2026-07-24; dim-relative 2026-07-24 slider addendum) ──────────
+//
+// dim = 100 is qrShadowParams's documented reference unit — at that size the
+// numbers below reduce to the pre-scaling constants (blur 4..24px, offset
+// 2px, alpha 0.25..0.75), which keeps these tests' expected values readable.
+
+describe("qrShadowParams", () => {
+  it("is all-zero for mode 'none'", () => {
+    expect(qrShadowParams("none", 50, 100)).toEqual({ blurPx: 0, offsetYPx: 0, alpha: 0, spreadPx: 0 });
+  });
+
+  it("drop: blur 4..24px, offset 2px, alpha 0.25..0.75 at dim=100", () => {
+    const low = qrShadowParams("drop", 0, 100);
+    const high = qrShadowParams("drop", 100, 100);
+    expect(low.blurPx).toBeCloseTo(4);
+    expect(high.blurPx).toBeCloseTo(24);
+    expect(low.offsetYPx).toBeCloseTo(2);
+    expect(high.offsetYPx).toBeCloseTo(2); // offset doesn't move with strength
+    expect(low.alpha).toBeCloseTo(0.25);
+    expect(high.alpha).toBeCloseTo(0.75);
+    expect(low.spreadPx).toBe(0);
+  });
+
+  it("neon: no offset, full alpha, spread = 2× blur", () => {
+    const p = qrShadowParams("neon", 50, 100);
+    expect(p.offsetYPx).toBe(0);
+    expect(p.alpha).toBe(1);
+    expect(p.spreadPx).toBeCloseTo(p.blurPx * 2);
+  });
+
+  it("every px field scales linearly with dim for a fixed mode/strength", () => {
+    const at100 = qrShadowParams("drop", 60, 100);
+    const at300 = qrShadowParams("drop", 60, 300);
+    expect(at300.blurPx).toBeCloseTo(at100.blurPx * 3);
+    expect(at300.offsetYPx).toBeCloseTo(at100.offsetYPx * 3);
+    expect(at300.alpha).toBeCloseTo(at100.alpha); // alpha is dim-independent
+  });
+});
 
 describe("qrShadowFilterSpec", () => {
   it("emits nothing for mode 'none'", () => {
-    expect(qrShadowFilterSpec("none", 50, "#000000")).toBeNull();
+    expect(qrShadowFilterSpec("none", 50, "#000000", 100)).toBeNull();
   });
 
   it("emits a single feDropShadow spec for mode 'drop'", () => {
-    const spec = qrShadowFilterSpec("drop", 50, "#ff0000");
+    const spec = qrShadowFilterSpec("drop", 50, "#ff0000", 100);
     expect(spec).not.toBeNull();
     expect(spec!.kind).toBe("drop");
     if (spec!.kind === "drop") {
@@ -127,7 +195,7 @@ describe("qrShadowFilterSpec", () => {
   });
 
   it("emits two stacked Gaussian-blur std-deviations (tight < wide) for mode 'neon'", () => {
-    const spec = qrShadowFilterSpec("neon", 50, "#00ff00");
+    const spec = qrShadowFilterSpec("neon", 50, "#00ff00", 100);
     expect(spec).not.toBeNull();
     expect(spec!.kind).toBe("neon");
     if (spec!.kind === "neon") {
@@ -139,8 +207,8 @@ describe("qrShadowFilterSpec", () => {
   });
 
   it("drop's stdDeviation and opacity increase monotonically with strength", () => {
-    const low = qrShadowFilterSpec("drop", 0, "#000000")!;
-    const high = qrShadowFilterSpec("drop", 100, "#000000")!;
+    const low = qrShadowFilterSpec("drop", 0, "#000000", 100)!;
+    const high = qrShadowFilterSpec("drop", 100, "#000000", 100)!;
     expect(low.kind).toBe("drop");
     expect(high.kind).toBe("drop");
     if (low.kind === "drop" && high.kind === "drop") {
@@ -149,27 +217,35 @@ describe("qrShadowFilterSpec", () => {
   });
 
   it("neon's blur radii increase monotonically with strength", () => {
-    const low = qrShadowFilterSpec("neon", 0, "#000000")!;
-    const high = qrShadowFilterSpec("neon", 100, "#000000")!;
+    const low = qrShadowFilterSpec("neon", 0, "#000000", 100)!;
+    const high = qrShadowFilterSpec("neon", 100, "#000000", 100)!;
     if (low.kind === "neon" && high.kind === "neon") {
       expect(high.stdDeviations[0]).toBeGreaterThan(low.stdDeviations[0]);
       expect(high.stdDeviations[1]).toBeGreaterThan(low.stdDeviations[1]);
+    }
+  });
+
+  it("scales with dim for a fixed mode/strength (the fix for the reported preview/device mismatch)", () => {
+    const small = qrShadowFilterSpec("drop", 50, "#000000", 100)!;
+    const big = qrShadowFilterSpec("drop", 50, "#000000", 300)!;
+    if (small.kind === "drop" && big.kind === "drop") {
+      expect(big.stdDeviation).toBeCloseTo(small.stdDeviation * 3);
     }
   });
 });
 
 describe("qrShadowBoxShadow", () => {
   it("returns undefined for mode 'none'", () => {
-    expect(qrShadowBoxShadow("none", 50, "#000000")).toBeUndefined();
+    expect(qrShadowBoxShadow("none", 50, "#000000", 100)).toBeUndefined();
   });
 
   it("returns a downward-offset rgba shadow for mode 'drop'", () => {
-    const css = qrShadowBoxShadow("drop", 50, "#000000");
+    const css = qrShadowBoxShadow("drop", 50, "#000000", 100);
     expect(css).toMatch(/^0 2px [\d.]+px rgba\(0, 0, 0, [\d.]+\)$/);
   });
 
   it("returns two zero-offset full-color glows for mode 'neon', the second double the first", () => {
-    const css = qrShadowBoxShadow("neon", 50, "#00ffcc");
+    const css = qrShadowBoxShadow("neon", 50, "#00ffcc", 100);
     const m = css!.match(/^0 0 ([\d.]+)px #00ffcc, 0 0 ([\d.]+)px #00ffcc$/);
     expect(m).not.toBeNull();
     const [, first, second] = m!;
@@ -177,10 +253,31 @@ describe("qrShadowBoxShadow", () => {
   });
 
   it("mode 'none' vs 'drop' vs 'neon' produce distinct output for the same strength/color", () => {
-    const args = [60, "#111111"] as const;
+    const args = [60, "#111111", 100] as const;
     const drop = qrShadowBoxShadow("drop", ...args);
     const neon = qrShadowBoxShadow("neon", ...args);
     expect(drop).not.toBe(neon);
     expect(qrShadowBoxShadow("none", ...args)).toBeUndefined();
+  });
+
+  it("scales with dim for a fixed mode/strength/color", () => {
+    const small = qrShadowBoxShadow("drop", 50, "#000000", 100)!;
+    const big = qrShadowBoxShadow("drop", 50, "#000000", 200)!;
+    const blurOf = (css: string) => Number(css.match(/^0 [\d.]+px ([\d.]+)px/)![1]);
+    expect(blurOf(big)).toBeCloseTo(blurOf(small) * 2);
+  });
+});
+
+describe("qrShadowCss", () => {
+  it("is qrShadowBoxShadow's underlying builder — identical output with the default unit", () => {
+    expect(qrShadowCss("drop", 50, "#000000", 100)).toBe(qrShadowBoxShadow("drop", 50, "#000000", 100));
+  });
+
+  it("formats every px number through a custom unit (e.g. a container-relative cqw formatter)", () => {
+    const cqw = (px: number) => `${px}cqw`;
+    const css = qrShadowCss("drop", 50, "#000000", 100, cqw);
+    const m = css!.match(/^0 2cqw ([\d.]+)cqw rgba\(0, 0, 0, 0\.5\)$/);
+    expect(m).not.toBeNull();
+    expect(Number(m![1])).toBeCloseTo(14);
   });
 });

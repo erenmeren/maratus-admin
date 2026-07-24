@@ -558,7 +558,7 @@ describe("sanitizeQrStyle", () => {
       qrShape: "dots",
       qrFg: "#003366",
       qrBg: "#f0f0f0",
-      qrCorner: DEFAULT_QR_STYLE.qrCorner,
+      qrCornerRadius: DEFAULT_QR_STYLE.qrCornerRadius,
       qrShadowMode: DEFAULT_QR_STYLE.qrShadowMode,
       qrShadowStrength: DEFAULT_QR_STYLE.qrShadowStrength,
       qrShadowColor: DEFAULT_QR_STYLE.qrShadowColor,
@@ -612,25 +612,54 @@ describe("sanitizeQrStyle", () => {
   });
 });
 
-// ─── QR background corner + shadow (2026-07-23 addendum) ────────────────────
-// See docs/superpowers/specs/2026-07-23-qr-style-options.md, addendum below —
+// ─── QR background corner (2026-07-23 addendum; slider 2026-07-24) ──────────
+// See docs/superpowers/specs/2026-07-23-qr-style-options.md, addenda below —
 // the studio preview hard-coded rounded corners + a shadow while the device
-// rendered square + shadowless; both are now an org-wide, config-driven choice.
+// rendered square + shadowless; both are now an org-wide, config-driven
+// choice. The corner started as a 2-value "square"/"rounded" enum and was
+// replaced by a continuous 0..100 slider (0 = square) 2026-07-24.
 
-describe("sanitizeQrStyle — corner", () => {
-  it("defaults qrCorner to 'rounded' for garbage/missing input", () => {
-    expect(sanitizeQrStyle(null)).toMatchObject({ qrCorner: "rounded" });
-    expect(sanitizeQrStyle(undefined)).toMatchObject({ qrCorner: "rounded" });
-    expect(sanitizeQrStyle({})).toMatchObject({ qrCorner: "rounded" });
+describe("sanitizeQrStyle — corner radius", () => {
+  it("defaults qrCornerRadius to 24 for garbage/missing input", () => {
+    expect(sanitizeQrStyle(null)).toMatchObject({ qrCornerRadius: 24 });
+    expect(sanitizeQrStyle(undefined)).toMatchObject({ qrCornerRadius: 24 });
+    expect(sanitizeQrStyle({})).toMatchObject({ qrCornerRadius: 24 });
   });
 
-  it("passes a valid corner through unchanged", () => {
-    expect(sanitizeQrStyle({ qrCorner: "square" }).qrCorner).toBe("square");
+  it("passes a valid qrCornerRadius through unchanged", () => {
+    expect(sanitizeQrStyle({ qrCornerRadius: 60 }).qrCornerRadius).toBe(60);
+    expect(sanitizeQrStyle({ qrCornerRadius: 0 }).qrCornerRadius).toBe(0);
   });
 
-  it("resets an unknown corner value to 'rounded'", () => {
-    const s = sanitizeQrStyle({ qrCorner: "beveled" });
-    expect(s.qrCorner).toBe("rounded");
+  it("clamps qrCornerRadius above 100 down to 100, and below 0 up to 0", () => {
+    expect(sanitizeQrStyle({ qrCornerRadius: 150 }).qrCornerRadius).toBe(100);
+    expect(sanitizeQrStyle({ qrCornerRadius: -5 }).qrCornerRadius).toBe(0);
+  });
+
+  it("rounds a non-integer qrCornerRadius", () => {
+    expect(sanitizeQrStyle({ qrCornerRadius: 42.7 }).qrCornerRadius).toBe(43);
+  });
+
+  it("coerces a non-numeric qrCornerRadius to the default (24)", () => {
+    expect(sanitizeQrStyle({ qrCornerRadius: "big" }).qrCornerRadius).toBe(24);
+    expect(sanitizeQrStyle({ qrCornerRadius: null }).qrCornerRadius).toBe(24);
+  });
+
+  it("migrates the legacy qrCorner: 'rounded' enum to 24 (today's live look, unchanged)", () => {
+    expect(sanitizeQrStyle({ qrCorner: "rounded" }).qrCornerRadius).toBe(24);
+  });
+
+  it("migrates the legacy qrCorner: 'square' enum to 0", () => {
+    expect(sanitizeQrStyle({ qrCorner: "square" }).qrCornerRadius).toBe(0);
+  });
+
+  it("resets an unrecognized legacy qrCorner value to the default (24)", () => {
+    expect(sanitizeQrStyle({ qrCorner: "beveled" }).qrCornerRadius).toBe(24);
+  });
+
+  it("a valid stored qrCornerRadius wins over a legacy qrCorner enum", () => {
+    expect(sanitizeQrStyle({ qrCornerRadius: 80, qrCorner: "square" }).qrCornerRadius).toBe(80);
+    expect(sanitizeQrStyle({ qrCornerRadius: 0, qrCorner: "rounded" }).qrCornerRadius).toBe(0);
   });
 });
 
@@ -736,25 +765,34 @@ describe("normalizePrinterConfig — QR style", () => {
     expect(twice.qrBg).toBe(once.qrBg);
   });
 
-  it("defaults qrCorner/qrShadowMode/qrShadowStrength/qrShadowColor at the top level for garbage input", () => {
+  it("defaults qrCornerRadius/qrShadowMode/qrShadowStrength/qrShadowColor at the top level for garbage input", () => {
     const cfg = normalizePrinterConfig(null);
-    expect(cfg.qrCorner).toBe(DEFAULT_QR_STYLE.qrCorner);
+    expect(cfg.qrCornerRadius).toBe(DEFAULT_QR_STYLE.qrCornerRadius);
     expect(cfg.qrShadowMode).toBe(DEFAULT_QR_STYLE.qrShadowMode);
     expect(cfg.qrShadowStrength).toBe(DEFAULT_QR_STYLE.qrShadowStrength);
     expect(cfg.qrShadowColor).toBe(DEFAULT_QR_STYLE.qrShadowColor);
   });
 
-  it("passes through a valid stored qrCorner/qrShadowMode/qrShadowStrength/qrShadowColor at the top level (v3)", () => {
+  it("passes through a valid stored qrCornerRadius/qrShadowMode/qrShadowStrength/qrShadowColor at the top level (v3)", () => {
     const cfg = normalizePrinterConfig({
       version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60,
-      qrShape: "classic", qrFg: "#002200", qrBg: "#eeeeee", qrCorner: "square",
+      qrShape: "classic", qrFg: "#002200", qrBg: "#eeeeee", qrCornerRadius: 0,
       qrShadowMode: "neon", qrShadowStrength: 75, qrShadowColor: "#00ffff",
       screens: {},
     });
-    expect(cfg.qrCorner).toBe("square");
+    expect(cfg.qrCornerRadius).toBe(0);
     expect(cfg.qrShadowMode).toBe("neon");
     expect(cfg.qrShadowStrength).toBe(75);
     expect(cfg.qrShadowColor).toBe("#00ffff");
+  });
+
+  it("migrates a legacy top-level qrCorner enum (v3, predates the slider)", () => {
+    const cfg = normalizePrinterConfig({
+      version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60,
+      qrCorner: "square",
+      screens: {},
+    });
+    expect(cfg.qrCornerRadius).toBe(0);
   });
 
   it("migrates a legacy top-level boolean qrShadow (v3, predates the mode field)", () => {
@@ -766,21 +804,21 @@ describe("normalizePrinterConfig — QR style", () => {
     expect(cfg.qrShadowMode).toBe("drop");
   });
 
-  it("defaults qrCorner/qrShadowMode when migrating a v2 layout (predates the fields)", () => {
+  it("defaults qrCornerRadius/qrShadowMode when migrating a v2 layout (predates the fields)", () => {
     const cfg = normalizePrinterConfig(defaultLayout());
-    expect(cfg.qrCorner).toBe(DEFAULT_QR_STYLE.qrCorner);
+    expect(cfg.qrCornerRadius).toBe(DEFAULT_QR_STYLE.qrCornerRadius);
     expect(cfg.qrShadowMode).toBe(DEFAULT_QR_STYLE.qrShadowMode);
   });
 
-  it("round-trips qrCorner/qrShadowMode/qrShadowStrength/qrShadowColor through re-normalization", () => {
+  it("round-trips qrCornerRadius/qrShadowMode/qrShadowStrength/qrShadowColor through re-normalization", () => {
     const once = normalizePrinterConfig({
       version: 3, clockTimezone: "UTC", clock24h: false, wifiLevel: 3, qrTimeoutSeconds: 60,
-      qrShape: "dots", qrFg: "#123456", qrBg: "#fafafa", qrCorner: "square",
+      qrShape: "dots", qrFg: "#123456", qrBg: "#fafafa", qrCornerRadius: 60,
       qrShadowMode: "drop", qrShadowStrength: 33, qrShadowColor: "#123123",
       screens: {},
     });
     const twice = normalizePrinterConfig(once);
-    expect(twice.qrCorner).toBe(once.qrCorner);
+    expect(twice.qrCornerRadius).toBe(once.qrCornerRadius);
     expect(twice.qrShadowMode).toBe(once.qrShadowMode);
     expect(twice.qrShadowStrength).toBe(once.qrShadowStrength);
     expect(twice.qrShadowColor).toBe(once.qrShadowColor);

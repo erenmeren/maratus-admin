@@ -7,6 +7,7 @@ import { useState, useTransition } from "react";
 import { Pin, PinOff } from "lucide-react";
 import { toast } from "sonner";
 import { QrSvg } from "@/components/qr-svg";
+import { qrShadowBoxShadow } from "@/lib/qr-svg";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -21,7 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { setDevicePinAction, clearDevicePinAction } from "@/lib/actions/pin";
 import { timeAgo } from "@/lib/format";
-import { DEFAULT_QR_STYLE, type QrCorner, type QrShape } from "@/lib/printer-layout";
+import { DEFAULT_QR_STYLE, type QrCorner, type QrShadowMode, type QrShape } from "@/lib/printer-layout";
 import { cn } from "@/lib/utils";
 
 export function DevicePinControl(props: {
@@ -35,7 +36,9 @@ export function DevicePinControl(props: {
   qrFg?: string;
   qrBg?: string;
   qrCorner?: QrCorner;
-  qrShadow?: boolean;
+  qrShadowMode?: QrShadowMode;
+  qrShadowStrength?: number;
+  qrShadowColor?: string;
 }) {
   const [pinnedUrl, setPinnedUrl] = useState(props.initialPinnedUrl);
   const [pinnedAt, setPinnedAt] = useState(props.initialPinnedAt);
@@ -92,13 +95,18 @@ export function DevicePinControl(props: {
               fg={props.qrFg ?? DEFAULT_QR_STYLE.qrFg}
               bg={props.qrBg ?? DEFAULT_QR_STYLE.qrBg}
               corner={props.qrCorner ?? DEFAULT_QR_STYLE.qrCorner}
-              shadow={false}
               className={cn(
                 "mx-auto block size-32 border p-1.5",
                 (props.qrCorner ?? DEFAULT_QR_STYLE.qrCorner) === "rounded" ? "rounded-lg" : "rounded-none",
-                (props.qrShadow ?? DEFAULT_QR_STYLE.qrShadow) && "shadow-md",
               )}
-              style={{ background: props.qrBg ?? DEFAULT_QR_STYLE.qrBg }}
+              style={{
+                background: props.qrBg ?? DEFAULT_QR_STYLE.qrBg,
+                boxShadow: qrShadowBoxShadow(
+                  props.qrShadowMode ?? DEFAULT_QR_STYLE.qrShadowMode,
+                  props.qrShadowStrength ?? DEFAULT_QR_STYLE.qrShadowStrength,
+                  props.qrShadowColor ?? DEFAULT_QR_STYLE.qrShadowColor,
+                ),
+              }}
               ariaLabel="Pinned QR preview"
             />
             <p className="break-all font-mono text-xs text-muted-foreground">{pinnedUrl}</p>

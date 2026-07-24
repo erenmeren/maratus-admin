@@ -10,10 +10,9 @@ import QRCode from "qrcode";
 import {
   darkDots,
   finderOrigins,
-  qrBackgroundRadius,
+  qrCornerRadiusPx,
   qrShadowFilterSpec,
   QR_SHAPE_GEOMETRY,
-  type QrCorner,
   type QrShadowMode,
   type QrShape,
 } from "@/lib/qr-svg";
@@ -29,7 +28,7 @@ export function QrSvg({
   shape = DEFAULT_QR_STYLE.qrShape,
   fg = DEFAULT_QR_STYLE.qrFg,
   bg = DEFAULT_QR_STYLE.qrBg,
-  corner = DEFAULT_QR_STYLE.qrCorner,
+  cornerRadius = DEFAULT_QR_STYLE.qrCornerRadius,
   shadowMode = DEFAULT_QR_STYLE.qrShadowMode,
   shadowStrength = DEFAULT_QR_STYLE.qrShadowStrength,
   shadowColor = DEFAULT_QR_STYLE.qrShadowColor,
@@ -45,8 +44,9 @@ export function QrSvg({
   fg?: string;
   /** Background (incl. quiet zone) color. Defaults to the org default (#ffffff). */
   bg?: string;
-  /** Background-plate corner treatment. Defaults to the org default ("rounded"). */
-  corner?: QrCorner;
+  /** Background-plate corner radius, 0..100 (0 = square). Defaults to the
+   *  org default (24). */
+  cornerRadius?: number;
   /** Background-plate shadow effect. Defaults to the org default ("none"). */
   shadowMode?: QrShadowMode;
   /** Shadow/glow intensity, 0..100. Defaults to the org default (50). */
@@ -62,19 +62,22 @@ export function QrSvg({
     }
   }, [value]);
 
+  // Computed unconditionally (0 when `built` is null) so it's a safe useMemo
+  // dependency below — hooks can't follow the early `if (!built)` return.
+  const size = built ? built.modules.size : 0;
+  const dim = size * UNIT;
+
   // useId output contains ":" which is invalid unescaped inside a CSS url()
   // reference — strip it so `filter={\`url(#${filterId})\`}` resolves.
   const filterId = `qr-shadow-${React.useId().replace(/:/g, "")}`;
   const filterSpec = React.useMemo(
-    () => qrShadowFilterSpec(shadowMode, shadowStrength, shadowColor),
-    [shadowMode, shadowStrength, shadowColor],
+    () => qrShadowFilterSpec(shadowMode, shadowStrength, shadowColor, dim),
+    [shadowMode, shadowStrength, shadowColor, dim],
   );
 
   if (!built) return null;
 
   const { modules } = built;
-  const size = modules.size;
-  const dim = size * UNIT;
   const geo = QR_SHAPE_GEOMETRY[shape];
   const dots = darkDots(size, (row, col) => modules.get(row, col) === 1);
 
@@ -117,7 +120,7 @@ export function QrSvg({
       <rect
         width={dim}
         height={dim}
-        rx={qrBackgroundRadius(dim, corner)}
+        rx={qrCornerRadiusPx(dim, cornerRadius)}
         fill={bg}
         filter={filterSpec ? `url(#${filterId})` : undefined}
       />

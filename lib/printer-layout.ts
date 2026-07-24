@@ -6,9 +6,9 @@
 // can never break the render — v1 layouts are reset to the default.
 import { isValidTimezone } from "./timezones";
 import { MIN_BOX } from "./printer-geometry";
-import { QR_SHAPES, type QrShape, QR_CORNERS, type QrCorner } from "./qr-svg";
+import { QR_SHAPES, type QrShape, QR_CORNERS, type QrCorner, QR_SHADOW_MODES, type QrShadowMode } from "./qr-svg";
 
-export { QR_SHAPES, type QrShape, QR_CORNERS, type QrCorner } from "./qr-svg";
+export { QR_SHAPES, type QrShape, QR_CORNERS, type QrCorner, QR_SHADOW_MODES, type QrShadowMode } from "./qr-svg";
 
 // "pinned" appended LAST (2026-07-22) — every existing use of PRINTER_SCREENS
 // iterates with for-of (verified: no index-based access), so appending at the
@@ -115,8 +115,12 @@ export interface PrinterConfig {
   qrBg: string; // #rrggbb
   /** QR background corner treatment — see sanitizeQrStyle (2026-07-23 addendum). */
   qrCorner: QrCorner;
-  /** Soft drop-shadow under the QR background — see sanitizeQrStyle (2026-07-23 addendum). */
-  qrShadow: boolean;
+  /** QR background-plate shadow effect — see sanitizeQrStyle (2026-07-24 addendum). */
+  qrShadowMode: QrShadowMode;
+  /** Shadow/glow intensity, 0..100 int (only visible when qrShadowMode !== "none"). */
+  qrShadowStrength: number;
+  /** Shadow/glow color, #rrggbb. */
+  qrShadowColor: string;
   screens: Record<PrinterScreen, ScreenLayout>;
 }
 
@@ -463,7 +467,12 @@ export interface QrStyle {
   qrFg: string; // #rrggbb
   qrBg: string; // #rrggbb
   qrCorner: QrCorner;
-  qrShadow: boolean;
+  /** Background-plate shadow effect — see sanitizeQrStyle (2026-07-24 addendum). */
+  qrShadowMode: QrShadowMode;
+  /** Shadow/glow intensity, 0..100 int (only visible when qrShadowMode !== "none"). */
+  qrShadowStrength: number;
+  /** Shadow/glow color, #rrggbb. */
+  qrShadowColor: string;
 }
 
 export const DEFAULT_QR_STYLE: QrStyle = {
@@ -471,7 +480,9 @@ export const DEFAULT_QR_STYLE: QrStyle = {
   qrFg: "#111111",
   qrBg: "#ffffff",
   qrCorner: "rounded", // today's live look (studio preview) — see 2026-07-23 addendum
-  qrShadow: false, // device render has no shadow; default matches it
+  qrShadowMode: "none", // device render has no shadow; default matches it
+  qrShadowStrength: 50,
+  qrShadowColor: "#000000",
 };
 
 /** 6-digit #-prefixed lowercase hex (expanding 3-digit shorthand), or `fallback`
@@ -483,11 +494,25 @@ function normalizeHex(raw: unknown, fallback: string): string {
   return `#${hex.length === 3 ? [...hex].map((c) => c + c).join("") : hex}`;
 }
 
+/** Migrate the legacy boolean `qrShadow` (pre-2026-07-24) into a QrShadowMode:
+ *  a valid stored `qrShadowMode` always wins; otherwise a legacy `qrShadow:
+ *  true` → "drop", `false`/absent/anything else → "none" (the default). */
+function sanitizeQrShadowMode(r: Record<string, unknown>): QrShadowMode {
+  if ((QR_SHADOW_MODES as readonly string[]).includes(r.qrShadowMode as string)) {
+    return r.qrShadowMode as QrShadowMode;
+  }
+  if (typeof r.qrShadow === "boolean") return r.qrShadow ? "drop" : "none";
+  return DEFAULT_QR_STYLE.qrShadowMode;
+}
+
 /**
  * Coerce arbitrary stored data into a valid QrStyle. Pure — never throws.
  * Unknown shape → "rounded". Malformed hex → that field's own default.
  * Colors are otherwise unconstrained — scannability is the merchant's call.
- * Unknown corner → "rounded". Non-boolean shadow → false (2026-07-23 addendum).
+ * Unknown corner → "rounded" (2026-07-23 addendum). Unknown/missing shadow
+ * mode → "none", migrating a legacy boolean `qrShadow` if present; strength
+ * clamped+rounded to 0..100 (default 50); color a normalized hex (default
+ * "#000000") — no cross-field constraints (2026-07-24 addendum).
  */
 export function sanitizeQrStyle(raw: unknown): QrStyle {
   const r = (raw ?? {}) as Record<string, unknown>;
@@ -502,7 +527,9 @@ export function sanitizeQrStyle(raw: unknown): QrStyle {
     qrFg: normalizeHex(r.qrFg, DEFAULT_QR_STYLE.qrFg),
     qrBg: normalizeHex(r.qrBg, DEFAULT_QR_STYLE.qrBg),
     qrCorner,
-    qrShadow: typeof r.qrShadow === "boolean" ? r.qrShadow : DEFAULT_QR_STYLE.qrShadow,
+    qrShadowMode: sanitizeQrShadowMode(r),
+    qrShadowStrength: clamp(Math.round(num(r.qrShadowStrength, DEFAULT_QR_STYLE.qrShadowStrength)), 0, 100),
+    qrShadowColor: normalizeHex(r.qrShadowColor, DEFAULT_QR_STYLE.qrShadowColor),
   };
 }
 

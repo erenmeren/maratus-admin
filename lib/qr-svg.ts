@@ -94,3 +94,69 @@ export type QrCorner = (typeof QR_CORNERS)[number];
 export function qrBackgroundRadius(dim: number, corner: QrCorner): number {
   return corner === "rounded" ? dim * 0.06 : 0;
 }
+
+// ─── QR background-plate shadow (drop / neon), 2026-07-24 addendum ──────────
+// Replaces the old `qrShadow: boolean` (see lib/printer-layout.ts sanitizeQrStyle)
+// with a 3-way mode + intensity + color. Two independent renderers consume the
+// same strength/color math so the studio/pin-card CSS previews track the SVG
+// filter used by QrSvg: `qrShadowBoxShadow` (CSS `box-shadow`, for the wrapper
+// `<div>`s in printer-preview.tsx's QrObject and device-pin-control.tsx) and
+// `qrShadowFilterSpec` (SVG `<filter>` primitives, for components/qr-svg.tsx).
+
+export const QR_SHADOW_MODES = ["none", "drop", "neon"] as const;
+export type QrShadowMode = (typeof QR_SHADOW_MODES)[number];
+
+/** Blur radius in px for strength 0..100 — shared shape by both renderers below
+ *  (the two consumers scale it differently for their own units, see each fn). */
+function shadowBlurPx(strength: number): number {
+  return 4 + 20 * (strength / 100); // 4..24px
+}
+
+/** `#rrggbb` (already-normalized — callers always pass a sanitizeQrStyle output)
+ *  + alpha 0..1 → `rgba(r, g, b, a)`. */
+function hexToRgba(hex: string, alpha: number): string {
+  const n = parseInt(hex.slice(1), 16);
+  const r = (n >> 16) & 255;
+  const g = (n >> 8) & 255;
+  const b = n & 255;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/**
+ * CSS `box-shadow` value for the QR background-plate shadow, or `undefined`
+ * for "none". Used by the two preview wrappers that paint the shadow with CSS
+ * instead of an SVG filter (printer-preview.tsx QrObject, device-pin-control.tsx):
+ * drop = one soft shadow offset down; neon = two stacked zero-offset glows
+ * (tight + wide), full color — a classic neon halo.
+ */
+export function qrShadowBoxShadow(mode: QrShadowMode, strength: number, color: string): string | undefined {
+  if (mode === "none") return undefined;
+  const blur = shadowBlurPx(strength);
+  if (mode === "drop") {
+    const opacity = 0.25 + 0.5 * (strength / 100);
+    return `0 2px ${blur}px ${hexToRgba(color, opacity)}`;
+  }
+  return `0 0 ${blur}px ${color}, 0 0 ${blur * 2}px ${color}`;
+}
+
+/** Parameters for the SVG `<filter>` QrSvg builds for the background-plate
+ *  shadow — `null` for "none". Drop = one `feDropShadow` (dy≈2, stdDeviation
+ *  ranging ≈1..12 with strength, color pre-mixed into `floodColor`). Neon =
+ *  two stacked Gaussian-blur passes (tight + wide, both ∝ strength) recolored
+ *  full-color, merged under the source — an offset-0 glow/halo, not a shadow. */
+export type QrShadowFilterSpec =
+  | { kind: "drop"; dy: number; stdDeviation: number; floodColor: string }
+  | { kind: "neon"; stdDeviations: [tight: number, wide: number]; color: string };
+
+export function qrShadowFilterSpec(mode: QrShadowMode, strength: number, color: string): QrShadowFilterSpec | null {
+  if (mode === "none") return null;
+  if (mode === "drop") {
+    const opacity = 0.25 + 0.5 * (strength / 100);
+    return { kind: "drop", dy: 2, stdDeviation: 1 + 11 * (strength / 100), floodColor: hexToRgba(color, opacity) };
+  }
+  return {
+    kind: "neon",
+    stdDeviations: [2 + 6 * (strength / 100), 6 + 18 * (strength / 100)],
+    color,
+  };
+}

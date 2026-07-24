@@ -6,9 +6,9 @@
 // can never break the render — v1 layouts are reset to the default.
 import { isValidTimezone } from "./timezones";
 import { MIN_BOX } from "./printer-geometry";
-import { QR_SHAPES, type QrShape, QR_CORNERS, type QrCorner, QR_SHADOW_MODES, type QrShadowMode } from "./qr-svg";
+import { QR_SHAPES, type QrShape, QR_SHADOW_MODES, type QrShadowMode } from "./qr-svg";
 
-export { QR_SHAPES, type QrShape, QR_CORNERS, type QrCorner, QR_SHADOW_MODES, type QrShadowMode } from "./qr-svg";
+export { QR_SHAPES, type QrShape, QR_SHADOW_MODES, type QrShadowMode } from "./qr-svg";
 
 // "pinned" appended LAST (2026-07-22) — every existing use of PRINTER_SCREENS
 // iterates with for-of (verified: no index-based access), so appending at the
@@ -113,8 +113,10 @@ export interface PrinterConfig {
   qrShape: QrShape;
   qrFg: string; // #rrggbb
   qrBg: string; // #rrggbb
-  /** QR background corner treatment — see sanitizeQrStyle (2026-07-23 addendum). */
-  qrCorner: QrCorner;
+  /** QR background corner radius, 0..100 int (0 = square) — see sanitizeQrStyle
+   *  (2026-07-23 addendum; became a continuous slider 2026-07-24, replacing
+   *  the earlier "square" | "rounded" enum). */
+  qrCornerRadius: number;
   /** QR background-plate shadow effect — see sanitizeQrStyle (2026-07-24 addendum). */
   qrShadowMode: QrShadowMode;
   /** Shadow/glow intensity, 0..100 int (only visible when qrShadowMode !== "none"). */
@@ -466,7 +468,10 @@ export interface QrStyle {
   qrShape: QrShape;
   qrFg: string; // #rrggbb
   qrBg: string; // #rrggbb
-  qrCorner: QrCorner;
+  /** QR background corner radius, 0..100 int (0 = square) — see sanitizeQrStyle
+   *  (2026-07-23 addendum; became a continuous slider 2026-07-24, replacing
+   *  the earlier "square" | "rounded" enum). */
+  qrCornerRadius: number;
   /** Background-plate shadow effect — see sanitizeQrStyle (2026-07-24 addendum). */
   qrShadowMode: QrShadowMode;
   /** Shadow/glow intensity, 0..100 int (only visible when qrShadowMode !== "none"). */
@@ -479,7 +484,9 @@ export const DEFAULT_QR_STYLE: QrStyle = {
   qrShape: "rounded", // today's live look
   qrFg: "#111111",
   qrBg: "#ffffff",
-  qrCorner: "rounded", // today's live look (studio preview) — see 2026-07-23 addendum
+  // 24 = today's live look (the old "rounded" enum value maps here 1:1 on
+  // migration) — see the 2026-07-24 slider addendum in sanitizeQrStyle.
+  qrCornerRadius: 24,
   qrShadowMode: "none", // device render has no shadow; default matches it
   qrShadowStrength: 50,
   qrShadowColor: "#000000",
@@ -492,6 +499,22 @@ function normalizeHex(raw: unknown, fallback: string): string {
   if (!m) return fallback;
   const hex = m[1].toLowerCase();
   return `#${hex.length === 3 ? [...hex].map((c) => c + c).join("") : hex}`;
+}
+
+/** Migrate the legacy 2-value `qrCorner: "square" | "rounded"` enum
+ *  (pre-2026-07-24) into the continuous 0..100 `qrCornerRadius` slider value:
+ *  a valid stored `qrCornerRadius` number always wins (clamped+rounded);
+ *  otherwise a legacy `qrCorner: "rounded"` → 24 (today's live look — also
+ *  the new default, so existing tenants see no visual change), legacy
+ *  `qrCorner: "square"` → 0; anything else (absent, garbage, an unrecognized
+ *  legacy value) → the default (24). */
+function sanitizeQrCornerRadius(r: Record<string, unknown>): number {
+  if (typeof r.qrCornerRadius === "number" && Number.isFinite(r.qrCornerRadius)) {
+    return clamp(Math.round(r.qrCornerRadius), 0, 100);
+  }
+  if (r.qrCorner === "rounded") return 24;
+  if (r.qrCorner === "square") return 0;
+  return DEFAULT_QR_STYLE.qrCornerRadius;
 }
 
 /** Migrate the legacy boolean `qrShadow` (pre-2026-07-24) into a QrShadowMode:
@@ -509,8 +532,10 @@ function sanitizeQrShadowMode(r: Record<string, unknown>): QrShadowMode {
  * Coerce arbitrary stored data into a valid QrStyle. Pure — never throws.
  * Unknown shape → "rounded". Malformed hex → that field's own default.
  * Colors are otherwise unconstrained — scannability is the merchant's call.
- * Unknown corner → "rounded" (2026-07-23 addendum). Unknown/missing shadow
- * mode → "none", migrating a legacy boolean `qrShadow` if present; strength
+ * `qrCornerRadius` clamped+rounded to 0..100 (default 24), migrating the
+ * legacy `qrCorner` enum if present — see `sanitizeQrCornerRadius`
+ * (2026-07-23 addendum; slider 2026-07-24). Unknown/missing shadow mode →
+ * "none", migrating a legacy boolean `qrShadow` if present; strength
  * clamped+rounded to 0..100 (default 50); color a normalized hex (default
  * "#000000") — no cross-field constraints (2026-07-24 addendum).
  */
@@ -519,14 +544,11 @@ export function sanitizeQrStyle(raw: unknown): QrStyle {
   const qrShape = (QR_SHAPES as readonly string[]).includes(r.qrShape as string)
     ? (r.qrShape as QrShape)
     : DEFAULT_QR_STYLE.qrShape;
-  const qrCorner = (QR_CORNERS as readonly string[]).includes(r.qrCorner as string)
-    ? (r.qrCorner as QrCorner)
-    : DEFAULT_QR_STYLE.qrCorner;
   return {
     qrShape,
     qrFg: normalizeHex(r.qrFg, DEFAULT_QR_STYLE.qrFg),
     qrBg: normalizeHex(r.qrBg, DEFAULT_QR_STYLE.qrBg),
-    qrCorner,
+    qrCornerRadius: sanitizeQrCornerRadius(r),
     qrShadowMode: sanitizeQrShadowMode(r),
     qrShadowStrength: clamp(Math.round(num(r.qrShadowStrength, DEFAULT_QR_STYLE.qrShadowStrength)), 0, 100),
     qrShadowColor: normalizeHex(r.qrShadowColor, DEFAULT_QR_STYLE.qrShadowColor),

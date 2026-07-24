@@ -7,7 +7,7 @@ import { useState, useTransition } from "react";
 import { Pin, PinOff } from "lucide-react";
 import { toast } from "sonner";
 import { QrSvg } from "@/components/qr-svg";
-import { qrShadowBoxShadow } from "@/lib/qr-svg";
+import { qrCornerRadiusPx, qrShadowBoxShadow } from "@/lib/qr-svg";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -22,8 +22,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { setDevicePinAction, clearDevicePinAction } from "@/lib/actions/pin";
 import { timeAgo } from "@/lib/format";
-import { DEFAULT_QR_STYLE, type QrCorner, type QrShadowMode, type QrShape } from "@/lib/printer-layout";
-import { cn } from "@/lib/utils";
+import { DEFAULT_QR_STYLE, type QrShadowMode, type QrShape } from "@/lib/printer-layout";
+
+// Matches the `size-32` (8rem = 128px) Tailwind utility on the <QrSvg> below.
+const PIN_QR_DIM_PX = 128;
 
 export function DevicePinControl(props: {
   deviceId: string;
@@ -35,7 +37,7 @@ export function DevicePinControl(props: {
   qrShape?: QrShape;
   qrFg?: string;
   qrBg?: string;
-  qrCorner?: QrCorner;
+  qrCornerRadius?: number;
   qrShadowMode?: QrShadowMode;
   qrShadowStrength?: number;
   qrShadowColor?: string;
@@ -94,17 +96,20 @@ export function DevicePinControl(props: {
               shape={props.qrShape ?? DEFAULT_QR_STYLE.qrShape}
               fg={props.qrFg ?? DEFAULT_QR_STYLE.qrFg}
               bg={props.qrBg ?? DEFAULT_QR_STYLE.qrBg}
-              corner={props.qrCorner ?? DEFAULT_QR_STYLE.qrCorner}
-              className={cn(
-                "mx-auto block size-32 border p-1.5",
-                (props.qrCorner ?? DEFAULT_QR_STYLE.qrCorner) === "rounded" ? "rounded-lg" : "rounded-none",
-              )}
+              cornerRadius={props.qrCornerRadius ?? DEFAULT_QR_STYLE.qrCornerRadius}
+              className="mx-auto block size-32 border p-1.5"
               style={{
                 background: props.qrBg ?? DEFAULT_QR_STYLE.qrBg,
+                // PIN_QR_DIM_PX matches the `size-32` (8rem = 128px) Tailwind
+                // utility above — qrCornerRadiusPx/qrShadowBoxShadow need the
+                // card's own real pixel size, not a fixed constant (see
+                // lib/qr-svg.ts).
+                borderRadius: qrCornerRadiusPx(PIN_QR_DIM_PX, props.qrCornerRadius ?? DEFAULT_QR_STYLE.qrCornerRadius),
                 boxShadow: qrShadowBoxShadow(
                   props.qrShadowMode ?? DEFAULT_QR_STYLE.qrShadowMode,
                   props.qrShadowStrength ?? DEFAULT_QR_STYLE.qrShadowStrength,
                   props.qrShadowColor ?? DEFAULT_QR_STYLE.qrShadowColor,
+                  PIN_QR_DIM_PX,
                 ),
               }}
               ariaLabel="Pinned QR preview"

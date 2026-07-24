@@ -79,37 +79,84 @@ export const QR_SHAPE_GEOMETRY: Record<QrShape, QrShapeGeometry> = {
   dots: { moduleKind: "circle", moduleRx: 0, moduleR: 0.35, finderRadiusRatio: 1 / 3 },
 };
 
-// ─── QR background corner + shadow, 2026-07-23 addendum ─────────────────────
-// Independent of module `shape` — governs the QR's own background surface
-// (the plate the modules sit on), matching the on-device render. See
-// lib/printer-layout.ts sanitizeQrStyle + the 2026-07-23 spec addendum.
+// ─── QR background corner radius, 2026-07-24 slider addendum ────────────────
+// Replaces the earlier 2-value `qrCorner: "square" | "rounded"` enum with a
+// continuous 0..100 slider (0 = square, 100 = pill-ish) — see
+// lib/printer-layout.ts sanitizeQrStyle for the legacy-enum migration. Every
+// render site (the SVG bg rect in components/qr-svg.tsx, the QrObject
+// preview wrapper in printer-preview.tsx, the pinned-QR card in
+// device-pin-control.tsx) computes its OWN pixel `dim` and calls this one
+// function — no hard-coded `rx`/`rounded-lg` anywhere.
 
-export const QR_CORNERS = ["square", "rounded"] as const;
-export type QrCorner = (typeof QR_CORNERS)[number];
-
-/** Background-rect corner radius, in px, for an SVG of the given pixel
- *  dimension: ~6% of `dim` when "rounded", 0 when "square". Pure — used by
- *  both the SVG bg rect (components/qr-svg.tsx) and any caller that needs to
- *  mirror the same radius on a wrapping element. */
-export function qrBackgroundRadius(dim: number, corner: QrCorner): number {
-  return corner === "rounded" ? dim * 0.06 : 0;
+/**
+ * FIRMWARE PARITY: mirrored in ditto-firmware qr_style.c — keep in sync.
+ *
+ * Background-plate corner radius, in px, for a box of pixel dimension `dim`:
+ * 0 at slider value 0 (square), scaling linearly to 30% of `dim` at 100
+ * (a soft, pill-ish rounding). Pure.
+ */
+export function qrCornerRadiusPx(dim: number, v: number): number {
+  return Math.round(dim * 0.3 * (v / 100));
 }
 
 // ─── QR background-plate shadow (drop / neon), 2026-07-24 addendum ──────────
 // Replaces the old `qrShadow: boolean` (see lib/printer-layout.ts sanitizeQrStyle)
 // with a 3-way mode + intensity + color. Two independent renderers consume the
-// same strength/color math so the studio/pin-card CSS previews track the SVG
-// filter used by QrSvg: `qrShadowBoxShadow` (CSS `box-shadow`, for the wrapper
-// `<div>`s in printer-preview.tsx's QrObject and device-pin-control.tsx) and
-// `qrShadowFilterSpec` (SVG `<filter>` primitives, for components/qr-svg.tsx).
+// same strength/color/size math so the studio/pin-card CSS previews track the
+// SVG filter used by QrSvg exactly: `qrShadowBoxShadow`/`qrShadowCss` (CSS
+// `box-shadow`, for the wrapper `<div>`s in printer-preview.tsx's QrObject and
+// device-pin-control.tsx) and `qrShadowFilterSpec` (SVG `<filter>` primitives,
+// for components/qr-svg.tsx).
 
 export const QR_SHADOW_MODES = ["none", "drop", "neon"] as const;
 export type QrShadowMode = (typeof QR_SHADOW_MODES)[number];
 
-/** Blur radius in px for strength 0..100 — shared shape by both renderers below
- *  (the two consumers scale it differently for their own units, see each fn). */
-function shadowBlurPx(strength: number): number {
-  return 4 + 20 * (strength / 100); // 4..24px
+/** Canonical shadow/glow numbers, see `qrShadowParams`. All px fields share
+ *  one unit — whatever unit `dim` was passed in. */
+export interface QrShadowParams {
+  /** Blur radius. This is the CSS `box-shadow` blur-radius value directly;
+   *  the SVG filter halves it into a Gaussian `stdDeviation` (the standard
+   *  CSS-filter/SVG blur-radius↔stdDeviation relationship, ≈2:1). */
+  blurPx: number;
+  /** Vertical offset (drop only; 0 for neon — an offset-0 halo has no
+   *  "down" direction). */
+  offsetYPx: number;
+  /** Shadow-color opacity, 0..1 (drop only; neon paints at full color via
+   *  two layered blur passes instead, so this is unused there). */
+  alpha: number;
+  /** Second, wider blur-pass radius — neon's outer halo (0 for drop, which
+   *  is a single pass). */
+  spreadPx: number;
+}
+
+/**
+ * FIRMWARE PARITY: mirrored in ditto-firmware qr_style.c — keep in sync.
+ *
+ * Canonical shadow/glow numbers for the QR background plate, as a function
+ * of the plate's OWN pixel dimension `dim` — every number below is
+ * `dim`-relative (not a fixed px constant) so the effect reads the same
+ * *proportional* size regardless of how large the QR is rendered (a studio
+ * filmstrip thumbnail, the full-size canvas, the 128px pinned-QR card, or
+ * the physical device's native QR) — this dim-relative math is the fix for
+ * the "shadow looks different in the preview than on the printer" report:
+ * before this addendum, blur/offset were fixed px constants independent of
+ * how large the QR plate was actually rendered. At `dim = 100` these numbers
+ * reduce to this formula's original (pre-scaling) constants: blur 4..24px,
+ * offset 2px, alpha 0.25..0.75 — i.e. `dim = 100` is the reference unit.
+ *
+ * `qrShadowCss`/`qrShadowBoxShadow` (CSS `box-shadow`) and
+ * `qrShadowFilterSpec` (SVG `<filter>`) both derive their numbers from this
+ * one function — neither computes blur/offset/alpha independently, so there
+ * is exactly one place to change the shadow "feel."
+ */
+export function qrShadowParams(mode: QrShadowMode, strength: number, dim: number): QrShadowParams {
+  if (mode === "none") return { blurPx: 0, offsetYPx: 0, alpha: 0, spreadPx: 0 };
+  const s = strength / 100;
+  const blurPx = dim * (0.04 + 0.2 * s); // 4%..24% of dim (= 4..24px at dim=100)
+  if (mode === "drop") {
+    return { blurPx, offsetYPx: dim * 0.02, alpha: 0.25 + 0.5 * s, spreadPx: 0 };
+  }
+  return { blurPx, offsetYPx: 0, alpha: 1, spreadPx: blurPx * 2 }; // neon: full-color halo, wide pass = 2× the tight pass
 }
 
 /** `#rrggbb` (already-normalized — callers always pass a sanitizeQrStyle output)
@@ -124,39 +171,57 @@ function hexToRgba(hex: string, alpha: number): string {
 
 /**
  * CSS `box-shadow` value for the QR background-plate shadow, or `undefined`
- * for "none". Used by the two preview wrappers that paint the shadow with CSS
- * instead of an SVG filter (printer-preview.tsx QrObject, device-pin-control.tsx):
- * drop = one soft shadow offset down; neon = two stacked zero-offset glows
- * (tight + wide), full color — a classic neon halo.
+ * for "none". Built from `qrShadowParams(mode, strength, dim)` — drop = one
+ * soft shadow offset down; neon = two stacked zero-offset glows (tight +
+ * wide), full color — a classic neon halo. `unit` formats each px number
+ * (default plain `${px}px`); pass a container-relative formatter (e.g. the
+ * studio canvas's `cq()`) when every other dimension on the same element
+ * (padding, border-radius) is already expressed in that unit, so the shadow
+ * scales in lockstep with the rest of the card instead of drifting at a
+ * different zoom level.
  */
-export function qrShadowBoxShadow(mode: QrShadowMode, strength: number, color: string): string | undefined {
+export function qrShadowCss(
+  mode: QrShadowMode,
+  strength: number,
+  color: string,
+  dim: number,
+  unit: (px: number) => string = (px) => `${px}px`,
+): string | undefined {
   if (mode === "none") return undefined;
-  const blur = shadowBlurPx(strength);
+  const p = qrShadowParams(mode, strength, dim);
   if (mode === "drop") {
-    const opacity = 0.25 + 0.5 * (strength / 100);
-    return `0 2px ${blur}px ${hexToRgba(color, opacity)}`;
+    return `0 ${unit(p.offsetYPx)} ${unit(p.blurPx)} ${hexToRgba(color, p.alpha)}`;
   }
-  return `0 0 ${blur}px ${color}, 0 0 ${blur * 2}px ${color}`;
+  return `0 0 ${unit(p.blurPx)} ${color}, 0 0 ${unit(p.spreadPx)} ${color}`;
+}
+
+/** Convenience wrapper over `qrShadowCss` with the default plain-px unit —
+ *  used by the two preview wrappers whose box is a fixed real pixel size
+ *  (device-pin-control.tsx's pin card, the branding studio's small swatch
+ *  previews). printer-preview.tsx's QrObject calls `qrShadowCss` directly
+ *  with its container-relative `cq()` unit instead. */
+export function qrShadowBoxShadow(mode: QrShadowMode, strength: number, color: string, dim: number): string | undefined {
+  return qrShadowCss(mode, strength, color, dim);
 }
 
 /** Parameters for the SVG `<filter>` QrSvg builds for the background-plate
- *  shadow — `null` for "none". Drop = one `feDropShadow` (dy≈2, stdDeviation
- *  ranging ≈1..12 with strength, color pre-mixed into `floodColor`). Neon =
- *  two stacked Gaussian-blur passes (tight + wide, both ∝ strength) recolored
- *  full-color, merged under the source — an offset-0 glow/halo, not a shadow. */
+ *  shadow — `null` for "none". Drop = one `feDropShadow` (color pre-mixed
+ *  into `floodColor`). Neon = two stacked Gaussian-blur passes (tight +
+ *  wide) recolored full-color, merged under the source — an offset-0
+ *  glow/halo, not a shadow. Both derive their numbers from
+ *  `qrShadowParams(mode, strength, dim)` — `dim` here is the SVG's own
+ *  viewBox dimension, so the filter scales in lockstep with the rest of the
+ *  QR when the SVG itself is displayed larger or smaller (browsers scale
+ *  every viewBox-space number, filters included, uniformly). */
 export type QrShadowFilterSpec =
   | { kind: "drop"; dy: number; stdDeviation: number; floodColor: string }
   | { kind: "neon"; stdDeviations: [tight: number, wide: number]; color: string };
 
-export function qrShadowFilterSpec(mode: QrShadowMode, strength: number, color: string): QrShadowFilterSpec | null {
+export function qrShadowFilterSpec(mode: QrShadowMode, strength: number, color: string, dim: number): QrShadowFilterSpec | null {
   if (mode === "none") return null;
+  const p = qrShadowParams(mode, strength, dim);
   if (mode === "drop") {
-    const opacity = 0.25 + 0.5 * (strength / 100);
-    return { kind: "drop", dy: 2, stdDeviation: 1 + 11 * (strength / 100), floodColor: hexToRgba(color, opacity) };
+    return { kind: "drop", dy: p.offsetYPx, stdDeviation: p.blurPx / 2, floodColor: hexToRgba(color, p.alpha) };
   }
-  return {
-    kind: "neon",
-    stdDeviations: [2 + 6 * (strength / 100), 6 + 18 * (strength / 100)],
-    color,
-  };
+  return { kind: "neon", stdDeviations: [p.blurPx / 2, p.spreadPx / 2], color };
 }

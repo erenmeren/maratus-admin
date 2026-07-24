@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { QrSvg } from "@/components/qr-svg";
-import { qrShadowBoxShadow } from "@/lib/qr-svg";
+import { qrCornerRadiusPx, qrShadowCss } from "@/lib/qr-svg";
 import { PrinterClock } from "./printer-clock";
 import { resolveBrandTokens, withAlpha } from "@/lib/color";
 import {
@@ -278,20 +278,29 @@ const PREVIEW_QR_VALUE = "https://ditto.app";
 /**
  * QrObject — lifted from the QR screen's QR card and the SetupScreen's compact
  * QR. Renders the org's styled QR (shape/colors/corner/shadow from
- * config.qrShape/qrFg/qrBg/qrCorner/qrShadowMode/qrShadowStrength/
+ * config.qrShape/qrFg/qrBg/qrCornerRadius/qrShadowMode/qrShadowStrength/
  * qrShadowColor) inside a card sized to match — the card background matches
  * qrBg so the quiet zone reads as one continuous surface, not a mismatched
  * border. Corner + shadow used to be hard-coded (always rounded, always
  * shadowed) which drifted from the device's square, shadowless render — both
  * now follow the org setting (2026-07-23 addendum; shadow became a 3-way
- * mode + strength + color 2026-07-24). The shadow itself is painted once,
- * here, as a CSS box-shadow on the wrapper (not doubled onto the inner
- * QrSvg's own SVG filter).
+ * mode + strength + color 2026-07-24; corner became a continuous 0..100
+ * slider 2026-07-24, and both corner + shadow now derive from the card's own
+ * pixel dimension via lib/qr-svg.ts's qrCornerRadiusPx/qrShadowCss instead of
+ * a fixed constant — see that addendum for why: a fixed px number looks a
+ * different *proportional* size depending on how large the card renders).
+ * The shadow itself is painted once, here, as a CSS box-shadow on the
+ * wrapper (not doubled onto the inner QrSvg's own SVG filter).
  */
 function QrObject({ object, config }: { object: PrinterObject; config: PrinterConfig }) {
   const compact = object.w < 0.25;
-  const rounded = config.qrCorner === "rounded";
-  const boxShadow = qrShadowBoxShadow(config.qrShadowMode, config.qrShadowStrength, config.qrShadowColor);
+  // Reference-canvas px (the same 720² basis `cq()` converts from) for THIS
+  // card's own box — qrCornerRadiusPx/qrShadowCss both need the render's own
+  // pixel dimension, not a fixed constant, so the effect stays proportional
+  // to the QR at any zoom level (see lib/qr-svg.ts qrShadowParams doc).
+  const dim = Math.min(object.w, object.h) * 720;
+  const borderRadius = cq(qrCornerRadiusPx(dim, config.qrCornerRadius));
+  const boxShadow = qrShadowCss(config.qrShadowMode, config.qrShadowStrength, config.qrShadowColor, dim, cq);
   return (
     <div
       className="flex size-full items-center justify-center"
@@ -299,14 +308,14 @@ function QrObject({ object, config }: { object: PrinterObject; config: PrinterCo
         compact
           ? {
               background: config.qrBg,
-              borderRadius: rounded ? cq(14) : 0,
+              borderRadius,
               padding: cq(10),
               border: "1px solid var(--k-hairline)",
               boxShadow,
             }
           : {
               background: config.qrBg,
-              borderRadius: rounded ? cq(32) : 0,
+              borderRadius,
               padding: cq(20),
               boxShadow,
             }
@@ -317,7 +326,7 @@ function QrObject({ object, config }: { object: PrinterObject; config: PrinterCo
         shape={config.qrShape}
         fg={config.qrFg}
         bg={config.qrBg}
-        corner={config.qrCorner}
+        cornerRadius={config.qrCornerRadius}
         style={{ width: "100%", height: "100%", display: "block" }}
       />
     </div>

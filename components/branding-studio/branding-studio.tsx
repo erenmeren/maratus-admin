@@ -42,15 +42,13 @@ import { isValidHex, withAlpha } from "@/lib/color";
 import {
   screenColors,
   QR_SHAPES,
-  QR_CORNERS,
   QR_SHADOW_MODES,
-  type QrCorner,
   type QrShadowMode,
   type QrShape,
   type ScreenColors,
 } from "@/lib/printer-layout";
 import { QrSvg } from "@/components/qr-svg";
-import { qrShadowBoxShadow } from "@/lib/qr-svg";
+import { qrCornerRadiusPx, qrShadowBoxShadow } from "@/lib/qr-svg";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -532,11 +530,6 @@ const QR_SHAPE_LABEL: Record<QrShape, string> = {
   dots: "Dots",
 };
 
-const QR_CORNER_LABEL: Record<QrCorner, string> = {
-  square: "Square",
-  rounded: "Rounded",
-};
-
 const QR_SHADOW_MODE_LABEL: Record<QrShadowMode, string> = {
   none: "None",
   drop: "Drop",
@@ -549,15 +542,15 @@ const QR_STYLE_PREVIEW_VALUE = "https://ditto.app";
 /** Org-wide QR shape, colors, background corner + shadow — its own studio tab
  *  (moved out of Theme 2026-07-23 so the theme panel isn't as crowded). Saved
  *  through the same config JSON as everything else (draft.config.qrShape/
- *  qrFg/qrBg/qrCorner/qrShadow, set via editor.setShared). */
+ *  qrFg/qrBg/qrCornerRadius/qrShadow, set via editor.setShared). */
 function QrStylePanel({ draft }: { draft: BrandingDraft }) {
-  const { qrShape, qrFg, qrBg, qrCorner, qrShadowMode, qrShadowStrength, qrShadowColor } = draft.config;
+  const { qrShape, qrFg, qrBg, qrCornerRadius, qrShadowMode, qrShadowStrength, qrShadowColor } = draft.config;
   const set = (
     p: Partial<{
       qrShape: QrShape;
       qrFg: string;
       qrBg: string;
-      qrCorner: QrCorner;
+      qrCornerRadius: number;
       qrShadowMode: QrShadowMode;
       qrShadowStrength: number;
       qrShadowColor: string;
@@ -623,32 +616,31 @@ function QrStylePanel({ draft }: { draft: BrandingDraft }) {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          {QR_CORNERS.map((c) => {
-            const active = c === qrCorner;
-            return (
-              <button
-                key={c}
-                type="button"
-                disabled={draft.disabled}
-                onClick={() => set({ qrCorner: c })}
-                aria-pressed={active}
-                className={cn(
-                  "flex flex-col items-center gap-1.5 rounded-lg border p-2 ring-offset-2 ring-offset-card transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm disabled:pointer-events-none disabled:opacity-60",
-                  active && "ring-2",
-                )}
-                style={active ? ({ "--tw-ring-color": draft.color } as React.CSSProperties) : undefined}
-              >
-                <span
-                  className="flex size-10 items-center justify-center"
-                  style={{ background: qrBg, borderRadius: c === "rounded" ? 8 : 0 }}
-                >
-                  <span className="size-5" style={{ background: qrFg, borderRadius: c === "rounded" ? 2 : 0 }} />
-                </span>
-                <span className="text-[10px] font-medium text-muted-foreground">{QR_CORNER_LABEL[c]}</span>
-              </button>
-            );
-          })}
+        <div className="flex items-center gap-3">
+          <span
+            className="flex size-10 shrink-0 items-center justify-center"
+            style={{ background: qrBg }}
+          >
+            <span
+              className="size-5"
+              style={{ background: qrFg, borderRadius: qrCornerRadiusPx(20, qrCornerRadius) }}
+            />
+          </span>
+          <div className="flex-1 space-y-1.5">
+            <div className="flex items-baseline justify-between">
+              <Label className="text-xs">Corner radius</Label>
+              <span className="text-[11px] tabular-nums text-muted-foreground">{qrCornerRadius}</span>
+            </div>
+            <Slider
+              min={0}
+              max={100}
+              step={1}
+              value={[qrCornerRadius]}
+              onValueChange={([v]) => set({ qrCornerRadius: v })}
+              disabled={draft.disabled}
+              aria-label="QR corner radius"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-3 gap-2 pt-1">
@@ -672,7 +664,8 @@ function QrStylePanel({ draft }: { draft: BrandingDraft }) {
                     className="size-5 rounded-sm"
                     style={{
                       background: qrBg,
-                      boxShadow: qrShadowBoxShadow(m, qrShadowStrength, qrShadowColor),
+                      // 20 = the `size-5` swatch below, in px.
+                      boxShadow: qrShadowBoxShadow(m, qrShadowStrength, qrShadowColor, 20),
                     }}
                   />
                 </span>

@@ -54,7 +54,7 @@ export interface PrinterEditor {
   addImage: () => void;
   addClock: () => void;
   addWifi: () => void;
-  setShared: (p: Partial<Pick<PrinterConfig, "clockTimezone" | "clock24h" | "wifiLevel" | "qrTimeoutSeconds" | "qrShape" | "qrFg" | "qrBg" | "qrCorner" | "qrShadow">>) => void;
+  setShared: (p: Partial<Pick<PrinterConfig, "clockTimezone" | "clock24h" | "wifiLevel" | "qrTimeoutSeconds" | "qrShape" | "qrFg" | "qrBg" | "qrCorner" | "qrShadowMode" | "qrShadowStrength" | "qrShadowColor">>) => void;
   /** Set (or clear, with null) the active screen's palette override. */
   setScreenColors: (c: ScreenColors | null) => void;
   removeObject: (id: string) => void;
@@ -185,7 +185,7 @@ export function usePrinterEditor({
   const addClock = () => addWidget(createClockObject, hasClock);
   const addWifi = () => addWidget(createWifiObject, hasWifi);
 
-  const setShared = (p: Partial<Pick<PrinterConfig, "clockTimezone" | "clock24h" | "wifiLevel" | "qrTimeoutSeconds" | "qrShape" | "qrFg" | "qrBg" | "qrCorner" | "qrShadow">>) =>
+  const setShared = (p: Partial<Pick<PrinterConfig, "clockTimezone" | "clock24h" | "wifiLevel" | "qrTimeoutSeconds" | "qrShape" | "qrFg" | "qrBg" | "qrCorner" | "qrShadowMode" | "qrShadowStrength" | "qrShadowColor">>) =>
     onChange({ ...config, ...p });
 
   const setScreenColors = (c: ScreenColors | null) => {

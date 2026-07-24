@@ -7,7 +7,16 @@
 
 import * as React from "react";
 import QRCode from "qrcode";
-import { darkDots, finderOrigins, qrBackgroundRadius, QR_SHAPE_GEOMETRY, type QrCorner, type QrShape } from "@/lib/qr-svg";
+import {
+  darkDots,
+  finderOrigins,
+  qrBackgroundRadius,
+  qrShadowFilterSpec,
+  QR_SHAPE_GEOMETRY,
+  type QrCorner,
+  type QrShadowMode,
+  type QrShape,
+} from "@/lib/qr-svg";
 import { DEFAULT_QR_STYLE } from "@/lib/printer-layout";
 
 const UNIT = 4; // px per module at scale 1 (matches FauxQR's design-time unit)
@@ -21,7 +30,9 @@ export function QrSvg({
   fg = DEFAULT_QR_STYLE.qrFg,
   bg = DEFAULT_QR_STYLE.qrBg,
   corner = DEFAULT_QR_STYLE.qrCorner,
-  shadow = DEFAULT_QR_STYLE.qrShadow,
+  shadowMode = DEFAULT_QR_STYLE.qrShadowMode,
+  shadowStrength = DEFAULT_QR_STYLE.qrShadowStrength,
+  shadowColor = DEFAULT_QR_STYLE.qrShadowColor,
 }: {
   value: string;
   className?: string;
@@ -36,8 +47,12 @@ export function QrSvg({
   bg?: string;
   /** Background-plate corner treatment. Defaults to the org default ("rounded"). */
   corner?: QrCorner;
-  /** Soft drop-shadow under the background plate. Defaults to the org default (false). */
-  shadow?: boolean;
+  /** Background-plate shadow effect. Defaults to the org default ("none"). */
+  shadowMode?: QrShadowMode;
+  /** Shadow/glow intensity, 0..100. Defaults to the org default (50). */
+  shadowStrength?: number;
+  /** Shadow/glow color. Defaults to the org default (#000000). */
+  shadowColor?: string;
 }) {
   const built = React.useMemo(() => {
     try {
@@ -50,6 +65,10 @@ export function QrSvg({
   // useId output contains ":" which is invalid unescaped inside a CSS url()
   // reference — strip it so `filter={\`url(#${filterId})\`}` resolves.
   const filterId = `qr-shadow-${React.useId().replace(/:/g, "")}`;
+  const filterSpec = React.useMemo(
+    () => qrShadowFilterSpec(shadowMode, shadowStrength, shadowColor),
+    [shadowMode, shadowStrength, shadowColor],
+  );
 
   if (!built) return null;
 
@@ -69,15 +88,29 @@ export function QrSvg({
       aria-label={ariaLabel}
       aria-hidden={ariaLabel ? undefined : true}
     >
-      {shadow && (
+      {filterSpec && (
         <defs>
-          <filter id={filterId} x="-30%" y="-30%" width="160%" height="160%">
-            <feDropShadow
-              dx="0"
-              dy={dim * 0.015}
-              stdDeviation={dim * 0.02}
-              floodColor="rgba(15,20,40,0.35)"
-            />
+          <filter id={filterId} x="-60%" y="-60%" width="220%" height="220%">
+            {filterSpec.kind === "drop" ? (
+              <feDropShadow
+                dx="0"
+                dy={filterSpec.dy}
+                stdDeviation={filterSpec.stdDeviation}
+                floodColor={filterSpec.floodColor}
+              />
+            ) : (
+              <>
+                <feFlood floodColor={filterSpec.color} result="flood" />
+                <feComposite in="flood" in2="SourceAlpha" operator="in" result="colored" />
+                <feGaussianBlur in="colored" stdDeviation={filterSpec.stdDeviations[1]} result="glowWide" />
+                <feGaussianBlur in="colored" stdDeviation={filterSpec.stdDeviations[0]} result="glowTight" />
+                <feMerge>
+                  <feMergeNode in="glowWide" />
+                  <feMergeNode in="glowTight" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </>
+            )}
           </filter>
         </defs>
       )}
@@ -86,7 +119,7 @@ export function QrSvg({
         height={dim}
         rx={qrBackgroundRadius(dim, corner)}
         fill={bg}
-        filter={shadow ? `url(#${filterId})` : undefined}
+        filter={filterSpec ? `url(#${filterId})` : undefined}
       />
       <g>
         {dots.map(({ row, col }) =>

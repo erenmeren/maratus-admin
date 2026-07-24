@@ -39,8 +39,18 @@ import {
   ZOOM_DEFAULT,
 } from "@/lib/branding-shell";
 import { isValidHex, withAlpha } from "@/lib/color";
-import { screenColors, QR_SHAPES, QR_CORNERS, type QrCorner, type QrShape, type ScreenColors } from "@/lib/printer-layout";
+import {
+  screenColors,
+  QR_SHAPES,
+  QR_CORNERS,
+  QR_SHADOW_MODES,
+  type QrCorner,
+  type QrShadowMode,
+  type QrShape,
+  type ScreenColors,
+} from "@/lib/printer-layout";
 import { QrSvg } from "@/components/qr-svg";
+import { qrShadowBoxShadow } from "@/lib/qr-svg";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
@@ -527,6 +537,12 @@ const QR_CORNER_LABEL: Record<QrCorner, string> = {
   rounded: "Rounded",
 };
 
+const QR_SHADOW_MODE_LABEL: Record<QrShadowMode, string> = {
+  none: "None",
+  drop: "Drop",
+  neon: "Neon",
+};
+
 // Illustrative-only value — same one QrObject (printer-preview) uses for mockups.
 const QR_STYLE_PREVIEW_VALUE = "https://ditto.app";
 
@@ -535,9 +551,17 @@ const QR_STYLE_PREVIEW_VALUE = "https://ditto.app";
  *  through the same config JSON as everything else (draft.config.qrShape/
  *  qrFg/qrBg/qrCorner/qrShadow, set via editor.setShared). */
 function QrStylePanel({ draft }: { draft: BrandingDraft }) {
-  const { qrShape, qrFg, qrBg, qrCorner, qrShadow } = draft.config;
+  const { qrShape, qrFg, qrBg, qrCorner, qrShadowMode, qrShadowStrength, qrShadowColor } = draft.config;
   const set = (
-    p: Partial<{ qrShape: QrShape; qrFg: string; qrBg: string; qrCorner: QrCorner; qrShadow: boolean }>,
+    p: Partial<{
+      qrShape: QrShape;
+      qrFg: string;
+      qrBg: string;
+      qrCorner: QrCorner;
+      qrShadowMode: QrShadowMode;
+      qrShadowStrength: number;
+      qrShadowColor: string;
+    }>,
   ) => draft.editor.setShared(p);
 
   return (
@@ -627,17 +651,62 @@ function QrStylePanel({ draft }: { draft: BrandingDraft }) {
           })}
         </div>
 
-        <div className="flex items-center justify-between pt-1">
-          <Label htmlFor="qr-shadow-switch" className="text-xs">
-            Drop shadow
-          </Label>
-          <Switch
-            id="qr-shadow-switch"
-            checked={qrShadow}
-            disabled={draft.disabled}
-            onCheckedChange={(on) => set({ qrShadow: on })}
-          />
+        <div className="grid grid-cols-3 gap-2 pt-1">
+          {QR_SHADOW_MODES.map((m) => {
+            const active = m === qrShadowMode;
+            return (
+              <button
+                key={m}
+                type="button"
+                disabled={draft.disabled}
+                onClick={() => set({ qrShadowMode: m })}
+                aria-pressed={active}
+                className={cn(
+                  "flex flex-col items-center gap-1.5 rounded-lg border p-2 ring-offset-2 ring-offset-card transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm disabled:pointer-events-none disabled:opacity-60",
+                  active && "ring-2",
+                )}
+                style={active ? ({ "--tw-ring-color": draft.color } as React.CSSProperties) : undefined}
+              >
+                <span className="flex size-10 items-center justify-center overflow-visible p-1.5">
+                  <span
+                    className="size-5 rounded-sm"
+                    style={{
+                      background: qrBg,
+                      boxShadow: qrShadowBoxShadow(m, qrShadowStrength, qrShadowColor),
+                    }}
+                  />
+                </span>
+                <span className="text-[10px] font-medium text-muted-foreground">{QR_SHADOW_MODE_LABEL[m]}</span>
+              </button>
+            );
+          })}
         </div>
+
+        {qrShadowMode !== "none" && (
+          <div className="space-y-3 pt-1">
+            <div className="space-y-1.5">
+              <div className="flex items-baseline justify-between">
+                <Label className="text-xs">Intensity</Label>
+                <span className="text-[11px] tabular-nums text-muted-foreground">{qrShadowStrength}</span>
+              </div>
+              <Slider
+                min={0}
+                max={100}
+                step={1}
+                value={[qrShadowStrength]}
+                onValueChange={([v]) => set({ qrShadowStrength: v })}
+                disabled={draft.disabled}
+                aria-label="Shadow intensity"
+              />
+            </div>
+            <ColorField
+              label="Shadow color"
+              value={qrShadowColor}
+              onChange={(v) => set({ qrShadowColor: v })}
+              disabled={draft.disabled}
+            />
+          </div>
+        )}
       </section>
     </>
   );

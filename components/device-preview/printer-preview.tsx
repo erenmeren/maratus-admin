@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import { QrSvg } from "@/components/qr-svg";
+import { qrShadowBoxShadow } from "@/lib/qr-svg";
 import { PrinterClock } from "./printer-clock";
 import { resolveBrandTokens, withAlpha } from "@/lib/color";
 import {
@@ -277,15 +278,20 @@ const PREVIEW_QR_VALUE = "https://ditto.app";
 /**
  * QrObject — lifted from the QR screen's QR card and the SetupScreen's compact
  * QR. Renders the org's styled QR (shape/colors/corner/shadow from
- * config.qrShape/qrFg/qrBg/qrCorner/qrShadow) inside a card sized to match —
- * the card background matches qrBg so the quiet zone reads as one continuous
- * surface, not a mismatched border. Corner + shadow used to be hard-coded
- * (always rounded, always shadowed) which drifted from the device's square,
- * shadowless render — both now follow the org setting (2026-07-23 addendum).
+ * config.qrShape/qrFg/qrBg/qrCorner/qrShadowMode/qrShadowStrength/
+ * qrShadowColor) inside a card sized to match — the card background matches
+ * qrBg so the quiet zone reads as one continuous surface, not a mismatched
+ * border. Corner + shadow used to be hard-coded (always rounded, always
+ * shadowed) which drifted from the device's square, shadowless render — both
+ * now follow the org setting (2026-07-23 addendum; shadow became a 3-way
+ * mode + strength + color 2026-07-24). The shadow itself is painted once,
+ * here, as a CSS box-shadow on the wrapper (not doubled onto the inner
+ * QrSvg's own SVG filter).
  */
 function QrObject({ object, config }: { object: PrinterObject; config: PrinterConfig }) {
   const compact = object.w < 0.25;
   const rounded = config.qrCorner === "rounded";
+  const boxShadow = qrShadowBoxShadow(config.qrShadowMode, config.qrShadowStrength, config.qrShadowColor);
   return (
     <div
       className="flex size-full items-center justify-center"
@@ -296,15 +302,13 @@ function QrObject({ object, config }: { object: PrinterObject; config: PrinterCo
               borderRadius: rounded ? cq(14) : 0,
               padding: cq(10),
               border: "1px solid var(--k-hairline)",
-              boxShadow: config.qrShadow ? "0 8px 20px -10px rgba(15,20,40,0.35)" : undefined,
+              boxShadow,
             }
           : {
               background: config.qrBg,
               borderRadius: rounded ? cq(32) : 0,
               padding: cq(20),
-              boxShadow: config.qrShadow
-                ? "0 24px 60px -18px rgba(15,20,40,0.30), 0 2px 8px rgba(15,20,40,0.06)"
-                : undefined,
+              boxShadow,
             }
       }
     >
@@ -314,7 +318,6 @@ function QrObject({ object, config }: { object: PrinterObject; config: PrinterCo
         fg={config.qrFg}
         bg={config.qrBg}
         corner={config.qrCorner}
-        shadow={false}
         style={{ width: "100%", height: "100%", display: "block" }}
       />
     </div>

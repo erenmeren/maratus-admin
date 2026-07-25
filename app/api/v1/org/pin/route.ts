@@ -21,7 +21,10 @@ import { claimPinIdempotency, releasePinIdempotency, storePinIdempotentResponse 
 
 export const runtime = "nodejs";
 
-type PinState = { url: string; pinnedAt: string } | null;
+// pinnedAt mirrors the stored value; on a same-URL no-op it is the ORIGINAL
+// stored timestamp (never freshly minted). Null only under data drift (a
+// stored pin without a timestamp).
+type PinState = { url: string; pinnedAt: string | null } | null;
 const orgPinBody = (pin: PinState, affectedDevices: number, creditsCharged: number) => ({
   pin,
   affectedDevices,
@@ -87,8 +90,10 @@ export async function PUT(req: Request) {
     return apiError("insufficient_credits", `Not enough credits — this change needs ${res.required}.`, 402);
   }
 
+  // res.pinnedAt: fresh timestamp on a real change, the stored original on a
+  // same-URL no-op — never fabricate one the DB doesn't have.
   const body = orgPinBody(
-    { url: v.url, pinnedAt: (res.pinnedAt ?? new Date()).toISOString() },
+    { url: v.url, pinnedAt: res.pinnedAt ? res.pinnedAt.toISOString() : null },
     res.affectedDevices,
     res.creditsCharged,
   );

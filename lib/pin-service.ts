@@ -54,9 +54,10 @@ async function enqueuePinCommand(a: {
 }
 
 async function loadPinWorld(organizationId: string): Promise<{
-  devices: DevicePinRow[];
-  stores: StorePinRow[];
+  devices: (DevicePinRow & { pinnedAt: Date | null })[];
+  stores: (StorePinRow & { pinnedAt: Date | null })[];
   tenantPinnedUrl: string | null;
+  tenantPinnedAt: Date | null;
 }> {
   const [devices, stores, [ts]] = await Promise.all([
     db
@@ -65,19 +66,25 @@ async function loadPinWorld(organizationId: string): Promise<{
         storeId: deviceTable.storeId,
         pinMode: deviceTable.pinMode,
         pinnedUrl: deviceTable.pinnedUrl,
+        pinnedAt: deviceTable.pinnedAt,
       })
       .from(deviceTable)
       .where(eq(deviceTable.organizationId, organizationId)),
     db
-      .select({ id: storeTable.id, pinMode: storeTable.pinMode, pinnedUrl: storeTable.pinnedUrl })
+      .select({ id: storeTable.id, pinMode: storeTable.pinMode, pinnedUrl: storeTable.pinnedUrl, pinnedAt: storeTable.pinnedAt })
       .from(storeTable)
       .where(eq(storeTable.organizationId, organizationId)),
     db
-      .select({ pinnedUrl: tenantSettings.pinnedUrl })
+      .select({ pinnedUrl: tenantSettings.pinnedUrl, pinnedAt: tenantSettings.pinnedAt })
       .from(tenantSettings)
       .where(eq(tenantSettings.organizationId, organizationId)),
   ]);
-  return { devices, stores, tenantPinnedUrl: ts?.pinnedUrl ?? null };
+  return {
+    devices,
+    stores,
+    tenantPinnedUrl: ts?.pinnedUrl ?? null,
+    tenantPinnedAt: ts?.pinnedAt ?? null,
+  };
 }
 
 /** Is the change a no-op against the level's current stored state? */
@@ -103,7 +110,17 @@ export async function applyScopedPinChange(a: {
 }): Promise<ScopedPinResult> {
   const world = await loadPinWorld(a.organizationId);
   if (isLevelNoop(a.change, world)) {
-    return { ok: true, noop: true, affectedDevices: 0, creditsCharged: 0, pinnedAt: null };
+    // Report the level's ACTUAL stored pinnedAt — a repeated identical set
+    // must not mint a fresh timestamp the DB doesn't have (null when the
+    // level has no pin, e.g. a no-op clear).
+    const change = a.change;
+    const storedPinnedAt =
+      change.scope === "org"
+        ? world.tenantPinnedAt
+        : change.scope === "store"
+          ? (world.stores.find((s) => s.id === change.storeId)?.pinnedAt ?? null)
+          : (world.devices.find((d) => d.id === change.deviceId)?.pinnedAt ?? null);
+    return { ok: true, noop: true, affectedDevices: 0, creditsCharged: 0, pinnedAt: storedPinnedAt };
   }
   const plan = planScopedPinChange({ ...world, change: a.change });
 

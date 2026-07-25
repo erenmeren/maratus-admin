@@ -3,15 +3,15 @@
   "info": {
     "title": "Ditto Public API",
     "version": "1.0.0",
-    "description": "Tenant-scoped API for device activation and usage. Authenticate with an API key created in the Ditto dashboard (Authorization: Bearer <key>). Each key carries scopes: `devices:trigger` to activate a device, `usage:read` to read usage."
+    "description": "Tenant-scoped API for device activation and usage. Authenticate with an API key created in the Ditto dashboard (Authorization: Bearer <key>). Each key carries scopes: `devices:trigger` to activate a device, `devices:pin` to manage pinned QR codes, `usage:read` to read usage."
   },
   "servers": [{ "url": "/api/v1" }],
   "security": [{ "bearerAuth": [] }],
   "paths": {
     "/devices/{deviceId}/pin": {
       "put": {
-        "summary": "Set or replace the device's pinned QR",
-        "description": "Pins a URL that the device displays as a persistent QR while idle. Changing the URL costs 1 credit; re-sending the identical URL is a free no-op. An optional Idempotency-Key header guards retried changes.",
+        "summary": "Set the device's pinned QR or switch its pin mode",
+        "description": "Send `{url}` to pin a custom URL the device displays as a persistent QR while idle (1 credit per device whose effective URL actually changes; re-sending the identical URL is a free no-op), or `{mode: \"none\" | \"inherit\"}` to switch the device's pin mode (free — `inherit` follows the store/tenant pin, `none` suppresses any pin). Responses include `pinMode`, the resolved `effectiveUrl` (device > store > tenant precedence), `affectedDevices`, and `creditsCharged`. An optional Idempotency-Key header guards retried URL changes.",
         "parameters": [
           {
             "name": "deviceId",
@@ -23,7 +23,7 @@
             "name": "Idempotency-Key",
             "in": "header",
             "required": false,
-            "description": "Optional key guarding a retried or concurrent URL change. Keys are scoped to this endpoint; reusing a key replays the prior response for the same URL-change request.",
+            "description": "Optional key guarding a retried or concurrent URL change (ignored on free mode changes). Keys are scoped to this endpoint; reusing a key replays the prior response for the same URL-change request.",
             "schema": { "type": "string" }
           }
         ],
@@ -33,25 +33,36 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["url"],
-                "properties": {
-                  "url": { "type": "string", "format": "uri", "maxLength": 2048 }
-                }
+                "description": "Send either `url` or `mode`, not both.",
+                "oneOf": [
+                  {
+                    "required": ["url"],
+                    "properties": {
+                      "url": { "type": "string", "format": "uri", "maxLength": 2048 }
+                    }
+                  },
+                  {
+                    "required": ["mode"],
+                    "properties": {
+                      "mode": { "type": "string", "enum": ["none", "inherit"] }
+                    }
+                  }
+                ]
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "Pin state after the call." },
+          "200": { "description": "Pin state after the call: `{deviceId, pinMode, pin, effectiveUrl, affectedDevices, creditsCharged}`." },
           "402": { "description": "Not enough credits." },
-          "403": { "description": "Missing devices:pin scope, or organization archived." },
+          "403": { "description": "Missing devices:pin scope, or organization archived (URL changes only)." },
           "404": { "description": "Device not found." },
-          "422": { "description": "Invalid body or URL." }
+          "422": { "description": "Invalid body, URL, or mode." }
         }
       },
       "delete": {
-        "summary": "Clear the device's pinned QR",
-        "description": "Free. Idempotent — deleting a non-existent pin succeeds.",
+        "summary": "Reset the device's pin to inherit",
+        "description": "Free. Resets the device to `inherit` mode — the device falls back to the store/tenant pin, if any (it is NOT guaranteed blank; use PUT `{mode: \"none\"}` to suppress all pins). Idempotent.",
         "parameters": [
           {
             "name": "deviceId",
@@ -61,7 +72,7 @@
           }
         ],
         "responses": {
-          "200": { "description": "Pin cleared (pin: null)." },
+          "200": { "description": "Pin reset: `{deviceId, pinMode: \"inherit\", pin: null, effectiveUrl, affectedDevices, creditsCharged: 0}`." },
           "403": { "description": "Missing devices:pin scope." },
           "404": { "description": "Device not found." }
         }
@@ -109,6 +120,119 @@
           "422": { "$ref": "#/components/responses/Error" },
           "429": { "$ref": "#/components/responses/Error" },
           "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/org/pin": {
+      "put": {
+        "summary": "Set or replace the tenant-wide pinned QR",
+        "description": "Pins a URL that every device resolving to the tenant level (device and store both in `inherit` mode) displays as a persistent QR. Costs 1 credit per device whose effective URL actually changes; re-sending the identical URL is a free no-op. The org level has no modes — send `{url}` only. An optional Idempotency-Key header guards retried changes.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Optional key guarding a retried or concurrent URL change. Keys are scoped to this endpoint; reusing a key replays the prior response for the same URL-change request.",
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["url"],
+                "properties": {
+                  "url": { "type": "string", "format": "uri", "maxLength": 2048 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Pin state after the call: `{pin: {url, pinnedAt}, affectedDevices, creditsCharged}`." },
+          "402": { "description": "Not enough credits." },
+          "403": { "description": "Missing devices:pin scope, or organization archived." },
+          "422": { "description": "Invalid body or URL (`mode` is not supported at this scope)." }
+        }
+      },
+      "delete": {
+        "summary": "Clear the tenant-wide pinned QR",
+        "description": "Free. Devices and stores in `inherit` mode fall back to no pin. Idempotent — deleting a non-existent pin succeeds.",
+        "responses": {
+          "200": { "description": "Pin cleared: `{pin: null, affectedDevices, creditsCharged: 0}`." },
+          "403": { "description": "Missing devices:pin scope." }
+        }
+      }
+    },
+    "/stores/{storeId}/pin": {
+      "put": {
+        "summary": "Set the store's pinned QR or switch its pin mode",
+        "description": "Send `{url}` to pin a custom URL for the store's inheriting devices (1 credit per device whose effective URL actually changes; re-sending the identical URL is a free no-op), or `{mode: \"none\" | \"inherit\"}` to switch the store's pin mode (free — `inherit` follows the tenant pin, `none` suppresses any pin for this store's inheriting devices). An optional Idempotency-Key header guards retried URL changes.",
+        "parameters": [
+          {
+            "name": "storeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Optional key guarding a retried or concurrent URL change (ignored on free mode changes). Keys are scoped to this endpoint; reusing a key replays the prior response for the same URL-change request.",
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Send either `url` or `mode`, not both.",
+                "oneOf": [
+                  {
+                    "required": ["url"],
+                    "properties": {
+                      "url": { "type": "string", "format": "uri", "maxLength": 2048 }
+                    }
+                  },
+                  {
+                    "required": ["mode"],
+                    "properties": {
+                      "mode": { "type": "string", "enum": ["none", "inherit"] }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Pin state after the call: `{storeId, pinMode, pin, affectedDevices, creditsCharged}`." },
+          "402": { "description": "Not enough credits." },
+          "403": { "description": "Missing devices:pin scope, or organization archived (URL changes only)." },
+          "404": { "description": "Store not found." },
+          "422": { "description": "Invalid body, URL, or mode." }
+        }
+      },
+      "delete": {
+        "summary": "Reset the store's pin to inherit",
+        "description": "Free. Resets the store to `inherit` mode — its inheriting devices fall back to the tenant pin, if any. Idempotent.",
+        "parameters": [
+          {
+            "name": "storeId",
+            "in": "path",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Pin reset: `{storeId, pinMode: \"inherit\", pin: null, affectedDevices, creditsCharged: 0}`." },
+          "403": { "description": "Missing devices:pin scope." },
+          "404": { "description": "Store not found." }
         }
       }
     },

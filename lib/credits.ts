@@ -150,7 +150,7 @@ export async function releaseHold(a: {
  *  path for offline devices. */
 export async function spendCredit(a: {
   organizationId: string;
-  deviceId: string;
+  deviceId: string | null;
   action: string;
   cost: number;
   createdByUserId?: string | null;

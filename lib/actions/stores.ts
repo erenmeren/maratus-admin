@@ -17,6 +17,7 @@ import { id } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { normalizeTimezone } from "@/lib/timezones";
 import { isOrgArchived } from "@/lib/archived-guard";
+import { pushEffectivePin } from "@/lib/pin-service";
 
 export interface CreateStoreResult {
   ok: boolean;
@@ -188,6 +189,13 @@ async function performStoreDelete(
     .from(factoryDevice)
     .where(and(eq(factoryDevice.allocatedStoreId, storeId), eq(factoryDevice.status, "allocated")));
 
+  // Capture the devices about to be moved to the pool (FK onDelete: "set
+  // null" below nulls their storeId once the store row is gone) so we can
+  // re-deliver their effective pin afterward.
+  const movedDeviceIds = (
+    await db.select({ id: deviceTable.id }).from(deviceTable).where(eq(deviceTable.storeId, storeId))
+  ).map((d) => d.id);
+
   await db
     .delete(storeTable)
     .where(and(eq(storeTable.id, storeId), eq(storeTable.organizationId, organizationId)));
@@ -199,6 +207,10 @@ async function performStoreDelete(
     target: { type: "store", id: storeId },
     metadata: { name: existing.name, unassignedDeviceCount, disarmedAllocationCount },
   });
+
+  // Membership changed → re-deliver the (possibly different) effective pin. Free.
+  await pushEffectivePin(organizationId, movedDeviceIds);
+
   return { ok: true };
 }
 

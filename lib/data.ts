@@ -51,6 +51,8 @@ import { rollupByDevice } from "@/lib/credit-usage";
 import { rollupCredits, type CreditsOverview } from "@/lib/credits-overview";
 import { getBalance } from "./credits";
 import { publishCommand, mqttConfigFingerprint } from "./mqtt";
+import { resolveEffectivePin } from "@/lib/pin-resolve";
+import type { PinMode } from "@/lib/pin";
 import { AUDIT } from "@/lib/audit";
 import { DEFAULT_INCLUDED_TRIGGERS, monthKey } from "@/lib/billing-plan";
 import { getOrgUsageForMonth } from "@/lib/device-usage";
@@ -786,6 +788,142 @@ export async function getStore(
   const tenant = await getTenant(row.organizationId);
   const store = tenant.stores.find((s) => s.id === storeId);
   return store ? { store, tenant } : null;
+}
+
+export interface PinOverview {
+  tenant: { pinnedUrl: string | null; pinnedAt: string | null; reach: number }; // reach = devices that resolve at tenant level
+  stores: {
+    id: string; name: string; pinMode: PinMode; pinnedUrl: string | null;
+    deviceCount: number; inheritingCount: number; effectiveUrl: string | null;
+  }[];
+  poolInheritingCount: number;
+  exceptions: {
+    id: string; name: string; storeId: string | null; storeName: string | null;
+    pinMode: "custom" | "none"; pinnedUrl: string | null;
+  }[];
+}
+
+/**
+ * Tenant-wide pin overview for the /tenant/pinned-qr page: the tenant-level
+ * pin + its reach, per-store rows (with inheriting-device counts and the
+ * effective URL that would render), unassigned-pool inheriting count, and the
+ * list of devices/stores that override the default via "custom" or "none".
+ */
+export async function getPinOverview(organizationId: string): Promise<PinOverview> {
+  const [devices, stores, [ts]] = await Promise.all([
+    db
+      .select({ id: deviceTable.id, name: deviceTable.name, storeId: deviceTable.storeId, pinMode: deviceTable.pinMode, pinnedUrl: deviceTable.pinnedUrl })
+      .from(deviceTable)
+      .where(eq(deviceTable.organizationId, organizationId)),
+    db
+      .select({ id: storeTable.id, name: storeTable.name, pinMode: storeTable.pinMode, pinnedUrl: storeTable.pinnedUrl })
+      .from(storeTable)
+      .where(eq(storeTable.organizationId, organizationId)),
+    db
+      .select({ pinnedUrl: settingsTable.pinnedUrl, pinnedAt: settingsTable.pinnedAt })
+      .from(settingsTable)
+      .where(eq(settingsTable.organizationId, organizationId)),
+  ]);
+  const tenantPinnedUrl = ts?.pinnedUrl ?? null;
+  const storeById = new Map(stores.map((s) => [s.id, s]));
+  const resolve = (d: (typeof devices)[number]) =>
+    resolveEffectivePin({
+      device: d,
+      store: d.storeId ? (storeById.get(d.storeId) ?? null) : null,
+      tenant: { pinnedUrl: tenantPinnedUrl },
+    });
+
+  // reach = devices whose chain delegates to the tenant level (counted even
+  // when no tenant pin is set — it's the cost preview for setting one).
+  const reachesTenant = (d: (typeof devices)[number]) => {
+    if (d.pinMode !== "inherit") return false;
+    const s = d.storeId ? storeById.get(d.storeId) : null;
+    return !s || s.pinMode === "inherit";
+  };
+
+  return {
+    tenant: {
+      pinnedUrl: tenantPinnedUrl,
+      pinnedAt: ts?.pinnedAt ? ts.pinnedAt.toISOString() : null,
+      reach: devices.filter(reachesTenant).length,
+    },
+    stores: stores.map((s) => {
+      const members = devices.filter((d) => d.storeId === s.id);
+      const inheriting = members.filter((d) => d.pinMode === "inherit");
+      return {
+        id: s.id,
+        name: s.name,
+        pinMode: s.pinMode,
+        pinnedUrl: s.pinnedUrl,
+        deviceCount: members.length,
+        inheritingCount: inheriting.length,
+        effectiveUrl:
+          inheriting.length > 0 ? resolve(inheriting[0]).url
+          : s.pinMode === "custom" ? s.pinnedUrl
+          : s.pinMode === "none" ? null
+          : tenantPinnedUrl,
+      };
+    }),
+    poolInheritingCount: devices.filter((d) => d.storeId === null && d.pinMode === "inherit").length,
+    exceptions: devices
+      .filter((d) => d.pinMode !== "inherit")
+      .map((d) => ({
+        id: d.id,
+        name: d.name,
+        storeId: d.storeId,
+        storeName: d.storeId ? (storeById.get(d.storeId)?.name ?? null) : null,
+        pinMode: d.pinMode as "custom" | "none",
+        pinnedUrl: d.pinnedUrl,
+      })),
+  };
+}
+
+export interface DevicePinContext {
+  pinMode: PinMode;
+  inheritedUrl: string | null; // what "inherit" would show
+  inheritedSource: "store" | "tenant" | null;
+}
+
+/**
+ * Per-device pin context for the device detail card: the device's own
+ * pinMode, plus what "inherit" WOULD resolve to (store or tenant pin) —
+ * regardless of the device's actual mode, so the UI can preview the switch.
+ */
+export async function getDevicePinContext(
+  organizationId: string,
+  deviceId: string,
+): Promise<DevicePinContext | null> {
+  const [d] = await db
+    .select({ id: deviceTable.id, storeId: deviceTable.storeId, pinMode: deviceTable.pinMode, pinnedUrl: deviceTable.pinnedUrl })
+    .from(deviceTable)
+    .where(and(eq(deviceTable.id, deviceId), eq(deviceTable.organizationId, organizationId)))
+    .limit(1);
+  if (!d) return null;
+  const [storeRow, [ts]] = await Promise.all([
+    d.storeId
+      ? db
+          .select({ pinMode: storeTable.pinMode, pinnedUrl: storeTable.pinnedUrl })
+          .from(storeTable)
+          .where(eq(storeTable.id, d.storeId))
+          .limit(1)
+          .then((r) => r[0] ?? null)
+      : Promise.resolve(null),
+    db
+      .select({ pinnedUrl: settingsTable.pinnedUrl })
+      .from(settingsTable)
+      .where(eq(settingsTable.organizationId, organizationId)),
+  ]);
+  // What "inherit" WOULD show: resolve with the device forced to inherit.
+  const inherited = resolveEffectivePin({
+    device: { pinMode: "inherit", pinnedUrl: null },
+    store: storeRow,
+    tenant: { pinnedUrl: ts?.pinnedUrl ?? null },
+  });
+  return {
+    pinMode: d.pinMode,
+    inheritedUrl: inherited.url,
+    inheritedSource: inherited.source === "store" || inherited.source === "tenant" ? inherited.source : null,
+  };
 }
 
 /**

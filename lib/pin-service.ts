@@ -5,7 +5,7 @@
 // is a no-op) and the delivery rule (deviceCommand row + best-effort MQTT
 // publish, one per affected device) exist in exactly one place.
 
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   device as deviceTable,
@@ -25,7 +25,6 @@ import {
   type DevicePinRow,
   type StorePinRow,
 } from "@/lib/pin-resolve";
-import type { PinMode } from "@/lib/pin";
 
 export const PIN_COST = 1;
 
@@ -200,7 +199,7 @@ export async function pushEffectivePin(organizationId: string, deviceIds: string
   const rows = await db
     .select({ id: deviceTable.id, storeId: deviceTable.storeId, pinMode: deviceTable.pinMode, pinnedUrl: deviceTable.pinnedUrl })
     .from(deviceTable)
-    .where(inArray(deviceTable.id, deviceIds));
+    .where(and(inArray(deviceTable.id, deviceIds), eq(deviceTable.organizationId, organizationId)));
   for (const d of rows) {
     const eff = resolveEffectivePin({
       device: d,

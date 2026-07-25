@@ -184,6 +184,10 @@ export const tenantSettings = pgTable("tenant_settings", {
   printerScreens: jsonb("kiosk_screens"),
   logoUrl: text("logo_url"),
   staffPin: text("staff_pin"),
+  // Tenant-wide pinned QR: devices whose pin mode resolves to "inherit" all the
+  // way up show this URL while idle. Null = no tenant pin.
+  pinnedUrl: text("pinned_url"),
+  pinnedAt: timestamp("pinned_at"),
   // --- Org-wide device policy settings (Device Settings page) -------------
   // QR visible duration. Source of truth for what was PrinterConfig.qrTimeoutSeconds;
   // overlaid back onto config.qrTimeoutSeconds at delivery (device contract unchanged).
@@ -238,6 +242,14 @@ export const store = pgTable(
     name: text("name").notNull(),
     address: text("address").notNull().default(""),
     timezone: text("timezone").notNull().default("UTC"), // IANA name; see lib/timezones.ts
+    // Store-level pinned QR. pinMode: "inherit" = follow the tenant pin,
+    // "custom" = pinnedUrl below, "none" = suppress any pin for this store's
+    // inheriting devices. custom ⇔ pinnedUrl set (enforced by write paths).
+    pinMode: text("pin_mode", { enum: ["inherit", "custom", "none"] })
+      .default("inherit")
+      .notNull(),
+    pinnedUrl: text("pinned_url"),
+    pinnedAt: timestamp("pinned_at"),
     createdAt: timestamp("created_at")
       .$defaultFn(() => new Date())
       .notNull(),
@@ -293,6 +305,12 @@ export const device = pgTable(
     // Pinned QR: when set, the device shows this URL as a persistent QR while
     // idle (triggers temporarily override, then return to it). Null = no pin.
     // Setting/changing costs 1 credit (kind "spend"); clearing is free.
+    // Pin mode: "custom" = show pinnedUrl below, "none" = never show a pin
+    // even if the store/tenant has one, "inherit" = resolve store → tenant.
+    // custom ⇔ pinnedUrl set (enforced by write paths).
+    pinMode: text("pin_mode", { enum: ["inherit", "custom", "none"] })
+      .default("inherit")
+      .notNull(),
     pinnedUrl: text("pinned_url"),
     pinnedAt: timestamp("pinned_at"),
     createdAt: timestamp("created_at")

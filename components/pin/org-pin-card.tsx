@@ -49,6 +49,9 @@ export function OrgPinCard(props: {
   const notEnoughCredits = willCharge && reach > props.creditsAvailable;
 
   function submit() {
+    // Capture before dispatch: resubmitting the identical URL is a free
+    // no-op server-side (pinnedAt untouched), so don't bump "Pinned …" then.
+    const isRealChange = draftUrl.trim() !== (pinnedUrl ?? "");
     startTransition(async () => {
       const res = await setOrgPinAction(draftUrl.trim());
       if (!res.ok) {
@@ -56,7 +59,7 @@ export function OrgPinCard(props: {
         return;
       }
       setPinnedUrl(res.pinnedUrl ?? null);
-      setPinnedAt(new Date().toISOString());
+      if (isRealChange) setPinnedAt(new Date().toISOString());
       setDialogOpen(false);
       toast.success(`Pinned on ${res.affectedDevices} device(s) — ${res.creditsCharged} credit(s)`);
     });

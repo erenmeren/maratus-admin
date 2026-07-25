@@ -5,7 +5,7 @@
 // is a no-op) and the delivery rule (deviceCommand row + best-effort MQTT
 // publish, one per affected device) exist in exactly one place.
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   device as deviceTable,
@@ -15,6 +15,7 @@ import {
 } from "@/lib/db/schema";
 import { spendCredit } from "@/lib/credits";
 import { id } from "@/lib/ids";
+import { chunk } from "@/lib/chunk";
 import { publishCommand } from "@/lib/mqtt";
 import { recordAudit, AUDIT, type AuditActor } from "@/lib/audit";
 import {
@@ -32,25 +33,38 @@ export type ScopedPinResult =
   | { ok: true; noop: boolean; affectedDevices: number; creditsCharged: number; pinnedAt: Date | null }
   | { ok: false; reason: "insufficient_credits"; required: number };
 
-async function enqueuePinCommand(a: {
-  organizationId: string;
-  deviceId: string;
-  url: string | null;
-}): Promise<string> {
-  const commandId = id("cmd");
-  await db.insert(deviceCommand).values({
-    id: commandId,
-    deviceId: a.deviceId,
-    organizationId: a.organizationId,
-    type: "pin",
-    status: "pending",
-    payload: { url: a.url },
+const PIN_COMMAND_INSERT_CHUNK_SIZE = 500;
+
+/**
+ * Batched pin-command fan-out: one multi-row insert (chunked for very large
+ * batches) followed by best-effort MQTT publishes fired concurrently. MQTT is
+ * best-effort — devices also converge via command poll / config fetch — so
+ * publish failures are swallowed (allSettled, no throw).
+ */
+async function enqueuePinCommands(
+  organizationId: string,
+  batch: { deviceId: string; url: string | null }[],
+): Promise<void> {
+  if (batch.length === 0) return;
+  const rows = batch.map((b) => ({
+    id: id("cmd"),
+    deviceId: b.deviceId,
+    organizationId,
+    type: "pin" as const,
+    status: "pending" as const,
+    payload: { url: b.url },
     // No expiresAt: unlike triggers there is no hold to reclaim, and an
     // offline device must still receive the pin when it reconnects (the
     // config path also covers reboot recovery).
-  });
-  await publishCommand(a.deviceId, { commandId, type: "pin", action: null, payload: { url: a.url } });
-  return commandId;
+  }));
+  for (const part of chunk(rows, PIN_COMMAND_INSERT_CHUNK_SIZE)) {
+    await db.insert(deviceCommand).values(part);
+  }
+  await Promise.allSettled(
+    rows.map((r) =>
+      publishCommand(r.deviceId, { commandId: r.id, type: "pin", action: null, payload: r.payload }),
+    ),
+  );
 }
 
 async function loadPinWorld(organizationId: string): Promise<{
@@ -69,7 +83,7 @@ async function loadPinWorld(organizationId: string): Promise<{
         pinnedAt: deviceTable.pinnedAt,
       })
       .from(deviceTable)
-      .where(eq(deviceTable.organizationId, organizationId)),
+      .where(and(eq(deviceTable.organizationId, organizationId), isNotNull(deviceTable.claimedAt))),
     db
       .select({ id: storeTable.id, pinMode: storeTable.pinMode, pinnedUrl: storeTable.pinnedUrl, pinnedAt: storeTable.pinnedAt })
       .from(storeTable)
@@ -149,21 +163,18 @@ export async function applyScopedPinChange(a: {
     await db
       .update(storeTable)
       .set({ pinMode: a.change.mode, pinnedUrl: a.change.url, pinnedAt })
-      .where(eq(storeTable.id, a.change.storeId));
+      .where(and(eq(storeTable.id, a.change.storeId), eq(storeTable.organizationId, a.organizationId)));
   } else {
     await db
       .update(deviceTable)
       .set({ pinMode: a.change.mode, pinnedUrl: a.change.url, pinnedAt })
-      .where(eq(deviceTable.id, a.change.deviceId));
+      .where(and(eq(deviceTable.id, a.change.deviceId), eq(deviceTable.organizationId, a.organizationId)));
   }
 
-  for (const dev of plan.affected) {
-    await enqueuePinCommand({
-      organizationId: a.organizationId,
-      deviceId: dev.deviceId,
-      url: dev.newUrl,
-    });
-  }
+  await enqueuePinCommands(
+    a.organizationId,
+    plan.affected.map((dev) => ({ deviceId: dev.deviceId, url: dev.newUrl })),
+  );
 
   const set = changeSetsUrl(a.change);
   const modeNone = !set && a.change.scope !== "org" && a.change.mode === "none";
@@ -212,13 +223,20 @@ export async function pushEffectivePin(organizationId: string, deviceIds: string
   const rows = await db
     .select({ id: deviceTable.id, storeId: deviceTable.storeId, pinMode: deviceTable.pinMode, pinnedUrl: deviceTable.pinnedUrl })
     .from(deviceTable)
-    .where(and(inArray(deviceTable.id, deviceIds), eq(deviceTable.organizationId, organizationId)));
-  for (const d of rows) {
+    .where(
+      and(
+        inArray(deviceTable.id, deviceIds),
+        eq(deviceTable.organizationId, organizationId),
+        isNotNull(deviceTable.claimedAt),
+      ),
+    );
+  const batch = rows.map((d) => {
     const eff = resolveEffectivePin({
       device: d,
       store: d.storeId ? (storeById.get(d.storeId) ?? null) : null,
       tenant: { pinnedUrl: world.tenantPinnedUrl },
     });
-    await enqueuePinCommand({ organizationId, deviceId: d.id, url: eff.url });
-  }
+    return { deviceId: d.id, url: eff.url };
+  });
+  await enqueuePinCommands(organizationId, batch);
 }

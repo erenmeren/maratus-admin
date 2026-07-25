@@ -814,7 +814,7 @@ export async function getPinOverview(organizationId: string): Promise<PinOvervie
     db
       .select({ id: deviceTable.id, name: deviceTable.name, storeId: deviceTable.storeId, pinMode: deviceTable.pinMode, pinnedUrl: deviceTable.pinnedUrl })
       .from(deviceTable)
-      .where(eq(deviceTable.organizationId, organizationId)),
+      .where(and(eq(deviceTable.organizationId, organizationId), isNotNull(deviceTable.claimedAt))),
     db
       .select({ id: storeTable.id, name: storeTable.name, pinMode: storeTable.pinMode, pinnedUrl: storeTable.pinnedUrl })
       .from(storeTable)

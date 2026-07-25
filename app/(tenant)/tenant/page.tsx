@@ -1,4 +1,4 @@
-import { CalendarDays, Coins, Cpu, FileText, Wallet } from "lucide-react";
+import { CalendarDays, Coins, Cpu, FileText, Pin, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { ActivationsAreaChart } from "@/components/charts";
@@ -23,7 +23,7 @@ export default async function TenantDashboardPage() {
         </span>
       </PageHeader>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <KpiCard
           label="Activations today"
           value={formatNumber(dash.activationsToday)}
@@ -55,6 +55,12 @@ export default async function TenantDashboardPage() {
           value={formatNumber(dash.creditsUsedThisMonth)}
           hint="triggers + pin updates"
           icon={Coins}
+        />
+        <KpiCard
+          label="Pin updates this month"
+          value={formatNumber(dash.pinUpdatesThisMonth)}
+          hint="applied by screens"
+          icon={Pin}
         />
       </div>
 

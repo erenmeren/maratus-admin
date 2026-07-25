@@ -413,6 +413,10 @@ export interface TenantDashboard {
   // pin updates, so pin activity is visible here even though it never counts
   // as an activation.
   creditsUsedThisMonth: number;
+  // Acked pin commands this UTC month — one per device that actually applied a
+  // pin change (a store/tenant pin fans out to one command per affected
+  // device). Same "device really did it" bar as the activation metric.
+  pinUpdatesThisMonth: number;
   daily: TimePoint[];
 }
 
@@ -435,7 +439,7 @@ export async function getTenantDashboard(
     Math.min(lastMonthStartMs + (now.getTime() - monthStart.getTime()), monthStart.getTime()),
   ).toISOString();
 
-  const [b, balance, [usedRow], [baselineRow]] = await Promise.all([
+  const [b, balance, [usedRow], [baselineRow], [pinRow]] = await Promise.all([
     loadOrg(organizationId),
     getBalance(organizationId),
     db
@@ -462,6 +466,15 @@ export async function getTenantDashboard(
         eq(deviceCommand.status, "acked"),
         sql`${deviceCommand.createdAt} >= ${lastMonthStartStr}::timestamp`,
       )),
+    db
+      .select({ c: count() })
+      .from(deviceCommand)
+      .where(and(
+        eq(deviceCommand.organizationId, organizationId),
+        eq(deviceCommand.type, "pin"),
+        eq(deviceCommand.status, "acked"),
+        sql`${deviceCommand.createdAt} >= ${monthStart.toISOString()}::timestamp`,
+      )),
   ]);
   if (!b) throw new Error(`Organization not found: ${organizationId}`);
   const tenant = buildTenant(b);
@@ -486,6 +499,7 @@ export async function getTenantDashboard(
     totalDevices: devices.length,
     creditsAvailable: balance.available,
     creditsUsedThisMonth: Number(usedRow?.c ?? 0),
+    pinUpdatesThisMonth: Number(pinRow?.c ?? 0),
     daily: dailySeries(b),
   };
 }

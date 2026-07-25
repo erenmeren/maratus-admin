@@ -400,15 +400,69 @@ export interface TenantDashboard {
   tenant: Tenant;
   activationsToday: number;
   activationsThisMonth: number;
+  // Percent change vs. the same elapsed window in the previous period (yesterday
+  // up to this time of day / last month up to this point). null when the
+  // baseline window had no activations — the UI hides the badge instead of
+  // showing a division-by-zero artifact.
+  activationsTodayDeltaPct: number | null;
+  activationsThisMonthDeltaPct: number | null;
   activeDevices: number;
   totalDevices: number;
+  creditsAvailable: number;
+  // settle + spend ledger rows this UTC month — covers both acked triggers and
+  // pin updates, so pin activity is visible here even though it never counts
+  // as an activation.
+  creditsUsedThisMonth: number;
   daily: TimePoint[];
 }
 
 export async function getTenantDashboard(
   organizationId: string,
 ): Promise<TenantDashboard> {
-  const b = await loadOrg(organizationId);
+  const now = new Date();
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  // Baseline windows for the delta badges: previous period truncated to the
+  // same elapsed span, so a partial today/month is compared apples-to-apples
+  // ("yesterday up to this hour", "last month up to this point"). All UTC,
+  // matching startOfToday/startOfMonth. The last-month cutoff is clamped to
+  // month start for the day-31-vs-30-day-month edge.
+  const dayMs = 86_400_000;
+  const yesterdayStartStr = new Date(startOfToday() - dayMs).toISOString();
+  const yesterdayCutoffStr = new Date(now.getTime() - dayMs).toISOString();
+  const lastMonthStartMs = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 1, 1);
+  const lastMonthStartStr = new Date(lastMonthStartMs).toISOString();
+  const lastMonthCutoffStr = new Date(
+    Math.min(lastMonthStartMs + (now.getTime() - monthStart.getTime()), monthStart.getTime()),
+  ).toISOString();
+
+  const [b, balance, [usedRow], [baselineRow]] = await Promise.all([
+    loadOrg(organizationId),
+    getBalance(organizationId),
+    db
+      .select({ c: sql<number>`coalesce(sum(${creditLedgerTable.credits}), 0)::int` })
+      .from(creditLedgerTable)
+      .where(and(
+        eq(creditLedgerTable.organizationId, organizationId),
+        inArray(creditLedgerTable.kind, ["settle", "spend"]),
+        gte(creditLedgerTable.createdAt, monthStart),
+      )),
+    db
+      .select({
+        yesterday: sql<number>`count(*) FILTER (WHERE ${deviceCommand.createdAt} >= ${yesterdayStartStr}::timestamp AND ${deviceCommand.createdAt} < ${yesterdayCutoffStr}::timestamp)`.mapWith(
+          Number,
+        ),
+        lastMonth: sql<number>`count(*) FILTER (WHERE ${deviceCommand.createdAt} < ${lastMonthCutoffStr}::timestamp)`.mapWith(
+          Number,
+        ),
+      })
+      .from(deviceCommand)
+      .where(and(
+        eq(deviceCommand.organizationId, organizationId),
+        eq(deviceCommand.type, "trigger"),
+        eq(deviceCommand.status, "acked"),
+        sql`${deviceCommand.createdAt} >= ${lastMonthStartStr}::timestamp`,
+      )),
+  ]);
   if (!b) throw new Error(`Organization not found: ${organizationId}`);
   const tenant = buildTenant(b);
   const devices = [
@@ -419,12 +473,19 @@ export async function getTenantDashboard(
   const activationsThisMonth = devices.reduce((a, d) => a + d.activationsThisMonth, 0);
   const activeDevices = devices.filter((d) => d.status === "online").length;
 
+  const deltaPct = (current: number, baseline: number): number | null =>
+    baseline > 0 ? Math.round(((current - baseline) / baseline) * 1000) / 10 : null;
+
   return {
     tenant,
     activationsToday,
     activationsThisMonth,
+    activationsTodayDeltaPct: deltaPct(activationsToday, baselineRow?.yesterday ?? 0),
+    activationsThisMonthDeltaPct: deltaPct(activationsThisMonth, baselineRow?.lastMonth ?? 0),
     activeDevices,
     totalDevices: devices.length,
+    creditsAvailable: balance.available,
+    creditsUsedThisMonth: Number(usedRow?.c ?? 0),
     daily: dailySeries(b),
   };
 }

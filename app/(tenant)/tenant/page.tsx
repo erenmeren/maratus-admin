@@ -1,4 +1,4 @@
-import { CalendarDays, Cpu, FileText } from "lucide-react";
+import { CalendarDays, Coins, Cpu, FileText, Wallet } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { ActivationsAreaChart } from "@/components/charts";
@@ -23,19 +23,19 @@ export default async function TenantDashboardPage() {
         </span>
       </PageHeader>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <KpiCard
           label="Activations today"
           value={formatNumber(dash.activationsToday)}
-          delta={6.4}
-          hint="vs. yesterday"
+          delta={dash.activationsTodayDeltaPct ?? undefined}
+          hint={dash.activationsTodayDeltaPct !== null ? "vs. same time yesterday" : undefined}
           icon={FileText}
         />
         <KpiCard
           label="Activations this month"
           value={formatNumber(dash.activationsThisMonth)}
-          delta={12.1}
-          hint="vs. last month"
+          delta={dash.activationsThisMonthDeltaPct ?? undefined}
+          hint={dash.activationsThisMonthDeltaPct !== null ? "vs. last month to date" : undefined}
           icon={FileText}
         />
         <KpiCard
@@ -43,6 +43,18 @@ export default async function TenantDashboardPage() {
           value={`${dash.activeDevices}/${dash.totalDevices}`}
           hint="screens online now"
           icon={Cpu}
+        />
+        <KpiCard
+          label="Credits remaining"
+          value={formatNumber(dash.creditsAvailable)}
+          hint="available balance"
+          icon={Wallet}
+        />
+        <KpiCard
+          label="Credits used this month"
+          value={formatNumber(dash.creditsUsedThisMonth)}
+          hint="triggers + pin updates"
+          icon={Coins}
         />
       </div>
 

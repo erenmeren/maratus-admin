@@ -28,10 +28,6 @@ import {
 
 export const PIN_COST = 1;
 
-export type SetPinResult =
-  | { ok: true; noop: boolean; pinnedAt: Date }
-  | { ok: false; reason: "insufficient_credits" };
-
 export type ScopedPinResult =
   | { ok: true; noop: boolean; affectedDevices: number; creditsCharged: number; pinnedAt: Date | null }
   | { ok: false; reason: "insufficient_credits"; required: number };
@@ -208,39 +204,4 @@ export async function pushEffectivePin(organizationId: string, deviceIds: string
     });
     await enqueuePinCommand({ organizationId, deviceId: d.id, url: eff.url });
   }
-}
-
-export async function setDevicePin(a: {
-  organizationId: string;
-  device: { id: string; pinnedUrl: string | null; pinnedAt: Date | null };
-  url: string;
-  actor: AuditActor;
-  via: "api" | "ui";
-  createdByUserId?: string | null;
-}): Promise<SetPinResult> {
-  const res = await applyScopedPinChange({
-    organizationId: a.organizationId,
-    change: { scope: "device", deviceId: a.device.id, mode: "custom", url: a.url },
-    actor: a.actor,
-    via: a.via,
-    createdByUserId: a.createdByUserId,
-  });
-  if (!res.ok) return { ok: false, reason: "insufficient_credits" };
-  return { ok: true, noop: res.noop, pinnedAt: res.pinnedAt ?? a.device.pinnedAt ?? new Date() };
-}
-
-/** NOTE: semantics change per spec — "clear" now means → inherit (falls back
- *  to a store/tenant pin when one exists), not "guaranteed blank". */
-export async function clearDevicePin(a: {
-  organizationId: string;
-  device: { id: string; pinnedUrl: string | null };
-  actor: AuditActor;
-  via: "api" | "ui";
-}): Promise<void> {
-  await applyScopedPinChange({
-    organizationId: a.organizationId,
-    change: { scope: "device", deviceId: a.device.id, mode: "inherit", url: null },
-    actor: a.actor,
-    via: a.via,
-  });
 }

@@ -1,30 +1,44 @@
 // app/api/v1/devices/[deviceId]/pin/route.ts
-// PUT — set/replace the device's pinned QR URL (1 credit when the URL actually
-// changes; identical URL is a free no-op). DELETE — clear the pin (free).
-// Requires the devices:pin scope. Idempotency-Key is OPTIONAL on PUT (PUT is
-// naturally idempotent; the header only guards the double-charge on a retried
-// or concurrent change). When provided, the key is claimed (inserted) BEFORE
-// charging — mirroring /trigger — so two concurrent PUTs with the same key
-// spend at most one credit: the loser of the insert race replays the winner's
-// claimed response instead of charging again, and a failed charge deletes the
-// claim so a retry can proceed. Stored keys are prefixed "pin:" because the
-// apiIdempotency table is shared with /trigger, and without the prefix a key
-// reused across endpoints would replay the other endpoint's stored response.
+// PUT — set the device's pinned QR ({url}, paid: 1 credit when the device's
+// EFFECTIVE URL actually changes; identical URL is a free no-op) or switch
+// its pin mode ({mode:"none"|"inherit"}, free). DELETE — reset the device to
+// "inherit" mode. NOTE (semantics change, spec §5): DELETE no longer forces a
+// guaranteed-blank pin — it falls back to the store/tenant pin, if any, same
+// as PUT {mode:"inherit"}. Requires the devices:pin scope. Idempotency-Key is
+// OPTIONAL on the paid {url} path (PUT is naturally idempotent; the header
+// only guards the double-charge on a retried or concurrent change). When
+// provided, the key is claimed (inserted) BEFORE charging — mirroring
+// /trigger — so two concurrent requests with the same key spend at most one
+// credit: the loser of the insert race replays the winner's claimed response
+// instead of charging again, and a failed charge deletes the claim so a retry
+// can proceed. Stored keys are prefixed "pin:" (lib/api/pin-idempotency.ts)
+// because the apiIdempotency table is shared with /trigger and the other pin
+// endpoints, and without the prefix a key reused across endpoints would
+// replay the wrong endpoint's stored response.
 
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { device as deviceTable, apiKey as apiKeyTable, apiIdempotency } from "@/lib/db/schema";
+import { device as deviceTable, store as storeTable, tenantSettings, apiKey as apiKeyTable } from "@/lib/db/schema";
 import { guardApiRequest } from "@/lib/api/guard";
 import { apiError, apiJson } from "@/lib/api/respond";
 import { hasScope } from "@/lib/api-scopes";
-import { validatePinBody } from "@/lib/pin";
-import { setDevicePin, clearDevicePin } from "@/lib/pin-service";
+import { validatePinPutBody, type PinMode } from "@/lib/pin";
+import { applyScopedPinChange } from "@/lib/pin-service";
+import { resolveEffectivePin } from "@/lib/pin-resolve";
 import { isOrgArchived } from "@/lib/archived-guard";
+import { claimPinIdempotency, releasePinIdempotency, storePinIdempotentResponse } from "@/lib/api/pin-idempotency";
 
 export const runtime = "nodejs";
 
 type PinState = { url: string; pinnedAt: string } | null;
-const pinBody = (deviceId: string, pin: PinState) => ({ deviceId, pin });
+const deviceBody = (
+  deviceId: string,
+  pinMode: PinMode,
+  pin: PinState,
+  effectiveUrl: string | null,
+  affectedDevices: number,
+  creditsCharged: number,
+) => ({ deviceId, pinMode, pin, effectiveUrl, affectedDevices, creditsCharged });
 
 async function requirePinScope(keyId: string) {
   const [key] = await db
@@ -38,6 +52,29 @@ async function requirePinScope(keyId: string) {
 async function loadOwnedDevice(deviceId: string, organizationId: string) {
   const [dev] = await db.select().from(deviceTable).where(eq(deviceTable.id, deviceId)).limit(1);
   return dev && dev.organizationId === organizationId ? dev : null;
+}
+
+/** Resolve what a device with the given storeId/pinMode/pinnedUrl currently
+ * shows, per the device > store > tenant precedence (lib/pin-resolve.ts). */
+async function resolveDeviceEffectiveUrl(
+  organizationId: string,
+  storeId: string | null,
+  device: { pinMode: PinMode; pinnedUrl: string | null },
+): Promise<string | null> {
+  if (device.pinMode === "none") return null;
+  if (device.pinMode === "custom") return device.pinnedUrl;
+  const [storeRow, [ts]] = await Promise.all([
+    storeId
+      ? db
+          .select({ pinMode: storeTable.pinMode, pinnedUrl: storeTable.pinnedUrl })
+          .from(storeTable)
+          .where(eq(storeTable.id, storeId))
+          .limit(1)
+          .then((r) => r[0] ?? null)
+      : Promise.resolve(null),
+    db.select({ pinnedUrl: tenantSettings.pinnedUrl }).from(tenantSettings).where(eq(tenantSettings.organizationId, organizationId)),
+  ]);
+  return resolveEffectivePin({ device, store: storeRow, tenant: { pinnedUrl: ts?.pinnedUrl ?? null } }).url;
 }
 
 export async function PUT(req: Request, { params }: { params: Promise<{ deviceId: string }> }) {
@@ -55,12 +92,29 @@ export async function PUT(req: Request, { params }: { params: Promise<{ deviceId
   } catch {
     return apiError("invalid_request", "Malformed JSON body.", 422);
   }
-  const v = validatePinBody(raw);
+  const v = validatePinPutBody(raw);
   if (!v.ok) return apiError("invalid_request", v.error, 422);
 
   const { deviceId } = await params;
   const dev = await loadOwnedDevice(deviceId, auth.organizationId);
   if (!dev) return apiError("device_not_found", "Device not found.", 404);
+
+  if (v.kind === "mode") {
+    // Free path: no idempotency claim, no archive gate.
+    const res = await applyScopedPinChange({
+      organizationId: auth.organizationId,
+      change: { scope: "device", deviceId, mode: v.mode, url: null },
+      actor: { type: "system" },
+      via: "api",
+    });
+    const effectiveUrl = await resolveDeviceEffectiveUrl(auth.organizationId, dev.storeId, { pinMode: v.mode, pinnedUrl: null });
+    return apiJson(
+      deviceBody(deviceId, v.mode, null, effectiveUrl, res.ok ? res.affectedDevices : 0, res.ok ? res.creditsCharged : 0),
+      200,
+    );
+  }
+
+  // kind === "url": paid path.
   if (await isOrgArchived(auth.organizationId)) {
     return apiError("org_archived", "Organization is archived.", 403);
   }
@@ -68,62 +122,42 @@ export async function PUT(req: Request, { params }: { params: Promise<{ deviceId
   // Free no-op: identical URL, no idempotency claim, no charge.
   if (dev.pinnedUrl === v.url) {
     const pinnedAt = (dev.pinnedAt ?? new Date()).toISOString();
-    return apiJson(pinBody(deviceId, { url: v.url, pinnedAt }), 200);
+    return apiJson(deviceBody(deviceId, "custom", { url: v.url, pinnedAt }, v.url, 0, 0), 200);
   }
 
-  // apiIdempotency is shared with /trigger, so the key is namespaced to this
-  // endpoint — otherwise a key reused across endpoints would replay the
-  // wrong endpoint's stored response (e.g. a trigger's 202 body here).
-  const idemKey = req.headers.get("idempotency-key")?.trim() || null;
-  const nsKey = idemKey ? `pin:${idemKey}` : null;
-
-  if (nsKey) {
-    // Claim the key BEFORE charging — the insert conflict is the concurrency
-    // gate (mirrors /trigger). The placeholder body is overwritten below once
-    // the real pinnedAt is known; a concurrent loser that reads it in the
-    // narrow window before the overwrite gets a near-correct timestamp.
-    const claimedAt = new Date();
-    const placeholder = pinBody(deviceId, { url: v.url, pinnedAt: claimedAt.toISOString() });
-    const claim = await db
-      .insert(apiIdempotency)
-      .values({ key: nsKey, organizationId: auth.organizationId, responseStatus: 200, responseBody: placeholder, commandId: null })
-      .onConflictDoNothing()
-      .returning({ key: apiIdempotency.key });
-    if (claim.length === 0) {
-      // Another request (concurrent or prior) already claimed this key — replay its stored response.
-      const [existing] = await db
-        .select()
-        .from(apiIdempotency)
-        .where(and(eq(apiIdempotency.key, nsKey), eq(apiIdempotency.organizationId, auth.organizationId)))
-        .limit(1);
-      if (existing) return apiJson(existing.responseBody, existing.responseStatus);
-      return apiError("conflict", "Concurrent request in progress.", 409);
-    }
-  }
-
-  // We own the claim (or none was requested). Charge; on failure, release the
-  // claim so a retry can proceed.
-  const res = await setDevicePin({
+  const placeholder = deviceBody(deviceId, "custom", { url: v.url, pinnedAt: new Date().toISOString() }, v.url, 0, 0);
+  const claim = await claimPinIdempotency({
+    req,
+    namespace: "pin",
     organizationId: auth.organizationId,
-    device: { id: dev.id, pinnedUrl: dev.pinnedUrl, pinnedAt: dev.pinnedAt },
-    url: v.url,
+    placeholderBody: placeholder,
+  });
+  if (!claim.owned) {
+    if (claim.replay) return apiJson(claim.replay.body, claim.replay.status);
+    return apiError("conflict", "Concurrent request in progress.", 409);
+  }
+  const nsKey = claim.nsKey;
+
+  const res = await applyScopedPinChange({
+    organizationId: auth.organizationId,
+    change: { scope: "device", deviceId, mode: "custom", url: v.url },
     actor: { type: "system" },
     via: "api",
   });
   if (!res.ok) {
-    if (nsKey) {
-      await db.delete(apiIdempotency).where(and(eq(apiIdempotency.key, nsKey), eq(apiIdempotency.organizationId, auth.organizationId)));
-    }
-    return apiError("insufficient_credits", "Not enough credits.", 402);
+    if (nsKey) await releasePinIdempotency(nsKey, auth.organizationId);
+    return apiError("insufficient_credits", `Not enough credits — this change needs ${res.required}.`, 402);
   }
 
-  const body = pinBody(deviceId, { url: v.url, pinnedAt: res.pinnedAt.toISOString() });
-  if (nsKey) {
-    await db
-      .update(apiIdempotency)
-      .set({ responseBody: body })
-      .where(and(eq(apiIdempotency.key, nsKey), eq(apiIdempotency.organizationId, auth.organizationId)));
-  }
+  const body = deviceBody(
+    deviceId,
+    "custom",
+    { url: v.url, pinnedAt: (res.pinnedAt ?? new Date()).toISOString() },
+    v.url,
+    res.affectedDevices,
+    res.creditsCharged,
+  );
+  if (nsKey) await storePinIdempotentResponse(nsKey, auth.organizationId, body);
   return apiJson(body, 200);
 }
 
@@ -140,13 +174,14 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ devic
   const dev = await loadOwnedDevice(deviceId, auth.organizationId);
   if (!dev) return apiError("device_not_found", "Device not found.", 404);
 
-  // Clearing is free and safe, so archived orgs may clear (spec: archive
-  // guards apply to paid mutations; a clear only removes state).
-  await clearDevicePin({
+  // Resetting to inherit is free and safe, so archived orgs may do it (spec:
+  // archive guards apply to paid mutations; this only removes state).
+  const res = await applyScopedPinChange({
     organizationId: auth.organizationId,
-    device: { id: dev.id, pinnedUrl: dev.pinnedUrl },
+    change: { scope: "device", deviceId, mode: "inherit", url: null },
     actor: { type: "system" },
     via: "api",
   });
-  return apiJson(pinBody(deviceId, null), 200);
+  const effectiveUrl = await resolveDeviceEffectiveUrl(auth.organizationId, dev.storeId, { pinMode: "inherit", pinnedUrl: null });
+  return apiJson(deviceBody(deviceId, "inherit", null, effectiveUrl, res.ok ? res.affectedDevices : 0, 0), 200);
 }

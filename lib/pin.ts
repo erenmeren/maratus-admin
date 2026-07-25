@@ -27,3 +27,40 @@ export function validatePinBody(raw: unknown): PinBodyResult {
   }
   return { ok: true, url };
 }
+
+/** Pin mode shared by device and store levels. */
+export type PinMode = "inherit" | "custom" | "none";
+
+export type PinPutBodyResult =
+  | { ok: true; kind: "url"; url: string }
+  | { ok: true; kind: "mode"; mode: "none" | "inherit" }
+  | { ok: false; error: string };
+
+/**
+ * PUT body for the scoped pin endpoints: {url} sets a custom pin (paid),
+ * {mode:"none"|"inherit"} switches mode (free). "custom" mode is only ever
+ * expressed by sending a url. Org scope has no modes → allowMode: false.
+ */
+export function validatePinPutBody(
+  raw: unknown,
+  opts: { allowMode?: boolean } = {},
+): PinPutBodyResult {
+  const allowMode = opts.allowMode ?? true;
+  if (typeof raw !== "object" || raw === null) {
+    return { ok: false, error: "Body must be a JSON object." };
+  }
+  const { url, mode } = raw as { url?: unknown; mode?: unknown };
+  if (url !== undefined && mode !== undefined) {
+    return { ok: false, error: "Send either `url` or `mode`, not both." };
+  }
+  if (mode !== undefined) {
+    if (!allowMode) return { ok: false, error: "`mode` is not supported at this scope; send `url`." };
+    if (mode !== "none" && mode !== "inherit") {
+      return { ok: false, error: "`mode` must be \"none\" or \"inherit\" (custom = send `url`)." };
+    }
+    return { ok: true, kind: "mode", mode };
+  }
+  const v = validatePinBody(raw);
+  if (!v.ok) return v;
+  return { ok: true, kind: "url", url: v.url };
+}

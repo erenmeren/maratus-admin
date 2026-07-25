@@ -8,6 +8,7 @@ import { device as deviceTable, store as storeTable } from "./db/schema";
 import { generateDeviceKey, id } from "./ids";
 import { syncDeviceSubscription } from "./billing/device-subscription";
 import { provisionDeviceMqtt } from "@/lib/mqtt";
+import { pushEffectivePin } from "@/lib/pin-service";
 
 export interface ClaimResult {
   deviceId: string;
@@ -83,6 +84,14 @@ export async function claimDevice(
     } catch (err) {
       console.error("mqtt provision after claim failed", err);
     }
+    // Membership changed → re-deliver the (possibly different) effective pin.
+    // Free. Fail-open, matching the subscription/MQTT posture above — a pin
+    // hiccup must never fail a claim.
+    try {
+      await pushEffectivePin(store.organizationId, [existing.id]);
+    } catch (err) {
+      console.error("pin push after claim failed", err);
+    }
     return { deviceId: existing.id, deviceName: existing.name, deviceKey: key };
   }
 
@@ -126,6 +135,14 @@ export async function claimDevice(
     await provisionDeviceMqtt(deviceId, key);
   } catch (err) {
     console.error("mqtt provision after claim failed", err);
+  }
+  // Membership changed → re-deliver the (possibly different) effective pin.
+  // Free. Fail-open, matching the subscription/MQTT posture above — a pin
+  // hiccup must never fail a claim.
+  try {
+    await pushEffectivePin(store.organizationId, [deviceId]);
+  } catch (err) {
+    console.error("pin push after claim failed", err);
   }
   return { deviceId, deviceName: name, deviceKey: key };
 }

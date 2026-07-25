@@ -11,6 +11,7 @@ import {
   HardDriveDownload,
   MonitorCog,
   Boxes,
+  Pin,
 } from "lucide-react";
 
 export interface NavItem {
@@ -34,6 +35,7 @@ export const TENANT_NAV: NavItem[] = [
   { label: "Stores", href: "/tenant/stores", icon: Store },
   { label: "Devices", href: "/tenant/devices", icon: Cpu },
   { label: "Device Settings", href: "/tenant/device-settings", icon: MonitorCog },
+  { label: "Pinned QR", href: "/tenant/pinned-qr", icon: Pin },
   { label: "Branding", href: "/tenant/branding", icon: Palette },
   { label: "Members", href: "/tenant/members", icon: Users },
   { label: "Billing", href: "/tenant/billing", icon: Wallet },

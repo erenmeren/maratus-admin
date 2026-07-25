@@ -20,9 +20,14 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { setDevicePinAction, clearDevicePinAction } from "@/lib/actions/pin";
+import {
+  setDevicePinAction,
+  clearDevicePinAction,
+  setDevicePinModeAction,
+} from "@/lib/actions/pin";
 import { timeAgo } from "@/lib/format";
 import { DEFAULT_QR_STYLE, type QrShadowMode, type QrShape } from "@/lib/printer-layout";
+import type { PinMode } from "@/lib/pin";
 
 // Matches the `size-32` (8rem = 128px) Tailwind utility on the <QrSvg> below.
 const PIN_QR_DIM_PX = 128;
@@ -31,6 +36,9 @@ export function DevicePinControl(props: {
   deviceId: string;
   initialPinnedUrl: string | null;
   initialPinnedAt: string | null;
+  pinMode: PinMode;
+  inheritedUrl: string | null;
+  inheritedSource: "store" | "tenant" | null;
   creditsAvailable: number;
   canManage: boolean;
   /** Org-wide QR style (Branding → QR style); defaults match the org default look. */
@@ -44,11 +52,12 @@ export function DevicePinControl(props: {
 }) {
   const [pinnedUrl, setPinnedUrl] = useState(props.initialPinnedUrl);
   const [pinnedAt, setPinnedAt] = useState(props.initialPinnedAt);
+  const [mode, setMode] = useState(props.pinMode);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [draftUrl, setDraftUrl] = useState("");
   const [pending, startTransition] = useTransition();
 
-  const isChange = pinnedUrl !== null;
+  const isChange = mode === "custom";
   const willCharge = draftUrl.trim() !== (pinnedUrl ?? "");
 
   function submit() {
@@ -63,6 +72,7 @@ export function DevicePinControl(props: {
       }
       setPinnedUrl(res.pinnedUrl ?? null);
       if (isRealChange) setPinnedAt(new Date().toISOString());
+      setMode("custom");
       setDialogOpen(false);
       toast.success("Pinned QR updated");
     });
@@ -77,8 +87,61 @@ export function DevicePinControl(props: {
       }
       setPinnedUrl(null);
       setPinnedAt(null);
-      toast.success("Pinned QR removed");
+      setMode("inherit");
+      toast.success("Pin removed — device now follows the store/tenant pin");
     });
+  }
+
+  function disablePin() {
+    startTransition(async () => {
+      const res = await setDevicePinModeAction(props.deviceId, "none");
+      if (!res.ok) {
+        toast.error("Couldn't disable pin", { description: res.error });
+        return;
+      }
+      setMode("none");
+      toast.success("Pin disabled for this device");
+    });
+  }
+
+  function reenableInherit() {
+    startTransition(async () => {
+      const res = await setDevicePinModeAction(props.deviceId, "inherit");
+      if (!res.ok) {
+        toast.error("Couldn't re-enable inherit", { description: res.error });
+        return;
+      }
+      setMode("inherit");
+      toast.success("Device now follows the store/tenant pin");
+    });
+  }
+
+  function qrPreview(url: string) {
+    return (
+      <QrSvg
+        value={url}
+        shape={props.qrShape ?? DEFAULT_QR_STYLE.qrShape}
+        fg={props.qrFg ?? DEFAULT_QR_STYLE.qrFg}
+        bg={props.qrBg ?? DEFAULT_QR_STYLE.qrBg}
+        cornerRadius={props.qrCornerRadius ?? DEFAULT_QR_STYLE.qrCornerRadius}
+        className="mx-auto block size-32 border p-1.5"
+        style={{
+          background: props.qrBg ?? DEFAULT_QR_STYLE.qrBg,
+          // PIN_QR_DIM_PX matches the `size-32` (8rem = 128px) Tailwind
+          // utility above — qrCornerRadiusPx/qrShadowBoxShadow need the
+          // card's own real pixel size, not a fixed constant (see
+          // lib/qr-svg.ts).
+          borderRadius: qrCornerRadiusPx(PIN_QR_DIM_PX, props.qrCornerRadius ?? DEFAULT_QR_STYLE.qrCornerRadius),
+          boxShadow: qrShadowBoxShadow(
+            props.qrShadowMode ?? DEFAULT_QR_STYLE.qrShadowMode,
+            props.qrShadowStrength ?? DEFAULT_QR_STYLE.qrShadowStrength,
+            props.qrShadowColor ?? DEFAULT_QR_STYLE.qrShadowColor,
+            PIN_QR_DIM_PX,
+          ),
+        }}
+        ariaLabel="Pinned QR preview"
+      />
+    );
   }
 
   return (
@@ -89,39 +152,34 @@ export function DevicePinControl(props: {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3 text-sm">
-        {pinnedUrl ? (
+        {mode === "custom" && pinnedUrl && (
           <>
-            <QrSvg
-              value={pinnedUrl}
-              shape={props.qrShape ?? DEFAULT_QR_STYLE.qrShape}
-              fg={props.qrFg ?? DEFAULT_QR_STYLE.qrFg}
-              bg={props.qrBg ?? DEFAULT_QR_STYLE.qrBg}
-              cornerRadius={props.qrCornerRadius ?? DEFAULT_QR_STYLE.qrCornerRadius}
-              className="mx-auto block size-32 border p-1.5"
-              style={{
-                background: props.qrBg ?? DEFAULT_QR_STYLE.qrBg,
-                // PIN_QR_DIM_PX matches the `size-32` (8rem = 128px) Tailwind
-                // utility above — qrCornerRadiusPx/qrShadowBoxShadow need the
-                // card's own real pixel size, not a fixed constant (see
-                // lib/qr-svg.ts).
-                borderRadius: qrCornerRadiusPx(PIN_QR_DIM_PX, props.qrCornerRadius ?? DEFAULT_QR_STYLE.qrCornerRadius),
-                boxShadow: qrShadowBoxShadow(
-                  props.qrShadowMode ?? DEFAULT_QR_STYLE.qrShadowMode,
-                  props.qrShadowStrength ?? DEFAULT_QR_STYLE.qrShadowStrength,
-                  props.qrShadowColor ?? DEFAULT_QR_STYLE.qrShadowColor,
-                  PIN_QR_DIM_PX,
-                ),
-              }}
-              ariaLabel="Pinned QR preview"
-            />
+            {qrPreview(pinnedUrl)}
             <p className="break-all font-mono text-xs text-muted-foreground">{pinnedUrl}</p>
             {pinnedAt && (
               <p className="text-xs text-muted-foreground">Pinned {timeAgo(pinnedAt)}</p>
             )}
           </>
-        ) : (
+        )}
+        {mode === "inherit" && props.inheritedUrl && (
+          <>
+            {qrPreview(props.inheritedUrl)}
+            <p className="break-all font-mono text-xs text-muted-foreground">
+              {props.inheritedUrl}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Inherited from the {props.inheritedSource ?? "store"} pin
+            </p>
+          </>
+        )}
+        {mode === "inherit" && !props.inheritedUrl && (
           <p className="text-muted-foreground">
             No pinned QR. The device shows its idle screen when not triggered.
+          </p>
+        )}
+        {mode === "none" && (
+          <p className="text-muted-foreground">
+            Pin disabled for this device — it always shows its idle screen.
           </p>
         )}
         {props.canManage && (
@@ -171,9 +229,19 @@ export function DevicePinControl(props: {
                 )}
               </DialogContent>
             </Dialog>
-            {isChange && (
+            {mode === "custom" && (
               <Button size="sm" variant="ghost" onClick={remove} disabled={pending}>
                 <PinOff className="size-4" /> Remove
+              </Button>
+            )}
+            {mode === "inherit" && props.inheritedUrl && (
+              <Button size="sm" variant="ghost" onClick={disablePin} disabled={pending}>
+                <PinOff className="size-4" /> Don&apos;t pin here
+              </Button>
+            )}
+            {mode === "none" && (
+              <Button size="sm" variant="ghost" onClick={reenableInherit} disabled={pending}>
+                <Pin className="size-4" /> Re-enable inherit
               </Button>
             )}
           </div>

@@ -110,8 +110,7 @@ export function AppShell({
           </SidebarContent>
           <SidebarFooter>
             <div className="rounded-lg border bg-sidebar-accent/40 p-3 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-              <p className="font-medium text-foreground">Paperless since 2024</p>
-              <p className="mt-0.5">Any content, one scan away.</p>
+              <p className="font-medium text-foreground">Any content, one scan away.</p>
             </div>
           </SidebarFooter>
           <SidebarRail />

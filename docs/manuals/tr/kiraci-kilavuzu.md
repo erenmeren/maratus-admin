@@ -788,10 +788,10 @@ ekran **salt-okunur (read-only)**'dur.
 ### Ekranda neler var?
 
 - **QR kodu görünürlük süresi (QR code visible for):** bir kaydırıcı
-  (slider), **15–180 saniye** aralığında, **5'er saniyelik** adımlarla
+  (slider), **5–180 saniye** aralığında, **5'er saniyelik** adımlarla
   ayarlanır; yanında o anki değer "**{n}s**" biçiminde gösterilir. Altında
-  "**How long the document QR code stays on screen before the device
-  returns to idle (15–180s).**" (belge QR kodunun, cihaz boşta durumuna
+  "**How long a triggered QR stays on screen before the device
+  returns to idle (5–180s).**" (tetiklenen QR kodunun, cihaz boşta durumuna
   dönmeden önce ekranda ne kadar süre kalacağı) açıklaması bulunur.
 - **Ekran parlaklığı (Screen brightness):** bir kaydırıcı, **%10–%100**
   aralığında, **%1'lik** adımlarla ayarlanır; yanında o anki değer
@@ -829,7 +829,7 @@ ekran **salt-okunur (read-only)**'dur.
 
 1. Sol menüden **Cihaz Ayarları (Device Settings)** ekranına gidin.
 2. **QR kodu görünürlük süresi (QR code visible for)** kaydırıcısını
-   **15–180 saniye** arasında, 5'er saniyelik adımlarla istediğiniz değere
+   **5–180 saniye** arasında, 5'er saniyelik adımlarla istediğiniz değere
    getirin.
 3. **Ekran parlaklığı (Screen brightness)** kaydırıcısını **%10–%100**
    arasında, %1'lik adımlarla ayarlayın.

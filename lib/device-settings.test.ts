@@ -14,7 +14,8 @@ describe("normalizeDeviceSettings", () => {
   });
 
   it("clamps each field to its authoritative range", () => {
-    expect(normalizeDeviceSettings({ qrVisibleSeconds: 5 }).qrVisibleSeconds).toBe(15);
+    expect(normalizeDeviceSettings({ qrVisibleSeconds: 5 }).qrVisibleSeconds).toBe(5);
+    expect(normalizeDeviceSettings({ qrVisibleSeconds: 1 }).qrVisibleSeconds).toBe(5);
     expect(normalizeDeviceSettings({ qrVisibleSeconds: 999 }).qrVisibleSeconds).toBe(180);
     expect(normalizeDeviceSettings({ screenBrightness: 0 }).screenBrightness).toBe(10);
     expect(normalizeDeviceSettings({ screenBrightness: 250 }).screenBrightness).toBe(100);

@@ -108,7 +108,7 @@ export interface PrinterConfig {
   clockTimezone: string;
   clock24h: boolean;
   wifiLevel: number; // 0..4
-  qrTimeoutSeconds: number; // QR screen display timeout, 15..180
+  qrTimeoutSeconds: number; // QR screen display timeout, 5..180
   /** QR appearance (org-wide — one brand, one QR look). See sanitizeQrStyle. */
   qrShape: QrShape;
   qrFg: string; // #rrggbb
@@ -723,7 +723,7 @@ export function normalizePrinterConfig(raw: unknown): PrinterConfig {
     clockTimezone: tz,
     clock24h: typeof cfg.clock24h === "boolean" ? cfg.clock24h : false,
     wifiLevel: clamp(Math.round(num(cfg.wifiLevel, 3)), 0, 4),
-    qrTimeoutSeconds: clamp(Math.round(num(cfg.qrTimeoutSeconds, 60)), 15, 180),
+    qrTimeoutSeconds: clamp(Math.round(num(cfg.qrTimeoutSeconds, 60)), 5, 180),
     ...sanitizeQrStyle(cfg),
     screens,
   };

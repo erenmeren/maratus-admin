@@ -24,7 +24,7 @@ const num = (v: unknown, fallback: number) =>
 export function normalizeDeviceSettings(input: unknown): DeviceSettings {
   const r = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
   return {
-    qrVisibleSeconds: clamp(Math.round(num(r.qrVisibleSeconds, 60)), 15, 180),
+    qrVisibleSeconds: clamp(Math.round(num(r.qrVisibleSeconds, 60)), 5, 180),
     screenBrightness: clamp(Math.round(num(r.screenBrightness, 100)), 10, 100),
     screenSleepEnabled: typeof r.screenSleepEnabled === "boolean" ? r.screenSleepEnabled : false,
     screenSleepTimeoutSeconds: clamp(Math.round(num(r.screenSleepTimeoutSeconds, 300)), 30, 3600),

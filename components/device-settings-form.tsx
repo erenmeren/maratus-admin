@@ -100,7 +100,7 @@ export function DeviceSettingsForm({
           <span className="text-sm tabular-nums text-muted-foreground">{qr}s</span>
         </div>
         <Slider
-          min={15}
+          min={5}
           max={180}
           step={5}
           value={[qr]}
@@ -108,7 +108,7 @@ export function DeviceSettingsForm({
           disabled={disabled}
         />
         <p className="text-xs text-muted-foreground">
-          How long a triggered QR stays on screen before the device returns to idle (15–180s).
+          How long a triggered QR stays on screen before the device returns to idle (5–180s).
         </p>
       </Card>
 

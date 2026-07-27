@@ -385,6 +385,11 @@ export const deviceCommand = pgTable(
     // ack/expiry must NOT move credits for "included". Null on non-trigger
     // commands and on pre-plan legacy rows (treated as "credits").
     billing: text("billing", { enum: ["credits", "included"] }),
+    // Pin commands only: true when this row merely re-delivers the CURRENT
+    // effective pin after a membership change (claim, move, store deletion) —
+    // nothing the tenant asked for, never charged. False = the command carries
+    // a real pin change. Legacy rows default to false, which is what they were.
+    redelivery: boolean("redelivery").default(false).notNull(),
     payload: jsonb("payload"),
     expiresAt: timestamp("expires_at"),
     createdByUserId: text("created_by_user_id"),
@@ -392,7 +397,18 @@ export const deviceCommand = pgTable(
     deliveredAt: timestamp("delivered_at"),
     ackedAt: timestamp("acked_at"),
   },
-  (t) => [index("device_command_device_status_idx").on(t.deviceId, t.status)],
+  (t) => [
+    index("device_command_device_status_idx").on(t.deviceId, t.status),
+    // Org-wide dashboard/health rollups all filter organization_id + type +
+    // status and then window on a timestamp; without this they seq-scan the
+    // largest table in the schema once per render.
+    index("device_command_org_type_status_created_idx").on(
+      t.organizationId,
+      t.type,
+      t.status,
+      t.createdAt,
+    ),
+  ],
 );
 
 // Published firmware builds for OTA. "Latest" = newest createdAt. M6b.

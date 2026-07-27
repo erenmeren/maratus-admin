@@ -1,0 +1,2 @@
+ALTER TABLE "device_command" ADD COLUMN "redelivery" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+CREATE INDEX "device_command_org_type_status_created_idx" ON "device_command" USING btree ("organization_id","type","status","created_at");

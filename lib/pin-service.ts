@@ -40,10 +40,15 @@ const PIN_COMMAND_INSERT_CHUNK_SIZE = 500;
  * batches) followed by best-effort MQTT publishes fired concurrently. MQTT is
  * best-effort — devices also converge via command poll / config fetch — so
  * publish failures are swallowed (allSettled, no throw).
+ *
+ * `redelivery` marks convergence traffic (see pushEffectivePin) so reporting
+ * can tell "the tenant changed a pin" apart from "a device was re-sent the pin
+ * it already had". It is stored, never sent to the device.
  */
 async function enqueuePinCommands(
   organizationId: string,
   batch: { deviceId: string; url: string | null }[],
+  opts: { redelivery: boolean },
 ): Promise<void> {
   if (batch.length === 0) return;
   const rows = batch.map((b) => ({
@@ -52,6 +57,7 @@ async function enqueuePinCommands(
     organizationId,
     type: "pin" as const,
     status: "pending" as const,
+    redelivery: opts.redelivery,
     payload: { url: b.url },
     // No expiresAt: unlike triggers there is no hold to reclaim, and an
     // offline device must still receive the pin when it reconnects (the
@@ -174,6 +180,7 @@ export async function applyScopedPinChange(a: {
   await enqueuePinCommands(
     a.organizationId,
     plan.affected.map((dev) => ({ deviceId: dev.deviceId, url: dev.newUrl })),
+    { redelivery: false },
   );
 
   const set = changeSetsUrl(a.change);
@@ -238,5 +245,5 @@ export async function pushEffectivePin(organizationId: string, deviceIds: string
     });
     return { deviceId: d.id, url: eff.url };
   });
-  await enqueuePinCommands(organizationId, batch);
+  await enqueuePinCommands(organizationId, batch, { redelivery: true });
 }

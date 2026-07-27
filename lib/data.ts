@@ -409,13 +409,21 @@ export interface TenantDashboard {
   activeDevices: number;
   totalDevices: number;
   creditsAvailable: number;
-  // settle + spend ledger rows this UTC month — covers both acked triggers and
-  // pin updates, so pin activity is visible here even though it never counts
-  // as an activation.
+  // settle + spend ledger rows this UTC month — covers acked triggers that were
+  // paid from credits plus pin changes, so pin activity is visible here even
+  // though it never counts as an activation. Triggers the plan covers write no
+  // ledger row at all (reserveTrigger's "included" path: flat plans, and
+  // base_usage within quota), so on those plans this is NOT total trigger
+  // volume — the UI labels it accordingly.
   creditsUsedThisMonth: number;
-  // Acked pin commands this UTC month — one per device that actually applied a
-  // pin change (a store/tenant pin fans out to one command per affected
-  // device). Same "device really did it" bar as the activation metric.
+  // Pin commands this UTC month that a device actually applied — one per device
+  // per real pin change (a store/tenant pin fans out to one command per
+  // affected device). Convergence re-deliveries (claim / move / store deletion,
+  // `redelivery` rows) are excluded: nobody changed a pin, so counting them
+  // would report "pin updates" for orgs that never set one. Bucketed by
+  // ackedAt, not createdAt — pin commands never expire, so an offline screen
+  // may apply a pin days after it was set, and this card is about what screens
+  // applied.
   pinUpdatesThisMonth: number;
   daily: TimePoint[];
 }
@@ -473,7 +481,8 @@ export async function getTenantDashboard(
         eq(deviceCommand.organizationId, organizationId),
         eq(deviceCommand.type, "pin"),
         eq(deviceCommand.status, "acked"),
-        sql`${deviceCommand.createdAt} >= ${monthStart.toISOString()}::timestamp`,
+        eq(deviceCommand.redelivery, false),
+        sql`${deviceCommand.ackedAt} >= ${monthStart.toISOString()}::timestamp`,
       )),
   ]);
   if (!b) throw new Error(`Organization not found: ${organizationId}`);

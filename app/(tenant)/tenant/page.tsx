@@ -11,6 +11,16 @@ export default async function TenantDashboardPage() {
   const { ctx, organizationId } = await requireTenant();
   const dash = await getTenantDashboard(organizationId);
 
+  // Only the credits plan pays for every trigger. On flat, triggers never touch
+  // the ledger; on base_usage only the over-quota ones do. Saying "triggers"
+  // there would read as "you fired 0 triggers this month".
+  const creditsUsedHint =
+    dash.tenant.billingPlan === "flat"
+      ? "pin updates (triggers included in plan)"
+      : dash.tenant.billingPlan === "base_usage"
+        ? "over-quota triggers + pin updates"
+        : "triggers + pin updates";
+
   return (
     <>
       <PageHeader
@@ -53,7 +63,7 @@ export default async function TenantDashboardPage() {
         <KpiCard
           label="Credits used this month"
           value={formatNumber(dash.creditsUsedThisMonth)}
-          hint="triggers + pin updates"
+          hint={creditsUsedHint}
           icon={Coins}
         />
         <KpiCard

@@ -82,9 +82,11 @@ export function BrandingStudio(props: BrandingVariantProps) {
   }, [fullscreen]);
 
   return (
-    <div className="relative space-y-6">
+    <div className="relative space-y-4">
       {!draft.canEdit && (
-        <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+        // Inset by its own margin: /tenant/branding is a full-bleed route, so
+        // the page container no longer supplies gutters for this banner.
+        <div className="mx-4 mt-4 flex items-center gap-2 rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
           <Lock className="size-4 shrink-0" />
           You have view-only access. Only owners and admins can edit branding.
         </div>

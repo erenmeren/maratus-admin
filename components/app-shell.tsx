@@ -27,6 +27,14 @@ import {
 } from "@/components/workspace-switcher";
 import type { OrgRef } from "@/lib/session";
 import { ADMIN_NAV, TENANT_NAV } from "@/lib/nav";
+import { cn } from "@/lib/utils";
+
+// Pages that opt out of the shell's padded, max-w-7xl container and run
+// edge-to-edge instead. Branding is an immersive canvas editor whose dark stage
+// carries its own header and save chrome, so the page container's gutters and
+// 1280px cap only shrink the workspace. Every other page keeps the standard
+// rhythm — see the layout notes in CLAUDE.md before adding to this set.
+const FULL_BLEED_ROUTES = new Set(["/tenant/branding"]);
 
 function isActive(pathname: string, href: string) {
   if (href === "/admin" || href === "/tenant") return pathname === href;
@@ -55,6 +63,7 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const fullBleed = FULL_BLEED_ROUTES.has(pathname);
   // Nav lives inside the client boundary so we never pass icon components
   // (functions) across the server→client edge.
   const nav = workspace === "admin" ? ADMIN_NAV : TENANT_NAV;
@@ -160,8 +169,15 @@ export function AppShell({
               />
             </div>
           </header>
-          <main className="flex-1 p-4 sm:p-6 lg:p-8">
-            <div className="mx-auto w-full max-w-7xl space-y-6">{children}</div>
+          <main className={cn("flex-1", !fullBleed && "p-4 sm:p-6 lg:p-8")}>
+            <div
+              className={cn(
+                "w-full",
+                !fullBleed && "mx-auto max-w-7xl space-y-6",
+              )}
+            >
+              {children}
+            </div>
           </main>
         </SidebarInset>
       </SidebarProvider>

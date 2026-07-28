@@ -169,7 +169,14 @@ export function AppShell({
               />
             </div>
           </header>
-          <main className={cn("flex-1", !fullBleed && "p-4 sm:p-6 lg:p-8")}>
+          <main
+            className={cn(
+              "flex-1",
+              // Full-bleed keeps a small inset on the sides and top so the stage
+              // does not sit flush against the chrome; the bottom stays flush.
+              fullBleed ? "px-4 pt-4" : "p-4 sm:p-6 lg:p-8",
+            )}
+          >
             <div
               className={cn(
                 "w-full",

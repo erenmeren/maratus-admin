@@ -17,7 +17,12 @@ import { hasScope } from "@/lib/api-scopes";
 import { validatePinPutBody } from "@/lib/pin";
 import { applyScopedPinChange } from "@/lib/pin-service";
 import { isOrgArchived } from "@/lib/archived-guard";
-import { claimPinIdempotency, releasePinIdempotency, storePinIdempotentResponse } from "@/lib/api/pin-idempotency";
+import {
+  claimPinIdempotency,
+  pinIdempotencyResponse,
+  releasePinIdempotency,
+  storePinIdempotentResponse,
+} from "@/lib/api/pin-idempotency";
 
 export const runtime = "nodejs";
 
@@ -66,17 +71,13 @@ export async function PUT(req: Request) {
     return apiError("org_archived", "Organization is archived.", 403);
   }
 
-  const placeholder = orgPinBody({ url: v.url, pinnedAt: new Date().toISOString() }, 0, 0);
   const claim = await claimPinIdempotency({
     req,
     namespace: "orgpin",
     organizationId: auth.organizationId,
-    placeholderBody: placeholder,
+    request: { scope: "org", url: v.url },
   });
-  if (!claim.owned) {
-    if (claim.replay) return apiJson(claim.replay.body, claim.replay.status);
-    return apiError("conflict", "Concurrent request in progress.", 409);
-  }
+  if (!claim.owned) return pinIdempotencyResponse(claim);
   const nsKey = claim.nsKey;
 
   const res = await applyScopedPinChange({

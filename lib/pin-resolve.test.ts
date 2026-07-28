@@ -125,13 +125,52 @@ describe("planScopedPinChange", () => {
     expect(r.chargedCount).toBe(0);
   });
 
-  it("store mode inherit is free even when devices gain a pin", () => {
+  it("store mode inherit CHARGES the devices it lights up with the tenant pin", () => {
     const r = planScopedPinChange({
       devices, stores, tenantPinnedUrl: "https://t.example",
       change: { scope: "store", storeId: "s3", mode: "inherit", url: null },
     });
     expect(r.affected).toEqual([{ deviceId: "d4", newUrl: "https://t.example" }]);
+    expect(r.chargedCount).toBe(1);
+  });
+
+  it("store mode inherit stays free when there is nothing to inherit", () => {
+    const r = planScopedPinChange({
+      devices, stores, tenantPinnedUrl: null,
+      change: { scope: "store", storeId: "s3", mode: "inherit", url: null },
+    });
+    expect(r.affected).toEqual([]);
     expect(r.chargedCount).toBe(0);
+  });
+
+  it("a mode change that swaps one live URL for another is free", () => {
+    // d2 is custom https://d2.example; dropping to inherit picks up s1 →
+    // tenant. The screen was already showing a paid pin, so no new charge.
+    const r = planScopedPinChange({
+      devices, stores, tenantPinnedUrl: "https://t.example",
+      change: { scope: "device", deviceId: "d2", mode: "inherit", url: null },
+    });
+    expect(r.affected).toEqual([{ deviceId: "d2", newUrl: "https://t.example" }]);
+    expect(r.chargedCount).toBe(0);
+  });
+
+  it("cannot light up a blacked-out fleet for free (none → set org pin → inherit)", () => {
+    // The exploit: black every store out, set the org pin while its reach is
+    // zero, then flip the stores back as 'free' mode changes.
+    const blackedOut: StorePinRow[] = stores.map((s) => ({ ...s, pinMode: "none", pinnedUrl: null }));
+    const setOrgWhileDark = planScopedPinChange({
+      devices, stores: blackedOut, tenantPinnedUrl: null,
+      change: { scope: "org", url: "https://promo.example" },
+    });
+    expect(setOrgWhileDark.chargedCount).toBe(1); // only the pool device d5 is reachable
+
+    // Flipping a store back now bills the devices that start showing the pin.
+    const flipBack = planScopedPinChange({
+      devices, stores: blackedOut, tenantPinnedUrl: "https://promo.example",
+      change: { scope: "store", storeId: "s1", mode: "inherit", url: null },
+    });
+    expect(flipBack.affected).toEqual([{ deviceId: "d1", newUrl: "https://promo.example" }]);
+    expect(flipBack.chargedCount).toBe(1);
   });
 
   it("device url set affects exactly that device", () => {

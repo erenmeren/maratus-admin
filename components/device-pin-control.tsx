@@ -2,6 +2,10 @@
 
 // Pinned-QR card for the tenant device detail page. Members see read-only
 // state; owners/admins can set/change (1 credit) or remove (free) the pin.
+//
+// Re-enabling inherit from "none" also costs 1 credit when a store/tenant pin
+// exists — the device goes from showing nothing to showing that pin, and the
+// money rule bills the screen that lights up (lib/pin-resolve.ts).
 
 import { useState, useTransition } from "react";
 import { Pin, PinOff } from "lucide-react";
@@ -59,6 +63,9 @@ export function DevicePinControl(props: {
 
   const isChange = mode === "custom";
   const willCharge = draftUrl.trim() !== (pinnedUrl ?? "");
+  // "none" → "inherit" lights the device up with the store/tenant pin, so it
+  // bills 1 credit; with nothing to inherit it stays free.
+  const reenableCharges = mode === "none" && props.inheritedUrl !== null;
 
   function submit() {
     // Capture before dispatch: resubmitting the identical URL is a free
@@ -240,8 +247,14 @@ export function DevicePinControl(props: {
               </Button>
             )}
             {mode === "none" && (
-              <Button size="sm" variant="ghost" onClick={reenableInherit} disabled={pending}>
-                <Pin className="size-4" /> Re-enable inherit
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={reenableInherit}
+                disabled={pending || (reenableCharges && props.creditsAvailable < 1)}
+              >
+                <Pin className="size-4" />{" "}
+                {reenableCharges ? "Re-enable inherit (1 credit)" : "Re-enable inherit"}
               </Button>
             )}
           </div>

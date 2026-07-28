@@ -1,0 +1,1 @@
+ALTER TABLE "api_idempotency" ADD COLUMN "request_fingerprint" text;

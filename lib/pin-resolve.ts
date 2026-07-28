@@ -50,7 +50,7 @@ export interface StorePinRow extends PinLevel {
   id: string;
 }
 
-/** True when the change is a paid URL set (Global money rule: paid ⇔ sets a URL). */
+/** True when the change writes a URL at its own level (vs. a mode/clear change). */
 export function changeSetsUrl(change: ScopedPinChange): boolean {
   return change.url !== null;
 }
@@ -58,6 +58,17 @@ export function changeSetsUrl(change: ScopedPinChange): boolean {
 /**
  * Compute which devices' effective pin URL a scoped change would alter, and
  * how many credits it costs. Pure: callers load rows, we only do math.
+ *
+ * Money rule: a device is billed when it ends up showing a pin it was NOT
+ * showing before — either because the change wrote a URL at its own level, or
+ * because the device had no pin at all until now. Clears are free, and so are
+ * mode changes between two live URLs.
+ *
+ * Billing the screens that light up (rather than only URL-writing changes)
+ * closes a hole: a tenant could black every store out, set the org pin while
+ * its reach was zero (0 devices affected → 0 credits), then flip the stores
+ * back to "inherit" as "free" mode changes and light the whole fleet up for
+ * nothing.
  */
 export function planScopedPinChange(a: {
   devices: DevicePinRow[];
@@ -84,6 +95,11 @@ export function planScopedPinChange(a: {
   };
 
   const affected: { deviceId: string; newUrl: string | null }[] = [];
+  let chargedCount = 0;
+  // A change that writes a URL at its own level bills every screen it moves,
+  // so paid content can never be rotated for free. A mode/clear change bills
+  // only screens that go from showing NOTHING to showing a pin.
+  const setsUrl = changeSetsUrl(a.change);
   for (const d of a.devices) {
     const store = d.storeId ? (storeById.get(d.storeId) ?? null) : null;
     const before = resolveEffectivePin({
@@ -96,7 +112,14 @@ export function planScopedPinChange(a: {
       store: nextStore(store),
       tenant: { pinnedUrl: nextTenantUrl },
     });
-    if (before.url !== after.url) affected.push({ deviceId: d.id, newUrl: after.url });
+    if (before.url === after.url) continue;
+    affected.push({ deviceId: d.id, newUrl: after.url });
+    // Never bill a screen going dark, and never bill a mode change that merely
+    // swaps one live URL for another (e.g. dropping a device pin so it falls
+    // back to the store's) — that content was already paid for at the level it
+    // comes from, which is what keeps "removing a pin is free" true.
+    if (after.url === null) continue;
+    if (setsUrl || before.url === null) chargedCount++;
   }
-  return { affected, chargedCount: changeSetsUrl(a.change) ? affected.length : 0 };
+  return { affected, chargedCount };
 }

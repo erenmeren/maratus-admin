@@ -1,20 +1,22 @@
 // app/api/v1/devices/[deviceId]/pin/route.ts
 // PUT — set the device's pinned QR ({url}, paid: 1 credit when the device's
 // EFFECTIVE URL actually changes; identical URL is a free no-op) or switch
-// its pin mode ({mode:"none"|"inherit"}, free). DELETE — reset the device to
-// "inherit" mode. NOTE (semantics change, spec §5): DELETE no longer forces a
-// guaranteed-blank pin — it falls back to the store/tenant pin, if any, same
-// as PUT {mode:"inherit"}. Requires the devices:pin scope. Idempotency-Key is
-// OPTIONAL on the paid {url} path (PUT is naturally idempotent; the header
-// only guards the double-charge on a retried or concurrent change). When
-// provided, the key is claimed (inserted) BEFORE charging — mirroring
-// /trigger — so two concurrent requests with the same key spend at most one
-// credit: the loser of the insert race replays the winner's claimed response
-// instead of charging again, and a failed charge deletes the claim so a retry
-// can proceed. Stored keys are prefixed "pin:" (lib/api/pin-idempotency.ts)
-// because the apiIdempotency table is shared with /trigger and the other pin
-// endpoints, and without the prefix a key reused across endpoints would
-// replay the wrong endpoint's stored response.
+// its pin mode ({mode:"none"|"inherit"}). NOTE (semantics change, spec §5):
+// DELETE no longer forces a guaranteed-blank pin — it falls back to the
+// store/tenant pin, if any, same as PUT {mode:"inherit"}. {mode:"none"} is
+// always free; {mode:"inherit"} bills the device when it goes from showing
+// nothing to showing an inherited pin, so both it and DELETE can return 402.
+// Requires the devices:pin scope. Idempotency-Key is OPTIONAL on every billable
+// path (PUT is naturally idempotent; the header only guards the double-charge
+// on a retried or concurrent change). When provided, the key is claimed
+// (inserted) BEFORE charging — mirroring /trigger — so two concurrent requests
+// with the same key spend at most one credit: the loser of the insert race gets
+// 409 while the winner is in flight and replays its stored response once the
+// outcome is known, and a failed charge deletes the claim so a retry can
+// proceed. Stored keys are prefixed "pin:" (lib/api/pin-idempotency.ts) because
+// the apiIdempotency table is shared with /trigger and the other pin endpoints,
+// and without the prefix a key reused across endpoints would replay the wrong
+// endpoint's stored response.
 
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -26,7 +28,12 @@ import { validatePinPutBody, type PinMode } from "@/lib/pin";
 import { applyScopedPinChange } from "@/lib/pin-service";
 import { resolveEffectivePin } from "@/lib/pin-resolve";
 import { isOrgArchived } from "@/lib/archived-guard";
-import { claimPinIdempotency, releasePinIdempotency, storePinIdempotentResponse } from "@/lib/api/pin-idempotency";
+import {
+  claimPinIdempotency,
+  pinIdempotencyResponse,
+  releasePinIdempotency,
+  storePinIdempotentResponse,
+} from "@/lib/api/pin-idempotency";
 
 export const runtime = "nodejs";
 
@@ -100,18 +107,36 @@ export async function PUT(req: Request, { params }: { params: Promise<{ deviceId
   if (!dev) return apiError("device_not_found", "Device not found.", 404);
 
   if (v.kind === "mode") {
-    // Free path: no idempotency claim, no archive gate.
+    // NOT unconditionally free: a device switching from "none" to "inherit"
+    // starts showing the store/tenant pin, and that device is billed
+    // (lib/pin-resolve.ts planScopedPinChange). "none" only ever removes, so
+    // it stays free and ungated.
+    if (v.mode === "inherit" && (await isOrgArchived(auth.organizationId))) {
+      return apiError("org_archived", "Organization is archived.", 403);
+    }
+    const claim = await claimPinIdempotency({
+      req,
+      namespace: "pin",
+      organizationId: auth.organizationId,
+      request: { scope: "device", deviceId, mode: v.mode, url: null },
+    });
+    if (!claim.owned) return pinIdempotencyResponse(claim);
+    const nsKey = claim.nsKey;
+
     const res = await applyScopedPinChange({
       organizationId: auth.organizationId,
       change: { scope: "device", deviceId, mode: v.mode, url: null },
       actor: { type: "system" },
       via: "api",
     });
+    if (!res.ok) {
+      if (nsKey) await releasePinIdempotency(nsKey, auth.organizationId);
+      return apiError("insufficient_credits", `Not enough credits — this change needs ${res.required}.`, 402);
+    }
     const effectiveUrl = await resolveDeviceEffectiveUrl(auth.organizationId, dev.storeId, { pinMode: v.mode, pinnedUrl: null });
-    return apiJson(
-      deviceBody(deviceId, v.mode, null, effectiveUrl, res.ok ? res.affectedDevices : 0, res.ok ? res.creditsCharged : 0),
-      200,
-    );
+    const modeBody = deviceBody(deviceId, v.mode, null, effectiveUrl, res.affectedDevices, res.creditsCharged);
+    if (nsKey) await storePinIdempotentResponse(nsKey, auth.organizationId, modeBody);
+    return apiJson(modeBody, 200);
   }
 
   // kind === "url": paid path.
@@ -125,17 +150,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ deviceId
     return apiJson(deviceBody(deviceId, "custom", { url: v.url, pinnedAt }, v.url, 0, 0), 200);
   }
 
-  const placeholder = deviceBody(deviceId, "custom", { url: v.url, pinnedAt: new Date().toISOString() }, v.url, 0, 0);
   const claim = await claimPinIdempotency({
     req,
     namespace: "pin",
     organizationId: auth.organizationId,
-    placeholderBody: placeholder,
+    request: { scope: "device", deviceId, mode: "custom", url: v.url },
   });
-  if (!claim.owned) {
-    if (claim.replay) return apiJson(claim.replay.body, claim.replay.status);
-    return apiError("conflict", "Concurrent request in progress.", 409);
-  }
+  if (!claim.owned) return pinIdempotencyResponse(claim);
   const nsKey = claim.nsKey;
 
   const res = await applyScopedPinChange({
@@ -174,14 +195,21 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ devic
   const dev = await loadOwnedDevice(deviceId, auth.organizationId);
   if (!dev) return apiError("device_not_found", "Device not found.", 404);
 
-  // Resetting to inherit is free and safe, so archived orgs may do it (spec:
-  // archive guards apply to paid mutations; this only removes state).
+  // Resetting to inherit no longer "only removes state" — a device that was
+  // "none" starts showing the store/tenant pin and is billed — so the
+  // paid-mutation archive gate applies here too.
+  if (await isOrgArchived(auth.organizationId)) {
+    return apiError("org_archived", "Organization is archived.", 403);
+  }
   const res = await applyScopedPinChange({
     organizationId: auth.organizationId,
     change: { scope: "device", deviceId, mode: "inherit", url: null },
     actor: { type: "system" },
     via: "api",
   });
+  if (!res.ok) {
+    return apiError("insufficient_credits", `Not enough credits — this change needs ${res.required}.`, 402);
+  }
   const effectiveUrl = await resolveDeviceEffectiveUrl(auth.organizationId, dev.storeId, { pinMode: "inherit", pinnedUrl: null });
-  return apiJson(deviceBody(deviceId, "inherit", null, effectiveUrl, res.ok ? res.affectedDevices : 0, 0), 200);
+  return apiJson(deviceBody(deviceId, "inherit", null, effectiveUrl, res.affectedDevices, res.creditsCharged), 200);
 }

@@ -17,7 +17,7 @@ import { id } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { normalizeTimezone } from "@/lib/timezones";
 import { isOrgArchived } from "@/lib/archived-guard";
-import { pushEffectivePin } from "@/lib/pin-service";
+import { pushEffectivePinSafe } from "@/lib/pin-service";
 
 export interface CreateStoreResult {
   ok: boolean;
@@ -209,7 +209,7 @@ async function performStoreDelete(
   });
 
   // Membership changed → re-deliver the (possibly different) effective pin. Free.
-  await pushEffectivePin(organizationId, movedDeviceIds);
+  await pushEffectivePinSafe(organizationId, movedDeviceIds);
 
   return { ok: true };
 }

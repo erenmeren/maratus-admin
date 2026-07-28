@@ -14,7 +14,7 @@ import { AUDIT, recordAudit } from "./audit";
 import { chunk } from "./chunk";
 import { generateDeviceKey, id } from "./ids";
 import { deprovisionDeviceMqtt, provisionDeviceMqtt } from "@/lib/mqtt";
-import { pushEffectivePin } from "@/lib/pin-service";
+import { pushEffectivePinSafe } from "@/lib/pin-service";
 import type { RegistryAllocationSnapshot, RegistryStatus } from "./provisioning";
 import type { RegistryCsvRow } from "./factory-registry-csv";
 import { clampPage, foldDeallocatedByOrg } from "./factory-registry-fold";
@@ -421,11 +421,7 @@ export async function autoClaimDevice(
   // Membership changed → re-deliver the (possibly different) effective pin.
   // Free. Fail-open + outside the transaction, same posture as above — a pin
   // hiccup must never unwind a committed claim.
-  try {
-    await pushEffectivePin(claimedOrganizationId, [deviceId]);
-  } catch (err) {
-    console.error("[factory-registry] pushEffectivePin after auto-claim failed", err);
-  }
+  await pushEffectivePinSafe(claimedOrganizationId, [deviceId]);
 
   return { deviceKey: key, deviceId, organizationId: claimedOrganizationId };
 }

@@ -1,9 +1,15 @@
 // lib/pin-service.ts
 // Shared scoped pinned-QR mutation core. The public API routes and the tenant
-// server actions all call these, so the money rule (1 credit per device whose
-// EFFECTIVE pin URL actually changes, mode/clear changes are free, same-URL
-// is a no-op) and the delivery rule (deviceCommand row + best-effort MQTT
-// publish, one per affected device) exist in exactly one place.
+// server actions all call these, so the money rule (1 credit per device that
+// ends up showing a pin it wasn't showing before — clears are free, swapping
+// one live URL for another via a mode change is free, same-URL is a no-op; see
+// planScopedPinChange) and the delivery rule (deviceCommand row + best-effort
+// MQTT publish, one per affected device) exist in exactly one place.
+//
+// NOTE: a mode change is therefore NOT unconditionally free — switching a
+// "none" store/device back to "inherit" while a pin exists upstream bills the
+// devices that light up. Callers must handle the insufficient_credits result
+// on the mode path too, not just the URL path.
 
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -144,8 +150,8 @@ export async function applyScopedPinChange(a: {
   }
   const plan = planScopedPinChange({ ...world, change: a.change });
 
-  // Paid ⇔ the change sets a URL (charge-first; see file header for the
-  // crash posture on neon-http's lack of transactions).
+  // Charge-first; see file header for the crash posture on neon-http's lack
+  // of transactions.
   if (plan.chargedCount > 0) {
     const spent = await spendCredit({
       organizationId: a.organizationId,
@@ -161,10 +167,17 @@ export async function applyScopedPinChange(a: {
 
   const pinnedAt = a.change.url !== null ? new Date() : null;
   if (a.change.scope === "org") {
+    // UPSERT, not UPDATE: an org can exist without a tenantSettings row (the
+    // row is created lazily by Branding/Device Settings), and a bare UPDATE
+    // would match zero rows — charging credits and fanning out commands for a
+    // pin that silently reverts on the devices' next /api/device/config fetch.
     await db
-      .update(tenantSettings)
-      .set({ pinnedUrl: a.change.url, pinnedAt })
-      .where(eq(tenantSettings.organizationId, a.organizationId));
+      .insert(tenantSettings)
+      .values({ organizationId: a.organizationId, pinnedUrl: a.change.url, pinnedAt })
+      .onConflictDoUpdate({
+        target: tenantSettings.organizationId,
+        set: { pinnedUrl: a.change.url, pinnedAt, updatedAt: new Date() },
+      });
   } else if (a.change.scope === "store") {
     await db
       .update(storeTable)
@@ -220,10 +233,28 @@ export async function applyScopedPinChange(a: {
 }
 
 /**
+ * Fail-open wrapper around pushEffectivePin for callers that have ALREADY
+ * committed the membership change (device moved, store deleted, claim issued).
+ * Re-delivery is convergence traffic — devices also pick the pin up from their
+ * next config fetch — so a hiccup here must never turn a committed mutation
+ * into a thrown server action, which would skip the caller's revalidatePath
+ * and show the user a failure for work that actually succeeded.
+ */
+export async function pushEffectivePinSafe(organizationId: string, deviceIds: string[]): Promise<void> {
+  try {
+    await pushEffectivePin(organizationId, deviceIds);
+  } catch (err) {
+    console.error("[pin-service] pushEffectivePin after a membership change failed", err);
+  }
+}
+
+/**
  * Re-deliver the CURRENT effective pin to the given devices (free). Used after
  * membership changes (claim, move, store deletion) — idempotent on-device.
+ * Private on purpose: every caller has already committed its change, so they
+ * all go through the fail-open pushEffectivePinSafe above.
  */
-export async function pushEffectivePin(organizationId: string, deviceIds: string[]): Promise<void> {
+async function pushEffectivePin(organizationId: string, deviceIds: string[]): Promise<void> {
   if (deviceIds.length === 0) return;
   const world = await loadPinWorld(organizationId);
   const storeById = new Map(world.stores.map((s) => [s.id, s]));

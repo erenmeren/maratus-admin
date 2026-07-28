@@ -504,8 +504,16 @@ export const apiIdempotency = pgTable(
   {
     key: text("key").notNull(),
     organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
+    // 0 while the claiming request is still in flight; the real HTTP status is
+    // written once the outcome is known (lib/api/pin-idempotency.ts). A row
+    // still at 0 must never be replayed — its outcome does not exist yet.
     responseStatus: integer("response_status").notNull(),
     responseBody: jsonb("response_body").notNull(),
+    // sha256 of the canonical request payload, so the same key sent with a
+    // DIFFERENT body is rejected instead of silently replaying the first
+    // response. Null on rows written before this column existed (and by
+    // /trigger, which does not fingerprint) → comparison is skipped.
+    requestFingerprint: text("request_fingerprint"),
     commandId: text("command_id"),
     createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
   },

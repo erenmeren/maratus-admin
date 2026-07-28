@@ -20,7 +20,7 @@ import type { DeviceStatus } from "@/lib/types";
 import { isOrgArchived } from "@/lib/archived-guard";
 import { syncDeviceSubscription } from "@/lib/billing/device-subscription";
 import { deprovisionDeviceMqtt } from "@/lib/mqtt";
-import { pushEffectivePin } from "@/lib/pin-service";
+import { pushEffectivePinSafe } from "@/lib/pin-service";
 
 export interface ActionResult {
   ok: boolean;
@@ -196,7 +196,7 @@ export async function reassignDevice(
   });
 
   // Membership changed → re-deliver the (possibly different) effective pin. Free.
-  await pushEffectivePin(device.organizationId, [deviceId]);
+  await pushEffectivePinSafe(device.organizationId, [deviceId]);
 
   revalidatePath("/admin/devices");
   revalidatePath(`/admin/customers/${device.organizationId}`);
@@ -351,7 +351,7 @@ export async function unassignDevice(deviceId: string): Promise<ActionResult> {
   });
 
   // Membership changed → re-deliver the (possibly different) effective pin. Free.
-  await pushEffectivePin(device.organizationId, [deviceId]);
+  await pushEffectivePinSafe(device.organizationId, [deviceId]);
 
   revalidatePath("/admin/devices");
   if (device.storeId) revalidatePath(`/tenant/stores/${device.storeId}`);
@@ -403,7 +403,7 @@ export async function assignDeviceToStore(
   });
 
   // Membership changed → re-deliver the (possibly different) effective pin. Free.
-  await pushEffectivePin(organizationId, [deviceId]);
+  await pushEffectivePinSafe(organizationId, [deviceId]);
 
   revalidatePath("/tenant/stores");
   revalidatePath(`/tenant/stores/${storeId}`);

@@ -6,6 +6,11 @@
 // inheriting), or "none" (blocks the tenant pin, store shows no pin). One
 // shared Dialog is reused across rows (state: activeStore), mirroring
 // components/device-pin-control.tsx's useTransition + sonner pattern.
+//
+// Rows render straight from props — never copied into state. The actions call
+// revalidatePinSurfaces(), so the server re-renders this page inside the same
+// transition; a local copy would keep showing the old effectiveUrl after a
+// sibling OrgPinCard edit changed the tenant pin these rows inherit.
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -62,7 +67,7 @@ export function StorePinTable(props: {
   creditsAvailable: number;
   canManage: boolean;
 }) {
-  const [rows, setRows] = useState(props.stores);
+  const rows = props.stores;
   const [activeStore, setActiveStore] = useState<StorePinRow | null>(null);
   const [draftMode, setDraftMode] = useState<PinMode>("inherit");
   const [draftUrl, setDraftUrl] = useState("");
@@ -78,8 +83,16 @@ export function StorePinTable(props: {
     ? draftMode !== activeStore.pinMode ||
       (draftMode === "custom" && draftUrl.trim() !== (activeStore.pinnedUrl ?? ""))
     : false;
-  const notEnoughCredits =
-    !!activeStore && draftMode === "custom" && isRealChange && activeStore.inheritingCount > props.creditsAvailable;
+  // Devices are billed when they END UP showing a pin they weren't showing
+  // (lib/pin-resolve.ts), so leaving "none" for "inherit" while a tenant pin
+  // exists costs the same as a custom set — it isn't a free mode flip.
+  const inheritWillCharge =
+    !!activeStore && draftMode === "inherit" && activeStore.pinMode === "none" && props.tenantPinnedUrl !== null;
+  const chargeableDevices =
+    activeStore && isRealChange && (draftMode === "custom" || inheritWillCharge)
+      ? activeStore.inheritingCount
+      : 0;
+  const notEnoughCredits = chargeableDevices > props.creditsAvailable;
 
   function save() {
     if (!activeStore) return;
@@ -93,29 +106,14 @@ export function StorePinTable(props: {
         toast.error("Couldn't update store pin", { description: res.error });
         return;
       }
-      setRows((prev) =>
-        prev.map((s) =>
-          s.id === store.id
-            ? {
-                ...s,
-                pinMode: draftMode,
-                pinnedUrl: draftMode === "custom" ? (res.pinnedUrl ?? draftUrl.trim()) : null,
-                effectiveUrl:
-                  draftMode === "custom"
-                    ? (res.pinnedUrl ?? draftUrl.trim())
-                    : draftMode === "none"
-                      ? null
-                      : props.tenantPinnedUrl,
-              }
-            : s,
-        ),
-      );
       setActiveStore(null);
       toast.success(
         draftMode === "custom"
           ? `Pinned on ${res.affectedDevices} device(s) — ${res.creditsCharged} credit(s)`
           : draftMode === "inherit"
-            ? "Store now follows the tenant-wide pin"
+            ? res.creditsCharged
+              ? `Store now follows the tenant-wide pin — ${res.creditsCharged} credit(s)`
+              : "Store now follows the tenant-wide pin"
             : "Store pin set to None — no pin shown",
       );
     });
@@ -208,6 +206,12 @@ export function StorePinTable(props: {
           {draftMode === "inherit" && (
             <p className="text-sm text-muted-foreground">Follows the tenant-wide pin.</p>
           )}
+          {inheritWillCharge && activeStore && (
+            <p className="text-xs text-muted-foreground">
+              Up to {activeStore.inheritingCount} device(s) start showing the tenant pin — up to{" "}
+              {activeStore.inheritingCount} credit(s) (you have {props.creditsAvailable}).
+            </p>
+          )}
           {draftMode === "none" && (
             <p className="text-sm text-muted-foreground">This store's devices show no pin.</p>
           )}
@@ -228,7 +232,9 @@ export function StorePinTable(props: {
               )}
             </>
           )}
-          {draftMode !== "custom" && <p className="text-xs text-muted-foreground">Free.</p>}
+          {draftMode !== "custom" && !inheritWillCharge && (
+            <p className="text-xs text-muted-foreground">Free.</p>
+          )}
 
           <DialogFooter>
             <Button

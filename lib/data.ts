@@ -50,7 +50,8 @@ import { normalizeDeviceSettings } from "@/lib/device-settings";
 import { rollupByDevice } from "@/lib/credit-usage";
 import { rollupCredits, type CreditsOverview } from "@/lib/credits-overview";
 import { getBalance } from "./credits";
-import { publishCommand, mqttConfigFingerprint } from "./mqtt";
+import { mqttConfigFingerprint } from "./mqtt";
+import { publishConfigCommand } from "@/lib/mqtt-push";
 import { resolveEffectivePin } from "@/lib/pin-resolve";
 import type { PinMode } from "@/lib/pin";
 import { AUDIT } from "@/lib/audit";
@@ -1566,19 +1567,28 @@ export async function getDeviceConfig(
 }
 
 /**
- * Enqueue a config-changed command for EVERY device in an org so they re-pull
- * GET /api/device/config promptly after a branding change. No-op if the org has
- * no devices.
+ * Push the CURRENT config to every device in an org after a branding or
+ * device-settings change. The message carries the config itself: with the HTTP
+ * device API gone there is no GET for a "config changed" nudge to trigger. One
+ * pending row per device is recorded so delivery is observable and so the
+ * heartbeat republish can rebuild it for a device that was powered off.
  */
 export async function enqueueConfigChangedForOrg(
   organizationId: string,
   createdByUserId: string | null,
 ): Promise<void> {
   const devices = await db
-    .select({ id: deviceTable.id })
+    .select({
+      id: deviceTable.id,
+      organizationId: deviceTable.organizationId,
+      storeId: deviceTable.storeId,
+      pinMode: deviceTable.pinMode,
+      pinnedUrl: deviceTable.pinnedUrl,
+    })
     .from(deviceTable)
     .where(eq(deviceTable.organizationId, organizationId));
   if (devices.length === 0) return;
+
   const rows = devices.map((d) => ({
     id: genId("cmd"),
     deviceId: d.id,
@@ -1587,20 +1597,9 @@ export async function enqueueConfigChangedForOrg(
     createdByUserId: createdByUserId ?? undefined,
   }));
   await db.insert(deviceCommand).values(rows);
-  // Best-effort immediate MQTT push so a connected device refreshes its config
-  // now instead of waiting for the ~5-min heartbeat republish (which is also
-  // skipped across a reconnect). HTTP-polling devices still pick it up via the
-  // command poll, and the heartbeat republish stays the fallback for both.
-  await Promise.all(
-    rows.map((r) =>
-      publishCommand(r.deviceId, {
-        commandId: r.id,
-        type: "config-changed",
-        action: null,
-        payload: null,
-      }),
-    ),
-  );
+
+  // payload stays NULL on the row; publishConfigCommand presigns per publish.
+  await Promise.all(devices.map((d, i) => publishConfigCommand(d, rows[i].id)));
 }
 
 /**

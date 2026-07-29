@@ -73,7 +73,7 @@ export async function saveDeviceSettings(
   try {
     await enqueueConfigChangedForOrg(organizationId, ctx.user.id);
   } catch (err) {
-    console.error("config-changed enqueue failed (devices reconcile on next poll)", err);
+    console.error("config push failed (devices reconcile on their next heartbeat)", err);
   }
 
   return { ok: true };

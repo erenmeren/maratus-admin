@@ -3,11 +3,14 @@
 // than ~1 minute, bounding a lost publish to one heartbeat interval.
 
 import { NextResponse } from "next/server";
-import { and, eq, gt, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { device as deviceTable, deviceCommand } from "@/lib/db/schema";
+import { device as deviceTable, deviceCommand, firmwareRelease } from "@/lib/db/schema";
 import { mqttEnabled, verifyWebhookSecret, parseHeartbeatPayload, publishCommand } from "@/lib/mqtt";
+import { republishKindFor, publishConfigCommand, publishOtaCommand } from "@/lib/mqtt-push";
+import { firmwareUpdateAvailable } from "@/lib/device-status";
 import { recordWebhookPing } from "@/lib/mqtt-ping";
+import { id as genId } from "@/lib/ids";
 
 export const runtime = "nodejs";
 
@@ -84,7 +87,14 @@ export async function POST(req: Request) {
       status: sql`CASE WHEN ${deviceTable.status} = 'paused' THEN ${deviceTable.status} ELSE 'online' END`,
     })
     .where(eq(deviceTable.id, clientid))
-    .returning({ id: deviceTable.id });
+    .returning({
+      id: deviceTable.id,
+      organizationId: deviceTable.organizationId,
+      storeId: deviceTable.storeId,
+      pinMode: deviceTable.pinMode,
+      pinnedUrl: deviceTable.pinnedUrl,
+      firmwareVersion: deviceTable.firmwareVersion,
+    });
   if (!dev) return NextResponse.json({ error: "Unknown device" }, { status: 404 });
 
   // Republish stale pending commands so a lost publish self-heals — but only
@@ -106,8 +116,63 @@ export async function POST(req: Request) {
       ),
     );
   for (const cmd of stale) {
-    await publishCommand(dev.id, { commandId: cmd.id, type: cmd.type, action: cmd.action, payload: cmd.payload });
+    switch (republishKindFor(cmd.type)) {
+      // Payload-carrying commands are REBUILT, never replayed: the config's
+      // image URLs are presigned for 300s and the firmware binary's for 600s,
+      // so a stored payload is already dead by the time a republish fires.
+      case "config":
+        await publishConfigCommand(dev, cmd.id);
+        break;
+      case "ota":
+        await publishOtaCommand(dev.id, cmd.id);
+        break;
+      case "replay":
+        await publishCommand(dev.id, {
+          commandId: cmd.id,
+          type: cmd.type,
+          action: cmd.action,
+          payload: cmd.payload,
+        });
+        break;
+    }
   }
 
-  return NextResponse.json({ ok: true, republished: stale.length });
+  // OTA reconcile: the hb already reports the running version, so the cloud can
+  // notice a device that came back from being powered off during a firmware
+  // publish and hand it the manifest now. Only when nothing OTA-ish is already
+  // pending, so a device that is mid-download isn't nudged again.
+  let otaQueued = false;
+  if (hb.version) {
+    const [rel] = await db
+      .select({ version: firmwareRelease.version })
+      .from(firmwareRelease)
+      .orderBy(desc(firmwareRelease.createdAt))
+      .limit(1);
+    if (firmwareUpdateAvailable(hb.version, rel?.version ?? null)) {
+      const [pendingOta] = await db
+        .select({ id: deviceCommand.id })
+        .from(deviceCommand)
+        .where(
+          and(
+            eq(deviceCommand.deviceId, dev.id),
+            eq(deviceCommand.type, "firmware-update"),
+            eq(deviceCommand.status, "pending"),
+          ),
+        )
+        .limit(1);
+      if (!pendingOta) {
+        const commandId = genId("cmd");
+        await db.insert(deviceCommand).values({
+          id: commandId,
+          deviceId: dev.id,
+          organizationId: dev.organizationId,
+          type: "firmware-update",
+          status: "pending",
+        });
+        otaQueued = await publishOtaCommand(dev.id, commandId);
+      }
+    }
+  }
+
+  return NextResponse.json({ ok: true, republished: stale.length, otaQueued });
 }

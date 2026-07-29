@@ -7,16 +7,22 @@
 //        /Users/eren/Projects/ditto-firmware/build/ditto-firmware.bin
 //
 // Writes to whatever DATABASE_URL + R2_* .env.local points at (currently PROD).
-// The device's GET /api/device/firmware returns the newest-createdAt release.
+// After the release row lands, this pushes a firmware-update command to every
+// claimed device across all orgs (fleet is platform-wide) via the MQTT publish
+// seam (lib/mqtt-push.ts publishOtaCommand) — devices are no longer expected to
+// poll for a manifest. NOTE: lib/actions/firmware.ts's publishFirmware (the
+// admin-UI upload path) inserts the same firmwareRelease row but does NOT push
+// to the fleet; see the A7 report for why that was left alone.
 
 import "./load-env"; // must be first: loads env before ../db / ../storage read it
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { eq } from "drizzle-orm";
+import { eq, isNotNull } from "drizzle-orm";
 import { db } from "../db";
-import { firmwareRelease, user } from "./schema";
+import { device, deviceCommand, firmwareRelease, user } from "./schema";
 import { putObject, firmwareStorageKey } from "../storage";
 import { id } from "../ids";
+import { publishOtaCommand } from "../mqtt-push";
 
 async function main() {
   const version = (process.argv[2] ?? "").trim();
@@ -63,6 +69,26 @@ async function main() {
   });
 
   console.log(`✅ Published firmware ${version} (${bytes.length} bytes). It is now the latest OTA release.`);
+
+  // Every claimed device across all orgs — firmware releases are platform-wide.
+  const targets = await db
+    .select({ id: device.id, organizationId: device.organizationId })
+    .from(device)
+    .where(isNotNull(device.claimedAt));
+  console.log(`Pushing to ${targets.length} claimed device(s)...`);
+  for (const t of targets) {
+    const commandId = id("cmd");
+    await db.insert(deviceCommand).values({
+      id: commandId,
+      deviceId: t.id,
+      organizationId: t.organizationId,
+      type: "firmware-update",
+      status: "pending",
+    });
+    const ok = await publishOtaCommand(t.id, commandId);
+    console.log(`  ${t.id}: ${ok ? "published" : "queued (offline; hb will retry)"}`);
+  }
+
   process.exit(0);
 }
 

@@ -219,3 +219,12 @@ export function parsePresencePayload(
   if (event === "client.disconnected") return { deviceId: clientid, connected: false };
   return null;
 }
+
+/** The device's "send me my config" request. Body identity only — the route
+ *  prefers the x-device-id header, exactly as the heartbeat route does. */
+export function parseConfigRequestPayload(raw: unknown): { deviceId: string } | null {
+  if (!isObject(raw)) return null;
+  const clientid = raw.clientid;
+  if (typeof clientid !== "string" || clientid.length === 0) return null;
+  return { deviceId: clientid };
+}

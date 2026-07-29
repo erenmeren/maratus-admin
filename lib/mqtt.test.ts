@@ -18,6 +18,7 @@ import {
   parseAckPayload,
   parseHeartbeatPayload,
   parsePresencePayload,
+  parseConfigRequestPayload,
 } from "./mqtt";
 
 const FULL = {
@@ -243,5 +244,28 @@ describe("parsePresencePayload", () => {
   });
   it("rejects events without a clientid", () => {
     expect(parsePresencePayload({ event: "client.connected" })).toBeNull();
+  });
+});
+
+describe("parseConfigRequestPayload", () => {
+  it("accepts a body carrying the authenticated username as clientid", () => {
+    expect(parseConfigRequestPayload({ clientid: "dev_abc" })).toEqual({ deviceId: "dev_abc" });
+  });
+
+  it("rejects a missing clientid", () => {
+    expect(parseConfigRequestPayload({})).toBeNull();
+  });
+
+  it("rejects an empty clientid", () => {
+    expect(parseConfigRequestPayload({ clientid: "" })).toBeNull();
+  });
+
+  it("rejects a non-string clientid", () => {
+    expect(parseConfigRequestPayload({ clientid: 42 })).toBeNull();
+  });
+
+  it("rejects non-objects", () => {
+    expect(parseConfigRequestPayload(null)).toBeNull();
+    expect(parseConfigRequestPayload("dev_abc")).toBeNull();
   });
 });

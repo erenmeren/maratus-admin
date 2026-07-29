@@ -93,6 +93,9 @@ export async function POST(req: Request) {
       storeId: deviceTable.storeId,
       pinMode: deviceTable.pinMode,
       pinnedUrl: deviceTable.pinnedUrl,
+      // Post-update value (this same statement just wrote hb.version), so the
+      // config push decides on the version the device is running right now.
+      firmwareVersion: deviceTable.firmwareVersion,
     });
   if (!dev) return NextResponse.json({ error: "Unknown device" }, { status: 404 });
 

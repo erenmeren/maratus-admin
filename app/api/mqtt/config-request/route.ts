@@ -45,6 +45,8 @@ export async function POST(req: Request) {
       storeId: deviceTable.storeId,
       pinMode: deviceTable.pinMode,
       pinnedUrl: deviceTable.pinnedUrl,
+      // Decides whether the answer carries the config or is just a nudge.
+      firmwareVersion: deviceTable.firmwareVersion,
     })
     .from(deviceTable)
     .where(eq(deviceTable.id, deviceId))

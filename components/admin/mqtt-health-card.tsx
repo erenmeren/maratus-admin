@@ -2,8 +2,11 @@
 // Per-channel MQTT webhook liveness. EMQX's rules API 403s on namespaced keys,
 // so a rule's action type can't be checked from code — one silent channel beside
 // its talking siblings is the tell for a Republish-instead-of-HTTP-Server rule.
+//
+// The host page owns the heading (a PageSection h2, like every other section on
+// /admin/health), so this card is deliberately header-less.
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { MQTT_CHANNELS, channelHealth, getWebhookPings } from "@/lib/mqtt-ping";
 
@@ -46,9 +49,6 @@ export async function MqttHealthCard() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>MQTT channels</CardTitle>
-      </CardHeader>
       <CardContent className="space-y-3">
         {pings === null ? (
           <p className="text-sm text-muted-foreground">

@@ -422,6 +422,19 @@ export const firmwareRelease = pgTable("firmware_release", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+/**
+ * Last-heard timestamp per MQTT webhook channel (four rows, forever). EMQX's
+ * rules API returns 403 for namespaced keys, so a rule's action type cannot be
+ * verified from code — a channel that has gone silent while its siblings keep
+ * talking is how a "Republish instead of HTTP Server" misconfiguration is
+ * diagnosed. Channel is the PK: every webhook upserts its own row.
+ */
+export const mqttWebhookPing = pgTable("mqtt_webhook_ping", {
+  channel: text("channel").primaryKey(),
+  lastAt: timestamp("last_at").notNull(),
+  lastDeviceId: text("last_device_id"),
+});
+
 export const apiKey = pgTable(
   "api_key",
   {

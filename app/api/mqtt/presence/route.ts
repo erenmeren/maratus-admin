@@ -7,6 +7,7 @@ import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { device as deviceTable } from "@/lib/db/schema";
 import { mqttEnabled, verifyWebhookSecret, parsePresencePayload } from "@/lib/mqtt";
+import { recordWebhookPing } from "@/lib/mqtt-ping";
 
 export const runtime = "nodejs";
 
@@ -22,6 +23,7 @@ export async function POST(req: Request) {
   }
   const presence = parsePresencePayload(raw);
   if (!presence) return NextResponse.json({ error: "Invalid presence payload" }, { status: 400 });
+  await recordWebhookPing("presence", presence.deviceId);
 
   const now = new Date();
   // Atomic in-DB decision: never resurrect a paused device, even under

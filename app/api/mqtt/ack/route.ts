@@ -7,6 +7,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { deviceCommand } from "@/lib/db/schema";
 import { mqttEnabled, verifyWebhookSecret, parseAckPayload } from "@/lib/mqtt";
+import { recordWebhookPing } from "@/lib/mqtt-ping";
 import { applyTriggerAck } from "@/lib/trigger-ack";
 
 export const runtime = "nodejs";
@@ -28,6 +29,7 @@ export async function POST(req: Request) {
   if (typeof clientid !== "string" || clientid.length === 0) {
     return NextResponse.json({ error: "Invalid ack payload" }, { status: 400 });
   }
+  await recordWebhookPing("ack", clientid);
 
   const now = new Date();
   const nextStatus = ack.ok ? "acked" : "failed";

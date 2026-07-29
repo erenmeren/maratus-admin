@@ -7,6 +7,7 @@ import { and, eq, gt, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { device as deviceTable, deviceCommand } from "@/lib/db/schema";
 import { mqttEnabled, verifyWebhookSecret, parseHeartbeatPayload, publishCommand } from "@/lib/mqtt";
+import { recordWebhookPing } from "@/lib/mqtt-ping";
 
 export const runtime = "nodejs";
 
@@ -52,6 +53,7 @@ export async function POST(req: Request) {
     console.error("[mqtt/heartbeat] missing device id:", bodyText.slice(0, 300));
     return NextResponse.json({ error: "Invalid heartbeat payload" }, { status: 400 });
   }
+  await recordWebhookPing("heartbeat", clientid);
 
   // Image-render diagnostics (temporary): surface the device's last asset-fetch
   // status + image render state so a "logo won't show" issue can be pinned to

@@ -274,6 +274,13 @@
       "when": 1785267777874,
       "tag": "0038_lonely_senator_kelly",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1785347073260,
+      "tag": "0039_solid_shinobi_shaw",
+      "breakpoints": true
     }
   ]
 }

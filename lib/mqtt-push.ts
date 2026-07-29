@@ -150,14 +150,28 @@ export async function publishConfigCommand(dev: PushTarget, commandId: string): 
   });
 }
 
-/** Publish the latest firmware manifest (fresh presigned binary URL). False when
- *  nothing is published, MQTT is disabled, or the publish failed. */
-export async function publishOtaCommand(deviceId: string, commandId: string): Promise<boolean> {
+export type FirmwareReleaseRow = typeof firmwareRelease.$inferSelect;
+
+/** The newest published release, or null when nothing has been published. */
+export async function latestFirmwareRelease(): Promise<FirmwareReleaseRow | null> {
   const [rel] = await db
     .select()
     .from(firmwareRelease)
     .orderBy(desc(firmwareRelease.createdAt))
     .limit(1);
+  return rel ?? null;
+}
+
+/** Publish the latest firmware manifest (fresh presigned binary URL). False when
+ *  nothing is published, MQTT is disabled, or the publish failed. Callers that
+ *  already read the release row (the heartbeat OTA reconcile compares its
+ *  version) pass it in rather than re-querying the same one-row table. */
+export async function publishOtaCommand(
+  deviceId: string,
+  commandId: string,
+  release?: FirmwareReleaseRow | null,
+): Promise<boolean> {
+  const rel = release === undefined ? await latestFirmwareRelease() : release;
   if (!rel) return false;
   const url = await presignedGetUrl(rel.r2Key, 600);
   return publishCommand(deviceId, {

@@ -3,11 +3,16 @@
 // than ~1 minute, bounding a lost publish to one heartbeat interval.
 
 import { NextResponse } from "next/server";
-import { and, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
+import { and, eq, gt, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { device as deviceTable, deviceCommand, firmwareRelease } from "@/lib/db/schema";
+import { device as deviceTable, deviceCommand } from "@/lib/db/schema";
 import { mqttEnabled, verifyWebhookSecret, parseHeartbeatPayload, publishCommand } from "@/lib/mqtt";
-import { republishKindFor, publishConfigCommand, publishOtaCommand } from "@/lib/mqtt-push";
+import {
+  republishKindFor,
+  publishConfigCommand,
+  publishOtaCommand,
+  latestFirmwareRelease,
+} from "@/lib/mqtt-push";
 import { firmwareUpdateAvailable } from "@/lib/device-status";
 import { recordWebhookPing } from "@/lib/mqtt-ping";
 import { id as genId } from "@/lib/ids";
@@ -145,30 +150,32 @@ export async function POST(req: Request) {
   // pending, so a device that is mid-download isn't nudged again.
   let otaQueued = false;
   if (hb.version) {
-    const [rel] = await db
-      .select({ version: firmwareRelease.version })
-      .from(firmwareRelease)
-      .orderBy(desc(firmwareRelease.createdAt))
-      .limit(1);
+    const rel = await latestFirmwareRelease();
     if (firmwareUpdateAvailable(hb.version, rel?.version ?? null)) {
-      const [pendingOta] = await db
+      // Cooldown, not an in-flight check: ANY firmware-update row for this
+      // device inside the window blocks another push, whatever its status. The
+      // firmware acks a firmware-update BEFORE starting the OTA (it reboots —
+      // ditto-firmware components/cloud/commands.c), so "acked" means "download
+      // started", not "installed". Gating on pending/delivered alone therefore
+      // never engages on a retry: a download that fails (TLS blip, truncated
+      // body, presign expiry) would be re-pushed every heartbeat forever — ~288
+      // rows and ~576 MB of R2 egress per device per day, and a forced re-flash
+      // loop if a release's typed version doesn't match the binary's own.
+      // Reuses the republish window rather than adding a second tunable for the
+      // same "we already tried recently" idea. A genuinely new release is
+      // unaffected: its immediate push comes from pushFirmwareToFleet.
+      const [recentOta] = await db
         .select({ id: deviceCommand.id })
         .from(deviceCommand)
         .where(
           and(
             eq(deviceCommand.deviceId, dev.id),
             eq(deviceCommand.type, "firmware-update"),
-            inArray(deviceCommand.status, ["pending", "delivered"]),
-            // A row outside the republish window has already been given up on
-            // by the loop above (nothing else ever expires a non-trigger
-            // command), so it must not block a fresh OTA nudge forever —
-            // only a row still young enough to be republished counts as
-            // "in flight".
             gt(deviceCommand.createdAt, new Date(now.getTime() - REPUBLISH_UNTIL_MS)),
           ),
         )
         .limit(1);
-      if (!pendingOta) {
+      if (!recentOta) {
         const commandId = genId("cmd");
         await db.insert(deviceCommand).values({
           id: commandId,
@@ -177,7 +184,7 @@ export async function POST(req: Request) {
           type: "firmware-update",
           status: "pending",
         });
-        otaQueued = await publishOtaCommand(dev.id, commandId);
+        otaQueued = await publishOtaCommand(dev.id, commandId, rel);
       }
     }
   }

@@ -18,7 +18,7 @@ import { id } from "@/lib/ids";
 import { resolveEffectivePin } from "@/lib/pin-resolve";
 import { presignedGetUrl } from "@/lib/storage";
 import { latestFirmwareManifest } from "@/lib/firmware";
-import { publishCommand } from "@/lib/mqtt";
+import { buildMqttConfigBlock, publishCommand } from "@/lib/mqtt";
 import type { PinMode } from "@/lib/pin";
 
 /** The device columns the push seam needs. Matches the shape the device row and
@@ -89,14 +89,21 @@ export function supportsConfigPush(firmwareVersion: string | null): boolean {
   return patch >= minPatch;
 }
 
+/** What a pushed config carries: exactly the GET /api/device/config body,
+ *  including its `mqtt` block. */
+export type PushedDeviceConfig = DeviceConfigPayload & {
+  mqtt?: NonNullable<Awaited<ReturnType<typeof buildMqttConfigBlock>>>;
+};
+
 /**
  * Build the payload the device used to fetch over GET /api/device/config:
  * effective pin resolved server-side (device > store > tenant), images presigned
- * fresh. Returns null when the org has no resolvable config.
+ * fresh, and the same `mqtt` block the HTTP route appends. Returns null when the
+ * org has no resolvable config.
  */
 export async function resolveDeviceConfigPayload(
   dev: PushTarget,
-): Promise<DeviceConfigPayload | null> {
+): Promise<PushedDeviceConfig | null> {
   const [storeRow, [ts]] = await Promise.all([
     dev.storeId
       ? db
@@ -119,7 +126,17 @@ export async function resolveDeviceConfigPayload(
   // No If-None-Match: a push always carries the full config. 304 semantics
   // belonged to the HTTP route and have no meaning on a one-way publish.
   const { payload } = await getDeviceConfig(dev.organizationId, null, { url: effective.url });
-  return payload;
+  if (!payload) return null;
+  // The mqtt block must be present, byte-for-byte like the HTTP route's shape.
+  // cfg_parse.c memsets the whole config struct and derives cfg->mqtt.enabled
+  // from this block's PRESENCE, so a pushed config without it would make the
+  // first Phase-B device zero its broker settings and stop the very transport
+  // the config arrived on. It is also the only place a device learns its own
+  // deviceId (= clientId = username) — GET /api/device/claim returns just the
+  // device key — so a freshly claimed device could never learn it once the HTTP
+  // config route is deleted.
+  const mqtt = await buildMqttConfigBlock(dev.id);
+  return { ...payload, ...(mqtt ? { mqtt } : {}) };
 }
 
 /**

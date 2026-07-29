@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { deviceCommand } from "@/lib/db/schema";
 import { republishKindFor, supportsConfigPush } from "./mqtt-push";
 
 describe("supportsConfigPush", () => {
@@ -59,10 +60,22 @@ describe("republishKindFor", () => {
     expect(republishKindFor("firmware-update")).toBe("ota");
   });
 
-  it("replays every other command type verbatim", () => {
-    for (const t of ["trigger", "pin", "reboot", "refresh", "identify"]) {
-      expect(republishKindFor(t)).toBe("replay");
-    }
+  it("partitions the whole schema command-type enum", () => {
+    // Driven off deviceCommand.type's enum ON PURPOSE, and asserted as an exact
+    // partition: a new payload-carrying type added to the schema would otherwise
+    // fall silently into "replay" and ship a dead presigned URL with this test
+    // still green. Failing here forces the author to classify it.
+    const byKind: Record<string, string[]> = { config: [], ota: [], replay: [] };
+    for (const t of deviceCommand.type.enumValues) byKind[republishKindFor(t)].push(t);
+    expect({
+      config: byKind.config.sort(),
+      ota: byKind.ota.sort(),
+      replay: byKind.replay.sort(),
+    }).toEqual({
+      config: ["config-changed"],
+      ota: ["firmware-update"],
+      replay: ["identify", "pin", "reboot", "refresh", "trigger"],
+    });
   });
 
   it("replays unknown types rather than dropping them", () => {

@@ -8,6 +8,7 @@ import { firmwareRelease } from "@/lib/db/schema";
 import { requirePlatformAdmin } from "@/lib/session";
 import { id } from "@/lib/ids";
 import { deleteObject, firmwareStorageKey, putObject } from "@/lib/storage";
+import { pushFirmwareToFleet } from "@/lib/mqtt-push";
 
 type Result = { ok: true; version: string } | { ok: false; error: string };
 
@@ -59,6 +60,12 @@ export async function publishFirmware(formData: FormData): Promise<Result> {
       return { ok: false, error: `Version ${version} is already published.` };
     }
     throw err;
+  }
+
+  try {
+    await pushFirmwareToFleet();
+  } catch (err) {
+    console.error("fleet OTA push failed (devices reconcile on their next heartbeat)", err);
   }
 
   revalidatePath("/admin/firmware");

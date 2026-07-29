@@ -4,10 +4,17 @@
 // 600s), so they are built at publish time and NEVER persisted on the command
 // row — a replay minutes later would ship dead URLs.
 
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { firmwareRelease, store as storeTable, tenantSettings } from "@/lib/db/schema";
+import {
+  device,
+  deviceCommand,
+  firmwareRelease,
+  store as storeTable,
+  tenantSettings,
+} from "@/lib/db/schema";
 import { getDeviceConfig, type DeviceConfigPayload } from "@/lib/data";
+import { id } from "@/lib/ids";
 import { resolveEffectivePin } from "@/lib/pin-resolve";
 import { presignedGetUrl } from "@/lib/storage";
 import { latestFirmwareManifest } from "@/lib/firmware";
@@ -85,6 +92,33 @@ export async function publishOtaCommand(deviceId: string, commandId: string): Pr
     action: null,
     payload: latestFirmwareManifest(rel, url),
   });
+}
+
+/**
+ * Hand every claimed device the current firmware manifest. Both publishing
+ * paths — the CLI script and the /admin/firmware upload action — call this right
+ * after their firmwareRelease insert, so the claimed-device filter and the
+ * NULL-payload rule live in exactly one place. A device that is offline keeps a
+ * pending row and gets the manifest, freshly presigned, on its next heartbeat.
+ */
+export async function pushFirmwareToFleet(): Promise<{ published: number; queued: number }> {
+  const targets = await db
+    .select({ id: device.id, organizationId: device.organizationId })
+    .from(device)
+    .where(isNotNull(device.claimedAt));
+  let published = 0;
+  for (const t of targets) {
+    const commandId = id("cmd");
+    await db.insert(deviceCommand).values({
+      id: commandId,
+      deviceId: t.id,
+      organizationId: t.organizationId,
+      type: "firmware-update",
+      status: "pending",
+    });
+    if (await publishOtaCommand(t.id, commandId)) published++;
+  }
+  return { published, queued: targets.length - published };
 }
 
 /**

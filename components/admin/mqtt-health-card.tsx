@@ -14,10 +14,35 @@ const LABEL: Record<string, string> = {
   "config-request": "Config requests",
 };
 
+function ChannelRow({
+  channel,
+  lastAt,
+  now,
+}: {
+  channel: string;
+  lastAt: Date | null;
+  now: Date;
+}) {
+  const health = channelHealth(lastAt, now);
+  return (
+    <div className="flex items-center justify-between gap-4 text-sm">
+      <span>{LABEL[channel]}</span>
+      <div className="flex items-center gap-3">
+        <span className="text-muted-foreground">
+          {lastAt ? `${lastAt.toISOString().slice(0, 16).replace("T", " ")} UTC` : "never"}
+        </span>
+        <Badge variant={health === "ok" ? "secondary" : "destructive"}>
+          {health === "ok" ? "live" : health === "stale" ? "silent" : "never seen"}
+        </Badge>
+      </div>
+    </div>
+  );
+}
+
 export async function MqttHealthCard() {
   const pings = await getWebhookPings();
-  const byChannel = new Map(pings.map((p) => [p.channel, p]));
   const now = new Date();
+  const byChannel = new Map(pings?.map((p) => [p.channel, p]));
 
   return (
     <Card>
@@ -25,25 +50,15 @@ export async function MqttHealthCard() {
         <CardTitle>MQTT channels</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
-        {MQTT_CHANNELS.map((ch) => {
-          const p = byChannel.get(ch) ?? null;
-          const health = channelHealth(p?.lastAt ?? null, now);
-          return (
-            <div key={ch} className="flex items-center justify-between gap-4 text-sm">
-              <span>{LABEL[ch]}</span>
-              <div className="flex items-center gap-3">
-                <span className="text-muted-foreground">
-                  {p?.lastAt
-                    ? `${p.lastAt.toISOString().slice(0, 16).replace("T", " ")} UTC`
-                    : "never"}
-                </span>
-                <Badge variant={health === "ok" ? "secondary" : "destructive"}>
-                  {health === "ok" ? "live" : health === "stale" ? "silent" : "never seen"}
-                </Badge>
-              </div>
-            </div>
-          );
-        })}
+        {pings === null ? (
+          <p className="text-sm text-muted-foreground">
+            Channel telemetry is unavailable right now.
+          </p>
+        ) : (
+          MQTT_CHANNELS.map((ch) => (
+            <ChannelRow key={ch} channel={ch} lastAt={byChannel.get(ch)?.lastAt ?? null} now={now} />
+          ))
+        )}
       </CardContent>
     </Card>
   );

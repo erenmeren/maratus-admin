@@ -41,8 +41,22 @@ export async function recordWebhookPing(
   }
 }
 
+/**
+ * Read is fail-soft, distinct from the write path's fail-open: a query error
+ * (e.g. the `mqtt_webhook_ping` table not existing yet — its migration is
+ * generated but applied separately from this code) returns `null`, not `[]`.
+ * `[]` would make every channel render "never seen", i.e. the exact alarm
+ * state this telemetry exists to raise — a transient DB error must not be
+ * indistinguishable from "every EMQX rule is misconfigured". Callers must
+ * render a distinct "unavailable" state for `null`, not fold it into "never".
+ */
 export async function getWebhookPings(): Promise<
-  { channel: string; lastAt: Date | null; lastDeviceId: string | null }[]
+  { channel: string; lastAt: Date | null; lastDeviceId: string | null }[] | null
 > {
-  return db.select().from(mqttWebhookPing);
+  try {
+    return await db.select().from(mqttWebhookPing);
+  } catch (err) {
+    console.error("[mqtt-ping] select failed", { err });
+    return null;
+  }
 }

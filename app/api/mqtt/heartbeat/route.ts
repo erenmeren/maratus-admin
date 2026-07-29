@@ -3,7 +3,7 @@
 // than ~1 minute, bounding a lost publish to one heartbeat interval.
 
 import { NextResponse } from "next/server";
-import { and, desc, eq, gt, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { device as deviceTable, deviceCommand, firmwareRelease } from "@/lib/db/schema";
 import { mqttEnabled, verifyWebhookSecret, parseHeartbeatPayload, publishCommand } from "@/lib/mqtt";
@@ -93,7 +93,6 @@ export async function POST(req: Request) {
       storeId: deviceTable.storeId,
       pinMode: deviceTable.pinMode,
       pinnedUrl: deviceTable.pinnedUrl,
-      firmwareVersion: deviceTable.firmwareVersion,
     });
   if (!dev) return NextResponse.json({ error: "Unknown device" }, { status: 404 });
 
@@ -156,7 +155,13 @@ export async function POST(req: Request) {
           and(
             eq(deviceCommand.deviceId, dev.id),
             eq(deviceCommand.type, "firmware-update"),
-            eq(deviceCommand.status, "pending"),
+            inArray(deviceCommand.status, ["pending", "delivered"]),
+            // A row outside the republish window has already been given up on
+            // by the loop above (nothing else ever expires a non-trigger
+            // command), so it must not block a fresh OTA nudge forever —
+            // only a row still young enough to be republished counts as
+            // "in flight".
+            gt(deviceCommand.createdAt, new Date(now.getTime() - REPUBLISH_UNTIL_MS)),
           ),
         )
         .limit(1);

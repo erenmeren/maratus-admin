@@ -1572,6 +1572,10 @@ export async function getDeviceConfig(
  * device API gone there is no GET for a "config changed" nudge to trigger. One
  * pending row per device is recorded so delivery is observable and so the
  * heartbeat republish can rebuild it for a device that was powered off.
+ *
+ * Claimed devices only, matching pushFirmwareToFleet and lib/pin-service.ts: an
+ * unclaimed device has no key, no broker credential and no way to receive this,
+ * so a row and a presign round would be pure waste.
  */
 export async function enqueueConfigChangedForOrg(
   organizationId: string,
@@ -1589,7 +1593,9 @@ export async function enqueueConfigChangedForOrg(
       firmwareVersion: deviceTable.firmwareVersion,
     })
     .from(deviceTable)
-    .where(eq(deviceTable.organizationId, organizationId));
+    .where(
+      and(eq(deviceTable.organizationId, organizationId), isNotNull(deviceTable.claimedAt)),
+    );
   if (devices.length === 0) return;
 
   const rows = devices.map((d) => ({

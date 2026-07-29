@@ -51,7 +51,14 @@ export async function POST(req: Request) {
     .from(deviceTable)
     .where(eq(deviceTable.id, deviceId))
     .limit(1);
-  if (!dev) return NextResponse.json({ error: "Unknown device" }, { status: 404 });
+  // A device row can disappear while its EMQX credential survives:
+  // deprovisionDeviceMqtt is best-effort (lib/mqtt.ts). A 404 here would repeat
+  // on every boot/reconnect of that ghost client and risk EMQX deactivating a
+  // rule that serves the whole fleet — so log it and answer 200.
+  if (!dev) {
+    console.warn("[mqtt/config-request] unknown device (stale EMQX credential?):", deviceId);
+    return NextResponse.json({ ok: true, unknownDevice: true });
+  }
 
   await recordWebhookPing("config-request", dev.id);
 
@@ -70,15 +77,29 @@ export async function POST(req: Request) {
   // Row first (payload NULL — never store the presigned config), then publish.
   // If the publish fails the row stays pending and the heartbeat republish
   // rebuilds it, so a lost answer self-heals within one heartbeat.
-  const commandId = genId("cmd");
-  await db.insert(deviceCommand).values({
-    id: commandId,
-    deviceId: dev.id,
-    organizationId: dev.organizationId,
-    type: "config-changed",
-    status: "pending",
-  });
-  const published = await publishConfigCommand(dev, commandId);
+  //
+  // Fail-open like recordWebhookPing: building a config touches several tables
+  // and presigns R2 URLs, and EMQX deactivates a rule whose endpoint keeps
+  // failing. A throw here would cost the fleet its config channel, while
+  // answering 200 costs one boot's config — the device asks again next boot and
+  // the heartbeat republish covers the pending row in the meantime.
+  let published = false;
+  try {
+    const commandId = genId("cmd");
+    await db.insert(deviceCommand).values({
+      id: commandId,
+      deviceId: dev.id,
+      organizationId: dev.organizationId,
+      type: "config-changed",
+      status: "pending",
+    });
+    published = await publishConfigCommand(dev, commandId);
+  } catch (err) {
+    console.error("[mqtt/config-request] answer failed (device retries next boot)", {
+      deviceId: dev.id,
+      err,
+    });
+  }
 
   return NextResponse.json({ ok: true, published });
 }

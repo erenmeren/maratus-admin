@@ -12,6 +12,7 @@ import {
   publishConfigCommand,
   publishOtaCommand,
   latestFirmwareRelease,
+  type PushTarget,
 } from "@/lib/mqtt-push";
 import { firmwareUpdateAvailable } from "@/lib/device-status";
 import { recordWebhookPing } from "@/lib/mqtt-ping";
@@ -102,92 +103,135 @@ export async function POST(req: Request) {
       // config push decides on the version the device is running right now.
       firmwareVersion: deviceTable.firmwareVersion,
     });
-  if (!dev) return NextResponse.json({ error: "Unknown device" }, { status: 404 });
-
-  // Republish stale pending commands so a lost publish self-heals — but only
-  // within a bounded age window, so an un-acked command can't loop forever.
-  const stale = await db
-    .select({
-      id: deviceCommand.id,
-      type: deviceCommand.type,
-      action: deviceCommand.action,
-      payload: deviceCommand.payload,
-    })
-    .from(deviceCommand)
-    .where(
-      and(
-        eq(deviceCommand.deviceId, dev.id),
-        eq(deviceCommand.status, "pending"),
-        lt(deviceCommand.createdAt, new Date(now.getTime() - REPUBLISH_AFTER_MS)),
-        gt(deviceCommand.createdAt, new Date(now.getTime() - REPUBLISH_UNTIL_MS)),
-      ),
-    );
-  for (const cmd of stale) {
-    switch (republishKindFor(cmd.type)) {
-      // Payload-carrying commands are REBUILT, never replayed: the config's
-      // image URLs are presigned for 300s and the firmware binary's for 600s,
-      // so a stored payload is already dead by the time a republish fires.
-      case "config":
-        await publishConfigCommand(dev, cmd.id);
-        break;
-      case "ota":
-        await publishOtaCommand(dev.id, cmd.id);
-        break;
-      case "replay":
-        await publishCommand(dev.id, {
-          commandId: cmd.id,
-          type: cmd.type,
-          action: cmd.action,
-          payload: cmd.payload,
-        });
-        break;
-    }
+  // A device row can disappear while its EMQX credential survives:
+  // deprovisionDeviceMqtt is best-effort (lib/mqtt.ts). A 404 here would then
+  // repeat every five minutes forever and risk EMQX deactivating the rule that
+  // carries the WHOLE fleet's liveness — so log it and answer 200.
+  if (!dev) {
+    console.warn("[mqtt/heartbeat] unknown device (stale EMQX credential?):", clientid);
+    return NextResponse.json({ ok: true, unknownDevice: true });
   }
 
-  // OTA reconcile: the hb already reports the running version, so the cloud can
-  // notice a device that came back from being powered off during a firmware
-  // publish and hand it the manifest now. Only when nothing OTA-ish is already
-  // pending, so a device that is mid-download isn't nudged again.
-  let otaQueued = false;
-  if (hb.version) {
-    const rel = await latestFirmwareRelease();
-    if (firmwareUpdateAvailable(hb.version, rel?.version ?? null)) {
-      // Cooldown, not an in-flight check: ANY firmware-update row for this
-      // device inside the window blocks another push, whatever its status. The
-      // firmware acks a firmware-update BEFORE starting the OTA (it reboots —
-      // ditto-firmware components/cloud/commands.c), so "acked" means "download
-      // started", not "installed". Gating on pending/delivered alone therefore
-      // never engages on a retry: a download that fails (TLS blip, truncated
-      // body, presign expiry) would be re-pushed every heartbeat forever — ~288
-      // rows and ~576 MB of R2 egress per device per day, and a forced re-flash
-      // loop if a release's typed version doesn't match the binary's own.
-      // Reuses the republish window rather than adding a second tunable for the
-      // same "we already tried recently" idea. A genuinely new release is
-      // unaffected: its immediate push comes from pushFirmwareToFleet.
-      const [recentOta] = await db
-        .select({ id: deviceCommand.id })
-        .from(deviceCommand)
-        .where(
-          and(
-            eq(deviceCommand.deviceId, dev.id),
-            eq(deviceCommand.type, "firmware-update"),
-            gt(deviceCommand.createdAt, new Date(now.getTime() - REPUBLISH_UNTIL_MS)),
-          ),
-        )
-        .limit(1);
-      if (!recentOta) {
-        const commandId = genId("cmd");
-        await db.insert(deviceCommand).values({
-          id: commandId,
-          deviceId: dev.id,
-          organizationId: dev.organizationId,
-          type: "firmware-update",
-          status: "pending",
-        });
-        otaQueued = await publishOtaCommand(dev.id, commandId, rel);
+  // Both reconciliation blocks are fail-open, exactly like recordWebhookPing:
+  // this is the fleet's liveness channel and its highest-frequency route, and
+  // EMQX deactivates a rule whose endpoint keeps failing. A DB or presign
+  // failure degrades to "not republished this beat" — the next heartbeat retries
+  // — and never turns the heartbeat itself into a 500.
+  const republished = await republishStaleCommands(dev, now);
+  const otaQueued = hb.version ? await reconcileOta(dev, hb.version, now) : false;
+
+  return NextResponse.json({ ok: true, republished, otaQueued });
+}
+
+/**
+ * Republish stale pending commands so a lost publish self-heals — but only within
+ * a bounded age window, so an un-acked command can't loop forever. Returns how
+ * many were resent; 0 when the attempt failed (never throws).
+ */
+async function republishStaleCommands(dev: PushTarget, now: Date): Promise<number> {
+  try {
+    const stale = await db
+      .select({
+        id: deviceCommand.id,
+        type: deviceCommand.type,
+        action: deviceCommand.action,
+        payload: deviceCommand.payload,
+      })
+      .from(deviceCommand)
+      .where(
+        and(
+          eq(deviceCommand.deviceId, dev.id),
+          eq(deviceCommand.status, "pending"),
+          lt(deviceCommand.createdAt, new Date(now.getTime() - REPUBLISH_AFTER_MS)),
+          gt(deviceCommand.createdAt, new Date(now.getTime() - REPUBLISH_UNTIL_MS)),
+        ),
+      );
+    for (const cmd of stale) {
+      switch (republishKindFor(cmd.type)) {
+        // Payload-carrying commands are REBUILT, never replayed: the config's
+        // image URLs are presigned for 300s and the firmware binary's for 600s,
+        // so a stored payload is already dead by the time a republish fires.
+        case "config":
+          await publishConfigCommand(dev, cmd.id);
+          break;
+        case "ota":
+          await publishOtaCommand(dev.id, cmd.id);
+          break;
+        case "replay":
+          await publishCommand(dev.id, {
+            commandId: cmd.id,
+            type: cmd.type,
+            action: cmd.action,
+            payload: cmd.payload,
+          });
+          break;
       }
     }
+    return stale.length;
+  } catch (err) {
+    // Config rebuilds hit the DB and R2 presigning; either can fail transiently.
+    console.error("[mqtt/heartbeat] republish failed (retries next beat)", {
+      deviceId: dev.id,
+      err,
+    });
+    return 0;
   }
+}
 
-  return NextResponse.json({ ok: true, republished: stale.length, otaQueued });
+/**
+ * OTA reconcile: the hb already reports the running version, so the cloud can
+ * notice a device that came back from being powered off during a firmware publish
+ * and hand it the manifest now. Returns whether a manifest was published; false
+ * when nothing was due or the attempt failed (never throws).
+ */
+async function reconcileOta(
+  dev: { id: string; organizationId: string },
+  runningVersion: string,
+  now: Date,
+): Promise<boolean> {
+  try {
+    const rel = await latestFirmwareRelease();
+    if (!firmwareUpdateAvailable(runningVersion, rel?.version ?? null)) return false;
+    // Cooldown, not an in-flight check: ANY firmware-update row for this device
+    // inside the window blocks another push, whatever its status. The firmware
+    // acks a firmware-update BEFORE starting the OTA (it reboots —
+    // ditto-firmware components/cloud/commands.c), so "acked" means "download
+    // started", not "installed". Gating on pending/delivered alone therefore
+    // never engages on a retry: a download that fails (TLS blip, truncated body,
+    // presign expiry) would be re-pushed every heartbeat forever — ~288 rows and
+    // ~576 MB of R2 egress per device per day, and a forced re-flash loop if a
+    // release's typed version doesn't match the binary's own. Reuses the
+    // republish window rather than adding a second tunable for the same "we
+    // already tried recently" idea. A genuinely new release is unaffected: its
+    // immediate push comes from pushFirmwareToFleet.
+    const [recentOta] = await db
+      .select({ id: deviceCommand.id })
+      .from(deviceCommand)
+      .where(
+        and(
+          eq(deviceCommand.deviceId, dev.id),
+          eq(deviceCommand.type, "firmware-update"),
+          gt(deviceCommand.createdAt, new Date(now.getTime() - REPUBLISH_UNTIL_MS)),
+        ),
+      )
+      .limit(1);
+    if (recentOta) return false;
+
+    const commandId = genId("cmd");
+    await db.insert(deviceCommand).values({
+      id: commandId,
+      deviceId: dev.id,
+      organizationId: dev.organizationId,
+      type: "firmware-update",
+      status: "pending",
+    });
+    return await publishOtaCommand(dev.id, commandId, rel);
+  } catch (err) {
+    console.error("[mqtt/heartbeat] OTA reconcile failed (retries next beat)", {
+      deviceId: dev.id,
+      runningVersion,
+      err,
+    });
+    return false;
+  }
 }

@@ -5,6 +5,7 @@ import { AlertsBanner } from "@/components/health/alerts-banner";
 import { AlertHistory } from "@/components/health/alert-history";
 import { PageHeader } from "@/components/page-header";
 import { PageSection } from "@/components/page-section";
+import { MqttHealthCard } from "@/components/admin/mqtt-health-card";
 
 export default async function HealthPage() {
   await requirePlatformAdmin();
@@ -51,6 +52,10 @@ export default async function HealthPage() {
         <p className="text-sm text-muted-foreground">
           Last 24h: {h.activity.acked} acked · {h.activity.pending} pending · {h.activity.failed} failed
         </p>
+      </PageSection>
+
+      <PageSection title="MQTT transport">
+        <MqttHealthCard />
       </PageSection>
 
       <PageSection title="Per-tenant usage">

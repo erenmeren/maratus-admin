@@ -44,7 +44,17 @@ export async function POST(req: Request) {
         })
         .where(eq(deviceTable.id, presence.deviceId))
         .returning({ id: deviceTable.id });
-  if (!dev) return NextResponse.json({ error: "Unknown device" }, { status: 404 });
+  // A device row can disappear while its EMQX credential survives:
+  // deprovisionDeviceMqtt is best-effort (lib/mqtt.ts). This route fires for
+  // EVERY client connect and disconnect on the deployment and is the fleet's
+  // instant-offline channel, so it is the most exposed of the webhooks: a ghost
+  // credential in a reconnect loop would 404 continuously and risk EMQX
+  // deactivating the rule. Log it and answer 200, exactly like heartbeat,
+  // config-request and ack.
+  if (!dev) {
+    console.warn("[mqtt/presence] unknown device (stale EMQX credential?):", presence.deviceId);
+    return NextResponse.json({ ok: true, unknownDevice: true });
+  }
 
   return NextResponse.json({ ok: true });
 }

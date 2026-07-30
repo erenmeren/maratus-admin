@@ -74,32 +74,53 @@ export async function POST(req: Request) {
   }
 
   const now = new Date();
-  const [dev] = await db
-    .update(deviceTable)
-    .set({
-      lastSeenAt: now,
-      ...(hb.version ? { firmwareVersion: hb.version } : {}),
-      // Remote memory-soak telemetry: store the latest free-internal-DRAM reading
-      // and track the lowest-ever (worst-case concurrent-TLS peak) atomically.
-      ...(hb.heap !== null
-        ? {
-            lastHeapFree: hb.heap,
-            minHeapFree: sql`LEAST(COALESCE(${deviceTable.minHeapFree}, ${hb.heap}), ${hb.heap})`,
-          }
-        : {}),
-      ...(hb.fonts !== null ? { lastFontSlots: hb.fonts } : {}),
-      // Atomic in-DB decision: never resurrect a paused device, even under
-      // concurrent writes (no stale JS-side status read driving this write).
-      status: sql`CASE WHEN ${deviceTable.status} = 'paused' THEN ${deviceTable.status} ELSE 'online' END`,
-    })
-    .where(eq(deviceTable.id, clientid))
-    .returning({
-      id: deviceTable.id,
-      organizationId: deviceTable.organizationId,
-      storeId: deviceTable.storeId,
-      pinMode: deviceTable.pinMode,
-      pinnedUrl: deviceTable.pinnedUrl,
+  // The liveness write is fail-open too. It is the first DB call on the fleet's
+  // highest-frequency route, and EMQX deactivates a rule whose endpoint keeps
+  // failing — so a transient Neon error must cost one beat, not the whole
+  // fleet's liveness channel. The validation paths above keep their 400s: a
+  // malformed body or a missing device id is a rule misconfiguration that must
+  // stay loud.
+  let dev: {
+    id: string;
+    organizationId: string;
+    storeId: string | null;
+    pinMode: (typeof deviceTable.$inferSelect)["pinMode"];
+    pinnedUrl: string | null;
+  } | undefined;
+  try {
+    [dev] = await db
+      .update(deviceTable)
+      .set({
+        lastSeenAt: now,
+        ...(hb.version ? { firmwareVersion: hb.version } : {}),
+        // Remote memory-soak telemetry: store the latest free-internal-DRAM reading
+        // and track the lowest-ever (worst-case concurrent-TLS peak) atomically.
+        ...(hb.heap !== null
+          ? {
+              lastHeapFree: hb.heap,
+              minHeapFree: sql`LEAST(COALESCE(${deviceTable.minHeapFree}, ${hb.heap}), ${hb.heap})`,
+            }
+          : {}),
+        ...(hb.fonts !== null ? { lastFontSlots: hb.fonts } : {}),
+        // Atomic in-DB decision: never resurrect a paused device, even under
+        // concurrent writes (no stale JS-side status read driving this write).
+        status: sql`CASE WHEN ${deviceTable.status} = 'paused' THEN ${deviceTable.status} ELSE 'online' END`,
+      })
+      .where(eq(deviceTable.id, clientid))
+      .returning({
+        id: deviceTable.id,
+        organizationId: deviceTable.organizationId,
+        storeId: deviceTable.storeId,
+        pinMode: deviceTable.pinMode,
+        pinnedUrl: deviceTable.pinnedUrl,
+      });
+  } catch (err) {
+    console.error("[mqtt/heartbeat] liveness write failed (retries next beat)", {
+      deviceId: clientid,
+      err,
     });
+    return NextResponse.json({ ok: true, degraded: true });
+  }
   // A device row can disappear while its EMQX credential survives:
   // deprovisionDeviceMqtt is best-effort (lib/mqtt.ts). A 404 here would then
   // repeat every five minutes forever and risk EMQX deactivating the rule that
@@ -109,11 +130,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true, unknownDevice: true });
   }
 
-  // Both reconciliation blocks are fail-open, exactly like recordWebhookPing:
-  // this is the fleet's liveness channel and its highest-frequency route, and
-  // EMQX deactivates a rule whose endpoint keeps failing. A DB or presign
-  // failure degrades to "not republished this beat" — the next heartbeat retries
-  // — and never turns the heartbeat itself into a 500.
+  // Both reconciliation blocks are fail-open, exactly like recordWebhookPing and
+  // the liveness write above: this is the fleet's liveness channel and its
+  // highest-frequency route, and EMQX deactivates a rule whose endpoint keeps
+  // failing. A DB or presign failure degrades to "not republished this beat" —
+  // the next heartbeat retries — and never turns the heartbeat into a 500.
   const republished = await republishStaleCommands(dev, now);
   const otaQueued = hb.version ? await reconcileOta(dev, hb.version, now) : false;
 

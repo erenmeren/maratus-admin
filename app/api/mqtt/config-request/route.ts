@@ -38,17 +38,39 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Missing device id" }, { status: 400 });
   }
 
-  const [dev] = await db
-    .select({
-      id: deviceTable.id,
-      organizationId: deviceTable.organizationId,
-      storeId: deviceTable.storeId,
-      pinMode: deviceTable.pinMode,
-      pinnedUrl: deviceTable.pinnedUrl,
-    })
-    .from(deviceTable)
-    .where(eq(deviceTable.id, deviceId))
-    .limit(1);
+  // Fail-open like everything below: EMQX deactivates a rule whose endpoint keeps
+  // failing, so a transient Neon error must cost this one config answer (the
+  // device asks again next boot) rather than the fleet's config channel. The
+  // validation paths above keep their 400s — a malformed body or a missing device
+  // id is a rule misconfiguration and must stay loud.
+  let dev:
+    | {
+        id: string;
+        organizationId: string;
+        storeId: string | null;
+        pinMode: (typeof deviceTable.$inferSelect)["pinMode"];
+        pinnedUrl: string | null;
+      }
+    | undefined;
+  try {
+    [dev] = await db
+      .select({
+        id: deviceTable.id,
+        organizationId: deviceTable.organizationId,
+        storeId: deviceTable.storeId,
+        pinMode: deviceTable.pinMode,
+        pinnedUrl: deviceTable.pinnedUrl,
+      })
+      .from(deviceTable)
+      .where(eq(deviceTable.id, deviceId))
+      .limit(1);
+  } catch (err) {
+    console.error("[mqtt/config-request] device lookup failed (device retries next boot)", {
+      deviceId,
+      err,
+    });
+    return NextResponse.json({ ok: true, degraded: true });
+  }
   // A device row can disappear while its EMQX credential survives:
   // deprovisionDeviceMqtt is best-effort (lib/mqtt.ts). A 404 here would repeat
   // on every boot/reconnect of that ghost client and risk EMQX deactivating a
@@ -61,16 +83,25 @@ export async function POST(req: Request) {
   await recordWebhookPing("config-request", dev.id);
 
   // A request also proves liveness — the device just published to the broker.
+  // Fail-open on its own: losing this write costs one liveness bump (the next
+  // heartbeat re-bumps it) and must not cost the config answer below either.
   const now = new Date();
-  // Atomic in-DB decision: never resurrect a paused device, even under
-  // concurrent writes (no stale JS-side status read driving this write).
-  await db
-    .update(deviceTable)
-    .set({
-      lastSeenAt: now,
-      status: sql`CASE WHEN ${deviceTable.status} = 'paused' THEN ${deviceTable.status} ELSE 'online' END`,
-    })
-    .where(eq(deviceTable.id, dev.id));
+  try {
+    // Atomic in-DB decision: never resurrect a paused device, even under
+    // concurrent writes (no stale JS-side status read driving this write).
+    await db
+      .update(deviceTable)
+      .set({
+        lastSeenAt: now,
+        status: sql`CASE WHEN ${deviceTable.status} = 'paused' THEN ${deviceTable.status} ELSE 'online' END`,
+      })
+      .where(eq(deviceTable.id, dev.id));
+  } catch (err) {
+    console.error("[mqtt/config-request] liveness write failed (next heartbeat re-bumps)", {
+      deviceId: dev.id,
+      err,
+    });
+  }
 
   // Row first (payload NULL — never store the presigned config), then publish.
   // If the publish fails the row stays pending and the heartbeat republish

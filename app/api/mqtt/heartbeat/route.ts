@@ -3,7 +3,7 @@
 // than ~1 minute, bounding a lost publish to one heartbeat interval.
 
 import { NextResponse } from "next/server";
-import { and, eq, gt, lt, sql } from "drizzle-orm";
+import { and, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { device as deviceTable, deviceCommand } from "@/lib/db/schema";
 import { mqttEnabled, verifyWebhookSecret, parseHeartbeatPayload, publishCommand } from "@/lib/mqtt";
@@ -141,6 +141,18 @@ async function republishStaleCommands(dev: PushTarget, now: Date): Promise<numbe
           eq(deviceCommand.status, "pending"),
           lt(deviceCommand.createdAt, new Date(now.getTime() - REPUBLISH_AFTER_MS)),
           gt(deviceCommand.createdAt, new Date(now.getTime() - REPUBLISH_UNTIL_MS)),
+          // NEVER republish an EXPIRED command. A trigger carries
+          // expiresAt = created + 60s because it is a QR for the customer
+          // standing at the counter *now*: a device that was actually powered
+          // off while its lastSeenAt still read "online" would otherwise come
+          // back minutes later, heartbeat, and be handed that dead trigger —
+          // showing a stranger's QR to whoever is at the counter, acking it,
+          // and settling the credit. Config and firmware-update rows have a
+          // NULL expiresAt on purpose: they are desired-state, so late
+          // delivery is correct for them and they stay eligible. Compared
+          // against the route's own `now` so every time comparison here (and
+          // the ones above) sits on one clock.
+          or(isNull(deviceCommand.expiresAt), gt(deviceCommand.expiresAt, now)),
         ),
       );
     for (const cmd of stale) {

@@ -89,6 +89,44 @@ export function supportsConfigPush(firmwareVersion: string | null): boolean {
   return patch >= minPatch;
 }
 
+/**
+ * Should the OTA reconcile push firmware to this device? True only when the
+ * device's running version is strictly BEHIND the latest release, compared
+ * numerically component-by-component via the same parser as
+ * `supportsConfigPush` — deliberately NOT `firmwareUpdateAvailable`
+ * (lib/device-status.ts), which answers "does the version string differ from
+ * latest" with plain `!==`.
+ *
+ * That distinction is the whole point: `firmwareUpdateAvailable` is correct
+ * for its four UI-badge callers ("this device isn't running what's
+ * published, go look") but wrong for a push decision, because "differs" is
+ * true both when the device is behind AND when it is ahead. A device running
+ * 0.18.0 while the latest published release is 0.17.1 (development build,
+ * or a release rollback) reads as "differs" and got OTA'd backwards to
+ * 0.17.1 in production — this helper exists to make that case impossible:
+ * ahead returns false, equal returns false, only strictly-behind returns true.
+ *
+ * A string comparison would also get the ordering itself backwards ("0.9.0"
+ * sorts after "0.18.0" lexicographically), which is why this reuses the
+ * numeric parser rather than comparing the raw strings.
+ *
+ * Null, empty, or unparseable on either side returns false: an unknown
+ * version must never trigger a push. Guessing "behind" would flash firmware
+ * onto a device based on a string we couldn't even parse.
+ */
+export function isFirmwareBehindLatest(
+  deviceVersion: string | null,
+  latestVersion: string | null,
+): boolean {
+  const dv = parseFirmwareVersion(deviceVersion);
+  const lv = parseFirmwareVersion(latestVersion);
+  if (!dv || !lv) return false;
+  for (let i = 0; i < 3; i++) {
+    if (dv[i] !== lv[i]) return dv[i] < lv[i];
+  }
+  return false;
+}
+
 /** What a pushed config carries: exactly the GET /api/device/config body,
  *  including its `mqtt` block. */
 export type PushedDeviceConfig = DeviceConfigPayload & {

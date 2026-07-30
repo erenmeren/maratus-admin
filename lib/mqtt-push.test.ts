@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { deviceCommand } from "@/lib/db/schema";
-import { republishKindFor, supportsConfigPush } from "./mqtt-push";
+import { republishKindFor, supportsConfigPush, isFirmwareBehindLatest } from "./mqtt-push";
 
 describe("supportsConfigPush", () => {
   it("assumes an unknown device is old", () => {
@@ -45,6 +45,66 @@ describe("supportsConfigPush", () => {
     expect(supportsConfigPush("abc")).toBe(false);
     expect(supportsConfigPush("0.18")).toBe(false);
     expect(supportsConfigPush("0.18.0garbage")).toBe(false);
+  });
+});
+
+describe("isFirmwareBehindLatest", () => {
+  it("is true when the device is behind by patch", () => {
+    expect(isFirmwareBehindLatest("0.18.0", "0.18.1")).toBe(true);
+  });
+
+  it("is true when the device is behind by minor", () => {
+    expect(isFirmwareBehindLatest("0.17.1", "0.18.0")).toBe(true);
+  });
+
+  it("is true when the device is behind by major", () => {
+    expect(isFirmwareBehindLatest("0.18.0", "1.0.0")).toBe(true);
+  });
+
+  it("is false when versions are equal", () => {
+    expect(isFirmwareBehindLatest("0.18.0", "0.18.0")).toBe(false);
+  });
+
+  it("is false when the device is ahead by patch", () => {
+    expect(isFirmwareBehindLatest("0.18.1", "0.18.0")).toBe(false);
+  });
+
+  it("is false when the device is ahead by minor", () => {
+    // The production incident this helper fixes: heartbeat's OTA reconcile
+    // used to gate on firmwareUpdateAvailable ("differs from latest"), which
+    // is true here too and pushed 0.18.0 devices backward to 0.17.1.
+    expect(isFirmwareBehindLatest("0.18.0", "0.17.1")).toBe(false);
+  });
+
+  it("resolves the 0.9.0 vs 0.18.0 ordering trap numerically, both directions", () => {
+    // "0.9.0" > "0.18.0" lexicographically — a string comparison would call
+    // the device "ahead" here when it is actually far behind.
+    expect(isFirmwareBehindLatest("0.9.0", "0.18.0")).toBe(true);
+    // And the reverse must not be behind either.
+    expect(isFirmwareBehindLatest("0.18.0", "0.9.0")).toBe(false);
+  });
+
+  it("reads a build-label suffix as the numeric version it labels, on either side", () => {
+    expect(isFirmwareBehindLatest("0.6.0-m6b", "0.18.0")).toBe(true);
+    expect(isFirmwareBehindLatest("0.18.0", "0.19.0-rc1")).toBe(true);
+  });
+
+  it("is false when the device version is null", () => {
+    expect(isFirmwareBehindLatest(null, "0.18.0")).toBe(false);
+  });
+
+  it("is false when the latest version is null", () => {
+    expect(isFirmwareBehindLatest("0.17.1", null)).toBe(false);
+  });
+
+  it("is false when either version is an empty string", () => {
+    expect(isFirmwareBehindLatest("", "0.18.0")).toBe(false);
+    expect(isFirmwareBehindLatest("0.17.1", "")).toBe(false);
+  });
+
+  it("is false when either version is unparseable garbage", () => {
+    expect(isFirmwareBehindLatest("abc", "0.18.0")).toBe(false);
+    expect(isFirmwareBehindLatest("0.17.1", "0.18.0garbage")).toBe(false);
   });
 });
 

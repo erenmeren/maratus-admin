@@ -12,9 +12,9 @@ import {
   publishConfigCommand,
   publishOtaCommand,
   latestFirmwareRelease,
+  isFirmwareBehindLatest,
   type PushTarget,
 } from "@/lib/mqtt-push";
-import { firmwareUpdateAvailable } from "@/lib/device-status";
 import { recordWebhookPing } from "@/lib/mqtt-ping";
 import { id as genId } from "@/lib/ids";
 
@@ -191,7 +191,7 @@ async function reconcileOta(
 ): Promise<boolean> {
   try {
     const rel = await latestFirmwareRelease();
-    if (!firmwareUpdateAvailable(runningVersion, rel?.version ?? null)) return false;
+    if (!isFirmwareBehindLatest(runningVersion, rel?.version ?? null)) return false;
     // Cooldown, not an in-flight check: ANY firmware-update row for this device
     // inside the window blocks another push, whatever its status. The firmware
     // acks a firmware-update BEFORE starting the OTA (it reboots —

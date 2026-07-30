@@ -190,9 +190,9 @@ export async function saveBranding(
   revalidatePath("/tenant/branding");
   revalidatePath("/tenant");
 
-  // Nudge this org's devices to re-pull their display config. Best-effort: a
-  // failed enqueue must not fail a save that already committed — devices also
-  // reconcile via their next poll / ETag check.
+  // Push this org's devices their updated display config over MQTT. Best-effort:
+  // a failed enqueue must not fail a save that already committed — devices also
+  // reconcile via their next heartbeat republish or MQTT reconnect (cfg/get).
   try {
     await enqueueConfigChangedForOrg(organizationId, ctx.user.id);
   } catch (err) {

@@ -83,17 +83,17 @@ export function isFirmwareBehindLatest(
   return false;
 }
 
-/** What a pushed config carries: exactly the GET /api/device/config body,
- *  including its `mqtt` block. */
+/** What a pushed config carries: the full `DeviceConfigPayload`, plus the
+ *  `mqtt` block appended for the device's broker coordinates. */
 export type PushedDeviceConfig = DeviceConfigPayload & {
   mqtt?: NonNullable<Awaited<ReturnType<typeof buildMqttConfigBlock>>>;
 };
 
 /**
- * Build the payload the device used to fetch over GET /api/device/config:
- * effective pin resolved server-side (device > store > tenant), images presigned
- * fresh, and the same `mqtt` block the HTTP route appends. Returns null when the
- * org has no resolvable config.
+ * Build the config payload for a `config-changed` command: effective pin
+ * resolved server-side (device > store > tenant), images presigned fresh, and
+ * the `mqtt` block appended. Returns null when the org has no resolvable
+ * config.
  */
 export async function resolveDeviceConfigPayload(
   dev: PushTarget,
@@ -121,14 +121,11 @@ export async function resolveDeviceConfigPayload(
   // belonged to the HTTP route and have no meaning on a one-way publish.
   const { payload } = await getDeviceConfig(dev.organizationId, null, { url: effective.url });
   if (!payload) return null;
-  // The mqtt block must be present, byte-for-byte like the HTTP route's shape.
-  // cfg_parse.c memsets the whole config struct and derives cfg->mqtt.enabled
-  // from this block's PRESENCE, so a pushed config without it would make the
-  // first Phase-B device zero its broker settings and stop the very transport
-  // the config arrived on. It is also the only place a device learns its own
-  // deviceId (= clientId = username) — GET /api/device/claim returns just the
-  // device key — so a freshly claimed device could never learn it once the HTTP
-  // config route is deleted.
+  // The mqtt block must be present, byte-for-byte like the shape GET
+  // /api/device/identity returns. cfg_parse.c memsets the whole config struct
+  // and derives cfg->mqtt.enabled from this block's PRESENCE, so a pushed
+  // config without it would make the device zero its broker settings and stop
+  // the very transport the config arrived on.
   const mqtt = await buildMqttConfigBlock(dev.id);
   return { ...payload, ...(mqtt ? { mqtt } : {}) };
 }

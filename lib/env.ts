@@ -52,8 +52,9 @@ const envSchema = z.object({
   CRON_SECRET: z.string().optional(),
 
   // ---- EMQX / MQTT device transport ----
-  // All optional as a group. Absent → MQTT is disabled and the device transport
-  // falls back to HTTP polling (mqttEnabled() in lib/mqtt.ts gates on these).
+  // All optional as a group, but MQTT is the ONLY device transport — there is no
+  // fallback. Absent → mqttEnabled() (lib/mqtt.ts) is false, no device can be
+  // reached, and the trigger API fails closed (503 transport_unavailable).
   // EMQX Cloud Serverless HTTP API base, e.g. https://xxxx.eu-central-1.emqxsl.com:8443/api/v5
   EMQX_API_URL: z.string().optional(),
   // EMQX API key/secret (created in the EMQX console → API Keys).

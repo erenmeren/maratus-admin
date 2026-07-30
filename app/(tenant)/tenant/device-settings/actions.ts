@@ -1,7 +1,7 @@
 "use server";
 
 // Persist org-wide device policy settings to tenant_settings. Owners/admins only.
-// On save, nudges every device in the org to re-pull GET /api/device/config.
+// On save, pushes the updated config to every device in the org over MQTT.
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";

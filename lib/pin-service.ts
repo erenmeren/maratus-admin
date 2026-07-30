@@ -170,7 +170,8 @@ export async function applyScopedPinChange(a: {
     // UPSERT, not UPDATE: an org can exist without a tenantSettings row (the
     // row is created lazily by Branding/Device Settings), and a bare UPDATE
     // would match zero rows — charging credits and fanning out commands for a
-    // pin that silently reverts on the devices' next /api/device/config fetch.
+    // pin that silently reverts the next time the devices' config is rebuilt
+    // (heartbeat republish or a fresh cfg/get on MQTT reconnect).
     await db
       .insert(tenantSettings)
       .values({ organizationId: a.organizationId, pinnedUrl: a.change.url, pinnedAt })

@@ -1,6 +1,7 @@
 // POST /api/mqtt/ack — EMQX Data-Integration webhook for device command acks.
-// Mirrors app/api/device/commands/ack/route.ts but authenticates via the shared
-// webhook secret (the device already proved itself to the broker via JWT).
+// The only ack path now that the HTTP device API is gone; authenticates via
+// the shared webhook secret (the device already proved itself to the broker
+// via its MQTT credential).
 
 import { NextResponse } from "next/server";
 import { and, eq, inArray } from "drizzle-orm";
@@ -36,11 +37,11 @@ export async function POST(req: Request) {
   // Scope by deviceId (from the broker-injected clientid, NOT the payload) so a
   // device can only ack its own commands — commandId alone is device-controlled
   // and would let one device (and its tenant) ack/cancel another's command.
-  // Guard on "pending" OR "delivered": a command may already have been marked
-  // delivered by an HTTP poll during a transport switch, so an MQTT ack must
-  // still be honored in that state. The deviceId scope plus this being a
-  // terminal-status transition (pending/delivered -> acked/failed) keeps it
-  // idempotent — a second ack over either transport just no-ops.
+  // Guard on "pending" OR "delivered": "delivered" is a legacy status from the
+  // retired HTTP command-poll transport, and any row still sitting in it must
+  // still be ackable. The deviceId scope plus this being a terminal-status
+  // transition (pending/delivered -> acked/failed) keeps it idempotent — a
+  // second ack just no-ops.
   const [cmd] = await db
     .update(deviceCommand)
     .set({ status: nextStatus, ackedAt: now, result: ack.result })

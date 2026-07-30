@@ -1432,7 +1432,7 @@ export async function getTenantDeviceSettings(
   return { ...ds, hasPassword: !!s?.deviceSettingsPasswordHash };
 }
 
-/** Payload served to a device over GET /api/device/config (images presigned). */
+/** Payload served to a device over MQTT as a `config-changed` command (images presigned). */
 export interface DeviceConfigPayload {
   version: string;
   brandColor: string;

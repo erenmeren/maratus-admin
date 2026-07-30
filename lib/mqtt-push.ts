@@ -22,27 +22,14 @@ import { buildMqttConfigBlock, publishCommand } from "@/lib/mqtt";
 import type { PinMode } from "@/lib/pin";
 
 /** The device columns the push seam needs. Matches the shape the device row and
- *  the config route already select, so callers can pass a full device row.
- *  `firmwareVersion` is load-bearing: it decides whether this device can receive
- *  a carried config at all (see supportsConfigPush). */
+ *  the config route already select, so callers can pass a full device row. */
 export type PushTarget = {
   id: string;
   organizationId: string;
   storeId: string | null;
   pinMode: PinMode;
   pinnedUrl: string | null;
-  firmwareVersion: string | null;
 };
-
-/**
- * First firmware version that reassembles fragmented inbound MQTT payloads
- * (plan Task B2). Older firmware sets esp-mqtt's `.buffer.size = 2048` and its
- * MQTT_EVENT_DATA handler parses every fragment in isolation, so a config
- * (5,303 bytes in production) arrives as ~3 truncated slices, each failing
- * cJSON_ParseWithLength — the command is silently dropped, and nothing retries
- * because there is no periodic config poll.
- */
-const CONFIG_PUSH_MIN_VERSION: readonly [number, number, number] = [0, 18, 0];
 
 /**
  * Parse a firmware version string into [major, minor, patch].
@@ -60,42 +47,11 @@ function parseFirmwareVersion(v: string | null): [number, number, number] | null
 }
 
 /**
- * Can this device receive the config carried in the MQTT message, or does it
- * still need the old `payload: null` nudge plus a GET /api/device/config?
- *
- * A real numeric major.minor.patch comparison against 0.18.0 — deliberately NOT
- * `firmwareUpdateAvailable` (lib/device-status.ts), which answers the unrelated
- * "differs from latest" question.
- *
- * Unknown or unparseable versions return false: assuming a device is OLD merely
- * keeps it on the HTTP config route that Phase A leaves in place, whereas
- * assuming it is NEW silently drops every config change until it reboots.
- *
- * `0.18.0-rc1` returns TRUE. Judgment call: strict semver precedence would rank
- * a pre-release below 0.18.0, but this repo's suffixes are build labels on a
- * numeric version, and an RC cut from the 0.18.0 line exists precisely to
- * HIL-test reassembly — gating it to the nudge path would make the release
- * candidate unable to exercise the feature it is a candidate for. The downside
- * if an RC predates reassembly is one dropped config on a bench device under
- * observation, not a silent production failure.
- */
-export function supportsConfigPush(firmwareVersion: string | null): boolean {
-  const v = parseFirmwareVersion(firmwareVersion);
-  if (!v) return false;
-  const [major, minor, patch] = v;
-  const [minMajor, minMinor, minPatch] = CONFIG_PUSH_MIN_VERSION;
-  if (major !== minMajor) return major > minMajor;
-  if (minor !== minMinor) return minor > minMinor;
-  return patch >= minPatch;
-}
-
-/**
  * Should the OTA reconcile push firmware to this device? True only when the
  * device's running version is strictly BEHIND the latest release, compared
- * numerically component-by-component via the same parser as
- * `supportsConfigPush` — deliberately NOT `firmwareUpdateAvailable`
- * (lib/device-status.ts), which answers "does the version string differ from
- * latest" with plain `!==`.
+ * numerically component-by-component via `parseFirmwareVersion` —
+ * deliberately NOT `firmwareUpdateAvailable` (lib/device-status.ts), which
+ * answers "does the version string differ from latest" with plain `!==`.
  *
  * That distinction is the whole point: `firmwareUpdateAvailable` is correct
  * for its four UI-badge callers ("this device isn't running what's
@@ -178,23 +134,13 @@ export async function resolveDeviceConfigPayload(
 }
 
 /**
- * Publish a config-changed command on the device's cmd topic. False when
- * disabled or on failure.
+ * Publish a config-changed command on the device's cmd topic, always carrying
+ * the full config. False when disabled or on failure.
  *
- * Firmware that can reassemble fragments gets the config carried in the message;
- * everything else gets the pre-Phase-A `payload: null` nudge and fetches over
- * GET /api/device/config, which Phase A deliberately leaves live. Skipping the
- * build also spares the org's presign round for a device that could not use it.
+ * Firmware below 0.18.0 cannot reassemble the fragmented ~5.3KB message and has
+ * no HTTP route to fall back on — unsupported after Phase C, deliberately.
  */
 export async function publishConfigCommand(dev: PushTarget, commandId: string): Promise<boolean> {
-  if (!supportsConfigPush(dev.firmwareVersion)) {
-    return publishCommand(dev.id, {
-      commandId,
-      type: "config-changed",
-      action: null,
-      payload: null,
-    });
-  }
   const payload = await resolveDeviceConfigPayload(dev);
   if (!payload) return false;
   return publishCommand(dev.id, {

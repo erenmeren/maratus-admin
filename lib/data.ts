@@ -1588,9 +1588,6 @@ export async function enqueueConfigChangedForOrg(
       storeId: deviceTable.storeId,
       pinMode: deviceTable.pinMode,
       pinnedUrl: deviceTable.pinnedUrl,
-      // Decides whether each device gets the config carried in the message or
-      // the legacy nudge (see supportsConfigPush in lib/mqtt-push.ts).
-      firmwareVersion: deviceTable.firmwareVersion,
     })
     .from(deviceTable)
     .where(

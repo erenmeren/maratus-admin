@@ -99,9 +99,6 @@ export async function POST(req: Request) {
       storeId: deviceTable.storeId,
       pinMode: deviceTable.pinMode,
       pinnedUrl: deviceTable.pinnedUrl,
-      // Post-update value (this same statement just wrote hb.version), so the
-      // config push decides on the version the device is running right now.
-      firmwareVersion: deviceTable.firmwareVersion,
     });
   // A device row can disappear while its EMQX credential survives:
   // deprovisionDeviceMqtt is best-effort (lib/mqtt.ts). A 404 here would then

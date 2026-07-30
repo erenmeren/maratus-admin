@@ -70,7 +70,7 @@ Envelope:
 |---|---|---|---|
 | `reboot` | — | — | Restart the device. |
 | `refresh` | — | — | Re-request config now (device re-publishes to `cfg/get`). |
-| `identify` | — | — | Briefly flash the screen to locate the device. |
+| `identify` | — | — | Blink the idle screen's online-status dot a few times, to locate the device. |
 | `config-changed` | — | full config (see below) | Pushed proactively on a branding/device-settings save, or in answer to a `cfg/get` request. |
 | `firmware-update` | — | `{ version, url, sha256, size }` | OTA manifest; `url` is a presigned R2 URL for the binary, valid 600s. |
 | `trigger` | `"show_qr"` | `{ url }` | Render a QR pointing at `url`. |

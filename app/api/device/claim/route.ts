@@ -3,10 +3,14 @@
 // this until claimed, then receives its device key ONCE.
 //   malformed code                    → 400 (validated before any DB hit)
 //   no row, serial allocated          → auto-claim: key delivered + consumed NOW
+//                                       { status: "claimed", deviceKey, deviceId, mqtt }
 //   no row otherwise                  → { status: "pending" }
-//   pendingDeviceKey set              → { status: "claimed", deviceKey },
+//   pendingDeviceKey set              → { status: "claimed", deviceKey, deviceId, mqtt },
 //                                       then null key + code, stamp serial
 //   key already delivered             → { status: "claimed" }
+// deviceId + mqtt (see lib/mqtt.ts buildMqttConfigBlock) ride along on every key
+// delivery so a freshly claimed device never needs the extra /api/device/identity
+// round trip; mqtt is null when the EMQX env group is absent.
 // The serial is public (box label) and NEVER authenticates by itself; auto-claim
 // is the one-shot allocated→claimed transition only (hijack guard).
 
@@ -29,6 +33,7 @@ import {
 import { sendEmail } from "@/lib/email";
 import { autoClaimEmail } from "@/lib/registry-emails";
 import { syncDeviceSubscription } from "@/lib/billing/device-subscription";
+import { buildMqttConfigBlock } from "@/lib/mqtt";
 
 export const runtime = "nodejs";
 
@@ -107,7 +112,13 @@ export async function GET(req: Request) {
             console.error("[claim] auto-claim admin email failed (non-fatal)", err);
           }
         });
-        return NextResponse.json({ status: "claimed", deviceKey: auto.deviceKey });
+        const mqtt = await buildMqttConfigBlock(auto.deviceId);
+        return NextResponse.json({
+          status: "claimed",
+          deviceKey: auto.deviceKey,
+          deviceId: auto.deviceId,
+          mqtt,
+        });
       }
     }
   }
@@ -131,9 +142,15 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json(
-    decision.deviceKey
-      ? { status: decision.status, deviceKey: decision.deviceKey }
-      : { status: decision.status },
-  );
+  if (decision.deviceKey && device) {
+    const mqtt = await buildMqttConfigBlock(device.id);
+    return NextResponse.json({
+      status: decision.status,
+      deviceKey: decision.deviceKey,
+      deviceId: device.id,
+      mqtt,
+    });
+  }
+
+  return NextResponse.json({ status: decision.status });
 }

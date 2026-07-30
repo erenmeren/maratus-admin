@@ -94,15 +94,44 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
     return apiError("internal_error", "Could not enqueue the command.", 500);
   }
 
-  // Best-effort publish over MQTT. The DB row is already the source of record;
-  // if this fails (or MQTT is disabled), the device gets the command via HTTP
-  // polling and/or the heartbeat republish, so we never block the 202 on it.
-  await publishCommand(deviceId, {
+  // MQTT is the only transport, so a failed publish means the command will never
+  // reach the device. A trigger delivered minutes later is worthless — the
+  // customer is at the counter now — and leaving the row pending would make the
+  // heartbeat republish show an unwanted QR later. Fail closed instead: mark it
+  // failed, refund the reservation, and tell the caller.
+  const published = await publishCommand(deviceId, {
     commandId,
     type: "trigger",
     action: v.action,
     payload: v.payload,
   });
+  if (!published) {
+    await db
+      .update(deviceCommand)
+      .set({ status: "failed", result: "publish_failed" })
+      .where(eq(deviceCommand.id, commandId));
+    await cancelTriggerReservation({
+      organizationId: auth.organizationId,
+      deviceId,
+      commandId,
+      cost,
+      billing: reserved.billing,
+      month: reserved.month,
+    });
+    await db
+      .delete(apiIdempotency)
+      .where(
+        and(
+          eq(apiIdempotency.key, idemKey),
+          eq(apiIdempotency.organizationId, auth.organizationId),
+        ),
+      );
+    return apiError(
+      "transport_unavailable",
+      "Could not reach the device transport. No credit was charged; retry.",
+      503,
+    );
+  }
 
   return apiJson(body, 202);
 }

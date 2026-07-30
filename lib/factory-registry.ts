@@ -411,7 +411,10 @@ export async function autoClaimDevice(
 
   // Provision the device's MQTT credential (device key = MQTT password).
   // Fail-open + outside the transaction: a broker hiccup must never unwind a
-  // committed claim; the device just uses HTTP polling until reprovisioned.
+  // committed claim. There is no HTTP fallback — MQTT is the only transport — so
+  // the device ends up holding a key the broker will reject, and since the raw
+  // key is returned exactly once and only its hash is stored, the cloud cannot
+  // re-provision it later. Recovery is a re-claim (which mints a fresh key).
   try {
     await provisionDeviceMqtt(deviceId, key);
   } catch (err) {

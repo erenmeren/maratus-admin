@@ -77,8 +77,11 @@ export async function claimDevice(
       console.error("device-subscription sync after claim failed", err);
     }
     // Provision the device's MQTT credential (device key = MQTT password).
-    // Fail-open: a provisioning hiccup must never fail a claim — the device
-    // just uses HTTP polling until it is reprovisioned.
+    // Fail-open: a provisioning hiccup must never fail a claim. There is no HTTP
+    // fallback — MQTT is the only transport — so the cost is real: the device
+    // ends up holding a key the broker will reject, and since the raw key is
+    // returned exactly once and only its hash is stored, the cloud cannot
+    // re-provision it later. Recovery is a re-claim (which mints a fresh key).
     try {
       await provisionDeviceMqtt(existing.id, key);
     } catch (err) {
@@ -125,8 +128,11 @@ export async function claimDevice(
     console.error("device-subscription sync after claim failed", err);
   }
   // Provision the device's MQTT credential (device key = MQTT password).
-  // Fail-open: a provisioning hiccup must never fail a claim — the device
-  // just uses HTTP polling until it is reprovisioned.
+  // Fail-open: a provisioning hiccup must never fail a claim. There is no HTTP
+  // fallback — MQTT is the only transport — so the cost is real: the device ends
+  // up holding a key the broker will reject, and since the raw key is returned
+  // exactly once and only its hash is stored, the cloud cannot re-provision it
+  // later. Recovery is a re-claim (which mints a fresh key).
   try {
     await provisionDeviceMqtt(deviceId, key);
   } catch (err) {

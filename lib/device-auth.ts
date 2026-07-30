@@ -1,5 +1,8 @@
 // lib/device-auth.ts
-// Shared device bearer-key authentication (used by ingest + command endpoints).
+// Device bearer-key authentication. Sole caller since the HTTP device API was
+// deleted: app/api/device/identity/route.ts (the device proves itself with its
+// key to learn its MQTT identity). Everything else runs over MQTT, where the
+// same key is the broker password.
 
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";

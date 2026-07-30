@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { device as deviceTable, deviceCommand } from "@/lib/db/schema";
 import { getContext } from "@/lib/session";
 import { canManageTenant } from "@/lib/roles";
-import { isValidCommandType } from "@/lib/device-commands";
+import { isManualCommandType } from "@/lib/device-commands";
 import { id as genId } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { publishCommand } from "@/lib/mqtt";
@@ -16,7 +16,7 @@ import { publishOtaCommand } from "@/lib/mqtt-push";
 type Result = { ok: true } | { ok: false; error: string };
 
 export async function enqueueDeviceCommand(deviceId: string, type: string): Promise<Result> {
-  if (!isValidCommandType(type)) return { ok: false, error: "Invalid command." };
+  if (!isManualCommandType(type)) return { ok: false, error: "Invalid command." };
   const ctx = await getContext();
   if (!ctx) return { ok: false, error: "Not signed in." };
 

@@ -98,7 +98,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
   // reach the device. A trigger delivered minutes later is worthless — the
   // customer is at the counter now — and leaving the row pending would make the
   // heartbeat republish show an unwanted QR later. Fail closed instead: mark it
-  // failed, refund the reservation, and tell the caller.
+  // failed, refund the reservation, and tell the caller — but only if the row is
+  // still pending (see below; a lost publish response is not a lost publish).
   const published = await publishCommand(deviceId, {
     commandId,
     type: "trigger",
@@ -106,10 +107,36 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
     payload: v.payload,
   });
   if (!published) {
-    await db
+    // A lost publish RESPONSE is not a lost publish. publishCommand gives EMQX's
+    // HTTP publish API two 2-second attempts, and measured device ack latency is
+    // ~1.9s — the same order as that timeout. So the device can genuinely receive
+    // and ack the trigger while we are still deciding the publish "failed", in
+    // which case /api/mqtt/ack has already moved this row to acked and settled
+    // the hold. The status predicate below is what tells the two cases apart:
+    // only a row still `pending` is safe to unwind. Without it we would overwrite
+    // a real ack with `failed` and then call cancelTriggerReservation — and
+    // because holds are a scalar per-org counter (creditBalance.held), that
+    // release can consume a DIFFERENT in-flight trigger's hold, leaving its own
+    // ack to find nothing held and no-op. Two QRs shown, one credit charged, one
+    // bogus `release` ledger row, and a 503 for a trigger that actually worked.
+    const failed = await db
       .update(deviceCommand)
       .set({ status: "failed", result: "publish_failed" })
-      .where(eq(deviceCommand.id, commandId));
+      .where(and(eq(deviceCommand.id, commandId), eq(deviceCommand.status, "pending")))
+      .returning({ id: deviceCommand.id });
+    if (failed.length === 0) {
+      // Something already moved this row past `pending`; in practice that is the
+      // device acking while we timed out. The trigger DID reach the screen and
+      // the credit is correctly settled — so unwind NOTHING: leave the row, the
+      // reservation, and the idempotency claim exactly as the ack left them, and
+      // answer the caller with the normal success body.
+      console.warn("[trigger] publish reported failure but command left pending state", {
+        commandId,
+        deviceId,
+        organizationId: auth.organizationId,
+      });
+      return apiJson(body, 202);
+    }
     await cancelTriggerReservation({
       organizationId: auth.organizationId,
       deviceId,

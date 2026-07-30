@@ -1,8 +1,8 @@
 // lib/mqtt.ts
 // EMQX / MQTT device transport helpers. Pure and testable except publishCommand,
 // which performs the single outbound HTTP publish. Everything gates on
-// mqttEnabled(): with the EMQX env group absent, the whole module is inert and
-// the device transport falls back to HTTP polling.
+// mqttEnabled(): MQTT is the ONLY device transport, so with the EMQX env group
+// absent no device can be reached at all — there is deliberately no fallback.
 
 import { env } from "@/lib/env";
 
@@ -24,9 +24,9 @@ export function mqttEnabled(): boolean {
   );
 }
 
-/** The `mqtt` block for /api/device/config, or null when disabled. The device
- *  authenticates to the broker with its own device key as the MQTT password
- *  (username = deviceId), so no secret is carried here. */
+/** The `mqtt` block inside the pushed device config, or null when disabled. The
+ *  device authenticates to the broker with its own device key as the MQTT
+ *  password (username = deviceId), so no secret is carried here. */
 export async function buildMqttConfigBlock(deviceId: string): Promise<{
   host: string;
   port: number;
@@ -42,11 +42,9 @@ export async function buildMqttConfigBlock(deviceId: string): Promise<{
   };
 }
 
-/** Org/env-stable identity of the mqtt config block (enabled + broker host+port)
- *  for the device-config ETag. The per-device clientId/username are the stable
- *  device id and never change, so they're excluded — but toggling MQTT on/off or
- *  moving brokers MUST invalidate a device's cached (304) config so it picks up
- *  or drops the mqtt block instead of running on stale transport settings. */
+/** Broker identity (host+port) folded into the config version so a broker move
+ *  is reflected in a device's next config. Per-device clientId/username are the
+ *  stable device id and are excluded. */
 export function mqttConfigFingerprint(): string | null {
   if (!mqttEnabled()) return null;
   return `${env.MQTT_BROKER_HOST}:${Number(env.MQTT_BROKER_PORT ?? 8883)}`;

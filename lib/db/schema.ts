@@ -377,7 +377,11 @@ export const deviceCommand = pgTable(
     deviceId: text("device_id").notNull().references(() => device.id, { onDelete: "cascade" }),
     organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
     type: text("type", { enum: ["reboot", "refresh", "identify", "config-changed", "firmware-update", "trigger", "pin"] }).notNull(),
-    status: text("status", { enum: ["pending", "delivered", "acked", "failed", "expired"] }).default("pending").notNull(),
+    // No "delivered" state: it belonged to the retired HTTP command-poll
+    // transport, where the cloud learned of delivery when the device fetched the
+    // command. Over MQTT a publish is fire-and-forget and the next thing the
+    // cloud hears is the ack, so nothing can write it (verified: zero rows).
+    status: text("status", { enum: ["pending", "acked", "failed", "expired"] }).default("pending").notNull(),
     result: text("result"),
     action: text("action"),
     // How this trigger was paid: "credits" = a credit hold exists for this
@@ -394,7 +398,6 @@ export const deviceCommand = pgTable(
     expiresAt: timestamp("expires_at"),
     createdByUserId: text("created_by_user_id"),
     createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
-    deliveredAt: timestamp("delivered_at"),
     ackedAt: timestamp("acked_at"),
   },
   (t) => [

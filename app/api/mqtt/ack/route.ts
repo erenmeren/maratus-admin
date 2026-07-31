@@ -4,7 +4,7 @@
 // via its MQTT credential).
 
 import { NextResponse } from "next/server";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { deviceCommand } from "@/lib/db/schema";
 import { mqttEnabled, verifyWebhookSecret, parseAckPayload } from "@/lib/mqtt";
@@ -37,11 +37,9 @@ export async function POST(req: Request) {
   // Scope by deviceId (from the broker-injected clientid, NOT the payload) so a
   // device can only ack its own commands — commandId alone is device-controlled
   // and would let one device (and its tenant) ack/cancel another's command.
-  // Guard on "pending" OR "delivered": "delivered" is a legacy status from the
-  // retired HTTP command-poll transport, and any row still sitting in it must
-  // still be ackable. The deviceId scope plus this being a terminal-status
-  // transition (pending/delivered -> acked/failed) keeps it idempotent — a
-  // second ack just no-ops.
+  // Guard on "pending": the deviceId scope plus this being a terminal-status
+  // transition (pending -> acked/failed) keeps it idempotent — a second ack
+  // just no-ops.
   const [cmd] = await db
     .update(deviceCommand)
     .set({ status: nextStatus, ackedAt: now, result: ack.result })
@@ -49,7 +47,7 @@ export async function POST(req: Request) {
       and(
         eq(deviceCommand.id, ack.commandId),
         eq(deviceCommand.deviceId, clientid),
-        inArray(deviceCommand.status, ["pending", "delivered"]),
+        eq(deviceCommand.status, "pending"),
       ),
     )
     .returning({

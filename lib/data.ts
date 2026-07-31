@@ -1855,7 +1855,7 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
     const bd = { acked: 0, pending: 0, failed: 0 } as Record<string, number>;
     for (const r of breakdownRows) {
       if (r.status === "acked") bd.acked += Number(r.c);
-      else if (r.status === "pending" || r.status === "delivered") bd.pending += Number(r.c);
+      else if (r.status === "pending") bd.pending += Number(r.c);
       else bd.failed += Number(r.c); // failed + expired
     }
     const [{ stuckPending }] = await db
@@ -2023,8 +2023,17 @@ export async function getAlertHistory(): Promise<{ open: AlertRow[]; resolved: A
 }
 
 export async function getDeviceCommands(deviceId: string, limit = 20) {
+  // Explicit column list, not select(): a whole-row select names every column in
+  // the schema, so the running build breaks the moment a column it still knows
+  // about is dropped — which is exactly what retiring delivered_at did.
   const rows = await db
-    .select()
+    .select({
+      id: deviceCommand.id,
+      type: deviceCommand.type,
+      status: deviceCommand.status,
+      createdAt: deviceCommand.createdAt,
+      ackedAt: deviceCommand.ackedAt,
+    })
     .from(deviceCommand)
     .where(eq(deviceCommand.deviceId, deviceId))
     .orderBy(desc(deviceCommand.createdAt))

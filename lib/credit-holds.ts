@@ -3,9 +3,9 @@
 // (scoped to the calling org) so an org's own activity reconciles its holds
 // promptly without depending on a frequent cron — which the Vercel Hobby plan
 // does not allow (daily crons only). The deviceCommand status transition is the
-// lock: `WHERE status IN (pending,delivered) RETURNING` — only the winner of the
+// lock: `WHERE status = 'pending' RETURNING` — only the winner of the
 // transition releases, so this can never race an ack into a double credit move.
-import { and, eq, inArray, lt } from "drizzle-orm";
+import { and, eq, lt } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { deviceCommand } from "@/lib/db/schema";
 import { releaseHold } from "@/lib/credits";
@@ -18,12 +18,12 @@ export async function releaseExpiredHolds(opts?: { organizationId?: string }): P
     ? and(
         eq(deviceCommand.type, "trigger"),
         eq(deviceCommand.organizationId, opts.organizationId),
-        inArray(deviceCommand.status, ["pending", "delivered"]),
+        eq(deviceCommand.status, "pending"),
         lt(deviceCommand.expiresAt, now),
       )
     : and(
         eq(deviceCommand.type, "trigger"),
-        inArray(deviceCommand.status, ["pending", "delivered"]),
+        eq(deviceCommand.status, "pending"),
         lt(deviceCommand.expiresAt, now),
       );
 
@@ -43,7 +43,7 @@ export async function releaseExpiredHolds(opts?: { organizationId?: string }): P
     const [won] = await db
       .update(deviceCommand)
       .set({ status: "expired" })
-      .where(and(eq(deviceCommand.id, c.id), inArray(deviceCommand.status, ["pending", "delivered"])))
+      .where(and(eq(deviceCommand.id, c.id), eq(deviceCommand.status, "pending")))
       .returning({ id: deviceCommand.id });
     if (!won) continue; // lost the race to an ack
     // Included (plan-covered) triggers hold no credits — expiring the command is enough.

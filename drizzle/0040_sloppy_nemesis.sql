@@ -1,0 +1,1 @@
+ALTER TABLE "device_command" DROP COLUMN "delivered_at";

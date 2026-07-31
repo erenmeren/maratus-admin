@@ -36,14 +36,12 @@ const COMMAND_LABELS: Record<string, string> = {
 };
 const STATUS_LABELS: Record<string, string> = {
   pending: "Queued",
-  delivered: "Delivered",
   acked: "Completed",
   failed: "Failed",
   expired: "Expired",
 };
 const STATUS_DOTS: Record<string, string> = {
   pending: "bg-amber-500",
-  delivered: "bg-sky-500",
   acked: "bg-emerald-500",
   failed: "bg-red-500",
   expired: "bg-muted-foreground/40",

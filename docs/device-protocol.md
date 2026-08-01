@@ -37,6 +37,14 @@ claim-time provisioning missed. The device calls it at first boot, again if
 NVS is wiped, and again after 6 consecutive MQTT connect failures. Never on
 a timer.
 
+Rate limited on two keys, both fixed 60-second windows: **60 per IP**
+(checked before authentication) and **20 per device** (checked after, so it
+bounds the EMQX credential write). Over either, the route answers `429` with
+a `retry-after` header. The ceilings are orders of magnitude above the
+firmware's own cadence — the limits exist to bound a replayed device key,
+not to pace a real device — and the limiter fails open on a database fault
+so a stranded device can still repair itself.
+
 HTTPS is also used for presigned R2 asset fetches (branding images) and the
 firmware binary download (`esp_https_ota`) — MQTT only ever carries the
 manifest pointing at that binary, never the binary itself.

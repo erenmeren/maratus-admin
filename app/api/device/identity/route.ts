@@ -11,12 +11,43 @@
 import { NextResponse } from "next/server";
 import { authenticateDevice } from "@/lib/device-auth";
 import { buildMqttConfigBlock, provisionDeviceMqtt } from "@/lib/mqtt";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 
+// Both limits sit far above what firmware can legitimately produce, because
+// this is the route a stranded device repairs itself through — throttling a
+// real device here would be the failure it is meant to fix. The firmware asks
+// once per boot and, when MQTT stays down, at most once per ~6 minutes (Task
+// D2 pairs a 6-failure count with a 5-minute floor). What the limits do stop
+// is a *stolen* device key replayed in a loop: every authenticated call writes
+// an EMQX credential, so an unthrottled flood is an amplifier pointed at the
+// broker's admin API. checkRateLimit fails open on a DB fault, which keeps the
+// repair path alive even when the limiter itself is broken.
+const IP_LIMIT = { limit: 60, windowMs: 60_000 };
+const DEVICE_LIMIT = { limit: 20, windowMs: 60_000 };
+
+function tooMany(retryAfterMs: number) {
+  return NextResponse.json(
+    { error: "Too many requests" },
+    { status: 429, headers: { "retry-after": String(Math.ceil(retryAfterMs / 1000)) } },
+  );
+}
+
 export async function GET(req: Request) {
+  // Before authentication: an unauthenticated caller still costs a device-key
+  // hash + lookup, and the 401 path is the one an attacker probing keys hits.
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const ipRl = await checkRateLimit(`identity-ip:${ip}`, IP_LIMIT);
+  if (!ipRl.allowed) return tooMany(ipRl.retryAfterMs);
+
   const device = await authenticateDevice(req);
   if (!device) return NextResponse.json({ error: "Unknown or missing device key" }, { status: 401 });
+
+  // After authentication, before the EMQX write below — the credential
+  // re-provision is the expensive side effect this bounds.
+  const deviceRl = await checkRateLimit(`identity:${device.id}`, DEVICE_LIMIT);
+  if (!deviceRl.allowed) return tooMany(deviceRl.retryAfterMs);
 
   // Only reachable once authentication has already hashed this same header and
   // matched it to `device` above — re-parse it here (matching authenticateDevice's

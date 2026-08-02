@@ -6,6 +6,7 @@ import { AlertHistory } from "@/components/health/alert-history";
 import { PageHeader } from "@/components/page-header";
 import { PageSection } from "@/components/page-section";
 import { MqttHealthCard } from "@/components/admin/mqtt-health-card";
+import { IntegrationHealthCard } from "@/components/admin/integration-health-card";
 
 export default async function HealthPage() {
   await requirePlatformAdmin();
@@ -56,6 +57,10 @@ export default async function HealthPage() {
 
       <PageSection title="MQTT transport">
         <MqttHealthCard />
+      </PageSection>
+
+      <PageSection title="Integrations">
+        <IntegrationHealthCard />
       </PageSection>
 
       <PageSection title="Per-tenant usage">

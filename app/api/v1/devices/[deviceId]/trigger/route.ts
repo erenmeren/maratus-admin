@@ -9,7 +9,7 @@ import { reserveTrigger, cancelTriggerReservation } from "@/lib/trigger-billing"
 import { releaseExpiredHolds } from "@/lib/credit-holds";
 import { effectiveDeviceStatus } from "@/lib/device-status";
 import { id } from "@/lib/ids";
-import { publishCommand } from "@/lib/mqtt";
+import { publishCommand, mqttEnabled } from "@/lib/mqtt";
 
 export const runtime = "nodejs";
 const TTL_MS = 60_000;
@@ -44,6 +44,23 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
   if (!dev || dev.organizationId !== auth.organizationId) return apiError("device_not_found", "Device not found.", 404);
   if (effectiveDeviceStatus(dev.status, dev.lastSeenAt, new Date()) !== "online") {
     return apiError("device_offline", "Device is offline or paused.", 409);
+  }
+
+  // Two different 503s, told apart HERE rather than at the publish below, because
+  // only one of them can ever succeed on retry. A deployment missing the EMQX env
+  // group has no transport at all: retrying is futile, and reserving a credit only
+  // to refund it seconds later is churn in the ledger for a fault no caller can
+  // fix. Checked before the idempotency claim so this path leaves nothing behind.
+  if (!mqttEnabled()) {
+    console.error("[trigger] EMQX env group missing; no device transport is configured", {
+      deviceId,
+      organizationId: auth.organizationId,
+    });
+    return apiError(
+      "transport_unconfigured",
+      "The device transport is not configured on this deployment. No credit was charged; retrying will not help.",
+      503,
+    );
   }
 
   // Lazily reconcile this org's expired (unacked) holds before checking the balance,
@@ -153,6 +170,14 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
           eq(apiIdempotency.organizationId, auth.organizationId),
         ),
       );
+    // Reaching here means the transport IS configured (checked above) but the
+    // broker did not accept the publish — a transient fault, so unlike
+    // transport_unconfigured this one is worth retrying.
+    console.error("[trigger] EMQX publish failed; broker unreachable or rejecting", {
+      commandId,
+      deviceId,
+      organizationId: auth.organizationId,
+    });
     return apiError(
       "transport_unavailable",
       "Could not reach the device transport. No credit was charged; retry.",

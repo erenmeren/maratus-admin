@@ -2194,7 +2194,14 @@ export async function getCreditUsageAllOrgs(since: Date) {
     })
     .from(creditLedgerTable)
     .leftJoin(orgTable, eq(orgTable.id, creditLedgerTable.organizationId))
-    .where(and(inArray(creditLedgerTable.kind, ["settle", "spend"]), gte(creditLedgerTable.createdAt, since)))
+    .leftJoin(settingsTable, eq(settingsTable.organizationId, creditLedgerTable.organizationId))
+    .where(
+      and(
+        inArray(creditLedgerTable.kind, ["settle", "spend"]),
+        gte(creditLedgerTable.createdAt, since),
+        isNull(settingsTable.archivedAt),
+      ),
+    )
     .groupBy(creditLedgerTable.organizationId, orgTable.name)
     .orderBy(desc(sql`sum(${creditLedgerTable.credits})`));
 }
@@ -2233,8 +2240,11 @@ export type { CreditsOverview };
 
 /** Platform-admin: credits view for the admin Billing page (granted/purchased/consumed/outstanding). */
 export async function getCreditsOverview(): Promise<CreditsOverview> {
-  const [orgs, ledgerRows, balanceRows] = await Promise.all([
-    db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable),
+  const [orgRows, ledgerRows, balanceRows] = await Promise.all([
+    db
+      .select({ id: orgTable.id, name: orgTable.name, archivedAt: settingsTable.archivedAt })
+      .from(orgTable)
+      .leftJoin(settingsTable, eq(settingsTable.organizationId, orgTable.id)),
     db
       .select({
         organizationId: creditLedgerTable.organizationId,
@@ -2251,21 +2261,27 @@ export async function getCreditsOverview(): Promise<CreditsOverview> {
       .from(creditBalanceTable),
   ]);
 
+  const orgs = excludeArchived(orgRows);
+  const activeIds = new Set(orgs.map((o) => o.id));
   const nameOf = new Map(orgs.map((o) => [o.id, o.name]));
 
   return rollupCredits(
-    ledgerRows.map((r) => ({
-      orgId: r.organizationId,
-      name: nameOf.get(r.organizationId) ?? r.organizationId,
-      kind: r.kind,
-      credits: r.credits,
-      createdAt: r.createdAt,
-    })),
-    balanceRows.map((b) => ({
-      orgId: b.organizationId,
-      name: nameOf.get(b.organizationId) ?? b.organizationId,
-      available: b.available,
-    })),
+    ledgerRows
+      .filter((r) => activeIds.has(r.organizationId))
+      .map((r) => ({
+        orgId: r.organizationId,
+        name: nameOf.get(r.organizationId) ?? r.organizationId,
+        kind: r.kind,
+        credits: r.credits,
+        createdAt: r.createdAt,
+      })),
+    balanceRows
+      .filter((b) => activeIds.has(b.organizationId))
+      .map((b) => ({
+        orgId: b.organizationId,
+        name: nameOf.get(b.organizationId) ?? b.organizationId,
+        available: b.available,
+      })),
     new Date(),
   );
 }

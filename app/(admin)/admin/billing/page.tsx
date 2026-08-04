@@ -67,6 +67,10 @@ export default async function BillingPage() {
         />
       </div>
 
+      <p className="text-xs text-muted-foreground">
+        Archived customers&apos; frozen credits are excluded from these totals.
+      </p>
+
       {/* Per-tenant credits */}
       <Card className="overflow-hidden">
         <CardHeader>

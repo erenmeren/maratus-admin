@@ -243,6 +243,11 @@ export default async function CustomerDetailPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {tenant.billingPlan === "flat" && (
+            <p className="text-sm text-muted-foreground">
+              This tenant is on the flat plan — triggers do not consume credits.
+            </p>
+          )}
           {!isArchived && <GrantCreditsForm organizationId={tenantId} />}
 
           {creditLedger.length > 0 && (

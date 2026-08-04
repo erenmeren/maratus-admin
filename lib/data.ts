@@ -10,8 +10,9 @@
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
 //   • activationsToday / activationsThisMonth are derived from acked device-trigger commands
 
-import { and, asc, count, desc, eq, gte, inArray, isNotNull, lt, max, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, max, ne, sql } from "drizzle-orm";
 import { db } from "./db";
+import { excludeArchived } from "@/lib/archived";
 import { id as genId } from "@/lib/ids";
 import {
   alert as alertTable,
@@ -1807,9 +1808,17 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
   const inactiveCut = ms(INACTIVE_DAYS * 24 * 60 * 60 * 1000);
 
   try {
-    const devRows = await db
-      .select({ status: deviceTable.status, lastSeenAt: deviceTable.lastSeenAt })
-      .from(deviceTable);
+    const devRows = excludeArchived(
+      await db
+        .select({
+          status: deviceTable.status,
+          lastSeenAt: deviceTable.lastSeenAt,
+          archivedAt: settingsTable.archivedAt,
+        })
+        .from(deviceTable)
+        .leftJoin(settingsTable, eq(settingsTable.organizationId, deviceTable.organizationId))
+        .where(isNotNull(deviceTable.claimedAt)),
+    );
     const byStatus = { online: 0, offline: 0, paused: 0 } as Record<string, number>;
     for (const d of devRows) {
       byStatus[effectiveDeviceStatus(d.status, d.lastSeenAt, now)] += 1;
@@ -1820,6 +1829,8 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
       isNotNull(deviceTable.lastSeenAt),
       lt(deviceTable.lastSeenAt, staleCut),
       ne(deviceTable.status, "paused"),
+      isNotNull(deviceTable.claimedAt),
+      isNull(settingsTable.archivedAt),
     );
     const staleRows = await db
       .select({
@@ -1830,12 +1841,14 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
       })
       .from(deviceTable)
       .leftJoin(orgTable, eq(deviceTable.organizationId, orgTable.id))
+      .leftJoin(settingsTable, eq(settingsTable.organizationId, deviceTable.organizationId))
       .where(stalePred)
       .orderBy(deviceTable.lastSeenAt)
       .limit(50);
     const [{ staleCount }] = await db
       .select({ staleCount: count() })
       .from(deviceTable)
+      .leftJoin(settingsTable, eq(settingsTable.organizationId, deviceTable.organizationId))
       .where(stalePred);
 
     const trigAcked = and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "acked"));
@@ -1868,7 +1881,12 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
       .limit(5);
     const topTenants = topRows.map((r) => ({ id: r.id, name: r.name, count: Number(r.c) }));
 
-    const allOrgs = await db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable);
+    const allOrgs = excludeArchived(
+      await db
+        .select({ id: orgTable.id, name: orgTable.name, archivedAt: settingsTable.archivedAt })
+        .from(orgTable)
+        .leftJoin(settingsTable, eq(settingsTable.organizationId, orgTable.id)),
+    );
     const lastRows = await db
       .select({ org: deviceCommand.organizationId, last: max(deviceCommand.createdAt) })
       .from(deviceCommand)
@@ -1942,11 +1960,14 @@ export async function getAlertInputs(): Promise<{
   const [{ staleCount }] = await db
     .select({ staleCount: count() })
     .from(deviceTable)
+    .leftJoin(settingsTable, eq(settingsTable.organizationId, deviceTable.organizationId))
     .where(
       and(
         isNotNull(deviceTable.lastSeenAt),
         lt(deviceTable.lastSeenAt, staleCut),
         ne(deviceTable.status, "paused"),
+        isNotNull(deviceTable.claimedAt),
+        isNull(settingsTable.archivedAt),
       ),
     );
   const [{ stuckPendingCount }] = await db
@@ -1954,7 +1975,12 @@ export async function getAlertInputs(): Promise<{
     .from(deviceCommand)
     .where(and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "pending"), lt(deviceCommand.createdAt, stuckCut)));
 
-  const allOrgs = await db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable);
+  const allOrgs = excludeArchived(
+    await db
+      .select({ id: orgTable.id, name: orgTable.name, archivedAt: settingsTable.archivedAt })
+      .from(orgTable)
+      .leftJoin(settingsTable, eq(settingsTable.organizationId, orgTable.id)),
+  );
   const lastRows = await db
     .select({ org: deviceCommand.organizationId, last: max(deviceCommand.createdAt) })
     .from(deviceCommand)

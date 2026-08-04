@@ -9,8 +9,8 @@ export interface TenantHealthInput {
   deviceCount: number;
   onlineCount: number;
   offlineCount: number;
-  stuckPendingCount?: number;   // omitted on the cheap (list) path → treated as 0
-  lastActivityAt?: Date | null;  // omitted on the list path → inactivity not escalated
+  stuckPendingCount?: number;   // supplied by both the list and detail paths
+  lastActivityAt?: Date | null;  // supplied by both the list and detail paths
 }
 
 export function tenantHealthLevel(input: TenantHealthInput, now: Date): HealthLevel {

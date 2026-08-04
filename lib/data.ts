@@ -320,7 +320,10 @@ function rollUpStoreStatus(devices: Device[]): StoreSummary["status"] {
   return "offline";
 }
 
-function summarize(b: OrgBundle): TenantSummary {
+function summarize(
+  b: OrgBundle,
+  extras?: { stuckPendingCount?: number; lastActivityAt?: Date | null },
+): TenantSummary {
   const tenant = buildTenant(b);
   const allDevices = [
     ...tenant.stores.flatMap((s) => s.devices),
@@ -343,6 +346,8 @@ function summarize(b: OrgBundle): TenantSummary {
       deviceCount: allDevices.length,
       onlineCount,
       offlineCount,
+      stuckPendingCount: extras?.stuckPendingCount ?? 0,
+      lastActivityAt: extras?.lastActivityAt ?? null,
     },
     now,
   );
@@ -1095,7 +1100,25 @@ async function getTenantSummaries(opts?: {
   includeArchived?: boolean;
 }): Promise<TenantSummary[]> {
   const bundles = await loadAllOrgs(opts);
-  return bundles.map(summarize);
+  const stuckCutoff = new Date(Date.now() - STUCK_PENDING_MINUTES * 60_000);
+  const [stuckRows, lastRows] = await Promise.all([
+    db
+      .select({ org: deviceCommand.organizationId, c: count() })
+      .from(deviceCommand)
+      .where(and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "pending"), lt(deviceCommand.createdAt, stuckCutoff)))
+      .groupBy(deviceCommand.organizationId),
+    db
+      .select({ org: deviceCommand.organizationId, last: max(deviceCommand.createdAt) })
+      .from(deviceCommand)
+      .where(and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "acked")))
+      .groupBy(deviceCommand.organizationId),
+  ]);
+  const stuckBy = new Map(stuckRows.map((r) => [r.org, Number(r.c)]));
+  const lastBy = new Map<string, Date>();
+  for (const r of lastRows) if (r.last) lastBy.set(r.org, r.last);
+  return bundles.map((b) =>
+    summarize(b, { stuckPendingCount: stuckBy.get(b.org.id) ?? 0, lastActivityAt: lastBy.get(b.org.id) ?? null }),
+  );
 }
 
 export type CustomerViewFilter = "active" | "archived" | "all";
@@ -1150,7 +1173,8 @@ export interface AdminOverview {
 
 export async function getAdminOverview(): Promise<AdminOverview> {
   const bundles = await loadAllOrgs();
-  const summaries = bundles.map(summarize);
+  // no extras: the overview renders status badges, never TenantSummary.health
+  const summaries = bundles.map((b) => summarize(b));
   const monthly = sumSeries(bundles.map((b) => monthlySeries(b)));
 
   let activeDevices = 0;

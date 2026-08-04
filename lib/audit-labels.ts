@@ -7,6 +7,9 @@ export const AUDIT_LABELS: Record<string, string> = {
   "org.created": "Organization created",
   "org.suspended": "Organization suspended",
   "org.reactivated": "Organization reactivated",
+  // Legacy display only: the billing pivot (2026-07-04) removed every emitter of
+  // the seven actions below, but pre-pivot audit rows still exist in the DB and
+  // must keep rendering friendly labels. Do not remove; do not re-emit.
   "subscription.status_changed": "Subscription status changed",
   "invoice.paid": "Invoice paid",
   "invoice.payment_failed": "Payment failed",

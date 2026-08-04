@@ -858,26 +858,29 @@ listelenir:
   in 15+ minutes**" ("{n} cihaz 15+ dakikadır görülmedi") — 15 dakikadan uzun
   süredir kendini bildirmeyen (duraklatılmamış) cihaz sayısını gösterir.
 - **Beklemede takılı işlem (tetikleme) uyarısı (uyarı/warning rengi):** "**{n}
-  document(s) stuck pending 30+ minutes**" ("{n} beklemede takılı işlem
-  (tetikleme), 30+ dakikadır bekliyor") — 30 dakikadan uzun süredir "pending"
-  (beklemede) durumunda takılı kalan tetikleme sayısını gösterir.
+  trigger(s) stuck pending 30+ minutes**" ("{n} tetikleme, 30+ dakikadır
+  beklemede takılı") — 30 dakikadan uzun süredir "pending" (beklemede)
+  durumunda takılı kalan tetikleme sayısını gösterir.
 - **Hareketsiz kiracı uyarısı (bilgi/info rengi):** Son 7 gündür hiç
   aktivasyonu olmayan her kiracı için ayrı bir satır: "**{kiracı adı}: no
-  documents in 7 days**" ("{kiracı adı}: 7 gündür aktivasyon yok").
+  activations in 7 days**" ("{kiracı adı}: 7 gündür aktivasyon yok").
   Hareketsiz kiracı sayısı **5'ten fazla** ise, bu tek tek satırlar yerine
-  tek bir özet uyarıya **çöker (collapse)**: "**{n} tenants have no documents
-  in 7 days**" ("{n} kiracının 7 gündür aktivasyonu yok") — bu, çok sayıda
-  boş kiracısı olan bir platformda uyarı şeridinin aşırı uzamasını önler.
+  tek bir özet uyarıya **çöker (collapse)**: "**{n} tenants have no
+  activations in 7 days**" ("{n} kiracının 7 gündür aktivasyonu yok") — bu,
+  çok sayıda boş kiracısı olan bir platformda uyarı şeridinin aşırı
+  uzamasını önler.
 
-> **Önemli — "document" kelimesi tarihsel bir kalıntıdır:** Yukarıdaki iki
-> uyarı örneğinde geçen İngilizce **"document"** kelimesi ("document(s)
-> stuck pending 30+ minutes" ve "no documents in 7 days"), sistemin eski
-> (belge tabanlı) mimarisinden kalma bir kalıntıdır ve arayüz metni olduğu
-> için değiştirilemez. Ditto artık yalnızca tetikleme-modeliyle
-> (trigger-only) çalıştığından ve belgeleri kendi sunucularında
-> barındırmadığından (bkz. Bölüm 2.1), bu mesajlar aslında depolanan bir
-> belgeyi değil, **beklemede takılı bir işlemi (tetikleme)** ya da
-> **eksik aktivasyonu** işaret eder.
+> **Önemli — "documents-stuck" yalnızca dahili bir anahtar (key) adıdır:**
+> Yukarıdaki beklemede-takılı-işlem uyarısının sistem içindeki **anahtarı**
+> hâlâ tarihsel olarak **`documents-stuck`** adını taşır — bu, uyarı
+> kayıtlarının veritabanındaki kalıcı kimliği (dedupe anahtarı) olduğu için
+> kasıtlı olarak yeniden adlandırılmamıştır. Ancak ekranda gerçekten
+> gördüğünüz **kullanıcıya açık metin artık bu eski adı taşımaz**: yukarıdaki
+> "trigger(s) stuck pending 30+ minutes" ve "no activations in 7 days"
+> ifadeleri, Ditto'nun tetikleme-modeline (trigger-only) geçişiyle birlikte
+> zaten güncellenmiştir (bkz. Bölüm 2.1). Yani arayüzde "document" kelimesini
+> görmezsiniz — bu adın kalan tek izi, ekranda hiç görünmeyen dahili
+> `documents-stuck` anahtarıdır.
 
 **Filo güncelliği (Fleet freshness):** Dört KPI kartı içerir: **Cihazlar
 (Devices)** (toplam cihaz sayısı), **Çevrimiçi (Online)**, **Duraklatılmış
@@ -922,7 +925,7 @@ göre dökümünü gösterir.
   7 gün eşiğini kullanır — üçü de farklı sürelerdir.
 - Hareketsiz kiracı sayısı **5'i aştığında**, uyarı şeridinde kiracı adları
   tek tek görünmez; bunun yerine tek bir toplu sayı (örn. "7 tenants have no
-  documents in 7 days") gösterilir. Belirli bir kiracının durumunu görmek
+  activations in 7 days") gösterilir. Belirli bir kiracının durumunu görmek
   isterseniz **Per-tenant usage** bölümündeki **Inactive (7d+)** listesine
   veya **Müşteriler (Customers)** ekranına (Bölüm 5) bakın.
 - **Fleet freshness** altındaki eskimiş cihazlar tablosu, yalnızca eskimiş
@@ -939,7 +942,7 @@ kiracı bazlı bakiyeleri gösteren ekranı anlatır. Bu ekranın adresi
 
 Sol taraftaki gezinme menüsünde bu ekrana giden bağlantı **"Faturalandırma
 ve Krediler (Billing & Credits)"** olarak etiketlenir (bkz. Bölüm 3.4);
-ekranın kendi başlığı da aynı şekilde **"Billing & Credits"**tir.
+ekranın kendi başlığı da aynı şekilde **"Billing & Credits"**'tir.
 
 Ekranın alt açıklaması **"Platform-wide prepaid credit sales, consumption,
 and per-tenant balances."** ("Platform genelinde ön ödemeli kredi satışları,

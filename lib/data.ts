@@ -23,6 +23,7 @@ import {
   device as deviceTable,
   deviceCommand,
   factoryDevice,
+  firmwareRelease,
   invitation as invitationTable,
   member as memberTable,
   organization as orgTable,
@@ -2349,4 +2350,9 @@ export async function getPlanMix(): Promise<{
     else if (p === "base_usage") baseUsageDevices += Number(r.c);
   }
   return { credits: counts.credits, flat: counts.flat, baseUsage: counts.base_usage, flatDevices, baseUsageDevices };
+}
+
+/** Newest-first firmware releases for the admin Firmware page. */
+export async function getFirmwareReleases(limit = 50) {
+  return db.select().from(firmwareRelease).orderBy(desc(firmwareRelease.createdAt)).limit(limit);
 }

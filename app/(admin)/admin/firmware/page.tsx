@@ -1,18 +1,12 @@
-import { desc } from "drizzle-orm";
 import { requirePlatformAdmin } from "@/lib/session";
-import { db } from "@/lib/db";
-import { firmwareRelease } from "@/lib/db/schema";
+import { getFirmwareReleases } from "@/lib/data";
 import { PublishForm } from "./publish-form";
 import { DeleteReleaseButton } from "./delete-release-button";
 import { PageHeader } from "@/components/page-header";
 
 export default async function FirmwarePage() {
   await requirePlatformAdmin();
-  const releases = await db
-    .select()
-    .from(firmwareRelease)
-    .orderBy(desc(firmwareRelease.createdAt))
-    .limit(50);
+  const releases = await getFirmwareReleases();
 
   return (
     <>

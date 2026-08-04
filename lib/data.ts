@@ -243,7 +243,7 @@ export function currentMonthStart(): Date {
 }
 
 function mapTenantStatus(s: string | undefined): TenantStatus {
-  // tenant_settings.status is active|paused; the view model adds trial/suspended.
+  // tenant_settings.status is active|paused; the view model maps paused → suspended.
   return s === "paused" ? "suspended" : "active";
 }
 
@@ -1090,7 +1090,7 @@ export async function getDevice(
 // Super-admin panel
 // ============================================================================
 
-export async function getTenantSummaries(opts?: {
+async function getTenantSummaries(opts?: {
   includeArchived?: boolean;
 }): Promise<TenantSummary[]> {
   const bundles = await loadAllOrgs(opts);
@@ -1144,7 +1144,6 @@ export interface AdminOverview {
   totalCustomers: number;
   totalStores: number;
   monthly: TimePoint[];
-  daily: TimePoint[];
   topCustomers: TenantSummary[];
 }
 
@@ -1152,7 +1151,6 @@ export async function getAdminOverview(): Promise<AdminOverview> {
   const bundles = await loadAllOrgs();
   const summaries = bundles.map(summarize);
   const monthly = sumSeries(bundles.map((b) => monthlySeries(b)));
-  const daily = sumSeries(bundles.map((b) => dailySeries(b)));
 
   let activeDevices = 0;
   let totalDevices = 0;
@@ -1170,7 +1168,6 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     totalCustomers: summaries.length,
     totalStores: summaries.reduce((a, s) => a + s.storeCount, 0),
     monthly,
-    daily,
     topCustomers: [...summaries]
       .sort((a, b) => b.activationsThisMonth - a.activationsThisMonth)
       .slice(0, 5),

@@ -1,14 +1,5 @@
 // Small formatting helpers shared across screens.
 
-export function formatCurrency(n: number, opts: { cents?: boolean } = {}): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: opts.cents ? 2 : 0,
-    maximumFractionDigits: opts.cents ? 2 : 0,
-  }).format(n);
-}
-
 export function formatNumber(n: number): string {
   return new Intl.NumberFormat("en-US").format(n);
 }

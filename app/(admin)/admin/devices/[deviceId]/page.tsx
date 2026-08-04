@@ -10,7 +10,7 @@ import { DeviceRowActions } from "@/components/device-row-actions";
 import { CommandBar } from "@/components/devices/command-bar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getDevice, getDeviceCommands } from "@/lib/data";
+import { getDevice, getDeviceCommands, getDevicePinContext } from "@/lib/data";
 import { db } from "@/lib/db";
 import { device as deviceTable, factoryDevice, firmwareRelease } from "@/lib/db/schema";
 import { requirePlatformAdmin } from "@/lib/session";
@@ -28,31 +28,42 @@ export default async function AdminDeviceDetailPage({
   if (!result) notFound();
 
   const { device, store, tenant } = result;
-  const commands = await getDeviceCommands(device.id);
-
-  const [latestFw] = await db
-    .select({ version: firmwareRelease.version })
-    .from(firmwareRelease)
-    .orderBy(desc(firmwareRelease.createdAt))
-    .limit(1);
+  const [commands, [latestFw], [serialInfo], pinCtx] = await Promise.all([
+    getDeviceCommands(device.id),
+    db
+      .select({ version: firmwareRelease.version })
+      .from(firmwareRelease)
+      .orderBy(desc(firmwareRelease.createdAt))
+      .limit(1),
+    db
+      .select({
+        serial: deviceTable.serial,
+        serialConflict: deviceTable.serialConflict,
+        unregistered: factoryDevice.unregistered,
+      })
+      .from(deviceTable)
+      .leftJoin(factoryDevice, eq(factoryDevice.deviceId, deviceTable.id))
+      .where(eq(deviceTable.id, device.id))
+      .limit(1),
+    getDevicePinContext(device.tenantId, device.id),
+  ]);
   const updateAvailable = firmwareUpdateAvailable(device.firmwareVersion, latestFw?.version ?? null);
-
-  const [serialInfo] = await db
-    .select({
-      serial: deviceTable.serial,
-      serialConflict: deviceTable.serialConflict,
-      unregistered: factoryDevice.unregistered,
-    })
-    .from(deviceTable)
-    .leftJoin(factoryDevice, eq(factoryDevice.deviceId, deviceTable.id))
-    .where(eq(deviceTable.id, device.id))
-    .limit(1);
 
   const status: DeviceStatus = effectiveDeviceStatus(
     device.status,
     device.lastSeenAt ? new Date(device.lastSeenAt) : null,
     new Date(),
   );
+
+  const pinValue = !pinCtx
+    ? "—"
+    : pinCtx.pinMode === "custom"
+      ? `${device.pinnedUrl ?? "—"} (device)`
+      : pinCtx.pinMode === "none"
+        ? "Disabled"
+        : pinCtx.inheritedUrl
+          ? `${pinCtx.inheritedUrl} (${pinCtx.inheritedSource})`
+          : "—";
 
   const specs: { icon: typeof Cpu; label: string; value: string; mono?: boolean }[] = [
     { icon: HardDrive, label: "Device ID", value: device.id, mono: true },
@@ -69,7 +80,7 @@ export default async function AdminDeviceDetailPage({
       mono: true,
     },
     { icon: Tag, label: "Serial", value: serialInfo?.serial ?? "—", mono: true },
-    { icon: Pin, label: "Pinned QR", value: device.pinnedUrl ?? "—", mono: true },
+    { icon: Pin, label: "Pinned QR", value: pinValue, mono: true },
   ];
 
   return (

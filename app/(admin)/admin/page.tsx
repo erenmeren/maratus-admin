@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowUpRight, Cpu, FileText, Users } from "lucide-react";
+import { ArrowUpRight, Cpu, Zap, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { ActivationsAreaChart } from "@/components/charts";
@@ -40,9 +40,8 @@ export default async function AdminOverviewPage() {
         <KpiCard
           label="Activations this month"
           value={formatCompact(o.activationsThisMonth)}
-          delta={12.1}
           hint="platform-wide"
-          icon={FileText}
+          icon={Zap}
         />
         <KpiCard
           label="Active devices"

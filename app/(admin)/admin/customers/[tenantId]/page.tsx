@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Archive, Cpu, Mail, Phone, FileText, Store } from "lucide-react";
+import { Archive, Cpu, Mail, Phone, Zap, Store } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { SectionHeader } from "@/components/section-header";
 import { KpiCard } from "@/components/kpi-card";
@@ -156,7 +156,7 @@ export default async function CustomerDetailPage({
         <KpiCard
           label="Activations this month"
           value={formatNumber(summary.activationsThisMonth)}
-          icon={FileText}
+          icon={Zap}
         />
       </div>
 
@@ -243,6 +243,11 @@ export default async function CustomerDetailPage({
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {tenant.billingPlan === "flat" && (
+            <p className="text-sm text-muted-foreground">
+              This tenant is on the flat plan — triggers do not consume credits.
+            </p>
+          )}
           {!isArchived && <GrantCreditsForm organizationId={tenantId} />}
 
           {creditLedger.length > 0 && (

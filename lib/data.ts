@@ -5,13 +5,14 @@
 // `organizationId` (the active tenant); super-admin functions span all orgs.
 //
 // DB conventions → view-model conversions happen here:
-//   • money is stored in cents → exposed as dollars (invoice amount)
+//   • money is stored in cents → exposed as dollars (credit pack pricing)
 //   • tenant_settings.status (active|paused) → TenantStatus (active|suspended)
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
 //   • activationsToday / activationsThisMonth are derived from acked device-trigger commands
 
-import { and, asc, count, desc, eq, gte, inArray, isNotNull, lt, max, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, max, ne, sql } from "drizzle-orm";
 import { db } from "./db";
+import { excludeArchived } from "@/lib/archived";
 import { id as genId } from "@/lib/ids";
 import {
   alert as alertTable,
@@ -22,6 +23,7 @@ import {
   device as deviceTable,
   deviceCommand,
   factoryDevice,
+  firmwareRelease,
   invitation as invitationTable,
   member as memberTable,
   organization as orgTable,
@@ -243,7 +245,7 @@ export function currentMonthStart(): Date {
 }
 
 function mapTenantStatus(s: string | undefined): TenantStatus {
-  // tenant_settings.status is active|paused; the view model adds trial/suspended.
+  // tenant_settings.status is active|paused; the view model maps paused → suspended.
   return s === "paused" ? "suspended" : "active";
 }
 
@@ -319,7 +321,10 @@ function rollUpStoreStatus(devices: Device[]): StoreSummary["status"] {
   return "offline";
 }
 
-function summarize(b: OrgBundle): TenantSummary {
+function summarize(
+  b: OrgBundle,
+  extras?: { stuckPendingCount?: number; lastActivityAt?: Date | null },
+): TenantSummary {
   const tenant = buildTenant(b);
   const allDevices = [
     ...tenant.stores.flatMap((s) => s.devices),
@@ -342,6 +347,8 @@ function summarize(b: OrgBundle): TenantSummary {
       deviceCount: allDevices.length,
       onlineCount,
       offlineCount,
+      stuckPendingCount: extras?.stuckPendingCount ?? 0,
+      lastActivityAt: extras?.lastActivityAt ?? null,
     },
     now,
   );
@@ -356,6 +363,7 @@ function summarize(b: OrgBundle): TenantSummary {
     activationsThisMonth,
     health,
     archivedAt: b.settings?.archivedAt ? b.settings.archivedAt.toISOString() : null,
+    billingPlan: b.settings?.billingPlan ?? "credits",
   };
 }
 
@@ -1090,11 +1098,29 @@ export async function getDevice(
 // Super-admin panel
 // ============================================================================
 
-export async function getTenantSummaries(opts?: {
+async function getTenantSummaries(opts?: {
   includeArchived?: boolean;
 }): Promise<TenantSummary[]> {
   const bundles = await loadAllOrgs(opts);
-  return bundles.map(summarize);
+  const stuckCutoff = new Date(Date.now() - STUCK_PENDING_MINUTES * 60_000);
+  const [stuckRows, lastRows] = await Promise.all([
+    db
+      .select({ org: deviceCommand.organizationId, c: count() })
+      .from(deviceCommand)
+      .where(and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "pending"), lt(deviceCommand.createdAt, stuckCutoff)))
+      .groupBy(deviceCommand.organizationId),
+    db
+      .select({ org: deviceCommand.organizationId, last: max(deviceCommand.createdAt) })
+      .from(deviceCommand)
+      .where(and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "acked")))
+      .groupBy(deviceCommand.organizationId),
+  ]);
+  const stuckBy = new Map(stuckRows.map((r) => [r.org, Number(r.c)]));
+  const lastBy = new Map<string, Date>();
+  for (const r of lastRows) if (r.last) lastBy.set(r.org, r.last);
+  return bundles.map((b) =>
+    summarize(b, { stuckPendingCount: stuckBy.get(b.org.id) ?? 0, lastActivityAt: lastBy.get(b.org.id) ?? null }),
+  );
 }
 
 export type CustomerViewFilter = "active" | "archived" | "all";
@@ -1144,15 +1170,14 @@ export interface AdminOverview {
   totalCustomers: number;
   totalStores: number;
   monthly: TimePoint[];
-  daily: TimePoint[];
   topCustomers: TenantSummary[];
 }
 
 export async function getAdminOverview(): Promise<AdminOverview> {
   const bundles = await loadAllOrgs();
-  const summaries = bundles.map(summarize);
+  // no extras: the overview renders status badges, never TenantSummary.health
+  const summaries = bundles.map((b) => summarize(b));
   const monthly = sumSeries(bundles.map((b) => monthlySeries(b)));
-  const daily = sumSeries(bundles.map((b) => dailySeries(b)));
 
   let activeDevices = 0;
   let totalDevices = 0;
@@ -1170,7 +1195,6 @@ export async function getAdminOverview(): Promise<AdminOverview> {
     totalCustomers: summaries.length,
     totalStores: summaries.reduce((a, s) => a + s.storeCount, 0),
     monthly,
-    daily,
     topCustomers: [...summaries]
       .sort((a, b) => b.activationsThisMonth - a.activationsThisMonth)
       .slice(0, 5),
@@ -1200,6 +1224,7 @@ export async function getCustomerDetail(
   const b = await loadOrg(organizationId);
   if (!b) return null;
   const tenant = buildTenant(b);
+  // no extras: summary.health is never rendered — the page badge reads the health.level computed below
   const summary = summarize(b);
   const now = new Date();
 
@@ -1636,9 +1661,7 @@ export async function getArmedAllocationCountByStore(
 // getUnclaimedDevices) — re-exported here so callers have one data entrypoint.
 export { claimDevice, getUnclaimedDevices } from "./device-claim";
 
-// ============================================================================
-// Tenant billing view-model (subscription status, saved card, invoices).
-// ============================================================================
+// ---- Tenant billing data (credit balance, packs, plan) ----
 
 export async function getOrgAuditLog(organizationId: string, limit = 100) {
   const rows = await db
@@ -1812,9 +1835,17 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
   const inactiveCut = ms(INACTIVE_DAYS * 24 * 60 * 60 * 1000);
 
   try {
-    const devRows = await db
-      .select({ status: deviceTable.status, lastSeenAt: deviceTable.lastSeenAt })
-      .from(deviceTable);
+    const devRows = excludeArchived(
+      await db
+        .select({
+          status: deviceTable.status,
+          lastSeenAt: deviceTable.lastSeenAt,
+          archivedAt: settingsTable.archivedAt,
+        })
+        .from(deviceTable)
+        .leftJoin(settingsTable, eq(settingsTable.organizationId, deviceTable.organizationId))
+        .where(isNotNull(deviceTable.claimedAt)),
+    );
     const byStatus = { online: 0, offline: 0, paused: 0 } as Record<string, number>;
     for (const d of devRows) {
       byStatus[effectiveDeviceStatus(d.status, d.lastSeenAt, now)] += 1;
@@ -1825,6 +1856,8 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
       isNotNull(deviceTable.lastSeenAt),
       lt(deviceTable.lastSeenAt, staleCut),
       ne(deviceTable.status, "paused"),
+      isNotNull(deviceTable.claimedAt),
+      isNull(settingsTable.archivedAt),
     );
     const staleRows = await db
       .select({
@@ -1835,12 +1868,14 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
       })
       .from(deviceTable)
       .leftJoin(orgTable, eq(deviceTable.organizationId, orgTable.id))
+      .leftJoin(settingsTable, eq(settingsTable.organizationId, deviceTable.organizationId))
       .where(stalePred)
       .orderBy(deviceTable.lastSeenAt)
       .limit(50);
     const [{ staleCount }] = await db
       .select({ staleCount: count() })
       .from(deviceTable)
+      .leftJoin(settingsTable, eq(settingsTable.organizationId, deviceTable.organizationId))
       .where(stalePred);
 
     const trigAcked = and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "acked"));
@@ -1873,7 +1908,12 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
       .limit(5);
     const topTenants = topRows.map((r) => ({ id: r.id, name: r.name, count: Number(r.c) }));
 
-    const allOrgs = await db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable);
+    const allOrgs = excludeArchived(
+      await db
+        .select({ id: orgTable.id, name: orgTable.name, archivedAt: settingsTable.archivedAt })
+        .from(orgTable)
+        .leftJoin(settingsTable, eq(settingsTable.organizationId, orgTable.id)),
+    );
     const lastRows = await db
       .select({ org: deviceCommand.organizationId, last: max(deviceCommand.createdAt) })
       .from(deviceCommand)
@@ -1947,11 +1987,14 @@ export async function getAlertInputs(): Promise<{
   const [{ staleCount }] = await db
     .select({ staleCount: count() })
     .from(deviceTable)
+    .leftJoin(settingsTable, eq(settingsTable.organizationId, deviceTable.organizationId))
     .where(
       and(
         isNotNull(deviceTable.lastSeenAt),
         lt(deviceTable.lastSeenAt, staleCut),
         ne(deviceTable.status, "paused"),
+        isNotNull(deviceTable.claimedAt),
+        isNull(settingsTable.archivedAt),
       ),
     );
   const [{ stuckPendingCount }] = await db
@@ -1959,7 +2002,12 @@ export async function getAlertInputs(): Promise<{
     .from(deviceCommand)
     .where(and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "pending"), lt(deviceCommand.createdAt, stuckCut)));
 
-  const allOrgs = await db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable);
+  const allOrgs = excludeArchived(
+    await db
+      .select({ id: orgTable.id, name: orgTable.name, archivedAt: settingsTable.archivedAt })
+      .from(orgTable)
+      .leftJoin(settingsTable, eq(settingsTable.organizationId, orgTable.id)),
+  );
   const lastRows = await db
     .select({ org: deviceCommand.organizationId, last: max(deviceCommand.createdAt) })
     .from(deviceCommand)
@@ -2173,7 +2221,14 @@ export async function getCreditUsageAllOrgs(since: Date) {
     })
     .from(creditLedgerTable)
     .leftJoin(orgTable, eq(orgTable.id, creditLedgerTable.organizationId))
-    .where(and(inArray(creditLedgerTable.kind, ["settle", "spend"]), gte(creditLedgerTable.createdAt, since)))
+    .leftJoin(settingsTable, eq(settingsTable.organizationId, creditLedgerTable.organizationId))
+    .where(
+      and(
+        inArray(creditLedgerTable.kind, ["settle", "spend"]),
+        gte(creditLedgerTable.createdAt, since),
+        isNull(settingsTable.archivedAt),
+      ),
+    )
     .groupBy(creditLedgerTable.organizationId, orgTable.name)
     .orderBy(desc(sql`sum(${creditLedgerTable.credits})`));
 }
@@ -2211,9 +2266,19 @@ export async function getDeviceUsageThisMonth(
 export type { CreditsOverview };
 
 /** Platform-admin: credits view for the admin Billing page (granted/purchased/consumed/outstanding). */
-export async function getCreditsOverview(): Promise<CreditsOverview> {
-  const [orgs, ledgerRows, balanceRows] = await Promise.all([
-    db.select({ id: orgTable.id, name: orgTable.name }).from(orgTable),
+export async function getCreditsOverview(): Promise<
+  CreditsOverview & { planByOrg: Record<string, string> }
+> {
+  const [orgRows, ledgerRows, balanceRows] = await Promise.all([
+    db
+      .select({
+        id: orgTable.id,
+        name: orgTable.name,
+        archivedAt: settingsTable.archivedAt,
+        plan: settingsTable.billingPlan,
+      })
+      .from(orgTable)
+      .leftJoin(settingsTable, eq(settingsTable.organizationId, orgTable.id)),
     db
       .select({
         organizationId: creditLedgerTable.organizationId,
@@ -2230,21 +2295,65 @@ export async function getCreditsOverview(): Promise<CreditsOverview> {
       .from(creditBalanceTable),
   ]);
 
+  const orgs = excludeArchived(orgRows);
+  const activeIds = new Set(orgs.map((o) => o.id));
   const nameOf = new Map(orgs.map((o) => [o.id, o.name]));
+  const planByOrg = Object.fromEntries(orgs.map((o) => [o.id, o.plan ?? "credits"]));
 
-  return rollupCredits(
-    ledgerRows.map((r) => ({
-      orgId: r.organizationId,
-      name: nameOf.get(r.organizationId) ?? r.organizationId,
-      kind: r.kind,
-      credits: r.credits,
-      createdAt: r.createdAt,
-    })),
-    balanceRows.map((b) => ({
-      orgId: b.organizationId,
-      name: nameOf.get(b.organizationId) ?? b.organizationId,
-      available: b.available,
-    })),
-    new Date(),
+  return {
+    ...rollupCredits(
+      ledgerRows
+        .filter((r) => activeIds.has(r.organizationId))
+        .map((r) => ({
+          orgId: r.organizationId,
+          name: nameOf.get(r.organizationId) ?? r.organizationId,
+          kind: r.kind,
+          credits: r.credits,
+          createdAt: r.createdAt,
+        })),
+      balanceRows
+        .filter((b) => activeIds.has(b.organizationId))
+        .map((b) => ({
+          orgId: b.organizationId,
+          name: nameOf.get(b.organizationId) ?? b.organizationId,
+          available: b.available,
+        })),
+      new Date(),
+    ),
+    planByOrg,
+  };
+}
+
+/** Active-tenant count per billing plan + claimed-device counts for the
+ *  subscription tracks (the revenue proxy while Stripe figures stay out of scope). */
+export async function getPlanMix(): Promise<{
+  credits: number; flat: number; baseUsage: number; flatDevices: number; baseUsageDevices: number;
+}> {
+  const orgs = excludeArchived(
+    await db
+      .select({ id: orgTable.id, archivedAt: settingsTable.archivedAt, plan: settingsTable.billingPlan })
+      .from(orgTable)
+      .leftJoin(settingsTable, eq(settingsTable.organizationId, orgTable.id)),
   );
+  const planOf = new Map(orgs.map((o) => [o.id, o.plan ?? "credits"]));
+  const counts = { credits: 0, flat: 0, base_usage: 0 } as Record<string, number>;
+  for (const p of planOf.values()) counts[p] = (counts[p] ?? 0) + 1;
+
+  const devRows = await db
+    .select({ org: deviceTable.organizationId, c: count() })
+    .from(deviceTable)
+    .where(isNotNull(deviceTable.claimedAt))
+    .groupBy(deviceTable.organizationId);
+  let flatDevices = 0, baseUsageDevices = 0;
+  for (const r of devRows) {
+    const p = planOf.get(r.org);
+    if (p === "flat") flatDevices += Number(r.c);
+    else if (p === "base_usage") baseUsageDevices += Number(r.c);
+  }
+  return { credits: counts.credits, flat: counts.flat, baseUsage: counts.base_usage, flatDevices, baseUsageDevices };
+}
+
+/** Newest-first firmware releases for the admin Firmware page. */
+export async function getFirmwareReleases(limit = 50) {
+  return db.select().from(firmwareRelease).orderBy(desc(firmwareRelease.createdAt)).limit(limit);
 }

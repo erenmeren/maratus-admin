@@ -34,3 +34,35 @@ describe("tenantHealthLevel", () => {
     expect(tenantHealthLevel({ ...base, deviceCount: 0, onlineCount: 0, offlineCount: 0 }, now)).toBe("healthy");
   });
 });
+
+describe("tenantHealthLevel — unified list/detail inputs", () => {
+  const now2 = new Date("2026-08-04T12:00:00Z");
+
+  it("warns on stuck pending even with the whole fleet online", () => {
+    expect(
+      tenantHealthLevel(
+        { deviceCount: 3, onlineCount: 3, offlineCount: 0, stuckPendingCount: 1, lastActivityAt: now2 },
+        now2,
+      ),
+    ).toBe("warning");
+  });
+
+  it("warns after INACTIVE_DAYS of no activity", () => {
+    const stale = new Date(now2.getTime() - (INACTIVE_DAYS + 1) * 86_400_000);
+    expect(
+      tenantHealthLevel(
+        { deviceCount: 1, onlineCount: 1, offlineCount: 0, stuckPendingCount: 0, lastActivityAt: stale },
+        now2,
+      ),
+    ).toBe("warning");
+  });
+
+  it("stays healthy for a never-active org with everything online", () => {
+    expect(
+      tenantHealthLevel(
+        { deviceCount: 1, onlineCount: 1, offlineCount: 0, stuckPendingCount: 0, lastActivityAt: null },
+        now2,
+      ),
+    ).toBe("healthy");
+  });
+});

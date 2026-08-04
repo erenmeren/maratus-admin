@@ -13,7 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import type { TimePoint } from "@/lib/types";
-import { formatCompact, formatCurrency, formatNumber } from "@/lib/format";
+import { formatCompact, formatNumber } from "@/lib/format";
 
 const AXIS = {
   stroke: "var(--muted-foreground)",
@@ -34,13 +34,11 @@ function ChartTooltip({
   payload,
   label,
   unit,
-  money,
 }: {
   active?: boolean;
   payload?: TipItem[];
   label?: string;
   unit?: string;
-  money?: boolean;
 }) {
   if (!active || !payload?.length) return null;
   return (
@@ -53,9 +51,7 @@ function ChartTooltip({
             style={{ background: p.color }}
           />
           <span className="tabular-nums text-foreground">
-            {money
-              ? formatCurrency(Number(p.value), { cents: true })
-              : formatNumber(Number(p.value))}
+            {formatNumber(Number(p.value))}
           </span>
           {unit && <span>{unit}</span>}
         </div>
@@ -113,11 +109,9 @@ export interface BreakdownDatum {
 export function BreakdownBarChart({
   data,
   height = 280,
-  money = false,
 }: {
   data: BreakdownDatum[];
   height?: number;
-  money?: boolean;
 }) {
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -130,9 +124,7 @@ export function BreakdownBarChart({
         <XAxis
           type="number"
           {...AXIS}
-          tickFormatter={(v) =>
-            money ? `$${formatCompact(Number(v))}` : formatCompact(Number(v))
-          }
+          tickFormatter={(v) => formatCompact(Number(v))}
         />
         <YAxis
           type="category"
@@ -142,7 +134,7 @@ export function BreakdownBarChart({
           tickFormatter={(v: string) => (v.length > 18 ? v.slice(0, 17) + "…" : v)}
         />
         <Tooltip
-          content={<ChartTooltip money={money} unit={money ? undefined : "activations"} />}
+          content={<ChartTooltip unit="activations" />}
           cursor={{ fill: "var(--accent)", opacity: 0.4 }}
         />
         <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={18}>

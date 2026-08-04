@@ -77,8 +77,8 @@ Bir cihazın müşteriye QR kod gösterebilmesi için aşağıdaki akış izleni
    trigger** isteği).
 2. Bu istek karşılığında kiracının kredi bakiyesinden **1 kredi rezerve edilir**
    (henüz kesin olarak düşülmez, sadece ayrılır).
-3. Cihaz, bekleyen komutları düzenli olarak yoklar (polling), komutu alır ve
-   ekranında ilgili URL'nin QR kodunu gösterir.
+3. Cihaz, kalıcı bir MQTT bağlantısı üzerinden komutu anında alır — yoklama
+   (polling) yoktur — ve ekranında ilgili URL'nin QR kodunu gösterir.
 4. Cihaz, komutu işleyip işlemediğini bildirir (ack):
    - İşlem **başarılı** olduysa, rezerve edilen kredi kalıcı olarak **düşülür
      (settle)**.
@@ -171,7 +171,7 @@ menüsünde **"Platform"** adlı bir grup görürsünüz. Bu grup, aşağıdaki 
 3. **Cihaz Filosu (Device Fleet)**
 4. **Sağlık (Health)**
 5. **Ürün Yazılımı (Firmware)**
-6. **Faturalandırma ve Gelir (Billing & Revenue)**
+6. **Faturalandırma ve Krediler (Billing & Credits)**
 
 Bu ekranların her biri, kılavuzun ilerleyen bölümlerinde ayrıntılı olarak
 anlatılacaktır.
@@ -207,22 +207,14 @@ kartları)** yer alır:
 
 1. **Bu ayki aktivasyonlar (Activations this month):** Bu ay platform
    genelinde gerçekleşen toplam aktivasyon sayısını gösterir; ipucu
-   metni "platform-wide" ("platform genelinde") yazar. Kartın yanında
-   **+12.1%** değerinde bir değişim rozeti (delta badge) görünür.
-
-   > **Önemli — bu rakam sabittir:** Karttaki **+12.1%** değişim rozeti,
-   > uygulama kodunda **sabit (hardcoded)** bir değer olarak yazılmıştır;
-   > herhangi bir gerçek/canlı (live) veriden hesaplanmaz. Bu ekranı ne zaman
-   > açarsanız açın, önceki ayla karşılaştırma olarak her zaman aynı **+12.1%**
-   > değerini görürsünüz. Bu rakamı gerçek bir büyüme/aylık karşılaştırma
-   > yüzdesi olarak yorumlamayın — yalnızca görsel bir yer tutucudur.
-   > (Karşılaştırma için: aşağıdaki **Aktif cihazlar** ve **Müşteriler**
-   > kartlarında böyle bir rozet yoktur; bu rozet yalnızca bu karta özeldir.)
+   metni "platform-wide" ("platform genelinde") yazar. Kart yalnızca bu
+   sayıyı gösterir — önceki ayla karşılaştıran bir değişim rozeti
+   (delta badge) yoktur.
 
 2. **Aktif cihazlar (Active devices):** Şu anda çevrimiçi olan cihaz sayısını,
    toplam cihaz sayısına oranla `aktif/toplam` (`active/total`) biçiminde
-   (örn. "5/6") gösterir; ipucu metni "printers online" ("çevrimiçi
-   yazıcılar") yazar. Bu kartta değişim rozeti bulunmaz.
+   (örn. "5/6") gösterir; ipucu metni "screens online" ("çevrimiçi
+   ekranlar") yazar. Bu kartta değişim rozeti bulunmaz.
 
 3. **Müşteriler (Customers):** Platformdaki toplam müşteri (kiracı) sayısını
    gösterir; ipucu metni ilgili müşterilerin toplam mağaza sayısını "{N}
@@ -277,9 +269,9 @@ bağlantılar içerir. Bir müşterinin ayrıntılarına gitmek isterseniz:
   görüntüleme + linkler). Bir ayar değiştirmek veya kayıt oluşturmak
   istiyorsanız ilgili diğer ekranlara (**Müşteriler**, **Cihaz Filosu**, vb.)
   gitmeniz gerekir.
-- **Bu ayki aktivasyonlar (Activations this month)** kartındaki
-  **+12.1%** rozetinin **sabit (hardcoded)** bir değer olduğunu unutmayın —
-  bu, gerçek bir aylık karşılaştırma değildir; canlı veri değildir.
+- **Bu ayki aktivasyonlar (Activations this month)** kartında önceki ayla
+  karşılaştırma yapan bir değişim rozeti (delta badge) **yoktur**; kart yalnızca
+  bu ayki toplam sayıyı gösterir.
 - **Şirkete göre krediler (Credits by company)** tablosu yalnızca ilk 10
   şirketi gösterir; platformda 10'dan fazla şirket kredi harcamışsa, bu
   listede yer almayan şirketler olabilir.
@@ -316,12 +308,13 @@ Ekranın ana kısmında bir tablo yer alır; sütunları şunlardır:
   - **Sağlıklı (Healthy)** — yeşil nokta,
   - **Uyarı (Warning)** — amber (turuncu-sarı) nokta,
   - **Kritik (Critical)** — kırmızı nokta.
+- **Plan:** Müşterinin faturalandırma planını gösteren bir rozet — **Credits**,
+  **Flat** veya **Base + Usage**.
 - **Aktivasyonlar (ay) (Activations (mo.)):** O müşterinin bu ayki toplam
   aktivasyon sayısı.
 - **Durum (Status):** Müşterinin hesap durumunu gösteren bir rozet (badge).
   Alabileceği değerler:
   - **Aktif (Active)** — yeşil rozet,
-  - **Deneme (Trial)** — mor rozet,
   - **Askıya alınmış (Suspended)** — kırmızı rozet.
 - Satırın en sağında bir **ok işareti (chevron)** bulunur; bu, satırın
   tıklanabilir olduğunu ve bir ayrıntı sayfasına götürdüğünü belirtir.
@@ -397,7 +390,7 @@ geri bağlantısı bulunur.
 Ekran, yukarıdan aşağıya doğru şu kartlardan oluşur:
 
 **Başlık kartı (Header card):** Müşterinin adını ve hesabın **durum rozetini
-(status badge)** gösterir — Aktif/Deneme/Askıya alınmış (bkz. Bölüm 5,
+(status badge)** gösterir — Aktif/Askıya alınmış (bkz. Bölüm 5,
 **Durum (Status)** sütunu). Altında iki iletişim bilgisi yer alır: **e-posta
 adresi** (bir zarf simgesiyle, **E-posta (Mail)**) ve **telefon numarası**
 (bir ahize simgesiyle, **Telefon (Phone)**). Kartın sağında **Şube ekle
@@ -437,7 +430,7 @@ durumu özetlenir: **Available:** (kullanılabilir kredi) {n} ve **Held:**
   gösterilir.
 
 **Atanmış cihazlar kartı (Assigned devices card):** Başlığın altında "{N}
-printers across all stores" ("Tüm mağazalarda {N} yazıcı") açıklaması,
+screens across all stores" ("Tüm mağazalarda {N} ekran") açıklaması,
 sağ üstte ise **Cihaz ekle (Add device)** düğmesi bulunur. Tablo sütunları:
 **Cihaz (Device)** (cihaz kimliği), **Mağaza (Store)**, **Durum (Status)**
 (bir renkli nokta ile), **Son görülme (Last seen)**, **Aktivasyonlar (ay)
@@ -501,13 +494,13 @@ sağlandı"), "Credits granted" ("Kredi yüklendi"), "Device paused/resumed"
 
 1. **Atanmış cihazlar (Assigned devices)** kartındaki **Cihaz ekle (Add
    device)** düğmesine tıklayın.
-2. Karşınıza başlığı **"Add device"**, açıklaması **"Provision a new printer
+2. Karşınıza başlığı **"Add device"**, açıklaması **"Provision a new screen
    for {customer}. You'll get a pairing code to enter on the device."**
-   ("{müşteri} için yeni bir yazıcı sağlayın. Cihaza girmeniz için bir
+   ("{müşteri} için yeni bir ekran sağlayın. Cihaza girmeniz için bir
    eşleştirme kodu alacaksınız.") olan bir pencere açılır. Bu pencerede iki
    alan bulunur:
-   - **Cihaz adı (Device name)** — yer tutucu "e.g. Printer 1" ("örn.
-     Printer 1").
+   - **Cihaz adı (Device name)** — yer tutucu "e.g. Screen 1" ("örn.
+     Screen 1").
    - **Mağaza (isteğe bağlı) (Store (optional))** — açılır bir liste;
      varsayılan değeri **"Unassigned"** ("Atanmamış") olup, altında "Leave
      unassigned to let the tenant claim it into a store." ("Kiracının
@@ -553,9 +546,10 @@ ekranın adresi **`/admin/devices`**'tır.
 
 ### Bu ekran ne işe yarar?
 
-Cihaz Filosu ekranının başlığı **"Device Fleet"**, alt açıklaması ise **"Every
-printer across every customer, in one place."** ("Her müşteriye ait her
-yazıcı, tek bir yerde.") biçimindedir. Bu ekran, Süper Admin'in platformdaki
+Cihaz Filosu ekranının başlığı **"Device Fleet"**, alt açıklaması ise **"{N}
+screens · {M} online across every customer"** ("{N} ekran · {M} çevrimiçi,
+tüm müşteriler genelinde") biçiminde, filoyu özetleyen dinamik bir metindir.
+Bu ekran, Süper Admin'in platformdaki
 **tüm cihazları** — hangi müşteriye ve mağazaya ait olduklarından bağımsız
 olarak — tek bir listede görmesini, filtrelemesini ve her cihaz üzerinde
 işlem (duraklatma, yeniden adlandırma, taşıma, silme vb.) yapmasını sağlar.
@@ -635,10 +629,9 @@ düğmesine tıkladığınızda aşağıdaki eylemler açılır:
   kaldırıldı (Device unassigned)** bildirimi görünür.
 - **Sil (Delete):** **Yıkıcı (destructive)** bir eylemdir; tıklandığında bir
   onay penceresi açılır: başlık "Delete device?" ("Cihaz silinsin mi?"),
-  açıklama "This permanently removes {ad} and its document history. This
-  can't be undone." ("Bu, {ad} adlı cihazı ve belge geçmişini (cihazın
-  geçmiş aktivasyon kayıtları) kalıcı olarak kaldırır. Bu işlem geri
-  alınamaz."). Onaylarsanız cihaz kalıcı olarak
+  açıklama "This permanently removes {ad} and its command history. This
+  can't be undone." ("Bu, {ad} adlı cihazı ve komut geçmişini kalıcı olarak
+  kaldırır. Bu işlem geri alınamaz."). Onaylarsanız cihaz kalıcı olarak
   silinir ve **Cihaz silindi (Device deleted)** bildirimi görünür.
 
 ### Cihaz Detayı (Device Detail)
@@ -650,7 +643,7 @@ sahip bir cihaz bulunamazsa ekran **404 (bulunamadı)** hatası döner.
 
 Ekranın en üstünde **Cihaz Filosu**'na dönmenizi sağlayan bir **"← Device
 Fleet"** geri bağlantısı bulunur. Başlık, cihazın adıdır; alt açıklama ise
-"Printer at {mağaza}" ("{mağaza}'daki yazıcı") biçimindedir.
+"Screen at {mağaza}" ("{mağaza}'daki ekran") biçimindedir.
 
 Ekranda şu bölümler yer alır:
 
@@ -688,11 +681,9 @@ firmware)**.
    komuta karşılık gelen düğmeye tıklayın: **Yeniden başlat (Reboot)**,
    **Yapılandırmayı yenile (Refresh config)**, **Tanımla (Identify)** veya
    **Ürün yazılımını güncelle (Update firmware)**.
-2. Komut sıraya alınır (kuyruğa eklenir); ekranda "{komut} queued — the device
-   will pick it up on its next check-in." ("{komut} kuyruğa alındı — cihaz bir
-   sonraki bağlantı kontrolünde bunu alacak.") mesajı görünür. Yani komut
-   **anında** cihaza iletilmez; cihaz bir sonraki kez sunucuyu yokladığında
-   (poll ettiğinde) komutu alır.
+2. Komut, cihazın kalıcı MQTT bağlantısı üzerinden **anında** iletilir;
+   ekranda "{komut} sent — pushed to the device over MQTT." ("{komut}
+   gönderildi — MQTT üzerinden cihaza iletildi.") mesajı görünür.
 3. Gönderdiğiniz komut, bölümün altındaki **komut geçmişi (command history)**
    tablosuna yeni bir satır olarak eklenir. Bu tablonun sütunları: **Komut
    (Command)** (komut türü), **Durum (Status)** ve **Kuyruğa alınma (Queued)**
@@ -718,10 +709,11 @@ firmware)**.
   **duraklatma (paused) her zaman önceliklidir** — bir cihaz hem
   duraklatılmış hem de 15 dakikadan uzun süredir görülmemiş olsa bile,
   gösterilen durum yine **Paused**'dır, **Offline** değil.
-- **Uzaktan kontrol (Remote control)** düğmeleriyle gönderdiğiniz komutlar
-  **anında yürütülmez**; cihaz komutu ancak bir sonraki bağlantı kontrolünde
-  (poll) alır ve işler. Komutun ne zaman işlendiğini görmek için **komut
-  geçmişi (command history)** tablosundaki **Durum (Status)** sütununu kontrol edin.
+- **Uzaktan kontrol (Remote control)** düğmeleriyle gönderdiğiniz komutlar,
+  cihazın kalıcı MQTT bağlantısı üzerinden **anında** iletilir — yoklama
+  (poll) yoktur. Komutun cihaz tarafından ne zaman işlendiğini görmek için
+  **komut geçmişi (command history)** tablosundaki **Durum (Status)**
+  sütununu kontrol edin.
 
 ## 8. Firmware
 
@@ -859,26 +851,29 @@ listelenir:
   in 15+ minutes**" ("{n} cihaz 15+ dakikadır görülmedi") — 15 dakikadan uzun
   süredir kendini bildirmeyen (duraklatılmamış) cihaz sayısını gösterir.
 - **Beklemede takılı işlem (tetikleme) uyarısı (uyarı/warning rengi):** "**{n}
-  document(s) stuck pending 30+ minutes**" ("{n} beklemede takılı işlem
-  (tetikleme), 30+ dakikadır bekliyor") — 30 dakikadan uzun süredir "pending"
-  (beklemede) durumunda takılı kalan tetikleme sayısını gösterir.
+  trigger(s) stuck pending 30+ minutes**" ("{n} tetikleme, 30+ dakikadır
+  beklemede takılı") — 30 dakikadan uzun süredir "pending" (beklemede)
+  durumunda takılı kalan tetikleme sayısını gösterir.
 - **Hareketsiz kiracı uyarısı (bilgi/info rengi):** Son 7 gündür hiç
   aktivasyonu olmayan her kiracı için ayrı bir satır: "**{kiracı adı}: no
-  documents in 7 days**" ("{kiracı adı}: 7 gündür aktivasyon yok").
+  activations in 7 days**" ("{kiracı adı}: 7 gündür aktivasyon yok").
   Hareketsiz kiracı sayısı **5'ten fazla** ise, bu tek tek satırlar yerine
-  tek bir özet uyarıya **çöker (collapse)**: "**{n} tenants have no documents
-  in 7 days**" ("{n} kiracının 7 gündür aktivasyonu yok") — bu, çok sayıda
-  boş kiracısı olan bir platformda uyarı şeridinin aşırı uzamasını önler.
+  tek bir özet uyarıya **çöker (collapse)**: "**{n} tenants have no
+  activations in 7 days**" ("{n} kiracının 7 gündür aktivasyonu yok") — bu,
+  çok sayıda boş kiracısı olan bir platformda uyarı şeridinin aşırı
+  uzamasını önler.
 
-> **Önemli — "document" kelimesi tarihsel bir kalıntıdır:** Yukarıdaki iki
-> uyarı örneğinde geçen İngilizce **"document"** kelimesi ("document(s)
-> stuck pending 30+ minutes" ve "no documents in 7 days"), sistemin eski
-> (belge tabanlı) mimarisinden kalma bir kalıntıdır ve arayüz metni olduğu
-> için değiştirilemez. Ditto artık yalnızca tetikleme-modeliyle
-> (trigger-only) çalıştığından ve belgeleri kendi sunucularında
-> barındırmadığından (bkz. Bölüm 2.1), bu mesajlar aslında depolanan bir
-> belgeyi değil, **beklemede takılı bir işlemi (tetikleme)** ya da
-> **eksik aktivasyonu** işaret eder.
+> **Önemli — "documents-stuck" yalnızca dahili bir anahtar (key) adıdır:**
+> Yukarıdaki beklemede-takılı-işlem uyarısının sistem içindeki **anahtarı**
+> hâlâ tarihsel olarak **`documents-stuck`** adını taşır — bu, uyarı
+> kayıtlarının veritabanındaki kalıcı kimliği (dedupe anahtarı) olduğu için
+> kasıtlı olarak yeniden adlandırılmamıştır. Ancak ekranda gerçekten
+> gördüğünüz **kullanıcıya açık metin artık bu eski adı taşımaz**: yukarıdaki
+> "trigger(s) stuck pending 30+ minutes" ve "no activations in 7 days"
+> ifadeleri, Ditto'nun tetikleme-modeline (trigger-only) geçişiyle birlikte
+> zaten güncellenmiştir (bkz. Bölüm 2.1). Yani arayüzde "document" kelimesini
+> görmezsiniz — bu adın kalan tek izi, ekranda hiç görünmeyen dahili
+> `documents-stuck` anahtarıdır.
 
 **Filo güncelliği (Fleet freshness):** Dört KPI kartı içerir: **Cihazlar
 (Devices)** (toplam cihaz sayısı), **Çevrimiçi (Online)**, **Duraklatılmış
@@ -923,7 +918,7 @@ göre dökümünü gösterir.
   7 gün eşiğini kullanır — üçü de farklı sürelerdir.
 - Hareketsiz kiracı sayısı **5'i aştığında**, uyarı şeridinde kiracı adları
   tek tek görünmez; bunun yerine tek bir toplu sayı (örn. "7 tenants have no
-  documents in 7 days") gösterilir. Belirli bir kiracının durumunu görmek
+  activations in 7 days") gösterilir. Belirli bir kiracının durumunu görmek
   isterseniz **Per-tenant usage** bölümündeki **Inactive (7d+)** listesine
   veya **Müşteriler (Customers)** ekranına (Bölüm 5) bakın.
 - **Fleet freshness** altındaki eskimiş cihazlar tablosu, yalnızca eskimiş
@@ -938,14 +933,9 @@ kiracı bazlı bakiyeleri gösteren ekranı anlatır. Bu ekranın adresi
 
 ### Bu ekran ne işe yarar?
 
-> **Önemli — sol menü etiketi ile ekran başlığı farklıdır:** Sol taraftaki
-> gezinme menüsünde bu ekrana giden bağlantı **"Faturalandırma ve Gelir
-> (Billing & Revenue)"** olarak etiketlenir (bkz. Bölüm 3.4). Ancak bu
-> bağlantıya tıkladığınızda ulaştığınız ekranın **kendi başlığı farklıdır:
-> "Billing & Credits"**. Bu bir hata değildir, ama kılavuzu okurken kafanızın
-> karışmaması için baştan belirtiyoruz: sol menüdeki "**Billing & Revenue**"
-> ile ekranın üstünde gördüğünüz "**Billing & Credits**" başlığı, **aynı
-> ekranı** ifade eden iki farklı isimdir.
+Sol taraftaki gezinme menüsünde bu ekrana giden bağlantı **"Faturalandırma
+ve Krediler (Billing & Credits)"** olarak etiketlenir (bkz. Bölüm 3.4);
+ekranın kendi başlığı da aynı şekilde **"Billing & Credits"**'tir.
 
 Ekranın alt açıklaması **"Platform-wide prepaid credit sales, consumption,
 and per-tenant balances."** ("Platform genelinde ön ödemeli kredi satışları,
@@ -970,13 +960,27 @@ düğmesi bulunur (aşağıdaki adım adım bölümüne bakınız).
    krediler") — henüz harcanmamış, kiracıların hâlâ kullanabileceği toplam
    kredi miktarı.
 
-KPI kartlarının altında **Kiracı bazlı krediler (Per-tenant credits)**
+KPI kartlarının hemen altında küçük bir açıklama satırı bulunur: "**Archived
+customers' frozen credits are excluded from these totals.**" ("Arşivlenmiş
+müşterilerin dondurulmuş kredileri bu toplamlara dahil değildir.") — yani
+yukarıdaki üç KPI, arşive alınmış (offboard edilmiş) müşterileri saymaz.
+
+Bunun altında **Plan dağılımı (Plan mix)** başlıklı bir kart bulunur;
+açıklaması "Active tenants per billing plan" ("Faturalandırma planı başına
+aktif kiracı sayısı") biçimindedir. Kart, plan başına aktif kiracı sayısını
+gösterir — **Credits**, **Flat** ve **Base + Usage** — ve **Flat** ile
+**Base + Usage** planları için ayrıca ilgili plandaki toplam cihaz sayısını
+("**{N} devices**") gösterir.
+
+Bunun altında **Kiracı bazlı krediler (Per-tenant credits)**
 başlıklı bir tablo kartı bulunur; açıklaması "Balance, consumption this
 month, and lifetime purchases" ("Bakiye, bu ayki tüketim ve tüm zamanlar
 satın alımlar") biçimindedir. Sütunları:
 
 - **Müşteri (Customer):** Tıklanabilir bir bağlantıdır; ilgili müşterinin
   ayrıntı sayfasına (**`/admin/customers/{id}`**, bkz. Bölüm 6) götürür.
+- **Plan:** Müşterinin faturalandırma planını gösteren bir rozet — **Credits**,
+  **Flat** veya **Base + Usage** (bkz. Bölüm 5).
 - **Bakiye (Balance):** Kiracının o anki kullanılabilir kredi bakiyesi.
 - **Tüketilen (ay) (Consumed (mo.)):** Kiracının bu ay tükettiği kredi
   miktarı.
@@ -1005,9 +1009,6 @@ görüntülenir.
 
 ### İpuçları ve dikkat edilecekler
 
-- Sol menüdeki **"Billing & Revenue"** bağlantısı ile bu ekranın kendi
-  başlığı olan **"Billing & Credits"** arasındaki isim farkını unutmayın —
-  ikisi de aynı ekranı işaret eder.
 - **Bakiye (Balance)**, **Tüketilen (ay) (Consumed (mo.))** ve **Tüm zamanlar
   satın alınan (Lifetime purchased)** sütunlarını birbirine karıştırmayın:
   Bakiye o anki kullanılabilir miktardır, Consumed (mo.) yalnızca bu ayki
@@ -1036,7 +1037,6 @@ Bu rozet **Müşteriler (Customers)** (Bölüm 5) ve **Müşteri Detayı**
 | Değer | Renk | Anlamı |
 |---|---|---|
 | **Aktif (Active)** | Yeşil | Kiracının hesabı normal şekilde aktif kullanımdadır. |
-| **Deneme (Trial)** | Mor | Kiracı, deneme (trial) süreci içindedir. |
 | **Askıya alınmış (Suspended)** | Kırmızı | Kiracının hesabı askıya alınmıştır. |
 
 > **Önemli — askıya alma/yeniden etkinleştirme düğmesi yoktur:** **Askıya
@@ -1161,13 +1161,14 @@ girip **Grant credits** düğmesine tıklayın (ayrıntılı adımlar için bkz.
 Bölüm 6, "Adım adım: Kredi yükleme").
 
 **Bir ürün yazılımı (firmware) güncellemesi cihaza ne zaman ulaşır?**
-Anında ulaşmaz. **Ürün Yazılımı (Firmware)** ekranında (Bölüm 8) yeni bir
-sürüm yayınladığınızda, bu sürüm yalnızca cihazların **bir sonraki bağlantı
-kontrolünde (check-in / poll)** OTA hedefi olarak görülür; cihaz kendi
-yoklama (polling) döngüsünde sunucuya bağlandığında yeni sürümü fark eder ve
-güncellemeyi indirir. Aynı şekilde, **Cihaz Detayı** ekranındaki (Bölüm 7)
-**Ürün yazılımını güncelle (Update firmware)** komutu da anında değil,
-cihazın bir sonraki check-in'inde işlenir.
+**Ürün Yazılımı (Firmware)** ekranında (Bölüm 8) yeni bir sürüm
+yayınladığınızda, o sırada çevrimiçi olan (kalıcı bir MQTT bağlantısı açık
+olan) her cihaza güncelleme komutu **anında** iletilir. O sırada çevrimdışı
+olan cihazlar içinse komut beklemede kalır ve cihaz bir sonraki kez MQTT'ye
+bağlandığında kendisine gönderilir — bu bir yoklama (polling) döngüsü değil,
+bağlantının kendisiyle tetiklenen bir teslimdir. Aynı şekilde, **Cihaz
+Detayı** ekranındaki (Bölüm 7) **Ürün yazılımını güncelle (Update firmware)**
+komutu da çevrimiçi bir cihaza anında iletilir.
 
 **Neden bir kiracıyı askıya alamıyorum (veya askıdan çıkaramıyorum)?**
 Çünkü Ditto Admin arayüzünde bunu yapacak bir düğme veya işlem

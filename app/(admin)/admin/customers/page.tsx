@@ -5,6 +5,7 @@ import { ListControls } from "@/components/list-controls";
 import { PaginationBar } from "@/components/pagination-bar";
 import { NewCustomerDialog } from "@/components/new-customer-dialog";
 import { TenantStatusBadge } from "@/components/tenant-status-badge";
+import { PlanBadge } from "@/components/billing/plan-badge";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
@@ -101,6 +102,7 @@ export default async function CustomersPage({
               <TableHead className="text-center">Stores</TableHead>
               <TableHead className="text-center">Devices</TableHead>
               <TableHead className="text-center">Health</TableHead>
+              <TableHead className="text-center">Plan</TableHead>
               <TableHead className="text-right">Activations (mo.)</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-10" />
@@ -109,7 +111,7 @@ export default async function CustomersPage({
           <TableBody>
             {customers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">
                   {view === "archived"
                     ? `No archived customers match${q ? ` "${q}"` : ""}.`
                     : `No customers match${q ? ` "${q}"` : ""}.`}
@@ -153,6 +155,9 @@ export default async function CustomersPage({
                       {HEALTH_UI[c.health].label}
                       <span className="text-muted-foreground">({c.onlineCount}/{c.deviceCount})</span>
                     </span>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <PlanBadge plan={c.billingPlan} />
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
                     {formatNumber(c.activationsThisMonth)}

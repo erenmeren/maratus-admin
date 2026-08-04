@@ -18,15 +18,17 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getCreditsOverview } from "@/lib/data";
+import { getCreditsOverview, getPlanMix } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
+import { PlanBadge, planLabel } from "@/components/billing/plan-badge";
 
 export default async function BillingPage() {
-  const credits = await getCreditsOverview();
+  const [credits, mix] = await Promise.all([getCreditsOverview(), getPlanMix()]);
 
-  const exportHeaders = ["Customer", "Balance", "Consumed (mo.)", "Lifetime purchased"];
+  const exportHeaders = ["Customer", "Plan", "Balance", "Consumed (mo.)", "Lifetime purchased"];
   const exportRows = credits.perTenant.map((t) => [
     t.name,
+    planLabel(credits.planByOrg[t.orgId] ?? "credits"),
     t.balance,
     t.consumedThisMonth,
     t.lifetimePurchased,
@@ -67,6 +69,31 @@ export default async function BillingPage() {
         />
       </div>
 
+      <p className="text-xs text-muted-foreground">
+        Archived customers&apos; frozen credits are excluded from these totals.
+      </p>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Plan mix</CardTitle>
+          <CardDescription>Active tenants per billing plan</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-3">
+          <div>
+            <p className="text-2xl font-semibold tabular-nums">{mix.credits}</p>
+            <p className="text-sm text-muted-foreground">Credits</p>
+          </div>
+          <div>
+            <p className="text-2xl font-semibold tabular-nums">{mix.flat}</p>
+            <p className="text-sm text-muted-foreground">Flat · {formatNumber(mix.flatDevices)} devices</p>
+          </div>
+          <div>
+            <p className="text-2xl font-semibold tabular-nums">{mix.baseUsage}</p>
+            <p className="text-sm text-muted-foreground">Base + usage · {formatNumber(mix.baseUsageDevices)} devices</p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Per-tenant credits */}
       <Card className="overflow-hidden">
         <CardHeader>
@@ -78,6 +105,7 @@ export default async function BillingPage() {
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead className="pl-6">Customer</TableHead>
+                <TableHead>Plan</TableHead>
                 <TableHead className="text-right">Balance</TableHead>
                 <TableHead className="text-right">Consumed (mo.)</TableHead>
                 <TableHead className="pr-6 text-right">Lifetime purchased</TableHead>
@@ -87,7 +115,7 @@ export default async function BillingPage() {
               {credits.perTenant.length === 0 && (
                 <TableRow className="hover:bg-transparent">
                   <TableCell
-                    colSpan={4}
+                    colSpan={5}
                     className="py-12 text-center text-sm text-muted-foreground"
                   >
                     No tenants with credit activity yet.
@@ -103,6 +131,9 @@ export default async function BillingPage() {
                     >
                       {t.name}
                     </Link>
+                  </TableCell>
+                  <TableCell>
+                    <PlanBadge plan={credits.planByOrg[t.orgId] ?? "credits"} />
                   </TableCell>
                   <TableCell className="text-right font-medium tabular-nums">
                     {formatNumber(t.balance)}

@@ -83,7 +83,7 @@ export async function IntegrationHealthCard() {
           tone={STRIPE_TONE[mode]}
           detail={
             mode === "live"
-              ? "Charges and subscriptions run against the live Stripe account."
+              ? "Charges run against the live Stripe account."
               : mode === "test"
                 ? "Wired to a test-mode Stripe account: checkouts succeed but no money moves. Swap in live keys and live price IDs before selling."
                 : "STRIPE_SECRET_KEY is unset — billing actions are inert."

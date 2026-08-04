@@ -27,7 +27,7 @@ export const ADMIN_NAV: NavItem[] = [
   { label: "Inventory", href: "/admin/inventory", icon: Boxes },
   { label: "Health", href: "/admin/health", icon: Activity },
   { label: "Firmware", href: "/admin/firmware", icon: HardDriveDownload },
-  { label: "Billing & Revenue", href: "/admin/billing", icon: Wallet },
+  { label: "Billing & Credits", href: "/admin/billing", icon: Wallet },
 ];
 
 export const TENANT_NAV: NavItem[] = [

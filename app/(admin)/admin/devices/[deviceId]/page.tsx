@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Cable, Cpu, Globe, HardDrive, FileText, Pin, Wifi, Tag } from "lucide-react";
+import { Cable, Cpu, Globe, HardDrive, Zap, Pin, Wifi, Tag } from "lucide-react";
 import { desc, eq } from "drizzle-orm";
 import { PageHeader } from "@/components/page-header";
 import { SectionHeader } from "@/components/section-header";
@@ -84,8 +84,8 @@ export default async function AdminDeviceDetailPage({
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <div className="grid gap-4 sm:grid-cols-2">
-            <KpiCard label="Activations today" value={formatNumber(device.activationsToday)} icon={FileText} />
-            <KpiCard label="Activations this month" value={formatNumber(device.activationsThisMonth)} icon={FileText} />
+            <KpiCard label="Activations today" value={formatNumber(device.activationsToday)} icon={Zap} />
+            <KpiCard label="Activations this month" value={formatNumber(device.activationsThisMonth)} icon={Zap} />
           </div>
 
           <Card>

@@ -127,7 +127,7 @@ export function AppShell({
 
         <SidebarInset>
           <header className="edge-perforation relative sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 bg-gradient-to-b from-background/92 to-background/65 px-3 backdrop-blur-md sm:px-4">
-            {/* Emerald hairline — the top edge of the printed slip. */}
+            {/* Emerald hairline — the top edge of the brand accent. */}
             <span
               aria-hidden
               className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/45 to-transparent"

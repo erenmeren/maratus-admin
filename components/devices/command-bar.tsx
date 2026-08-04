@@ -33,7 +33,7 @@ export function CommandBar({
     setMsg(null);
     start(async () => {
       const r = await enqueueDeviceCommand(deviceId, type);
-      setMsg(r.ok ? `${type} queued — the device will pick it up on its next check-in.` : r.error);
+      setMsg(r.ok ? `${type} sent — pushed to the device over MQTT.` : r.error);
     });
   }
 

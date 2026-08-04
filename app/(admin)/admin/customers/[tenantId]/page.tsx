@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Archive, Cpu, Mail, Phone, FileText, Store } from "lucide-react";
+import { Archive, Cpu, Mail, Phone, Zap, Store } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { SectionHeader } from "@/components/section-header";
 import { KpiCard } from "@/components/kpi-card";
@@ -156,7 +156,7 @@ export default async function CustomerDetailPage({
         <KpiCard
           label="Activations this month"
           value={formatNumber(summary.activationsThisMonth)}
-          icon={FileText}
+          icon={Zap}
         />
       </div>
 

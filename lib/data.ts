@@ -5,7 +5,7 @@
 // `organizationId` (the active tenant); super-admin functions span all orgs.
 //
 // DB conventions → view-model conversions happen here:
-//   • money is stored in cents → exposed as dollars (invoice amount)
+//   • money is stored in cents → exposed as dollars (credit pack pricing)
 //   • tenant_settings.status (active|paused) → TenantStatus (active|suspended)
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
 //   • activationsToday / activationsThisMonth are derived from acked device-trigger commands
@@ -1633,9 +1633,7 @@ export async function getArmedAllocationCountByStore(
 // getUnclaimedDevices) — re-exported here so callers have one data entrypoint.
 export { claimDevice, getUnclaimedDevices } from "./device-claim";
 
-// ============================================================================
-// Tenant billing view-model (subscription status, saved card, invoices).
-// ============================================================================
+// ---- Tenant billing data (credit balance, packs, plan) ----
 
 export async function getOrgAuditLog(organizationId: string, limit = 100) {
   const rows = await db

@@ -7,11 +7,6 @@ const META: Record<TenantStatus, { label: string; cls: string; dot: string }> = 
     cls: "bg-status-online/10 text-status-online",
     dot: "bg-status-online",
   },
-  trial: {
-    label: "Trial",
-    cls: "bg-chart-3/10 text-chart-3",
-    dot: "bg-chart-3",
-  },
   suspended: {
     label: "Suspended",
     cls: "bg-destructive/10 text-destructive",

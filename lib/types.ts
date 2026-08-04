@@ -6,7 +6,7 @@ import type { BillingPlan } from "./billing-plan";
 
 export type DeviceStatus = "online" | "offline" | "paused";
 export type ConnectionType = "ethernet" | "wifi";
-export type TenantStatus = "active" | "trial" | "suspended";
+export type TenantStatus = "active" | "suspended";
 
 export interface Device {
   id: string;

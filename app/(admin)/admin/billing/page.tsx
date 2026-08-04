@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/table";
 import { getCreditsOverview, getPlanMix } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
-import { PlanBadge } from "@/components/billing/plan-badge";
+import { PlanBadge, planLabel } from "@/components/billing/plan-badge";
 
 export default async function BillingPage() {
   const [credits, mix] = await Promise.all([getCreditsOverview(), getPlanMix()]);
@@ -28,7 +28,7 @@ export default async function BillingPage() {
   const exportHeaders = ["Customer", "Plan", "Balance", "Consumed (mo.)", "Lifetime purchased"];
   const exportRows = credits.perTenant.map((t) => [
     t.name,
-    credits.planByOrg[t.orgId] ?? "credits",
+    planLabel(credits.planByOrg[t.orgId] ?? "credits"),
     t.balance,
     t.consumedThisMonth,
     t.lifetimePurchased,

@@ -1224,6 +1224,7 @@ export async function getCustomerDetail(
   const b = await loadOrg(organizationId);
   if (!b) return null;
   const tenant = buildTenant(b);
+  // no extras: summary.health is never rendered — the page badge reads the health.level computed below
   const summary = summarize(b);
   const now = new Date();
 

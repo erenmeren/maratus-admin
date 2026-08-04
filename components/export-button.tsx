@@ -7,9 +7,8 @@ import { Button } from "@/components/ui/button";
 type Cell = string | number;
 
 /**
- * CSV export button. When given `headers` + `rows`, it builds a CSV client-side
- * and triggers a download. Without data it falls back to an informational toast
- * (used where export isn't wired yet).
+ * CSV export button. Given `headers` + `rows`, it builds a CSV client-side
+ * and triggers a download.
  */
 export function ExportButton({
   label = "Export CSV",

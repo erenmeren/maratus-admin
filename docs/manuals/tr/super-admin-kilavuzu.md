@@ -207,17 +207,9 @@ kartları)** yer alır:
 
 1. **Bu ayki aktivasyonlar (Activations this month):** Bu ay platform
    genelinde gerçekleşen toplam aktivasyon sayısını gösterir; ipucu
-   metni "platform-wide" ("platform genelinde") yazar. Kartın yanında
-   **+12.1%** değerinde bir değişim rozeti (delta badge) görünür.
-
-   > **Önemli — bu rakam sabittir:** Karttaki **+12.1%** değişim rozeti,
-   > uygulama kodunda **sabit (hardcoded)** bir değer olarak yazılmıştır;
-   > herhangi bir gerçek/canlı (live) veriden hesaplanmaz. Bu ekranı ne zaman
-   > açarsanız açın, önceki ayla karşılaştırma olarak her zaman aynı **+12.1%**
-   > değerini görürsünüz. Bu rakamı gerçek bir büyüme/aylık karşılaştırma
-   > yüzdesi olarak yorumlamayın — yalnızca görsel bir yer tutucudur.
-   > (Karşılaştırma için: aşağıdaki **Aktif cihazlar** ve **Müşteriler**
-   > kartlarında böyle bir rozet yoktur; bu rozet yalnızca bu karta özeldir.)
+   metni "platform-wide" ("platform genelinde") yazar. Kart yalnızca bu
+   sayıyı gösterir — önceki ayla karşılaştıran bir değişim rozeti
+   (delta badge) yoktur.
 
 2. **Aktif cihazlar (Active devices):** Şu anda çevrimiçi olan cihaz sayısını,
    toplam cihaz sayısına oranla `aktif/toplam` (`active/total`) biçiminde
@@ -277,9 +269,9 @@ bağlantılar içerir. Bir müşterinin ayrıntılarına gitmek isterseniz:
   görüntüleme + linkler). Bir ayar değiştirmek veya kayıt oluşturmak
   istiyorsanız ilgili diğer ekranlara (**Müşteriler**, **Cihaz Filosu**, vb.)
   gitmeniz gerekir.
-- **Bu ayki aktivasyonlar (Activations this month)** kartındaki
-  **+12.1%** rozetinin **sabit (hardcoded)** bir değer olduğunu unutmayın —
-  bu, gerçek bir aylık karşılaştırma değildir; canlı veri değildir.
+- **Bu ayki aktivasyonlar (Activations this month)** kartında önceki ayla
+  karşılaştırma yapan bir değişim rozeti (delta badge) **yoktur**; kart yalnızca
+  bu ayki toplam sayıyı gösterir.
 - **Şirkete göre krediler (Credits by company)** tablosu yalnızca ilk 10
   şirketi gösterir; platformda 10'dan fazla şirket kredi harcamışsa, bu
   listede yer almayan şirketler olabilir.
@@ -316,12 +308,13 @@ Ekranın ana kısmında bir tablo yer alır; sütunları şunlardır:
   - **Sağlıklı (Healthy)** — yeşil nokta,
   - **Uyarı (Warning)** — amber (turuncu-sarı) nokta,
   - **Kritik (Critical)** — kırmızı nokta.
+- **Plan:** Müşterinin faturalandırma planını gösteren bir rozet — **Credits**,
+  **Flat** veya **Base + Usage**.
 - **Aktivasyonlar (ay) (Activations (mo.)):** O müşterinin bu ayki toplam
   aktivasyon sayısı.
 - **Durum (Status):** Müşterinin hesap durumunu gösteren bir rozet (badge).
   Alabileceği değerler:
   - **Aktif (Active)** — yeşil rozet,
-  - **Deneme (Trial)** — mor rozet,
   - **Askıya alınmış (Suspended)** — kırmızı rozet.
 - Satırın en sağında bir **ok işareti (chevron)** bulunur; bu, satırın
   tıklanabilir olduğunu ve bir ayrıntı sayfasına götürdüğünü belirtir.
@@ -397,7 +390,7 @@ geri bağlantısı bulunur.
 Ekran, yukarıdan aşağıya doğru şu kartlardan oluşur:
 
 **Başlık kartı (Header card):** Müşterinin adını ve hesabın **durum rozetini
-(status badge)** gösterir — Aktif/Deneme/Askıya alınmış (bkz. Bölüm 5,
+(status badge)** gösterir — Aktif/Askıya alınmış (bkz. Bölüm 5,
 **Durum (Status)** sütunu). Altında iki iletişim bilgisi yer alır: **e-posta
 adresi** (bir zarf simgesiyle, **E-posta (Mail)**) ve **telefon numarası**
 (bir ahize simgesiyle, **Telefon (Phone)**). Kartın sağında **Şube ekle
@@ -967,13 +960,27 @@ düğmesi bulunur (aşağıdaki adım adım bölümüne bakınız).
    krediler") — henüz harcanmamış, kiracıların hâlâ kullanabileceği toplam
    kredi miktarı.
 
-KPI kartlarının altında **Kiracı bazlı krediler (Per-tenant credits)**
+KPI kartlarının hemen altında küçük bir açıklama satırı bulunur: "**Archived
+customers' frozen credits are excluded from these totals.**" ("Arşivlenmiş
+müşterilerin dondurulmuş kredileri bu toplamlara dahil değildir.") — yani
+yukarıdaki üç KPI, arşive alınmış (offboard edilmiş) müşterileri saymaz.
+
+Bunun altında **Plan dağılımı (Plan mix)** başlıklı bir kart bulunur;
+açıklaması "Active tenants per billing plan" ("Faturalandırma planı başına
+aktif kiracı sayısı") biçimindedir. Kart, plan başına aktif kiracı sayısını
+gösterir — **Credits**, **Flat** ve **Base + Usage** — ve **Flat** ile
+**Base + Usage** planları için ayrıca ilgili plandaki toplam cihaz sayısını
+("**{N} devices**") gösterir.
+
+Bunun altında **Kiracı bazlı krediler (Per-tenant credits)**
 başlıklı bir tablo kartı bulunur; açıklaması "Balance, consumption this
 month, and lifetime purchases" ("Bakiye, bu ayki tüketim ve tüm zamanlar
 satın alımlar") biçimindedir. Sütunları:
 
 - **Müşteri (Customer):** Tıklanabilir bir bağlantıdır; ilgili müşterinin
   ayrıntı sayfasına (**`/admin/customers/{id}`**, bkz. Bölüm 6) götürür.
+- **Plan:** Müşterinin faturalandırma planını gösteren bir rozet — **Credits**,
+  **Flat** veya **Base + Usage** (bkz. Bölüm 5).
 - **Bakiye (Balance):** Kiracının o anki kullanılabilir kredi bakiyesi.
 - **Tüketilen (ay) (Consumed (mo.)):** Kiracının bu ay tükettiği kredi
   miktarı.
@@ -1030,7 +1037,6 @@ Bu rozet **Müşteriler (Customers)** (Bölüm 5) ve **Müşteri Detayı**
 | Değer | Renk | Anlamı |
 |---|---|---|
 | **Aktif (Active)** | Yeşil | Kiracının hesabı normal şekilde aktif kullanımdadır. |
-| **Deneme (Trial)** | Mor | Kiracı, deneme (trial) süreci içindedir. |
 | **Askıya alınmış (Suspended)** | Kırmızı | Kiracının hesabı askıya alınmıştır. |
 
 > **Önemli — askıya alma/yeniden etkinleştirme düğmesi yoktur:** **Askıya

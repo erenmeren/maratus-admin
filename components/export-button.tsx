@@ -19,8 +19,8 @@ export function ExportButton({
 }: {
   label?: string;
   filename?: string;
-  headers?: string[];
-  rows?: Cell[][];
+  headers: string[];
+  rows: Cell[][];
 }) {
   function escapeCell(c: Cell): string {
     const s = String(c ?? "");
@@ -28,12 +28,6 @@ export function ExportButton({
   }
 
   function handleClick() {
-    if (!headers || !rows) {
-      toast.info("Export not available", {
-        description: "There's nothing to export here yet.",
-      });
-      return;
-    }
     const csv = [headers, ...rows]
       .map((r) => r.map(escapeCell).join(","))
       .join("\n");

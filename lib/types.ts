@@ -76,6 +76,7 @@ export interface TenantSummary {
   health: HealthLevel;
   activationsThisMonth: number;
   archivedAt: string | null;
+  billingPlan: BillingPlan;
 }
 
 export interface DeviceRow extends Device {

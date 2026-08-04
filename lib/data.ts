@@ -362,6 +362,7 @@ function summarize(
     activationsThisMonth,
     health,
     archivedAt: b.settings?.archivedAt ? b.settings.archivedAt.toISOString() : null,
+    billingPlan: b.settings?.billingPlan ?? "credits",
   };
 }
 

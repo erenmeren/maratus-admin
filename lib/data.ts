@@ -2264,10 +2264,17 @@ export async function getDeviceUsageThisMonth(
 export type { CreditsOverview };
 
 /** Platform-admin: credits view for the admin Billing page (granted/purchased/consumed/outstanding). */
-export async function getCreditsOverview(): Promise<CreditsOverview> {
+export async function getCreditsOverview(): Promise<
+  CreditsOverview & { planByOrg: Record<string, string> }
+> {
   const [orgRows, ledgerRows, balanceRows] = await Promise.all([
     db
-      .select({ id: orgTable.id, name: orgTable.name, archivedAt: settingsTable.archivedAt })
+      .select({
+        id: orgTable.id,
+        name: orgTable.name,
+        archivedAt: settingsTable.archivedAt,
+        plan: settingsTable.billingPlan,
+      })
       .from(orgTable)
       .leftJoin(settingsTable, eq(settingsTable.organizationId, orgTable.id)),
     db
@@ -2289,24 +2296,57 @@ export async function getCreditsOverview(): Promise<CreditsOverview> {
   const orgs = excludeArchived(orgRows);
   const activeIds = new Set(orgs.map((o) => o.id));
   const nameOf = new Map(orgs.map((o) => [o.id, o.name]));
+  const planByOrg = Object.fromEntries(orgs.map((o) => [o.id, o.plan ?? "credits"]));
 
-  return rollupCredits(
-    ledgerRows
-      .filter((r) => activeIds.has(r.organizationId))
-      .map((r) => ({
-        orgId: r.organizationId,
-        name: nameOf.get(r.organizationId) ?? r.organizationId,
-        kind: r.kind,
-        credits: r.credits,
-        createdAt: r.createdAt,
-      })),
-    balanceRows
-      .filter((b) => activeIds.has(b.organizationId))
-      .map((b) => ({
-        orgId: b.organizationId,
-        name: nameOf.get(b.organizationId) ?? b.organizationId,
-        available: b.available,
-      })),
-    new Date(),
+  return {
+    ...rollupCredits(
+      ledgerRows
+        .filter((r) => activeIds.has(r.organizationId))
+        .map((r) => ({
+          orgId: r.organizationId,
+          name: nameOf.get(r.organizationId) ?? r.organizationId,
+          kind: r.kind,
+          credits: r.credits,
+          createdAt: r.createdAt,
+        })),
+      balanceRows
+        .filter((b) => activeIds.has(b.organizationId))
+        .map((b) => ({
+          orgId: b.organizationId,
+          name: nameOf.get(b.organizationId) ?? b.organizationId,
+          available: b.available,
+        })),
+      new Date(),
+    ),
+    planByOrg,
+  };
+}
+
+/** Active-tenant count per billing plan + claimed-device counts for the
+ *  subscription tracks (the revenue proxy while Stripe figures stay out of scope). */
+export async function getPlanMix(): Promise<{
+  credits: number; flat: number; baseUsage: number; flatDevices: number; baseUsageDevices: number;
+}> {
+  const orgs = excludeArchived(
+    await db
+      .select({ id: orgTable.id, archivedAt: settingsTable.archivedAt, plan: settingsTable.billingPlan })
+      .from(orgTable)
+      .leftJoin(settingsTable, eq(settingsTable.organizationId, orgTable.id)),
   );
+  const planOf = new Map(orgs.map((o) => [o.id, o.plan ?? "credits"]));
+  const counts = { credits: 0, flat: 0, base_usage: 0 } as Record<string, number>;
+  for (const p of planOf.values()) counts[p] = (counts[p] ?? 0) + 1;
+
+  const devRows = await db
+    .select({ org: deviceTable.organizationId, c: count() })
+    .from(deviceTable)
+    .where(isNotNull(deviceTable.claimedAt))
+    .groupBy(deviceTable.organizationId);
+  let flatDevices = 0, baseUsageDevices = 0;
+  for (const r of devRows) {
+    const p = planOf.get(r.org);
+    if (p === "flat") flatDevices += Number(r.c);
+    else if (p === "base_usage") baseUsageDevices += Number(r.c);
+  }
+  return { credits: counts.credits, flat: counts.flat, baseUsage: counts.base_usage, flatDevices, baseUsageDevices };
 }

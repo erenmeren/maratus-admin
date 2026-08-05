@@ -993,52 +993,33 @@ işlem düğmesini görmezler, yalnızca üye ve davet listelerini görüntüley
 
 **Faturalandırma (Billing)** ekranı (adres: **`/tenant/billing`**, başlığı "**Billing**",
 açıklaması "**Manage your prepaid credit balance.**" — ön ödemeli kredi
-bakiyenizi yönetin) kiracınızın **kredi bakiyesini** görüntülemenizi, yeni
-kredi **satın almanızı** ve bu ayki kredi harcamasını **cihaz bazında**
-incelemenizi sağlar. Ditto'da faturalandırma tamamen **ön ödemeli krediye**
-dayanır: bu ekranda fatura (invoice), abonelik (subscription) veya kayıtlı
-ödeme yöntemi (payment method) gibi bir kavram **yoktur** — yalnızca
-bakiye, satın alma ve kullanım özeti bulunur. Sayfada herhangi bir rol
-kısıtlaması yoktur; **Sahip (Owner)**, **Yönetici (Admin)** ve **Üye
-(Member)** rolündeki tüm kullanıcılar bu ekranı aynı şekilde görür ve
-kredi satın alma dahil aynı işlemleri yapabilir.
+bakiyenizi yönetin) kiracınızın **kredi bakiyesini** görüntülemenizi ve bu
+ayki kredi/cihaz kullanımını incelemenizi sağlar. Ditto'da faturalandırma
+tamamen **ön ödemeli krediye** dayanır: bu ekranda fatura (invoice),
+abonelik (subscription) veya kayıtlı ödeme yöntemi (payment method) gibi
+bir kavram **yoktur** — yalnızca bakiye ve kullanım özeti bulunur. Sayfada
+herhangi bir rol kısıtlaması yoktur; **Sahip (Owner)**, **Yönetici (Admin)**
+ve **Üye (Member)** rolündeki tüm kullanıcılar bu ekranı aynı şekilde görür.
 
-> **Önemli — kredi satın alma bölümü hiç görünmeyebilir:** Aşağıda
-> anlatılan **"Krediler (Credits)"** bölümü, kurulumunuzda **Stripe
-> yapılandırılmamışsa** ekranda **hiçbir şekilde görünmez** — ne başlığı ne
-> de satın alma düğmeleri çıkar, herhangi bir uyarı ya da boş-durum mesajı
-> da gösterilmez, bölüm sanki hiç yokmuş gibi tamamen atlanır. Bu, iki
-> durumdan **herhangi biri** gerçekleştiğinde olur: (1) Stripe'ın herkese
-> açık (yayın) anahtarı ortamda tanımlı değilse, **veya** (2) hiç kredi
-> paketi (fiyatlandırılmış paket) yapılandırılmamışsa. Kurulumunuzda kredi
-> satın alma düğmelerini göremiyorsanız, bu bir hata değildir — muhtemelen
-> kurulumunuzda Stripe henüz etkinleştirilmemiştir; bu durumda krediler
-> yalnızca platform tarafından manuel olarak tanımlanabilir (örn. kayıt
-> sırasında verilen başlangıç kredileri).
+> **Önemli — krediler artık uygulama içinden satın alınamaz:** Ditto,
+> uygulama içi kredi paketi satın alma akışını tamamen kaldırdı. Krediler
+> yalnızca **Ditto ekibi tarafından**, süper yönetici panelinden manuel
+> olarak eklenir (ya da gerektiğinde düşülür) — bkz. Süper Yönetici
+> Kullanım Kılavuzu, "Krediler" bölümü. Bakiyenizi yükseltmek isterseniz
+> Ditto ekibiyle **iletişime geçin**; bu ekrandaki **"Krediler (Credits)"**
+> bölümünde de aynı yönlendirme yer alır.
 
 ### Ekranda neler var?
 
 - **Başlık ve açıklama:** "**Billing**" / "**Manage your prepaid credit
   balance.**".
-- **"Krediler (Credits)" bölümü** (Stripe yapılandırılmışsa ve en az bir
-  kredi paketi varsa görünür; yukarıdaki notu bkz.):
-  - "**Credits**" bölüm başlığı ve altında **Kullanılabilir (Available):**
-    etiketiyle birlikte güncel kredi bakiyeniz.
-  - Yapılandırılan her kredi paketi için **{n} kredi satın al (Buy {n}
-    credits)** düğmesi (örn. "Buy 100 credits") — paketteki kredi sayısı
-    `{n}` yerine geçer. Bir satın alma işlemi sürerken tıklanan düğmenin
-    metni geçici olarak "**Loading…**" olur ve diğer tüm paket düğmeleri
-    devre dışı kalır.
-  - Bir paket seçildiğinde düğmelerin yerini **"Purchasing {n} credits"**
-    (satın alınmakta olan kredi miktarı) metni ve hemen altında Stripe'ın
-    yerleşik (inline) ödeme formu alır: bir kart/ödeme bilgisi alanı, bir
-    **Şimdi öde (Pay now)** düğmesi (işlem sürerken metni
-    "**Processing…**" olur) ve altında küçük bir **"Vazgeç (Cancel)"**
-    düğmesi (satın almadan vazgeçip paket seçim ekranına döner).
-  - Ödeme başarılı olursa **sayfa otomatik olarak yeniden yüklenir**
-    (herhangi bir başarı bildirimi/toast görünmez; güncel bakiyeyi yenilenen
-    sayfada görürsünüz). Ödeme başarısız olursa, formun altında kırmızı bir
-    hata metni görünür ve ödeme formunda kalırsınız.
+- **"Krediler (Credits)" bölümü:** Şu açıklama metni görünür: "**Credits
+  are added to your account by the Ditto team. Contact us to top up your
+  balance — current balance and this month's usage are shown below.**"
+  (krediler Ditto ekibi tarafından hesabınıza eklenir; bakiyenizi
+  yükseltmek için bizimle iletişime geçin — güncel bakiye ve bu ayki
+  kullanım aşağıda gösterilir). Bu bölümde herhangi bir satın alma düğmesi,
+  paket seçimi ya da ödeme formu **bulunmaz**.
 - **"Bu ayki kredi kullanımı (Credit usage this month)" bölümü:**
   - Başlığın altında **Kullanılabilir {n} (Available {n})** yazar; eğer şu
     anda **rezerve edilmiş (tutulan)** krediniz varsa (bir tetikleme işlemi
@@ -1058,43 +1039,34 @@ kredi satın alma dahil aynı işlemleri yapabilir.
     - Tablonun en altında kalın yazılmış bir **Toplam (Total)** satırı
       bulunur; bu satır tüm cihazlardaki toplam kredi harcamasını gösterir
       (Tetikleme sütunu bu satırda boştur).
-
-### Adım adım: Kredi satın alma
-
-> Bu adımlar yalnızca kurulumunuzda Stripe yapılandırılmışsa ve en az bir
-> kredi paketi tanımlıysa geçerlidir; aksi halde **"Krediler (Credits)"**
-> bölümünü hiç göremezsiniz (yukarıdaki nota bakın).
-
-1. Sol menüden **Faturalandırma (Billing)** ekranına gidin.
-2. **"Krediler (Credits)"** bölümünde, **Kullanılabilir (Available):**
-   etiketinin yanında güncel kredi bakiyenizi görün.
-3. Satın almak istediğiniz paketin **{n} kredi satın al (Buy {n}
-   credits)** düğmesine tıklayın (örn. "Buy 100 credits").
-4. Düğme kısa süreliğine "**Loading…**" gösterir, ardından yerini
-   **"Purchasing {n} credits"** metni ve Stripe'ın yerleşik ödeme formuna
-   bırakır.
-5. Ödeme bilgilerinizi girin ve **Şimdi öde (Pay now)** düğmesine
-   tıklayın (işlem sürerken düğme metni "**Processing…**" olur).
-6. Ödeme başarılı olursa sayfa otomatik olarak yeniden yüklenir ve güncel
-   bakiyeniz **Kullanılabilir (Available):** etiketinin yanında görünür.
-7. Ödeme sırasında bir hata oluşursa, formun altında kırmızı bir hata metni
-   görünür; isterseniz **"Vazgeç (Cancel)"** düğmesiyle işlemden vazgeçip
-   paket seçim ekranına dönebilirsiniz.
+- **"Bu ayki cihaz kullanımı (Device usage this month)" bölümü:**
+  - Başlığın altındaki açıklama, kiracınızın **plan türüne** göre değişir:
+    normal (kredi bazlı) planda "**Each trigger uses one credit.**" (her
+    tetikleme bir kredi harcar) yazar; sabit ücretli (flat) planda
+    "**Your plan includes unlimited triggers (fair use).**" (planınız
+    sınırsız tetikleme içerir, adil kullanım kuralına tabi) yazar; taban +
+    kullanım (base + usage) planda "**Each device includes {n} triggers
+    per month; beyond that, triggers use credits.**" (her cihaz ayda {n}
+    tetikleme içerir; bunun üzerinde tetiklemeler kredi harcar) yazar —
+    `{n}` yerine plana dahil aylık tetikleme sayısı geçer.
+  - Bu ay hiç tetikleme yapılmadıysa: "**No triggers yet this month.**"
+    (bu ay henüz tetikleme yapılmadı) metni görünür.
+  - Aksi halde bir tablo görünür; sütunları **Cihaz (Device)** ve
+    **Tetikleme (Triggers)**'dır. Taban + kullanım planındaysanız, üçüncü
+    bir **Kalan dahil (Included remaining)** sütunu daha görünür — o cihaz
+    için plana dahil kotadan bu ay kalan tetikleme sayısını gösterir (kota
+    aşılmışsa **0** görünür, eksiye düşmez).
 
 ### İpuçları
 
-- Kurulumunuzda kredi satın alma düğmelerini göremiyorsanız, bu bir arıza
-  değildir: Stripe yapılandırılmamış veya hiç kredi paketi tanımlanmamış
-  demektir (yukarıdaki nota bakın).
 - Bu ekranda fatura (invoice), abonelik (subscription) ya da kayıtlı ödeme
-  yöntemi (payment method) yönetimi **yoktur** — Ditto'da tek ödeme yolu
-  ön ödemeli krediler satın almaktır.
+  yöntemi (payment method) yönetimi **yoktur** ve kredi **satın alınamaz**
+  — bakiyenizi yükseltmek için Ditto ekibiyle iletişime geçmeniz gerekir.
 - **"Bu ayki kredi kullanımı (Credit usage this month)"** tablosundaki
   **"Unattributed"** satırı, hangi cihaza ait olduğu belirlenemeyen bir
   harcamayı temsil eder; bunu bir hata olarak yorumlamayın.
-- Satın alma dahil bu ekrandaki tüm işlemler için rol kısıtlaması yoktur;
-  Sahip, Yönetici ve Üye rolündeki herkes aynı bakiyeyi görür ve kredi satın
-  alabilir.
+- Bu ekrandaki tüm bilgiler için rol kısıtlaması yoktur; Sahip, Yönetici ve
+  Üye rolündeki herkes aynı bakiyeyi ve aynı kullanım özetini görür.
 - **"Tutulan {n} (Held {n})"** ifadesi, henüz sonuçlanmamış (bekleyen) bir
   tetikleme işlemi için geçici olarak rezerve edilmiş krediyi gösterir;
   işlem sonuçlandığında (başarı ya da hata) bu tutar serbest kalır veya
@@ -1432,14 +1404,12 @@ görülmediğine bakılmaksızın durum her zaman "Duraklatıldı (Paused)" olar
 gösterilir — duraklatma her koşulda önceliklidir, "Duraklatıldı" bir cihaz
 asla "Çevrimdışı" görünmez (bkz. Bölüm 14.1).
 
-**Kredi nasıl satın alınır?**
-**Faturalandırma (Billing)** ekranına gidin (Bölüm 11) ve **"Krediler
-(Credits)"** bölümündeki paketlerden birinin **"{n} kredi satın al (Buy {n}
-credits)"** düğmesine tıklayın. **Önemli:** Kurulumunuzda Stripe
-yapılandırılmamışsa veya hiç kredi paketi tanımlanmamışsa, bu satın alma
-bölümü ekranda **hiç görünmez** — bu bir hata değildir, bu durumda krediler
-yalnızca platform tarafından manuel olarak tanımlanabilir (bkz. Bölüm 11'deki
-"Önemli" notu).
+**Kredi bakiyem nasıl yükseltilir?**
+Krediler uygulama içinden **satın alınamaz**. **Faturalandırma (Billing)**
+ekranındaki (Bölüm 11) **"Krediler (Credits)"** bölümü, bakiyenizi
+yükseltmek için Ditto ekibiyle iletişime geçmenizi söyler; krediler yalnızca
+Ditto ekibi tarafından süper yönetici panelinden manuel olarak eklenir (bkz.
+Bölüm 11'deki "Önemli" notu).
 
 **Bir yazıcıyı nasıl eklerim?**
 Yazıcılar **Mağazalar (Stores)** ekranından değil, ilgili mağazanın **Mağaza

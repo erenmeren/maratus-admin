@@ -413,21 +413,35 @@ gösterir.
 
 **Krediler kartı (Credits card):** Başlığın altında müşterinin güncel kredi
 durumu özetlenir: **Available:** (kullanılabilir kredi) {n} ve **Held:**
-(rezerve/tutulan kredi) {n}. Bu kartın içinde iki bölüm bulunur:
+(rezerve/tutulan kredi) {n}. Müşteri **sabit ücretli (flat)** plandaysa,
+bakiye özetinin altında "This tenant is on the flat plan — triggers do not
+consume credits." (bu kiracı sabit ücretli plandadır — tetiklemeler kredi
+harcamaz) uyarı metni görünür. Bu kartın içinde iki bölüm bulunur:
 
-- **Kredi yükleme formu (Grant credits):** **Kredi (Credits)** (sayı,
-  zorunlu, en az 1 en çok 1.000.000, yer tutucu "e.g. 100") ve **Not (isteğe
-  bağlı) (Note (optional))** (yer tutucu "e.g. promotional grant")
-  alanlarından oluşur; gönder düğmesi **Kredi yükle (Grant credits)**
-  ("Granting…" durumuna geçer). Başarılı olursa "Credits granted." ("Kredi
-  yüklendi.") mesajı görünür; geçersiz bir miktar girilirse "Enter a whole
-  credit amount between 1 and 1,000,000." ("1 ile 1.000.000 arasında tam
-  sayı bir kredi miktarı girin.") hata mesajı görünür.
+- **Kredi ekle/düş formu (Direction / Credits / Note / Apply):** Müşteri
+  **arşivlenmişse bu form hiç görünmez** (yalnızca aşağıdaki hareket dökümü
+  görünür); arşivlenmemiş müşterilerde ise önce
+  **Yön (Direction)** seçimi — bir radyo düğmesi çifti: **Ekle (Add)**
+  (varsayılan seçili) veya **Düş (Deduct)**. Ardından **Kredi (Credits)**
+  alanı (sayı, zorunlu, en az 1 en çok 1.000.000, yer tutucu "e.g. 100") ve
+  **Not (isteğe bağlı) (Note (optional))** alanı (yer tutucu "e.g. invoice
+  #42 unpaid"). Gönder düğmesi **"Apply"** ("Uygula") ("Applying…" durumuna
+  geçer). İşlem başarılı olursa yeşil renkte "Credits updated." ("Krediler
+  güncellendi.") mesajı görünür. Girilen miktar 1–1.000.000 aralığı dışında
+  veya tam sayı değilse "Enter a whole credit amount between 1 and
+  1,000,000." ("1 ile 1.000.000 arasında tam sayı bir kredi miktarı
+  girin.") hata mesajı görünür. **Düş (Deduct)** seçiliyken girilen miktar
+  müşterinin **kullanılabilir (available)** bakiyesinden fazlaysa, işlem
+  reddedilir ve "Insufficient available balance to deduct that amount."
+  ("Bu miktarı düşmek için kullanılabilir bakiye yetersiz.") hata mesajı
+  görünür — bakiye değişmez.
 - **Kredi hareket dökümü (ledger) tablosu:** Kayıt varsa şu sütunlarla
   listelenir: **Hareket türü (Kind)**, **Kredi (Credits)**, **Cihaz
-  (Device)** (ilgili cihaz varsa), **Not (Note)** ve **Zaman (Time)**. Hiç
-  kayıt yoksa "No ledger entries yet." ("Henüz kredi hareketi yok.") mesajı
-  gösterilir.
+  (Device)** (ilgili cihaz varsa), **Not (Note)** ve **Zaman (Time)**. **Ekle
+  (Add)** işlemleri **"grant"** türünde ve **pozitif** miktarla; **Düş
+  (Deduct)** işlemleri **"adjust"** türünde ve **negatif** miktarla (örn.
+  **-50**) listelenir. Hiç kayıt yoksa "No ledger entries yet." ("Henüz
+  kredi hareketi yok.") mesajı gösterilir.
 
 **Atanmış cihazlar kartı (Assigned devices card):** Başlığın altında "{N}
 screens across all stores" ("Tüm mağazalarda {N} ekran") açıklaması,
@@ -440,30 +454,45 @@ menüsü (row-actions menu)**.
 **Etkinlik (Activity) bölümü:** Bu müşteriye ait en fazla **50** denetim
 (audit) olayını, insan tarafından okunabilir etiketlerle listeler — örneğin
 "Customer created" ("Müşteri oluşturuldu"), "Device provisioned" ("Cihaz
-sağlandı"), "Credits granted" ("Kredi yüklendi"), "Device paused/resumed"
-("Cihaz duraklatıldı/devam ettirildi"). Hiç etkinlik yoksa "No activity yet."
-("Henüz etkinlik yok.") mesajı gösterilir.
+sağlandı"), "Credits granted" ("Kredi yüklendi"), "Credits deducted" ("Kredi
+düşüldü"), "Device paused/resumed" ("Cihaz duraklatıldı/devam ettirildi").
+Hiç etkinlik yoksa "No activity yet." ("Henüz etkinlik yok.") mesajı
+gösterilir.
 
-### Adım adım: Kredi yükleme (Grant credits)
+### Adım adım: Kredi ekleme veya düşme (Add / Deduct credits)
 
-1. Müşteri Detayı ekranında **Krediler (Credits)** kartına gidin.
-2. **Kredi (Credits)** alanına yüklemek istediğiniz kredi miktarını girin —
-   bu alan **zorunludur** ve **1 ile 1.000.000 arasında bir tam sayı**
-   olmalıdır (yer tutucu: "e.g. 100").
-3. İsterseniz **Not (isteğe bağlı) (Note (optional))** alanına bu yüklemeyle
-   ilgili bir açıklama yazın (örn. "promotional grant" — "promosyon amaçlı
-   yükleme").
-4. **Kredi yükle (Grant credits)** düğmesine tıklayın. İşlem sürerken düğme metni
-   **"Granting…"** ("Yükleniyor…") olarak değişir.
-5. İşlem başarılı olursa "Credits granted." ("Kredi yüklendi.") mesajı
-   görünür ve **Available** (kullanılabilir) bakiye güncellenir. Girdiğiniz
-   miktar 1–1.000.000 aralığı dışındaysa veya tam sayı değilse, "Enter a
-   whole credit amount between 1 and 1,000,000." hata mesajı görünür ve
-   yükleme gerçekleşmez.
-6. Başarılı her yükleme, kartın altındaki **kredi hareket dökümü (ledger)**
+1. Müşteri Detayı ekranında **Krediler (Credits)** kartına gidin (müşteri
+   arşivlenmişse bu form görünmez, yalnızca hareket dökümü görüntülenir).
+2. **Yön (Direction)** seçiminden **Ekle (Add)** (varsayılan) veya
+   **Düş (Deduct)** radyo düğmesini seçin.
+3. **Kredi (Credits)** alanına işlem yapmak istediğiniz kredi miktarını
+   girin — bu alan **zorunludur** ve **1 ile 1.000.000 arasında bir tam
+   sayı** olmalıdır (yer tutucu: "e.g. 100").
+4. İsterseniz **Not (isteğe bağlı) (Note (optional))** alanına bu işlemle
+   ilgili bir açıklama yazın (örn. "invoice #42 unpaid" — "fatura #42
+   ödenmedi").
+5. **"Apply"** ("Uygula") düğmesine tıklayın. İşlem sürerken düğme metni
+   **"Applying…"** ("Uygulanıyor…") olarak değişir.
+6. İşlem başarılı olursa yeşil renkte "Credits updated." ("Krediler
+   güncellendi.") mesajı görünür ve **Available** (kullanılabilir) bakiye
+   güncellenir. Girdiğiniz miktar 1–1.000.000 aralığı dışındaysa veya tam
+   sayı değilse, "Enter a whole credit amount between 1 and 1,000,000." hata
+   mesajı görünür ve işlem gerçekleşmez.
+7. **Düş (Deduct)** seçiliyken, girdiğiniz miktar müşterinin
+   **kullanılabilir (available)** bakiyesinden fazlaysa "Insufficient
+   available balance to deduct that amount." ("Bu miktarı düşmek için
+   kullanılabilir bakiye yetersiz.") hata mesajı görünür ve bakiye
+   **değişmez**.
+8. Başarılı her işlem, kartın altındaki **kredi hareket dökümü (ledger)**
    tablosuna yeni bir satır olarak eklenir; bu satırda hareketin türü
    (**Kind**), miktarı (**Credits**), ilişkili cihaz varsa cihazı
    (**Device**), yazdığınız not (**Note**) ve zamanı (**Time**) görüntülenir.
+   **Ekle (Add)** işlemi **"grant"** türünde pozitif bir miktarla; **Düş
+   (Deduct)** işlemi **"adjust"** türünde negatif bir miktarla (örn.
+   **-50**) listelenir.
+9. Etkinlik (Activity) bölümünde bu işlem, yaptığınız yöne göre "Credits
+   granted" ("Kredi yüklendi") veya "Credits deducted" ("Kredi düşüldü")
+   etiketiyle kayda geçer (bkz. Bölüm 6, Etkinlik bölümü).
 
 ### Adım adım: Şube ekleme (Add branch)
 
@@ -524,9 +553,11 @@ sağlandı"), "Credits granted" ("Kredi yüklendi"), "Device paused/resumed"
 
 ### İpuçları ve dikkat edilecekler
 
-- **Grant credits** formundaki **Credits** alanı yalnızca **1 ile 1.000.000
+- Kredi ekle/düş formundaki **Credits** alanı yalnızca **1 ile 1.000.000
   arasında bir tam sayı** kabul eder; bu aralığın dışında bir değer girilirse
-  veya alan boş bırakılırsa yükleme reddedilir ve hata mesajı gösterilir.
+  veya alan boş bırakılırsa işlem reddedilir ve hata mesajı gösterilir.
+  **Düş (Deduct)** yönünde ayrıca miktar müşterinin kullanılabilir
+  bakiyesini aşamaz.
 - Yeni sağladığınız bir cihaz, **eşleştirme kodu (pairing code)** ile
   fiziksel cihaza girilip eşleştirilene kadar filoda **"offline"
   (çevrimdışı)** görünür; bu kod yalnızca sağlama işlemi başarılı olduğunda,
@@ -909,6 +940,25 @@ göre dökümünü gösterir.
   listeler. Hiç çözülmüş uyarı yoksa "**Nothing resolved recently.**" ("Son
   zamanlarda hiçbir şey çözülmedi.") mesajı görüntülenir.
 
+**Entegrasyonlar (Integrations) bölümü:** Bu bölümde tek bir kart bulunur;
+kartta yalnızca **"Transactional email"** satırı yer alır — Ditto'nun
+işlemsel e-posta gönderiminin şu anki durumunu gösterir. Satırda gönderen
+adresi, bir durum rozeti ve tek cümlelik bir açıklama bulunur. Rozet şu
+değerlerden birini alır: **"delivering"** — özel gönderen alan adı Resend'de
+doğrulanmış, e-postalar gerçekten gönderiliyor; **"owner-only"** — Resend'in
+paylaşılan sandbox göndericisi kullanılıyor, e-postalar yalnızca Resend
+hesap sahibine ulaşır, müşterilere **gitmez**; **"unverified domain"** —
+özel gönderen alan adı Resend'de henüz doğrulanmamış; **"off"** —
+`RESEND_API_KEY` tanımlı değil, hiçbir e-posta gönderilmiyor (yalnızca
+loglanıyor); **"unconfirmed"** — özel gönderici tanımlı ama Resend'in alan
+listesi okunamadı, doğrulama durumu bilinmiyor.
+
+> **Önemli — bu kart artık yalnızca e-posta durumunu gösterir:** Daha önce
+> bu kartta platformun ödeme sağlayıcısının (Stripe) durumunu gösteren ayrı
+> bir **"Payments"** satırı da bulunuyordu; Stripe platformdan tamamen
+> kaldırıldığı için bu satır silindi. Kartta bugün **yalnızca** yukarıdaki
+> "Transactional email" satırı bulunur.
+
 ### İpuçları ve dikkat edilecekler
 
 - Bu ekran **tamamen salt görüntülemedir**; herhangi bir düğme veya form
@@ -1152,13 +1202,14 @@ Bir cihaz, ya hiç görülmemişse ya da en son görülme zamanının üzerinden
 zaman "Paused" olarak gösterilir — "Paused" bir cihaz asla "Offline" olarak
 görünmez.
 
-**Bir kiracıya nasıl kredi yüklenir?**
+**Bir kiracıya nasıl kredi eklenir ya da düşülür?**
 **Müşteriler (Customers)** ekranından (Bölüm 5) ilgili kiracıya tıklayarak
 **Müşteri Detayı (Customer Detail)** sayfasına gidin (Bölüm 6). Buradaki
-**Krediler (Credits)** kartındaki **Kredi yükleme formu (Grant credits)**
-alanına yüklemek istediğiniz miktarı (1 ile 1.000.000 arasında bir tam sayı)
-girip **Grant credits** düğmesine tıklayın (ayrıntılı adımlar için bkz.
-Bölüm 6, "Adım adım: Kredi yükleme").
+**Krediler (Credits)** kartında **Yön (Direction)** olarak **Ekle (Add)**
+veya **Düş (Deduct)** seçin, işlem yapmak istediğiniz miktarı (1 ile
+1.000.000 arasında bir tam sayı) girip **"Apply"** düğmesine tıklayın
+(ayrıntılı adımlar için bkz. Bölüm 6, "Adım adım: Kredi ekleme veya
+düşme"). Krediler uygulama içinden **satın alınamaz** — tek yol budur.
 
 **Bir ürün yazılımı (firmware) güncellemesi cihaza ne zaman ulaşır?**
 **Ürün Yazılımı (Firmware)** ekranında (Bölüm 8) yeni bir sürüm

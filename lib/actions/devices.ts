@@ -18,7 +18,6 @@ import { id, pairingCode } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import type { DeviceStatus } from "@/lib/types";
 import { isOrgArchived } from "@/lib/archived-guard";
-import { syncDeviceSubscription } from "@/lib/billing/device-subscription";
 import { deprovisionDeviceMqtt } from "@/lib/mqtt";
 import { pushEffectivePinSafe } from "@/lib/pin-service";
 
@@ -229,15 +228,6 @@ export async function deleteDevice(deviceId: string): Promise<ActionResult> {
     action: AUDIT.deviceDeleted,
     target: { type: "device", id: deviceId },
   });
-
-  // Keep the per-device subscription quantity in sync (fail-open — a Stripe
-  // hiccup must never fail a delete). Covers the claimed-device-count drop
-  // when a claimed device is deleted.
-  try {
-    await syncDeviceSubscription(device.organizationId);
-  } catch (err) {
-    console.error("device-subscription sync after delete failed", err);
-  }
 
   // Deprovision the device's MQTT broker credential (fail-open — a broker
   // hiccup must never fail a delete). No-op when MQTT is disabled.

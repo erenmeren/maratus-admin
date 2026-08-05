@@ -6,7 +6,6 @@ import { tenantSettings } from "@/lib/db/schema";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { isOrgArchived } from "@/lib/archived-guard";
-import { syncDeviceSubscription } from "@/lib/billing/device-subscription";
 import type { BillingPlan } from "@/lib/billing-plan";
 
 export type PlanState = { ok: boolean; error?: string };
@@ -44,13 +43,6 @@ export async function setBillingPlanAction(
     action: AUDIT.billingPlanChanged,
     metadata: { plan, includedTriggersPerDevice: included },
   });
-
-  // Reconcile the Stripe subscription with the new plan (fail-open).
-  try {
-    await syncDeviceSubscription(orgId);
-  } catch (err) {
-    console.error("device-subscription sync after plan change failed", err);
-  }
 
   revalidatePath(`/admin/customers/${orgId}`);
   return { ok: true };

@@ -2325,7 +2325,7 @@ export async function getCreditsOverview(): Promise<
 }
 
 /** Active-tenant count per billing plan + claimed-device counts for the
- *  subscription tracks (the revenue proxy while Stripe figures stay out of scope). */
+ *  subscription tracks (the revenue proxy for manual invoicing). */
 export async function getPlanMix(): Promise<{
   credits: number; flat: number; baseUsage: number; flatDevices: number; baseUsageDevices: number;
 }> {

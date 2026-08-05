@@ -201,7 +201,6 @@ export const tenantSettings = pgTable("tenant_settings", {
   // On-device Settings PIN: sha256(salt + pin). Device validates locally. null = ungated.
   deviceSettingsPasswordHash: text("device_settings_password_hash"),
   deviceSettingsPasswordSalt: text("device_settings_password_salt"),
-  stripeCustomerId: text("stripe_customer_id"),
   // --- Pricing plan (dual-track pricing spec 2026-07-11) -------------------
   // credits    = prepaid credits only (self-service default; legacy behavior)
   // flat       = Track B: per-device subscription, unlimited triggers (fair-use)
@@ -213,10 +212,6 @@ export const tenantSettings = pgTable("tenant_settings", {
   includedTriggersPerDevice: integer("included_triggers_per_device")
     .default(2000)
     .notNull(),
-  // Per-device quantity subscription (flat/base plans). The item holds the
-  // quantity (= claimed device count).
-  stripeSubscriptionId: text("stripe_subscription_id"),
-  stripeSubscriptionItemId: text("stripe_subscription_item_id"),
   status: text("status", { enum: ["active", "paused"] })
     .default("active")
     .notNull(),

@@ -49,6 +49,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "member.role_changed": "Member role changed",
   "invitation.canceled": "Invitation canceled",
   "credits.granted": "Credits granted",
+  "credits.deducted": "Credits deducted",
   "credits.purchased": "Credits purchased",
   "device.auto_claimed": "Device auto-claimed",
   "device.serial_conflict": "Duplicate device serial detected",

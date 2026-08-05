@@ -38,7 +38,7 @@ import {
   getDeviceUsageThisMonth,
 } from "@/lib/data";
 import { getBalance } from "@/lib/credits";
-import { GrantCreditsForm } from "@/components/grant-credits-form";
+import { AdjustCreditsForm } from "@/components/adjust-credits-form";
 import { BillingPlanCard } from "@/components/billing-plan-card";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { actionLabel } from "@/lib/audit-labels";
@@ -248,7 +248,7 @@ export default async function CustomerDetailPage({
               This tenant is on the flat plan — triggers do not consume credits.
             </p>
           )}
-          {!isArchived && <GrantCreditsForm organizationId={tenantId} />}
+          {!isArchived && <AdjustCreditsForm organizationId={tenantId} />}
 
           {creditLedger.length > 0 && (
             <Table>

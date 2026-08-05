@@ -48,6 +48,7 @@ export const AUDIT = {
   memberRoleChanged: "member.role_changed",
   invitationCanceled: "invitation.canceled",
   creditsGranted: "credits.granted",
+  creditsDeducted: "credits.deducted",
   creditsPurchased: "credits.purchased",
   deviceAutoClaimed: "device.auto_claimed",
   deviceSerialConflict: "device.serial_conflict",

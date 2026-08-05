@@ -1,19 +1,31 @@
 "use client";
 
 import { useActionState } from "react";
-import { grantCreditsAction, type GrantState } from "@/lib/actions/credits";
+import { adjustCreditsAction, type GrantState } from "@/lib/actions/credits";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 const initialState: GrantState = { ok: false };
 
-export function GrantCreditsForm({ organizationId }: { organizationId: string }) {
-  const [state, action, pending] = useActionState(grantCreditsAction, initialState);
+export function AdjustCreditsForm({ organizationId }: { organizationId: string }) {
+  const [state, action, pending] = useActionState(adjustCreditsAction, initialState);
 
   return (
     <form action={action} className="flex flex-wrap items-end gap-3">
       <input type="hidden" name="organizationId" value={organizationId} />
+
+      <div className="flex flex-col gap-1">
+        <Label className="text-xs font-medium text-muted-foreground">Direction</Label>
+        <div className="flex h-9 items-center gap-4 text-sm">
+          <label className="flex cursor-pointer items-center gap-1.5">
+            <input type="radio" name="direction" value="grant" defaultChecked /> Add
+          </label>
+          <label className="flex cursor-pointer items-center gap-1.5">
+            <input type="radio" name="direction" value="deduct" /> Deduct
+          </label>
+        </div>
+      </div>
 
       <div className="flex flex-col gap-1">
         <Label htmlFor="credits-amount" className="text-xs font-medium text-muted-foreground">
@@ -40,20 +52,20 @@ export function GrantCreditsForm({ organizationId }: { organizationId: string })
           id="credits-note"
           name="note"
           type="text"
-          placeholder="e.g. promotional grant"
+          placeholder="e.g. invoice #42 unpaid"
           className="h-9 w-56"
         />
       </div>
 
       <Button type="submit" disabled={pending} className="h-9">
-        {pending ? "Granting…" : "Grant credits"}
+        {pending ? "Applying…" : "Apply"}
       </Button>
 
       {state.error && (
         <p className="w-full text-sm text-destructive">{state.error}</p>
       )}
       {state.ok && (
-        <p className="w-full text-sm text-green-600 dark:text-green-400">Credits granted.</p>
+        <p className="w-full text-sm text-green-600 dark:text-green-400">Credits updated.</p>
       )}
     </form>
   );

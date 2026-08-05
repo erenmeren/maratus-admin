@@ -5,7 +5,7 @@
 export interface CreditLedgerRow {
   orgId: string;
   name: string;
-  kind: "grant" | "purchase" | "hold" | "settle" | "release" | "spend";
+  kind: "grant" | "purchase" | "hold" | "settle" | "release" | "spend" | "adjust";
   credits: number;
   createdAt: Date;
 }
@@ -68,6 +68,10 @@ export function rollupCredits(
     const acc = getAcc(row.orgId, row.name);
     switch (row.kind) {
       case "grant":
+        granted += row.credits;
+        break;
+      case "adjust":
+        // Manual admin deduction — stored negative, nets against grants.
         granted += row.credits;
         break;
       case "purchase":

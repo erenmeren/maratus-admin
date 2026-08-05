@@ -4,9 +4,10 @@
 // transaction needed. The WHERE available >= cost / held >= cost clause makes
 // each UPDATE a CAS: it either moves credits or returns zero rows (failure).
 //
-// Ledger convention: `credits` is always a positive integer; the `kind` conveys
+// Ledger convention: `credits` is a positive integer and `kind` conveys
 // direction (hold/settle/release decrease one bucket; grant/purchase increase
-// available).
+// available) — with one exception: "adjust" (manual admin deduction) stores a
+// NEGATIVE integer so sums over grant+adjust net out naturally.
 
 import { and, eq, gte, sql } from "drizzle-orm";
 import { db } from "./db";
@@ -19,7 +20,7 @@ export const STARTER_CREDITS = 50;
 type LedgerRow = {
   organizationId: string;
   deviceId?: string | null;
-  kind: "grant" | "purchase" | "hold" | "settle" | "release" | "spend";
+  kind: "grant" | "purchase" | "hold" | "settle" | "release" | "spend" | "adjust";
   credits: number;
   action?: string | null;
   commandId?: string | null;
@@ -221,4 +222,38 @@ export async function grantCredits(a: {
       },
     });
   return { applied: true };
+}
+
+/** Manually remove credits (admin correction / unpaid invoice claw-back).
+ *  Atomic: only succeeds when `available >= credits`; `held` is never touched.
+ *  Ledger row is kind "adjust" with NEGATIVE credits (see header convention). */
+export async function deductCredits(a: {
+  organizationId: string;
+  credits: number; // positive amount to remove
+  note?: string;
+  createdByUserId?: string;
+}): Promise<{ ok: true; availableAfter: number } | { ok: false; reason: "insufficient" }> {
+  const [updated] = await db
+    .update(creditBalance)
+    .set({
+      available: sql`${creditBalance.available} - ${a.credits}`,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(creditBalance.organizationId, a.organizationId),
+        gte(creditBalance.available, a.credits),
+      ),
+    )
+    .returning({ available: creditBalance.available });
+  if (!updated) return { ok: false, reason: "insufficient" };
+  await ledger({
+    organizationId: a.organizationId,
+    kind: "adjust",
+    credits: -a.credits,
+    note: a.note ?? null,
+    balanceAfterAvailable: updated.available,
+    createdByUserId: a.createdByUserId ?? null,
+  });
+  return { ok: true, availableAfter: updated.available };
 }

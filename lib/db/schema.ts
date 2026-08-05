@@ -471,7 +471,7 @@ export const creditLedger = pgTable(
     id: text("id").primaryKey(),
     organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
     deviceId: text("device_id").references(() => device.id, { onDelete: "set null" }),
-    kind: text("kind", { enum: ["grant", "purchase", "hold", "settle", "release", "spend"] }).notNull(),
+    kind: text("kind", { enum: ["grant", "purchase", "hold", "settle", "release", "spend", "adjust"] }).notNull(),
     credits: integer("credits").notNull(),
     action: text("action"),
     commandId: text("command_id"),

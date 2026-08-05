@@ -87,4 +87,19 @@ describe("rollupCredits", () => {
     expect(r.totals).toEqual({ granted: 0, purchased: 0, consumed: 0, outstanding: 0 });
     expect(r.perTenant).toEqual([]);
   });
+
+  it("nets adjust rows (negative credits) against granted totals", () => {
+    const now = new Date("2026-08-05T12:00:00Z");
+    const out = rollupCredits(
+      [
+        { orgId: "o1", name: "Org", kind: "grant", credits: 100, createdAt: now },
+        { orgId: "o1", name: "Org", kind: "adjust", credits: -30, createdAt: now },
+      ],
+      [{ orgId: "o1", name: "Org", available: 70 }],
+      now,
+    );
+    expect(out.totals.granted).toBe(70);
+    expect(out.totals.consumed).toBe(0);
+    expect(out.totals.outstanding).toBe(70);
+  });
 });

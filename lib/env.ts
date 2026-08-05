@@ -34,19 +34,6 @@ const envSchema = z.object({
   NEXT_PUBLIC_SENTRY_DSN: z.string().optional(),
   SENTRY_ENVIRONMENT: z.string().default("development"),
 
-  // Stripe billing. All optional: absent → billing features are inert.
-  STRIPE_SECRET_KEY: z.string().optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().optional(),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
-  // Comma-separated list of credit packs: `packId:priceId:credits[,...]`
-  // e.g. `small:price_abc:100,large:price_def:1000`
-  STRIPE_CREDIT_PACK_PRICE_IDS: z.string().optional(),
-
-  // Per-device monthly Stripe prices (dual-track pricing). Tier discounts are
-  // configured on the price objects in Stripe, not in code.
-  STRIPE_FLAT_PRICE_ID: z.string().optional(),
-  STRIPE_BASE_PRICE_ID: z.string().optional(),
-
   // Shared secret for the scheduled cron endpoint(s). Vercel sends it as
   // `Authorization: Bearer <CRON_SECRET>`. Absent → the cron route returns 503.
   CRON_SECRET: z.string().optional(),

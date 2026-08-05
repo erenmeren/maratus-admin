@@ -1,5 +1,5 @@
-// Configuration status for the two integrations that fail SILENTLY when they are
-// half-configured — which is exactly how both sat unnoticed for weeks.
+// Configuration status for transactional email, which fails SILENTLY when
+// half-configured — which is exactly how it sat unnoticed for weeks.
 //
 // Email is the dangerous one. lib/email.ts only no-ops when RESEND_API_KEY is
 // absent; with a key present it really calls Resend, and Resend really refuses
@@ -80,13 +80,4 @@ export function emailStatus(opts: {
     };
   }
   return { state: "ready", sender, detail: `${domain} is verified with Resend.` };
-}
-
-export type StripeMode = "unset" | "test" | "live";
-
-/** Which Stripe account the deployment is wired to. Test-mode keys never move real money. */
-export function stripeMode(secretKey: string | undefined): StripeMode {
-  const k = secretKey?.trim() ?? "";
-  if (!k) return "unset";
-  return k.startsWith("sk_live_") || k.startsWith("rk_live_") ? "live" : "test";
 }

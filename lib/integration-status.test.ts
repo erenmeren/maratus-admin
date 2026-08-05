@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { emailStatus, senderDomain, stripeMode } from "./integration-status";
+import { emailStatus, senderDomain } from "./integration-status";
 
 describe("senderDomain", () => {
   it("reads the domain out of a display-name address", () => {
@@ -54,17 +54,5 @@ describe("emailStatus", () => {
   it("is ready only with a key, a custom sender and a verified domain", () => {
     const s = emailStatus({ apiKey: "re_live_xxx", from: "Ditto <noreply@ditto.app>", domains: verified });
     expect(s.state).toBe("ready");
-  });
-});
-
-describe("stripeMode", () => {
-  it("distinguishes live keys from test keys", () => {
-    expect(stripeMode("sk_live_abc")).toBe("live");
-    expect(stripeMode("rk_live_abc")).toBe("live");
-    expect(stripeMode("sk_test_abc")).toBe("test");
-  });
-  it("reports an absent key", () => {
-    expect(stripeMode(undefined)).toBe("unset");
-    expect(stripeMode("  ")).toBe("unset");
   });
 });

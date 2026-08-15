@@ -220,7 +220,7 @@ export default async function CustomerDetailPage({
         disabled={isArchived}
       />
 
-      <InvoiceTable tenantId={tenant.id} invoices={invoices} disabled={isArchived} />
+      <InvoiceTable invoices={invoices} disabled={isArchived} />
 
       {/* Device usage this month */}
       <Card className="overflow-hidden">

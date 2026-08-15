@@ -194,7 +194,10 @@ export async function markInvoicePaid(a: {
   fxRate: number;
   userId: string;
   now?: Date;
-}): Promise<{ ok: true } | { ok: false; reason: "not_found" | "already_settled" }> {
+}): Promise<
+  | { ok: true; organizationId: string }
+  | { ok: false; reason: "not_found" | "already_settled" }
+> {
   const now = a.now ?? new Date();
 
   // Settle the row first, conditioned on status — this is the concurrency gate,
@@ -225,7 +228,7 @@ export async function markInvoicePaid(a: {
       .update(device)
       .set({ subscriptionPaidAt: now })
       .where(eq(device.id, inv.deviceId));
-    return { ok: true };
+    return { ok: true, organizationId: inv.organizationId };
   }
 
   if (inv.kind === "subscription") {
@@ -275,7 +278,7 @@ export async function markInvoicePaid(a: {
         .set({ subscriptionPaidAt: now })
         .where(eq(device.id, deviceId));
     }
-    return { ok: true };
+    return { ok: true, organizationId: inv.organizationId };
   }
 
   // overage: settles only itself, and burns the legacy credits it consumed.
@@ -285,5 +288,5 @@ export async function markInvoicePaid(a: {
       .set({ legacyCreditsRemaining: 0, updatedAt: now })
       .where(eq(tenantSettings.organizationId, inv.organizationId));
   }
-  return { ok: true };
+  return { ok: true, organizationId: inv.organizationId };
 }

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { and, count, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { device, tenantSettings } from "@/lib/db/schema";
+import { device, invoice, tenantSettings } from "@/lib/db/schema";
 import { requirePlatformAdmin } from "@/lib/session";
 import { isOrgArchived } from "@/lib/archived-guard";
 import { recordAudit, AUDIT } from "@/lib/audit";
@@ -72,9 +72,14 @@ export async function startSubscriptionAction(tenantId: string): Promise<ActionR
  * Records a bank-transfer payment against an open invoice. This is the
  * action that actually activates a subscription / paid devices — see
  * lib/invoices.ts markInvoicePaid for the settlement + activation logic.
+ *
+ * There's no payment provider anywhere in this system, so the audit row
+ * this writes IS the record of "who paid what" — it must never be
+ * attributable to a caller-supplied org. Every org-scoped decision here
+ * (the archived guard, the audit row, the revalidated path) is sourced
+ * from the invoice actually being settled, not from an argument.
  */
 export async function markInvoicePaidAction(a: {
-  tenantId: string;
   invoiceId: string;
   tryAmountKurus: number;
   fxRate: number;
@@ -87,7 +92,16 @@ export async function markInvoicePaidAction(a: {
   if (!Number.isInteger(a.fxRate) || a.fxRate <= 0) {
     return { ok: false, error: "Enter the FX rate in kuruş per USD (whole number)." };
   }
-  if (await isOrgArchived(a.tenantId)) {
+
+  const [invRow] = await db
+    .select({ organizationId: invoice.organizationId })
+    .from(invoice)
+    .where(eq(invoice.id, a.invoiceId))
+    .limit(1);
+  if (!invRow) {
+    return { ok: false, error: "Invoice not found." };
+  }
+  if (await isOrgArchived(invRow.organizationId)) {
     return { ok: false, error: "Customer is archived." };
   }
 
@@ -108,13 +122,13 @@ export async function markInvoicePaidAction(a: {
   }
 
   await recordAudit({
-    organizationId: a.tenantId,
+    organizationId: result.organizationId,
     actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
     action: AUDIT.invoicePaid,
     target: { type: "invoice", id: a.invoiceId },
     metadata: { tryAmountKurus: a.tryAmountKurus, fxRate: a.fxRate },
   });
 
-  revalidatePath(`/admin/customers/${a.tenantId}`);
+  revalidatePath(`/admin/customers/${result.organizationId}`);
   return { ok: true };
 }

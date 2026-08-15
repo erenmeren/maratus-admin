@@ -43,11 +43,9 @@ function displayStatus(inv: InvoiceRow, now: Date): DisplayStatus {
 }
 
 export function InvoiceTable({
-  tenantId,
   invoices,
   disabled,
 }: {
-  tenantId: string;
   invoices: InvoiceRow[];
   disabled?: boolean;
 }) {
@@ -108,7 +106,6 @@ export function InvoiceTable({
                     <TableCell className="pr-6 text-right">
                       {inv.status === "open" && !disabled && (
                         <MarkPaidDialog
-                          tenantId={tenantId}
                           invoiceId={inv.id}
                           amountUsdCents={inv.amountUsdCents}
                         />

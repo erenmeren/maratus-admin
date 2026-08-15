@@ -140,7 +140,7 @@ export default async function TenantBillingPage() {
         </CardContent>
       </Card>
 
-      <InvoiceTable invoices={invoices} disabled />
+      <InvoiceTable invoices={invoices} isSubscribed={overview.subscribed} disabled />
 
       <Card>
         <CardHeader>

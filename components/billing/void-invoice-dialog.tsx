@@ -23,13 +23,21 @@ import { formatUsdCents } from "@/lib/format";
  * "Start subscription" click leaves a full-year invoice open forever: it
  * cannot be paid away without moving money, and it drags the customer into
  * the overdue view.
+ *
+ * Only rendered for invoices canVoidInvoice allows — voiding does NOT free the
+ * (org, kind, periodStart) slot, so anything the cron issues into a fixed slot
+ * is unrecoverable and is refused upstream. `consequence` is that kind's real
+ * outcome, computed server-side (lib/invoices voidConsequence) so this client
+ * component never pulls the data layer into the browser bundle.
  */
 export function VoidInvoiceDialog({
   invoiceId,
   amountUsdCents,
+  consequence,
 }: {
   invoiceId: string;
   amountUsdCents: number;
+  consequence: string;
 }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
@@ -72,9 +80,8 @@ export function VoidInvoiceDialog({
         <DialogHeader>
           <DialogTitle>Void this invoice?</DialogTitle>
           <DialogDescription>
-            {formatUsdCents(amountUsdCents)} will be cancelled. Nothing is
-            activated or deactivated — the invoice simply stops being owed and
-            drops out of the overdue list. This cannot be undone.
+            {formatUsdCents(amountUsdCents)} stops being owed and drops out of
+            the overdue list. {consequence} This cannot be undone.
           </DialogDescription>
         </DialogHeader>
 

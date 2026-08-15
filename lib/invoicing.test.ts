@@ -8,6 +8,7 @@ import {
   monthsRemainingUntil,
   overageFor,
   prorationAmountCents,
+  prorationMonths,
   subscriptionAmountCents,
 } from "./invoicing";
 
@@ -120,5 +121,32 @@ describe("dueAtFrom", () => {
     expect(dueAtFrom(new Date("2026-04-12T09:00:00Z")).toISOString()).toBe(
       "2026-04-26T09:00:00.000Z",
     );
+  });
+});
+
+describe("prorationMonths", () => {
+  it("passes an ordinary mid-year claim through untouched", () => {
+    expect(prorationMonths(7)).toBe(7);
+  });
+
+  it("bills a full month for a device claimed at or after renewal", () => {
+    // monthsRemainingUntil returns 0 once now >= renewsAt — routine while a
+    // renewal sits unpaid. Zero months means no invoice at all, so the device
+    // would be claimed, unpaid and invisible.
+    expect(prorationMonths(0)).toBe(1);
+  });
+
+  it("never returns a negative or zero month count", () => {
+    expect(prorationMonths(-3)).toBe(1);
+  });
+
+  it("never exceeds a full year", () => {
+    expect(prorationMonths(99)).toBe(12);
+  });
+
+  it("always prices to something billable", () => {
+    for (const m of [-1, 0, 1, 12, 13]) {
+      expect(prorationAmountCents(1500, prorationMonths(m))).toBeGreaterThan(0);
+    }
   });
 });

@@ -14,13 +14,15 @@ import { provisionDeviceMqtt } from "@/lib/mqtt";
 import { pushEffectivePinSafe } from "@/lib/pin-service";
 import { periodEndFor, periodStartFor } from "@/lib/billing-period";
 import { monthsRemainingUntil } from "@/lib/invoicing";
-import { issueProrationInvoice } from "@/lib/invoices";
+import { issueProrationInvoice, prorationMonths } from "@/lib/invoices";
 
 /**
  * A device claimed mid-year is billed for the remaining months of the org's
  * subscription year and stays UNPAID (contributing no quota) until that
  * invoice is marked paid. No subscription yet → nothing to pro-rate; the
- * device rides the org's first subscription invoice instead.
+ * device rides the org's first subscription invoice instead — and if that
+ * invoice is issued but not yet paid, markInvoicePaid issues the proration at
+ * payment time, once the anchor exists.
  *
  * Fail-open, matching the MQTT/pin posture above: the device is already
  * bound and its key already returned to the caller by the time this runs, so
@@ -48,7 +50,14 @@ async function issueProrationForClaimSafe(
       organizationId,
       deviceId,
       pricePerDeviceCents: settings.price,
-      monthsRemaining: monthsRemainingUntil(settings.renewsAt, now),
+      // Clamped to at least one month: a device claimed at or after the
+      // renewal instant (routine while a renewal sits unpaid — there is no
+      // cut-off) would otherwise price at zero, produce no invoice at all,
+      // and be claimed, unpaid and invisible.
+      monthsRemaining: prorationMonths(
+        monthsRemainingUntil(settings.renewsAt, now),
+        { deviceId, organizationId },
+      ),
       periodStart: periodStartFor(settings.startedAt, now),
       periodEnd: periodEndFor(settings.startedAt, now),
       issuedAt: now,

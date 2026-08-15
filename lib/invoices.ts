@@ -9,22 +9,51 @@ import { and, asc, desc, eq, gte, isNotNull, isNull, lt, lte, sql } from "drizzl
 import { db } from "./db";
 import { device, deviceCommand, invoice, tenantSettings } from "./db/schema";
 import { id } from "./ids";
-import { addMonthsAnchored, MONTHS_PER_YEAR, renewalDueAt } from "./billing-period";
 import {
+  addMonthsAnchored,
+  MONTHS_PER_YEAR,
+  periodEndFor,
+  periodStartFor,
+  renewalDueAt,
+} from "./billing-period";
+import {
+  DEFAULT_PRICE_PER_DEVICE_CENTS,
   dueAtFrom,
+  monthsRemainingUntil,
   overageFor,
   prorationAmountCents,
+  prorationMonths as clampProrationMonths,
   subscriptionAmountCents,
 } from "./invoicing";
+
+/**
+ * `prorationMonths` with a log when the clamp fires. A zero-month proration
+ * means the device was claimed at or after the org's renewal instant; that is
+ * a legitimate state (an unpaid renewal is never cut off) but worth seeing,
+ * because the device is being billed a full month for a year that is over.
+ */
+export function prorationMonths(
+  monthsRemaining: number,
+  ctx: { deviceId: string; organizationId: string },
+): number {
+  const months = clampProrationMonths(monthsRemaining);
+  if (months !== monthsRemaining) {
+    console.warn("proration months clamped to a minimum of one", {
+      ...ctx,
+      monthsRemaining,
+      billedMonths: months,
+    });
+  }
+  return months;
+}
 
 export type InvoiceRow = typeof invoice.$inferSelect;
 
 /**
  * "Overdue" is derived, never stored: an open invoice past its due date.
- * Small shared helper — the several call sites that inline this check
- * against a full `InvoiceRow` (components/billing/invoice-table.tsx,
- * components/billing/subscription-card.tsx, tenant/billing/page.tsx) are
- * left as-is; this is for new call sites that only have the two fields.
+ * This is a billing rule, so it has exactly one definition — every call site
+ * (the admin/tenant invoice table, the subscription card, the tenant billing
+ * page, the cron's overdue sweep) routes through here.
  */
 export function isInvoiceOverdue(
   inv: { status: InvoiceRow["status"]; dueAt: Date },
@@ -297,6 +326,7 @@ export async function markInvoicePaid(a: {
       .select({
         startedAt: tenantSettings.subscriptionStartedAt,
         renewsAt: tenantSettings.subscriptionRenewsAt,
+        price: tenantSettings.pricePerDeviceCents,
       })
       .from(tenantSettings)
       .where(eq(tenantSettings.organizationId, inv.organizationId))
@@ -306,16 +336,37 @@ export async function markInvoicePaid(a: {
     // recompute year one from the anchor — it advances the CURRENT renewal
     // date by twelve months, so a second renewal lands in year three.
     const isFirst = !settings?.startedAt;
+    const startedAt = settings?.startedAt ?? now;
+    // A non-first invoice with a null renewsAt should be unreachable, but this
+    // is the most important write in the product: fall back to a fresh year
+    // rather than casting the null away and throwing mid-settlement, with the
+    // invoice already marked paid.
+    const renewsAt = isFirst
+      ? renewalDueAt(now)
+      : addMonthsAnchored(settings.renewsAt ?? renewalDueAt(now), MONTHS_PER_YEAR);
+    const pricePerDeviceCents = settings?.price ?? DEFAULT_PRICE_PER_DEVICE_CENTS;
+
+    // UPSERT, not UPDATE: an org can exist without a tenantSettings row (it is
+    // created lazily by Branding / Device Settings and by registration), and a
+    // bare UPDATE would match zero rows — devices would activate while
+    // subscriptionStartedAt stayed null, so the billing cron would never see
+    // the org and the tenant page would say "Not subscribed" forever. Same
+    // hazard, same fix as lib/pin-service.ts.
     await db
-      .update(tenantSettings)
-      .set({
-        subscriptionStartedAt: settings?.startedAt ?? now,
-        subscriptionRenewsAt: isFirst
-          ? renewalDueAt(now)
-          : addMonthsAnchored(settings.renewsAt as Date, MONTHS_PER_YEAR),
-        updatedAt: now,
+      .insert(tenantSettings)
+      .values({
+        organizationId: inv.organizationId,
+        subscriptionStartedAt: startedAt,
+        subscriptionRenewsAt: renewsAt,
       })
-      .where(eq(tenantSettings.organizationId, inv.organizationId));
+      .onConflictDoUpdate({
+        target: tenantSettings.organizationId,
+        set: {
+          subscriptionStartedAt: startedAt,
+          subscriptionRenewsAt: renewsAt,
+          updatedAt: now,
+        },
+      });
 
     // What the invoice still OWES, not what it was priced for. A renewal is
     // priced with countPaidDevices, so its deviceCount describes devices that
@@ -354,6 +405,36 @@ export async function markInvoicePaid(a: {
         .set({ subscriptionPaidAt: now })
         .where(eq(device.id, deviceId));
     }
+
+    // Anything still unpaid now needs its own proration invoice. A device
+    // claimed between the first subscription invoice being ISSUED and it being
+    // PAID gets none from the claim path — issueProrationForClaimSafe bails
+    // while the subscription dates are null, and they are null until this very
+    // moment. Without this it would be claimed, unpaid, invoice-less and
+    // invisible. Fail-open: the invoice is already settled and the devices
+    // already activated, so a proration hiccup must not undo that.
+    try {
+      await issueProrationsForUnpaidDevices({
+        organizationId: inv.organizationId,
+        startedAt,
+        renewsAt,
+        pricePerDeviceCents,
+        now,
+      });
+    } catch (err) {
+      console.error("proration issue after subscription payment failed", err);
+    }
+
+    return { ok: true, organizationId: inv.organizationId };
+  }
+
+  if (inv.kind === "proration") {
+    // Reachable: invoice.deviceId is ON DELETE SET NULL, so deleting a device
+    // with an open proration leaves an invoice that activates nothing.
+    console.warn("proration invoice settled with no device attached", {
+      invoiceId: inv.id,
+      organizationId: inv.organizationId,
+    });
     return { ok: true, organizationId: inv.organizationId };
   }
 
@@ -361,4 +442,44 @@ export async function markInvoicePaid(a: {
   // invoice was ISSUED (see issueOverageInvoice) — zeroing them here left the
   // balance re-applicable every period until someone paid.
   return { ok: true, organizationId: inv.organizationId };
+}
+
+/**
+ * One proration invoice per still-unpaid claimed device, for the rest of the
+ * org's subscription year. Idempotent via the (deviceId, periodStart) unique
+ * index, so calling it again inside the same period is a no-op.
+ */
+async function issueProrationsForUnpaidDevices(a: {
+  organizationId: string;
+  startedAt: Date;
+  renewsAt: Date;
+  pricePerDeviceCents: number;
+  now: Date;
+}): Promise<void> {
+  const stillUnpaid = await db
+    .select({ id: device.id })
+    .from(device)
+    .where(
+      and(
+        eq(device.organizationId, a.organizationId),
+        isNull(device.subscriptionPaidAt),
+        isNotNull(device.claimedAt),
+      ),
+    )
+    .orderBy(asc(device.claimedAt));
+
+  for (const d of stillUnpaid) {
+    await issueProrationInvoice({
+      organizationId: a.organizationId,
+      deviceId: d.id,
+      pricePerDeviceCents: a.pricePerDeviceCents,
+      monthsRemaining: prorationMonths(
+        monthsRemainingUntil(a.renewsAt, a.now),
+        { deviceId: d.id, organizationId: a.organizationId },
+      ),
+      periodStart: periodStartFor(a.startedAt, a.now),
+      periodEnd: periodEndFor(a.startedAt, a.now),
+      issuedAt: a.now,
+    });
+  }
 }

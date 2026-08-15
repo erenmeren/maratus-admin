@@ -15,8 +15,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatDate, formatTryKurus, formatUsdCents } from "@/lib/format";
-import type { InvoiceRow } from "@/lib/invoices";
+import { isInvoiceOverdue, type InvoiceRow } from "@/lib/invoices";
 import { MarkPaidDialog } from "./mark-paid-dialog";
+import { VoidInvoiceDialog } from "./void-invoice-dialog";
 
 const KIND_LABELS: Record<InvoiceRow["kind"], string> = {
   subscription: "Subscription",
@@ -36,10 +37,9 @@ const STATUS_UI: Record<
   overdue: { label: "Overdue", variant: "destructive" },
 };
 
-/** "Overdue" is derived, never stored: an open invoice past its due date. */
+/** "Overdue" is derived, never stored — the rule lives in lib/invoices.ts. */
 function displayStatus(inv: InvoiceRow, now: Date): DisplayStatus {
-  if (inv.status === "open" && inv.dueAt < now) return "overdue";
-  return inv.status;
+  return isInvoiceOverdue(inv, now) ? "overdue" : inv.status;
 }
 
 export function InvoiceTable({
@@ -114,10 +114,16 @@ export function InvoiceTable({
                     </TableCell>
                     <TableCell className="pr-6 text-right">
                       {inv.status === "open" && !disabled && (
-                        <MarkPaidDialog
-                          invoiceId={inv.id}
-                          amountUsdCents={inv.amountUsdCents}
-                        />
+                        <div className="flex items-center justify-end gap-1">
+                          <MarkPaidDialog
+                            invoiceId={inv.id}
+                            amountUsdCents={inv.amountUsdCents}
+                          />
+                          <VoidInvoiceDialog
+                            invoiceId={inv.id}
+                            amountUsdCents={inv.amountUsdCents}
+                          />
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>

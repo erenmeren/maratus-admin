@@ -49,6 +49,12 @@ every existing device is null until this script runs. Deploy the new code
 triggers exceed the trial allowance.
 
 What it does (`lib/db/backfill-subscriptions.ts`):
+- Aligns `includedTriggersPerDevice` on **existing** rows to 1000. Migration
+  0042 changes the column *default* from 2000 to 1000, but a default only
+  applies to rows inserted after it — every pre-existing tenant would otherwise
+  keep 2000 and silently get double the quota the model specifies. This was
+  caught in production during the first cutover, where the one existing org was
+  still on 2000 after the migration.
 - Marks every non-archived org subscribed as of *now* (`subscriptionStartedAt`
   / `subscriptionRenewsAt`, 12 months out).
 - Marks every claimed device paid as of *now* (`subscriptionPaidAt`).

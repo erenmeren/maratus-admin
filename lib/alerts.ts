@@ -10,6 +10,18 @@ export interface OpenAlert {
   message: string;
 }
 
+/**
+ * Key namespace for alerts raised by the billing cron. Reconciliation is
+ * whole-set — anything open and not re-tripped gets resolved — so the health
+ * sweep and the billing sweep must own disjoint key spaces, or each would
+ * resolve the other's rows on every run.
+ */
+export const BILLING_ALERT_PREFIX = "billing:";
+
+export function isBillingAlertKey(key: string): boolean {
+  return key.startsWith(BILLING_ALERT_PREFIX);
+}
+
 export interface AlertDiff {
   toOpen: HealthAlert[]; // tripped now, not currently open → insert
   toResolve: OpenAlert[]; // open in DB, no longer tripped → resolve

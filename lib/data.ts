@@ -18,13 +18,13 @@ import {
   alert as alertTable,
   apiKey as apiKeyTable,
   auditLog as auditLogTable,
-  creditBalance as creditBalanceTable,
   creditLedger as creditLedgerTable,
   device as deviceTable,
   deviceCommand,
   factoryDevice,
   firmwareRelease,
   invitation as invitationTable,
+  invoice as invoiceTable,
   member as memberTable,
   organization as orgTable,
   store as storeTable,
@@ -50,7 +50,6 @@ import { normalizePrinterConfig, sanitizeQrStyle, PRINTER_SCREENS, type PrinterC
 import { computeConfigVersion, etagMatches } from "@/lib/device-config";
 import { normalizeDeviceSettings } from "@/lib/device-settings";
 import { rollupByDevice } from "@/lib/credit-usage";
-import { rollupCredits, type CreditsOverview } from "@/lib/credits-overview";
 import { getBalance } from "./credits";
 import { mqttConfigFingerprint } from "./mqtt";
 import { publishConfigCommand } from "@/lib/mqtt-push";
@@ -60,7 +59,7 @@ import { AUDIT } from "@/lib/audit";
 import { DEFAULT_INCLUDED_TRIGGERS, monthKey } from "@/lib/billing-plan";
 import { periodStartFor, periodEndFor } from "@/lib/billing-period";
 import { overageFor } from "@/lib/invoicing";
-import { countPaidDevices, countAckedTriggers } from "@/lib/invoices";
+import { countPaidDevices, countAckedTriggers, isInvoiceOverdue } from "@/lib/invoices";
 import { getOrgUsageForMonth } from "@/lib/device-usage";
 import type {
   Device,
@@ -2364,94 +2363,104 @@ export async function getDeviceUsageThisMonth(
     .sort((a, b) => b.triggers - a.triggers);
 }
 
-export type { CreditsOverview };
+/**
+ * Platform-admin: what customers owe and what has been collected, for the
+ * admin Billing page. Spans all orgs (no tenant scoping) but excludes
+ * archived orgs from both the totals and the per-tenant listing, mirroring
+ * the retired credits view's behaviour.
+ */
+export async function getBillingOverview(): Promise<{
+  totals: {
+    openUsdCents: number;
+    overdueUsdCents: number;
+    paidThisYearUsdCents: number;
+    subscribedOrgs: number;
+    paidDevices: number;
+  };
+  perTenant: {
+    orgId: string;
+    name: string;
+    paidDevices: number;
+    renewsAt: Date | null;
+    openUsdCents: number;
+    overdue: boolean;
+  }[];
+}> {
+  const now = new Date();
+  const yearStart = new Date(Date.UTC(now.getUTCFullYear(), 0, 1));
 
-/** Platform-admin: credits view for the admin Billing page (granted/purchased/consumed/outstanding). */
-export async function getCreditsOverview(): Promise<
-  CreditsOverview & { planByOrg: Record<string, string> }
-> {
-  const [orgRows, ledgerRows, balanceRows] = await Promise.all([
+  const [orgRows, invoiceRows, deviceRows] = await Promise.all([
     db
       .select({
         id: orgTable.id,
         name: orgTable.name,
         archivedAt: settingsTable.archivedAt,
-        plan: settingsTable.billingPlan,
+        subscriptionStartedAt: settingsTable.subscriptionStartedAt,
+        subscriptionRenewsAt: settingsTable.subscriptionRenewsAt,
       })
       .from(orgTable)
       .leftJoin(settingsTable, eq(settingsTable.organizationId, orgTable.id)),
     db
       .select({
-        organizationId: creditLedgerTable.organizationId,
-        kind: creditLedgerTable.kind,
-        credits: creditLedgerTable.credits,
-        createdAt: creditLedgerTable.createdAt,
+        organizationId: invoiceTable.organizationId,
+        status: invoiceTable.status,
+        amountUsdCents: invoiceTable.amountUsdCents,
+        dueAt: invoiceTable.dueAt,
+        paidAt: invoiceTable.paidAt,
       })
-      .from(creditLedgerTable),
+      .from(invoiceTable),
     db
-      .select({
-        organizationId: creditBalanceTable.organizationId,
-        available: creditBalanceTable.available,
-      })
-      .from(creditBalanceTable),
+      .select({ org: deviceTable.organizationId, c: count() })
+      .from(deviceTable)
+      .where(isNotNull(deviceTable.subscriptionPaidAt))
+      .groupBy(deviceTable.organizationId),
   ]);
 
   const orgs = excludeArchived(orgRows);
   const activeIds = new Set(orgs.map((o) => o.id));
-  const nameOf = new Map(orgs.map((o) => [o.id, o.name]));
-  const planByOrg = Object.fromEntries(orgs.map((o) => [o.id, o.plan ?? "credits"]));
+  const paidDevicesByOrg = new Map(deviceRows.map((r) => [r.org, Number(r.c)]));
+
+  let openUsdCents = 0;
+  let overdueUsdCents = 0;
+  let paidThisYearUsdCents = 0;
+  const openByOrg = new Map<string, number>();
+  const overdueByOrg = new Map<string, boolean>();
+
+  for (const inv of invoiceRows) {
+    if (!activeIds.has(inv.organizationId)) continue;
+    if (inv.status === "open") {
+      openUsdCents += inv.amountUsdCents;
+      openByOrg.set(
+        inv.organizationId,
+        (openByOrg.get(inv.organizationId) ?? 0) + inv.amountUsdCents,
+      );
+      if (isInvoiceOverdue(inv, now)) {
+        overdueUsdCents += inv.amountUsdCents;
+        overdueByOrg.set(inv.organizationId, true);
+      }
+    } else if (inv.status === "paid" && inv.paidAt && inv.paidAt >= yearStart) {
+      paidThisYearUsdCents += inv.amountUsdCents;
+    }
+  }
+
+  const paidDevices = orgs.reduce((sum, o) => sum + (paidDevicesByOrg.get(o.id) ?? 0), 0);
+  const subscribedOrgs = orgs.filter((o) => o.subscriptionStartedAt !== null).length;
+
+  const perTenant = orgs
+    .map((o) => ({
+      orgId: o.id,
+      name: o.name,
+      paidDevices: paidDevicesByOrg.get(o.id) ?? 0,
+      renewsAt: o.subscriptionRenewsAt,
+      openUsdCents: openByOrg.get(o.id) ?? 0,
+      overdue: overdueByOrg.get(o.id) ?? false,
+    }))
+    .sort((a, b) => b.openUsdCents - a.openUsdCents);
 
   return {
-    ...rollupCredits(
-      ledgerRows
-        .filter((r) => activeIds.has(r.organizationId))
-        .map((r) => ({
-          orgId: r.organizationId,
-          name: nameOf.get(r.organizationId) ?? r.organizationId,
-          kind: r.kind,
-          credits: r.credits,
-          createdAt: r.createdAt,
-        })),
-      balanceRows
-        .filter((b) => activeIds.has(b.organizationId))
-        .map((b) => ({
-          orgId: b.organizationId,
-          name: nameOf.get(b.organizationId) ?? b.organizationId,
-          available: b.available,
-        })),
-      new Date(),
-    ),
-    planByOrg,
+    totals: { openUsdCents, overdueUsdCents, paidThisYearUsdCents, subscribedOrgs, paidDevices },
+    perTenant,
   };
-}
-
-/** Active-tenant count per billing plan + claimed-device counts for the
- *  subscription tracks (the revenue proxy for manual invoicing). */
-export async function getPlanMix(): Promise<{
-  credits: number; flat: number; baseUsage: number; flatDevices: number; baseUsageDevices: number;
-}> {
-  const orgs = excludeArchived(
-    await db
-      .select({ id: orgTable.id, archivedAt: settingsTable.archivedAt, plan: settingsTable.billingPlan })
-      .from(orgTable)
-      .leftJoin(settingsTable, eq(settingsTable.organizationId, orgTable.id)),
-  );
-  const planOf = new Map(orgs.map((o) => [o.id, o.plan ?? "credits"]));
-  const counts = { credits: 0, flat: 0, base_usage: 0 } as Record<string, number>;
-  for (const p of planOf.values()) counts[p] = (counts[p] ?? 0) + 1;
-
-  const devRows = await db
-    .select({ org: deviceTable.organizationId, c: count() })
-    .from(deviceTable)
-    .where(isNotNull(deviceTable.claimedAt))
-    .groupBy(deviceTable.organizationId);
-  let flatDevices = 0, baseUsageDevices = 0;
-  for (const r of devRows) {
-    const p = planOf.get(r.org);
-    if (p === "flat") flatDevices += Number(r.c);
-    else if (p === "base_usage") baseUsageDevices += Number(r.c);
-  }
-  return { credits: counts.credits, flat: counts.flat, baseUsage: counts.base_usage, flatDevices, baseUsageDevices };
 }
 
 /** Newest-first firmware releases for the admin Firmware page. */

@@ -7,6 +7,7 @@ import {
   device,
   factoryDevice,
   invitation,
+  invoice,
   member,
   organization,
   session,
@@ -38,6 +39,7 @@ export const organizationRelations = relations(organization, ({ one, many }) => 
   }),
   stores: many(store),
   devices: many(device),
+  invoices: many(invoice),
 }));
 
 export const memberRelations = relations(member, ({ one }) => ({
@@ -94,6 +96,17 @@ export const factoryDeviceRelations = relations(factoryDevice, ({ one }) => ({
   }),
   device: one(device, {
     fields: [factoryDevice.deviceId],
+    references: [device.id],
+  }),
+}));
+
+export const invoiceRelations = relations(invoice, ({ one }) => ({
+  organization: one(organization, {
+    fields: [invoice.organizationId],
+    references: [organization.id],
+  }),
+  device: one(device, {
+    fields: [invoice.deviceId],
     references: [device.id],
   }),
 }));

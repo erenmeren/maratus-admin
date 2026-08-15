@@ -10,8 +10,10 @@ step out of order, and stop if a step misbehaves rather than pushing through
 to the next one.
 
 Background: `.superpowers/sdd/2026-08-15-subscription-billing/task-16-brief.md`
-describes the full plan this runbook is drawn from (its steps 1–3 and 5–6,
-covered in §1–4 below, and its steps 4–6, covered in §5 below). The additive
+describes the full plan this runbook is drawn from. Its cutover steps become
+§1–4 below (migrate, backfill, deploy, verify); its clean-up steps become §5,
+the destructive follow-up, which is deliberately deferred to a later sitting.
+The additive
 migration file (`drizzle/0042_magical_korg.sql`) and every code change it
 depends on — the subscription gate, the new `tenantSettings`/`device`
 columns, the `invoice` table, the admin/tenant billing pages — are already
@@ -58,6 +60,13 @@ Everyone is deliberately marked paid **as of the run date**, not their real
 historical subscription date — failing safe (nobody gets locked out) is the
 point. Correct the real dates afterward from the admin panel, org by org.
 
+It carries over `creditBalance.available` only. Any credits currently **held**
+(reserved against an in-flight trigger, `creditBalance.held`) are dropped
+silently — there is no reservation concept in the subscription model, so a
+handful of credits per org can be lost here. That is accepted; if it matters
+for a particular customer, read their `creditBalance.held` before running this
+and add the amount to `legacyCreditsRemaining` by hand afterwards.
+
 It is idempotent: it only touches rows where the relevant column is still
 null (`isNull(subscriptionStartedAt)`, `isNull(subscriptionPaidAt)`,
 `isNull(legacyCreditsRemaining)`), so re-running it after a partial failure,
@@ -70,18 +79,43 @@ counts against what you expect for the fleet before moving on.
 
 ## 3. Deploy the application
 
+**First confirm `CRON_SECRET` is set in the Vercel project** (Settings →
+Environment Variables, Production):
+
+```bash
+vercel env ls production | grep CRON_SECRET
+```
+
+`vercel.json` repoints the daily cron slot from `/api/cron/credit-holds` to
+`/api/cron/billing`, and that route returns **503 without ever running** when
+`CRON_SECRET` is unset. Nothing about that is loud: the cron reports a
+non-200, no invoice is ever issued, no period is ever closed, and the first
+symptom is a customer who has been running unbilled for months. If it is
+missing, set it (`openssl rand -base64 32`) before deploying.
+
+Then:
+
 ```bash
 vercel --prod --yes
 ```
 
 ## 4. Verify before touching anything else
 
-Confirm all three of these hold on production. **Do not start step 5 (the
+Confirm all four of these hold on production. **Do not start step 5 (the
 destructive follow-up) until they do:**
 
 1. A real device still triggers successfully.
 2. `/admin/billing` and a customer detail page render.
 3. `/tenant/billing` renders for a real tenant.
+4. **End-to-end money path:** on a *test* org, click **Start subscription** on
+   `/admin/customers/[tenantId]`, then **Mark paid** on the invoice it issues.
+   Confirm afterwards that the org's Subscription card shows Active with a
+   renewal date twelve months out, and that the org's claimed devices now
+   count as paid devices. This is the one path with no automated coverage —
+   it is where the activation and period-anchoring logic lives — so it must be
+   exercised by hand once against production before real customers ride it.
+   (Void the invoice instead of marking it paid if you only want to check that
+   issuing works.)
 
 If any of these fail, treat it as a stop — do not proceed to schema changes
 while the fleet or the billing UI is in a broken state.
@@ -96,9 +130,11 @@ credit system entirely, so it should not be rushed.
 
 1. **Edit `lib/db/schema.ts`.** Delete `tenantSettings.billingPlan`,
    `deviceCommand.billing`, and the `creditBalance`, `creditLedger`, and
-   `deviceUsageMonth` table definitions (including their entries in the
-   schema's export object). Remove the corresponding relations from
-   `lib/db/relations.ts`.
+   `deviceUsageMonth` table definitions. Also remove `creditBalance` and
+   `creditLedger` from the flat `schema` export object at the bottom of the
+   file — `deviceUsageMonth` was never in it. Nothing needs to change in
+   `lib/db/relations.ts`: none of these three tables has a relation defined
+   there.
 2. **Delete `lib/db/backfill-subscriptions.ts`.** It has done its job by now,
    and it imports `creditBalance` from the schema — leaving it in place would
    break the build the moment that table definition is gone.

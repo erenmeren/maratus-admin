@@ -316,7 +316,8 @@ export const device = pgTable(
     serialConflict: boolean("serial_conflict").default(false).notNull(),
     // Pinned QR: when set, the device shows this URL as a persistent QR while
     // idle (triggers temporarily override, then return to it). Null = no pin.
-    // Setting/changing costs 1 credit (kind "spend"); clearing is free.
+    // Pin changes are free — they are a "pin" command, never a "trigger", and
+    // nothing in the subscription model charges for them.
     // Pin mode: "custom" = show pinnedUrl below, "none" = never show a pin
     // even if the store/tenant has one, "inherit" = resolve store → tenant.
     // custom ⇔ pinnedUrl set (enforced by write paths).

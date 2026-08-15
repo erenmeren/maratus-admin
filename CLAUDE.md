@@ -59,8 +59,10 @@ them.
 - **`organization` = tenant.** Tenant roles (owner/admin/member) live on `member`.
 - **Platform/super-admin is NOT an org membership** — it's `user.role =
   'platform_admin'` (Better Auth `additionalFields`, `input:false`).
-- **Money is stored in integer cents** (`perPrintPriceCents`, `unitPriceCents`,
-  `amountDueCents`); the data layer converts to dollars for the UI.
+- **Money is stored in integer USD cents** (`invoice.amountUsdCents`,
+  `tenantSettings.pricePerDeviceCents`, `tenantSettings.overagePriceCents`);
+  the data layer converts to dollars for the UI. The TRY side of a bank
+  transfer is stored in whole kuruş (`invoice.tryAmountKurus`, `invoice.fxRate`).
 - Indexes: `device.pairingCode` (unique),
   `device.deviceKeyHash`, every `organizationId`.
 
@@ -163,7 +165,8 @@ changes (`deviceCommand.type: "pin"`) are a separate command from `trigger`
 and are never charged. The daily `GET /api/cron/billing` sweep
 (`runBillingCron`) issues subscription and overage invoices with **net-14**
 terms. There is no automatic settlement: a platform admin records payment
-(`markInvoicePaid` in `lib/invoices.ts`, via `/admin/billing`), and *that* is
+(`markInvoicePaid` in `lib/invoices.ts`, from the Subscription card on
+`/admin/customers/[tenantId]`; `/admin/billing` is a read-only overview), and *that* is
 what activates a subscription or activates the paid devices on it — nothing
 else does.
 

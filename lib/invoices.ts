@@ -189,6 +189,23 @@ export async function issueSubscriptionInvoice(a: {
   issuedAt: Date;
   note?: string;
 }): Promise<{ id: string } | null> {
+  const amountUsdCents = subscriptionAmountCents(a.deviceCount, a.pricePerDeviceCents);
+  // A zero-amount subscription invoice is a dead end, so never write one. It
+  // cannot be marked paid (the action requires a positive TRY amount) and it
+  // cannot be voided (voiding a renewal would burn its renewsAt slot forever),
+  // yet it ages into overdue, raises a billing alert and reddens the tenant's
+  // badge. Reachable whenever an org is subscribed with no paid devices at its
+  // anniversary — every device deleted, or an org the cutover backfill
+  // subscribed despite it having no claimed hardware.
+  if (amountUsdCents <= 0) {
+    console.warn("[billing] skipped a zero-amount subscription invoice", {
+      organizationId: a.organizationId,
+      deviceCount: a.deviceCount,
+      periodStart: a.periodStart.toISOString(),
+    });
+    return null;
+  }
+
   const rows = await db
     .insert(invoice)
     .values({
@@ -198,7 +215,7 @@ export async function issueSubscriptionInvoice(a: {
       periodStart: a.periodStart,
       periodEnd: a.periodEnd,
       deviceCount: a.deviceCount,
-      amountUsdCents: subscriptionAmountCents(a.deviceCount, a.pricePerDeviceCents),
+      amountUsdCents,
       status: "open",
       issuedAt: a.issuedAt,
       dueAt: dueAtFrom(a.issuedAt),

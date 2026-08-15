@@ -1,11 +1,8 @@
 "use client";
 
 // Pinned-QR card for the tenant device detail page. Members see read-only
-// state; owners/admins can set/change (1 credit) or remove (free) the pin.
-//
-// Re-enabling inherit from "none" also costs 1 credit when a store/tenant pin
-// exists — the device goes from showing nothing to showing that pin, and the
-// money rule bills the screen that lights up (lib/pin-resolve.ts).
+// state; owners/admins can set/change or remove the pin — all free under the
+// subscription model.
 
 import { useState, useTransition } from "react";
 import { Pin, PinOff } from "lucide-react";
@@ -43,7 +40,6 @@ export function DevicePinControl(props: {
   pinMode: PinMode;
   inheritedUrl: string | null;
   inheritedSource: "store" | "tenant" | null;
-  creditsAvailable: number;
   canManage: boolean;
   /** Org-wide QR style (Branding → QR style); defaults match the org default look. */
   qrShape?: QrShape;
@@ -62,10 +58,6 @@ export function DevicePinControl(props: {
   const [pending, startTransition] = useTransition();
 
   const isChange = mode === "custom";
-  const willCharge = draftUrl.trim() !== (pinnedUrl ?? "");
-  // "none" → "inherit" lights the device up with the store/tenant pin, so it
-  // bills 1 credit; with nothing to inherit it stays free.
-  const reenableCharges = mode === "none" && props.inheritedUrl !== null;
 
   function submit() {
     // Capture before dispatch: resubmitting the identical URL is a free
@@ -207,9 +199,7 @@ export function DevicePinControl(props: {
                 <DialogHeader>
                   <DialogTitle>{isChange ? "Change pinned QR" : "Set pinned QR"}</DialogTitle>
                   <DialogDescription>
-                    The device will show this URL as a QR whenever it is idle. Changing the
-                    URL uses <strong>1 credit</strong> (you have {props.creditsAvailable}).
-                    Removing a pin is free.
+                    The device will show this URL as a QR whenever it is idle.
                   </DialogDescription>
                 </DialogHeader>
                 <Input
@@ -220,20 +210,10 @@ export function DevicePinControl(props: {
                   autoFocus
                 />
                 <DialogFooter>
-                  <Button
-                    onClick={submit}
-                    disabled={
-                      pending ||
-                      draftUrl.trim().length === 0 ||
-                      (willCharge && props.creditsAvailable < 1)
-                    }
-                  >
-                    {pending ? "Saving…" : willCharge ? "Pin (1 credit)" : "Pin"}
+                  <Button onClick={submit} disabled={pending || draftUrl.trim().length === 0}>
+                    {pending ? "Saving…" : "Pin"}
                   </Button>
                 </DialogFooter>
-                {willCharge && props.creditsAvailable < 1 && (
-                  <p className="text-xs text-destructive">Not enough credits — top up from Billing.</p>
-                )}
               </DialogContent>
             </Dialog>
             {mode === "custom" && (
@@ -247,14 +227,8 @@ export function DevicePinControl(props: {
               </Button>
             )}
             {mode === "none" && (
-              <Button
-                size="sm"
-                variant="ghost"
-                onClick={reenableInherit}
-                disabled={pending || (reenableCharges && props.creditsAvailable < 1)}
-              >
-                <Pin className="size-4" />{" "}
-                {reenableCharges ? "Re-enable inherit (1 credit)" : "Re-enable inherit"}
+              <Button size="sm" variant="ghost" onClick={reenableInherit} disabled={pending}>
+                <Pin className="size-4" /> Re-enable inherit
               </Button>
             )}
           </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { validateTriggerBody, creditCostForAction } from "./trigger-actions";
+import { validateTriggerBody } from "./trigger-actions";
 
 describe("validateTriggerBody", () => {
   it("accepts show_qr with an https url", () => {
@@ -17,8 +17,5 @@ describe("validateTriggerBody", () => {
   it("rejects non-object body", () => {
     expect(validateTriggerBody(null).ok).toBe(false);
     expect(validateTriggerBody("nope").ok).toBe(false);
-  });
-  it("creditCostForAction returns 1 for show_qr", () => {
-    expect(creditCostForAction("show_qr")).toBe(1);
   });
 });

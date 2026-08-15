@@ -1,11 +1,6 @@
 export const TRIGGER_ACTIONS = ["show_qr"] as const;
 export type TriggerAction = (typeof TRIGGER_ACTIONS)[number];
 
-const COST: Record<TriggerAction, number> = { show_qr: 1 };
-export function creditCostForAction(action: TriggerAction): number {
-  return COST[action];
-}
-
 const MAX_URL = 2048;
 export type TriggerBody = { action: TriggerAction; payload: Record<string, unknown> };
 export type ValidateResult = { ok: true; action: TriggerAction; payload: Record<string, unknown> } | { ok: false; error: string };

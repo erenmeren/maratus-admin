@@ -13,7 +13,7 @@ import "./load-env"; // must be first: loads env before ../db reads it
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { auth } from "../auth";
-import { grantCredits, STARTER_CREDITS } from "../credits";
+import { renewalDueAt } from "../billing-period";
 import {
   device,
   member,
@@ -125,18 +125,16 @@ async function main() {
     });
   }
 
-  // Starter credits: prepaid is the only payment path, so a brand-new org
-  // needs an allotment or its first trigger 402s. Idempotent by org id, so
-  // re-seeding is safe.
-  await grantCredits({
-    organizationId: orgId,
-    credits: STARTER_CREDITS,
-    kind: "grant",
-    idempotencyKey: `starter-grant:${orgId}`,
-    note: "starter grant",
-  });
-
   // --- Tenant settings ----------------------------------------------------
+  // Subscribed org: a real device trigger needs subscriptionPaidAt on the
+  // device (below) or a live trial, so seed data is a paid, subscribed
+  // tenant rather than an unsubscribed one on the 50-trigger trial.
+  // subscriptionRenewsAt is the ANNUAL anniversary (renewalDueAt = +12
+  // months), matching the backfill script and billing-cron — not a monthly
+  // date, which would land inside the cron's 30-day renewal lead window
+  // almost immediately and issue a bogus renewal invoice.
+  const subscribedAt = new Date();
+  const renewsAt = renewalDueAt(subscribedAt);
   await db
     .insert(tenantSettings)
     .values({
@@ -145,8 +143,13 @@ async function main() {
       logoUrl: null,
       staffPin: "4827",
       status: "active",
+      subscriptionStartedAt: subscribedAt,
+      subscriptionRenewsAt: renewsAt,
     })
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: tenantSettings.organizationId,
+      set: { subscriptionStartedAt: subscribedAt, subscriptionRenewsAt: renewsAt },
+    });
 
   // --- Stores + devices ---------------------------------------------------
   // Clear prior app data for this org so reseeds are idempotent.
@@ -185,6 +188,9 @@ async function main() {
         pairingCode: null,
         deviceKeyHash: hash,
         claimedAt: new Date(),
+        // Paid: the org is subscribed (see tenantSettings above), so its
+        // claimed devices are paid too rather than sitting on the trial.
+        subscriptionPaidAt: subscribedAt,
         createdAt: new Date(),
       });
       allDeviceIds.push({ deviceId, storeId });

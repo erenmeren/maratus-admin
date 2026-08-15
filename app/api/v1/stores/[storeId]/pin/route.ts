@@ -1,13 +1,12 @@
 // app/api/v1/stores/[storeId]/pin/route.ts
 // PUT — set the store's pinned QR ({url}) or switch its pin mode
 // ({mode:"none"|"inherit"}). DELETE — reset the store to "inherit" (devices in
-// "inherit" mode then fall back to the tenant pin, if any). Billing is 1 credit
-// per device that ends up showing a pin it wasn't showing before, so {mode:
-// "none"} is always free while {mode:"inherit"} and DELETE can bill (and 402)
-// when they light devices up from the tenant pin. Requires the devices:pin
-// scope. Idempotency-Key is OPTIONAL on the billable paths — see
-// lib/api/pin-idempotency.ts (namespace "storepin", shared apiIdempotency table
-// with /trigger and the other pin endpoints).
+// "inherit" mode then fall back to the tenant pin, if any). Pin changes are
+// free under the subscription model. Requires the devices:pin scope.
+// Idempotency-Key is OPTIONAL — see lib/api/pin-idempotency.ts (namespace
+// "storepin", shared apiIdempotency table with /trigger and the other pin
+// endpoints); it guards against a retried/concurrent request enqueuing
+// duplicate device commands, not against any charge.
 
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -21,7 +20,6 @@ import { isOrgArchived } from "@/lib/archived-guard";
 import {
   claimPinIdempotency,
   pinIdempotencyResponse,
-  releasePinIdempotency,
   storePinIdempotentResponse,
 } from "@/lib/api/pin-idempotency";
 
@@ -36,8 +34,7 @@ const storePinBody = (
   pinMode: PinMode,
   pin: PinState,
   affectedDevices: number,
-  creditsCharged: number,
-) => ({ storeId, pinMode, pin, affectedDevices, creditsCharged });
+) => ({ storeId, pinMode, pin, affectedDevices });
 
 async function requirePinScope(keyId: string) {
   const [key] = await db
@@ -76,10 +73,10 @@ export async function PUT(req: Request, { params }: { params: Promise<{ storeId:
   if (!s) return apiError("store_not_found", "Store not found.", 404);
 
   if (v.kind === "mode") {
-    // NOT unconditionally free: switching a "none" store back to "inherit"
-    // lights up its inheriting devices with the tenant pin, and those devices
-    // are billed (lib/pin-resolve.ts planScopedPinChange). "none" only ever
-    // removes, so it stays free and ungated.
+    // NOT unconditionally ungated: switching a "none" store back to "inherit"
+    // lights up its inheriting devices with the tenant pin, so it's treated
+    // like a real mutation for archive purposes. "none" only ever removes, so
+    // it stays ungated.
     if (v.mode === "inherit" && (await isOrgArchived(auth.organizationId))) {
       return apiError("org_archived", "Organization is archived.", 403);
     }
@@ -98,16 +95,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ storeId:
       actor: { type: "system" },
       via: "api",
     });
-    if (!res.ok) {
-      if (nsKey) await releasePinIdempotency(nsKey, auth.organizationId);
-      return apiError("insufficient_credits", `Not enough credits — this change needs ${res.required}.`, 402);
-    }
-    const modeBody = storePinBody(storeId, v.mode, null, res.affectedDevices, res.creditsCharged);
+    const modeBody = storePinBody(storeId, v.mode, null, res.affectedDevices);
     if (nsKey) await storePinIdempotentResponse(nsKey, auth.organizationId, modeBody);
     return apiJson(modeBody, 200);
   }
 
-  // Paid path: {url}.
+  // {url} path.
   if (await isOrgArchived(auth.organizationId)) {
     return apiError("org_archived", "Organization is archived.", 403);
   }
@@ -127,10 +120,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ storeId:
     actor: { type: "system" },
     via: "api",
   });
-  if (!res.ok) {
-    if (nsKey) await releasePinIdempotency(nsKey, auth.organizationId);
-    return apiError("insufficient_credits", `Not enough credits — this change needs ${res.required}.`, 402);
-  }
 
   // res.pinnedAt: fresh timestamp on a real change, the stored original on a
   // same-URL no-op — never fabricate one the DB doesn't have.
@@ -139,7 +128,6 @@ export async function PUT(req: Request, { params }: { params: Promise<{ storeId:
     "custom",
     { url: v.url, pinnedAt: res.pinnedAt ? res.pinnedAt.toISOString() : null },
     res.affectedDevices,
-    res.creditsCharged,
   );
   if (nsKey) await storePinIdempotentResponse(nsKey, auth.organizationId, body);
   return apiJson(body, 200);
@@ -158,9 +146,9 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ store
   const s = await loadOwnedStore(storeId, auth.organizationId);
   if (!s) return apiError("store_not_found", "Store not found.", 404);
 
-  // Resetting to inherit no longer "only removes state" — if the store was
-  // "none" and a tenant pin exists, its devices light up and are billed — so
-  // the paid-mutation archive gate applies here too.
+  // Resetting to inherit is not "only removes state" — if the store was
+  // "none" and a tenant pin exists, its devices light up — so the archive
+  // gate applies here too, same as the mode:"inherit" path above.
   if (await isOrgArchived(auth.organizationId)) {
     return apiError("org_archived", "Organization is archived.", 403);
   }
@@ -170,8 +158,5 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ store
     actor: { type: "system" },
     via: "api",
   });
-  if (!res.ok) {
-    return apiError("insufficient_credits", `Not enough credits — this change needs ${res.required}.`, 402);
-  }
-  return apiJson(storePinBody(storeId, "inherit", null, res.affectedDevices, res.creditsCharged), 200);
+  return apiJson(storePinBody(storeId, "inherit", null, res.affectedDevices), 200);
 }

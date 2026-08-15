@@ -14,7 +14,6 @@ import {
 import { OrgPinCard } from "@/components/pin/org-pin-card";
 import { StorePinTable } from "@/components/pin/store-pin-table";
 import { getPinOverview, getOrgQrStyle } from "@/lib/data";
-import { getBalance } from "@/lib/credits";
 import { requireTenant } from "@/lib/session";
 import { canManageTenant } from "@/lib/roles";
 
@@ -23,10 +22,9 @@ export default async function PinnedQrPage() {
   const membership = ctx.organizations.find((o) => o.id === organizationId);
   const canManage = canManageTenant(membership?.role);
 
-  const [overview, qrStyle, balance] = await Promise.all([
+  const [overview, qrStyle] = await Promise.all([
     getPinOverview(organizationId),
     getOrgQrStyle(organizationId),
-    getBalance(organizationId),
   ]);
 
   return (
@@ -39,7 +37,6 @@ export default async function PinnedQrPage() {
       <OrgPinCard
         tenant={overview.tenant}
         qrStyle={qrStyle}
-        creditsAvailable={balance.available}
         canManage={canManage}
       />
 
@@ -47,7 +44,6 @@ export default async function PinnedQrPage() {
         <StorePinTable
           stores={overview.stores}
           tenantPinnedUrl={overview.tenant.pinnedUrl}
-          creditsAvailable={balance.available}
           canManage={canManage}
         />
         {overview.poolInheritingCount > 0 && (

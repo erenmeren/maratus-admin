@@ -82,7 +82,7 @@ describe("planScopedPinChange", () => {
     { id: "d6", storeId: "s1", pinMode: "none", pinnedUrl: null },      // opted out
   ];
 
-  it("org set reaches only devices that resolve to tenant, and charges them", () => {
+  it("org set reaches only devices that resolve to tenant", () => {
     const r = planScopedPinChange({
       devices, stores, tenantPinnedUrl: null,
       change: { scope: "org", url: "https://t.example" },
@@ -91,10 +91,9 @@ describe("planScopedPinChange", () => {
       { deviceId: "d1", newUrl: "https://t.example" },
       { deviceId: "d5", newUrl: "https://t.example" },
     ]);
-    expect(r.chargedCount).toBe(2);
   });
 
-  it("org clear is free but still fans out to followers", () => {
+  it("org clear still fans out to followers", () => {
     const r = planScopedPinChange({
       devices, stores, tenantPinnedUrl: "https://t.example",
       change: { scope: "org", url: null },
@@ -103,7 +102,6 @@ describe("planScopedPinChange", () => {
       { deviceId: "d1", newUrl: null },
       { deviceId: "d5", newUrl: null },
     ]);
-    expect(r.chargedCount).toBe(0);
   });
 
   it("store url set affects only that store's inheriting devices", () => {
@@ -112,65 +110,55 @@ describe("planScopedPinChange", () => {
       change: { scope: "store", storeId: "s1", mode: "custom", url: "https://new.example" },
     });
     expect(r.affected).toEqual([{ deviceId: "d1", newUrl: "https://new.example" }]);
-    expect(r.chargedCount).toBe(1);
   });
 
-  it("same-URL devices are not affected (free no-op per device)", () => {
+  it("same-URL devices are not affected (no-op per device)", () => {
     const r = planScopedPinChange({
       devices, stores, tenantPinnedUrl: "https://s2.example",
       change: { scope: "store", storeId: "s2", mode: "inherit", url: null },
     });
     // d3's effective stays https://s2.example (now from tenant) → not affected.
     expect(r.affected).toEqual([]);
-    expect(r.chargedCount).toBe(0);
   });
 
-  it("store mode inherit CHARGES the devices it lights up with the tenant pin", () => {
+  it("store mode inherit lights up the devices it reaches with the tenant pin", () => {
     const r = planScopedPinChange({
       devices, stores, tenantPinnedUrl: "https://t.example",
       change: { scope: "store", storeId: "s3", mode: "inherit", url: null },
     });
     expect(r.affected).toEqual([{ deviceId: "d4", newUrl: "https://t.example" }]);
-    expect(r.chargedCount).toBe(1);
   });
 
-  it("store mode inherit stays free when there is nothing to inherit", () => {
+  it("store mode inherit affects nothing when there is nothing to inherit", () => {
     const r = planScopedPinChange({
       devices, stores, tenantPinnedUrl: null,
       change: { scope: "store", storeId: "s3", mode: "inherit", url: null },
     });
     expect(r.affected).toEqual([]);
-    expect(r.chargedCount).toBe(0);
   });
 
-  it("a mode change that swaps one live URL for another is free", () => {
-    // d2 is custom https://d2.example; dropping to inherit picks up s1 →
-    // tenant. The screen was already showing a paid pin, so no new charge.
+  it("a mode change can swap one live URL for another", () => {
+    // d2 is custom https://d2.example; dropping to inherit picks up s1 → tenant.
     const r = planScopedPinChange({
       devices, stores, tenantPinnedUrl: "https://t.example",
       change: { scope: "device", deviceId: "d2", mode: "inherit", url: null },
     });
     expect(r.affected).toEqual([{ deviceId: "d2", newUrl: "https://t.example" }]);
-    expect(r.chargedCount).toBe(0);
   });
 
-  it("cannot light up a blacked-out fleet for free (none → set org pin → inherit)", () => {
-    // The exploit: black every store out, set the org pin while its reach is
-    // zero, then flip the stores back as 'free' mode changes.
+  it("flipping a blacked-out store back to inherit reaches its devices", () => {
     const blackedOut: StorePinRow[] = stores.map((s) => ({ ...s, pinMode: "none", pinnedUrl: null }));
     const setOrgWhileDark = planScopedPinChange({
       devices, stores: blackedOut, tenantPinnedUrl: null,
       change: { scope: "org", url: "https://promo.example" },
     });
-    expect(setOrgWhileDark.chargedCount).toBe(1); // only the pool device d5 is reachable
+    expect(setOrgWhileDark.affected).toEqual([{ deviceId: "d5", newUrl: "https://promo.example" }]); // only the pool device d5 is reachable
 
-    // Flipping a store back now bills the devices that start showing the pin.
     const flipBack = planScopedPinChange({
       devices, stores: blackedOut, tenantPinnedUrl: "https://promo.example",
       change: { scope: "store", storeId: "s1", mode: "inherit", url: null },
     });
     expect(flipBack.affected).toEqual([{ deviceId: "d1", newUrl: "https://promo.example" }]);
-    expect(flipBack.chargedCount).toBe(1);
   });
 
   it("device url set affects exactly that device", () => {
@@ -179,25 +167,22 @@ describe("planScopedPinChange", () => {
       change: { scope: "device", deviceId: "d1", mode: "custom", url: "https://d1.example" },
     });
     expect(r.affected).toEqual([{ deviceId: "d1", newUrl: "https://d1.example" }]);
-    expect(r.chargedCount).toBe(1);
   });
 
-  it("device mode none is free and clears its effective pin", () => {
+  it("device mode none clears its effective pin", () => {
     const r = planScopedPinChange({
       devices, stores, tenantPinnedUrl: "https://t.example",
       change: { scope: "device", deviceId: "d1", mode: "none", url: null },
     });
     expect(r.affected).toEqual([{ deviceId: "d1", newUrl: null }]);
-    expect(r.chargedCount).toBe(0);
   });
 
-  it("device DELETE→inherit falls back through the chain, free", () => {
+  it("device DELETE→inherit falls back through the chain", () => {
     const r = planScopedPinChange({
       devices, stores, tenantPinnedUrl: null,
       change: { scope: "device", deviceId: "d2", mode: "inherit", url: null },
     });
     // d2 was custom https://d2.example; s1 inherits and there is no tenant pin.
     expect(r.affected).toEqual([{ deviceId: "d2", newUrl: null }]);
-    expect(r.chargedCount).toBe(0);
   });
 });

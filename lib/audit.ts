@@ -61,6 +61,9 @@ export const AUDIT = {
   deviceReturnedToStock: "device.returned_to_stock",
   deviceLeftWithCustomer: "device.left_with_customer",
   billingPlanChanged: "billing.plan_changed",
+  invoiceIssued: "invoice.issued",
+  invoicePaid: "invoice.paid",
+  invoiceVoided: "invoice.void",
 } as const;
 
 export async function recordAudit(input: {

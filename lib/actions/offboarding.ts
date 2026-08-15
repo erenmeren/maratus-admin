@@ -13,7 +13,6 @@ import {
 } from "@/lib/db/schema";
 import { requirePlatformAdmin } from "@/lib/session";
 import { AUDIT, recordAudit } from "@/lib/audit";
-import { getBalance } from "@/lib/credits";
 import { getOrgDevicesForOffboard } from "@/lib/data";
 import {
   returnDeviceToStock,
@@ -75,8 +74,6 @@ export async function offboardCustomerAction(
         leftWithCustomer: 0,
         revokedKeys: 0,
         sweptAllocations: 0,
-        frozenCreditsAvailable: 0,
-        frozenCreditsHeld: 0,
       },
     };
   }
@@ -153,8 +150,7 @@ export async function offboardCustomerAction(
     .set({ status: "canceled" })
     .where(and(eq(invitationTable.organizationId, organizationId), eq(invitationTable.status, "pending")));
 
-  // Step 3: freeze credits (read only) + archive stamp (LAST).
-  const balance = await getBalance(organizationId);
+  // Step 3: archive stamp (LAST).
   // Summary reflects END STATE at archive time, not just this run's delta —
   // a recovery re-run (after a partial failure left archivedAt null) must
   // still report the true cumulative totals, or the archived-detail summary
@@ -180,8 +176,6 @@ export async function offboardCustomerAction(
     // recompute — unlike the counters above, a re-run legitimately reports 0
     // here once the prior run already swept everything.
     sweptAllocations: sweep.updated,
-    frozenCreditsAvailable: balance.available,
-    frozenCreditsHeld: balance.held,
   };
 
   await db

@@ -36,7 +36,7 @@ describe("partitionDispositions", () => {
 describe("buildOffboardMetadata", () => {
   it("packs summary counts + note into a flat record", () => {
     const meta = buildOffboardMetadata(
-      { returnedToStock: 2, leftWithCustomer: 1, revokedKeys: 3, sweptAllocations: 1, frozenCreditsAvailable: 500, frozenCreditsHeld: 0 },
+      { returnedToStock: 2, leftWithCustomer: 1, revokedKeys: 3, sweptAllocations: 1 },
       "contract ended",
     );
     expect(meta).toEqual({
@@ -44,14 +44,12 @@ describe("buildOffboardMetadata", () => {
       leftWithCustomer: 1,
       revokedKeys: 3,
       sweptAllocations: 1,
-      frozenCreditsAvailable: 500,
-      frozenCreditsHeld: 0,
       note: "contract ended",
     });
   });
   it("omits note when null", () => {
     const meta = buildOffboardMetadata(
-      { returnedToStock: 0, leftWithCustomer: 0, revokedKeys: 0, sweptAllocations: 0, frozenCreditsAvailable: 0, frozenCreditsHeld: 0 },
+      { returnedToStock: 0, leftWithCustomer: 0, revokedKeys: 0, sweptAllocations: 0 },
       null,
     );
     expect(meta).not.toHaveProperty("note");

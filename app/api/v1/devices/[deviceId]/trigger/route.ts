@@ -78,7 +78,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
   const commandId = id("cmd");
   const body = { id: commandId, status: "queued" as const };
 
-  // Claim the idempotency key BEFORE charging — the insert conflict is the concurrency gate.
+  // Claim the idempotency key BEFORE enqueuing — the insert conflict is the concurrency gate.
   const claim = await db.insert(apiIdempotency)
     .values({ key: idemKey, organizationId: auth.organizationId, responseStatus: 202, responseBody: body, commandId })
     .onConflictDoNothing()

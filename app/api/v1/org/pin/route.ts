@@ -1,12 +1,12 @@
 // app/api/v1/org/pin/route.ts
-// PUT — set/replace the tenant-wide pinned QR URL (paid: 1 credit per device
-// whose effective pin actually changes; a same-URL PUT is a free no-op via
-// applyScopedPinChange's noop path). DELETE — clear the tenant pin (free;
-// devices/stores in "inherit" mode fall back further, i.e. show nothing).
-// Requires the devices:pin scope. Idempotency-Key is OPTIONAL on PUT — see
-// lib/api/pin-idempotency.ts for the claim-before-charge pattern (namespace
-// "orgpin", shared apiIdempotency table with /trigger and the other pin
-// endpoints).
+// PUT — set/replace the tenant-wide pinned QR URL (free; a same-URL PUT is a
+// no-op via applyScopedPinChange's noop path). DELETE — clear the tenant pin
+// (also free; devices/stores in "inherit" mode fall back further, i.e. show
+// nothing). Requires the devices:pin scope. Idempotency-Key is OPTIONAL on
+// PUT — see lib/api/pin-idempotency.ts (namespace "orgpin", shared
+// apiIdempotency table with /trigger and the other pin endpoints); it guards
+// against a retried/concurrent request enqueuing duplicate device commands,
+// not against any charge.
 
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -20,7 +20,6 @@ import { isOrgArchived } from "@/lib/archived-guard";
 import {
   claimPinIdempotency,
   pinIdempotencyResponse,
-  releasePinIdempotency,
   storePinIdempotentResponse,
 } from "@/lib/api/pin-idempotency";
 
@@ -30,10 +29,9 @@ export const runtime = "nodejs";
 // stored timestamp (never freshly minted). Null only under data drift (a
 // stored pin without a timestamp).
 type PinState = { url: string; pinnedAt: string | null } | null;
-const orgPinBody = (pin: PinState, affectedDevices: number, creditsCharged: number) => ({
+const orgPinBody = (pin: PinState, affectedDevices: number) => ({
   pin,
   affectedDevices,
-  creditsCharged,
 });
 
 async function requirePinScope(keyId: string) {
@@ -86,17 +84,12 @@ export async function PUT(req: Request) {
     actor: { type: "system" },
     via: "api",
   });
-  if (!res.ok) {
-    if (nsKey) await releasePinIdempotency(nsKey, auth.organizationId);
-    return apiError("insufficient_credits", `Not enough credits — this change needs ${res.required}.`, 402);
-  }
 
   // res.pinnedAt: fresh timestamp on a real change, the stored original on a
   // same-URL no-op — never fabricate one the DB doesn't have.
   const body = orgPinBody(
     { url: v.url, pinnedAt: res.pinnedAt ? res.pinnedAt.toISOString() : null },
     res.affectedDevices,
-    res.creditsCharged,
   );
   if (nsKey) await storePinIdempotentResponse(nsKey, auth.organizationId, body);
   return apiJson(body, 200);
@@ -111,13 +104,13 @@ export async function DELETE(req: Request) {
     return apiError("insufficient_scope", "API key lacks the devices:pin scope.", 403);
   }
 
-  // Clearing is free and safe, so archived orgs may clear (spec: archive
-  // guards apply to paid mutations; a clear only removes state).
+  // Clearing only removes state, so archived orgs may clear even though other
+  // pin mutations are archive-gated.
   const res = await applyScopedPinChange({
     organizationId: auth.organizationId,
     change: { scope: "org", url: null },
     actor: { type: "system" },
     via: "api",
   });
-  return apiJson(orgPinBody(null, res.ok ? res.affectedDevices : 0, 0), 200);
+  return apiJson(orgPinBody(null, res.affectedDevices), 200);
 }

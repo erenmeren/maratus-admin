@@ -1,15 +1,10 @@
 // lib/pin-service.ts
 // Shared scoped pinned-QR mutation core. The public API routes and the tenant
-// server actions all call these, so the money rule (1 credit per device that
-// ends up showing a pin it wasn't showing before — clears are free, swapping
-// one live URL for another via a mode change is free, same-URL is a no-op; see
-// planScopedPinChange) and the delivery rule (deviceCommand row + best-effort
-// MQTT publish, one per affected device) exist in exactly one place.
-//
-// NOTE: a mode change is therefore NOT unconditionally free — switching a
-// "none" store/device back to "inherit" while a pin exists upstream bills the
-// devices that light up. Callers must handle the insufficient_credits result
-// on the mode path too, not just the URL path.
+// server actions all call these, so the no-op rule (same-URL is a free no-op;
+// see planScopedPinChange) and the delivery rule (deviceCommand row +
+// best-effort MQTT publish, one per affected device) exist in exactly one
+// place. Pin changes are free under the subscription model — there is no
+// charge or balance check anywhere in this path.
 
 import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { db } from "@/lib/db";
@@ -19,7 +14,6 @@ import {
   tenantSettings,
   deviceCommand,
 } from "@/lib/db/schema";
-import { spendCredit } from "@/lib/credits";
 import { id } from "@/lib/ids";
 import { chunk } from "@/lib/chunk";
 import { publishCommand } from "@/lib/mqtt";
@@ -33,11 +27,11 @@ import {
   type StorePinRow,
 } from "@/lib/pin-resolve";
 
-export const PIN_COST = 1;
-
-export type ScopedPinResult =
-  | { ok: true; noop: boolean; affectedDevices: number; creditsCharged: number; pinnedAt: Date | null }
-  | { ok: false; reason: "insufficient_credits"; required: number };
+export interface ScopedPinResult {
+  noop: boolean;
+  affectedDevices: number;
+  pinnedAt: Date | null;
+}
 
 const PIN_COMMAND_INSERT_CHUNK_SIZE = 500;
 
@@ -65,9 +59,9 @@ async function enqueuePinCommands(
     status: "pending" as const,
     redelivery: opts.redelivery,
     payload: { url: b.url },
-    // No expiresAt: unlike triggers there is no hold to reclaim, and an
-    // offline device must still receive the pin when it reconnects (the
-    // config path also covers reboot recovery).
+    // No expiresAt: unlike a trigger's QR, a pin isn't stale just because time
+    // passed — an offline device must still receive it when it reconnects
+    // (the config path also covers reboot recovery).
   }));
   for (const part of chunk(rows, PIN_COMMAND_INSERT_CHUNK_SIZE)) {
     await db.insert(deviceCommand).values(part);
@@ -146,32 +140,17 @@ export async function applyScopedPinChange(a: {
         : change.scope === "store"
           ? (world.stores.find((s) => s.id === change.storeId)?.pinnedAt ?? null)
           : (world.devices.find((d) => d.id === change.deviceId)?.pinnedAt ?? null);
-    return { ok: true, noop: true, affectedDevices: 0, creditsCharged: 0, pinnedAt: storedPinnedAt };
+    return { noop: true, affectedDevices: 0, pinnedAt: storedPinnedAt };
   }
   const plan = planScopedPinChange({ ...world, change: a.change });
-
-  // Charge-first; see file header for the crash posture on neon-http's lack
-  // of transactions.
-  if (plan.chargedCount > 0) {
-    const spent = await spendCredit({
-      organizationId: a.organizationId,
-      deviceId: a.change.scope === "device" ? a.change.deviceId : null,
-      action: "pin_change",
-      cost: plan.chargedCount * PIN_COST,
-      createdByUserId: a.createdByUserId ?? null,
-    });
-    if (!spent.ok) {
-      return { ok: false, reason: "insufficient_credits", required: plan.chargedCount * PIN_COST };
-    }
-  }
 
   const pinnedAt = a.change.url !== null ? new Date() : null;
   if (a.change.scope === "org") {
     // UPSERT, not UPDATE: an org can exist without a tenantSettings row (the
     // row is created lazily by Branding/Device Settings), and a bare UPDATE
-    // would match zero rows — charging credits and fanning out commands for a
-    // pin that silently reverts the next time the devices' config is rebuilt
-    // (heartbeat republish or a fresh cfg/get on MQTT reconnect).
+    // would match zero rows — fanning out commands for a pin that silently
+    // reverts the next time the devices' config is rebuilt (heartbeat
+    // republish or a fresh cfg/get on MQTT reconnect).
     await db
       .insert(tenantSettings)
       .values({ organizationId: a.organizationId, pinnedUrl: a.change.url, pinnedAt })
@@ -221,14 +200,11 @@ export async function applyScopedPinChange(a: {
       ...(set ? { url: a.change.url } : {}),
       ...(a.change.scope !== "org" && !set ? { mode: a.change.mode } : {}),
       affectedDevices: plan.affected.length,
-      creditsCharged: plan.chargedCount * PIN_COST,
     },
   });
   return {
-    ok: true,
     noop: false,
     affectedDevices: plan.affected.length,
-    creditsCharged: plan.chargedCount * PIN_COST,
     pinnedAt,
   };
 }

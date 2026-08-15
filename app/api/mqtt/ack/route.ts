@@ -9,7 +9,6 @@ import { db } from "@/lib/db";
 import { deviceCommand } from "@/lib/db/schema";
 import { mqttEnabled, verifyWebhookSecret, parseAckPayload } from "@/lib/mqtt";
 import { recordWebhookPing } from "@/lib/mqtt-ping";
-import { applyTriggerAck } from "@/lib/trigger-ack";
 
 export const runtime = "nodejs";
 
@@ -40,7 +39,7 @@ export async function POST(req: Request) {
   // Guard on "pending": the deviceId scope plus this being a terminal-status
   // transition (pending -> acked/failed) keeps it idempotent — a second ack
   // just no-ops.
-  const [cmd] = await db
+  await db
     .update(deviceCommand)
     .set({ status: nextStatus, ackedAt: now, result: ack.result })
     .where(
@@ -56,10 +55,7 @@ export async function POST(req: Request) {
       action: deviceCommand.action,
       organizationId: deviceCommand.organizationId,
       deviceId: deviceCommand.deviceId,
-      billing: deviceCommand.billing,
     });
-
-  if (cmd) await applyTriggerAck(cmd, ack.ok);
 
   return NextResponse.json({ ok: true });
 }

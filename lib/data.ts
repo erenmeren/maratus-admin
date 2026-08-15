@@ -5,12 +5,12 @@
 // `organizationId` (the active tenant); super-admin functions span all orgs.
 //
 // DB conventions → view-model conversions happen here:
-//   • money is stored in cents → exposed as dollars (credit pack pricing)
+//   • money is stored in cents → exposed as dollars (subscription/invoice pricing)
 //   • tenant_settings.status (active|paused) → TenantStatus (active|suspended)
 //   • device.lastSeenAt (Date|null) → Device.lastSeen (ISO string)
 //   • activationsToday / activationsThisMonth are derived from acked device-trigger commands
 
-import { and, asc, count, desc, eq, gte, inArray, isNotNull, isNull, lt, max, ne, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, isNotNull, isNull, lt, max, ne, sql } from "drizzle-orm";
 import { db } from "./db";
 import { excludeArchived } from "@/lib/archived";
 import { id as genId } from "@/lib/ids";
@@ -18,7 +18,6 @@ import {
   alert as alertTable,
   apiKey as apiKeyTable,
   auditLog as auditLogTable,
-  creditLedger as creditLedgerTable,
   device as deviceTable,
   deviceCommand,
   factoryDevice,
@@ -49,18 +48,15 @@ import { ianaToPosix } from "./posix-tz";
 import { normalizePrinterConfig, sanitizeQrStyle, PRINTER_SCREENS, type PrinterConfig, type QrStyle } from "./printer-layout";
 import { computeConfigVersion, etagMatches } from "@/lib/device-config";
 import { normalizeDeviceSettings } from "@/lib/device-settings";
-import { rollupByDevice } from "@/lib/credit-usage";
-import { getBalance } from "./credits";
+import { rollupTriggersByDevice } from "@/lib/trigger-usage";
 import { mqttConfigFingerprint } from "./mqtt";
 import { publishConfigCommand } from "@/lib/mqtt-push";
 import { resolveEffectivePin } from "@/lib/pin-resolve";
 import type { PinMode } from "@/lib/pin";
 import { AUDIT } from "@/lib/audit";
-import { DEFAULT_INCLUDED_TRIGGERS, monthKey } from "@/lib/billing-plan";
 import { periodStartFor, periodEndFor } from "@/lib/billing-period";
 import { overageFor } from "@/lib/invoicing";
 import { countPaidDevices, countAckedTriggers, isInvoiceOverdue } from "@/lib/invoices";
-import { getOrgUsageForMonth } from "@/lib/device-usage";
 import type {
   Device,
   DeviceRow,
@@ -284,8 +280,6 @@ function buildTenant(b: OrgBundle): Tenant {
     staffPin: b.settings?.staffPin ?? "",
     stores,
     unassignedDevices,
-    billingPlan: b.settings?.billingPlan ?? "credits",
-    includedTriggersPerDevice: b.settings?.includedTriggersPerDevice ?? DEFAULT_INCLUDED_TRIGGERS,
   };
 }
 
@@ -365,7 +359,6 @@ function summarize(
     activationsThisMonth,
     health,
     archivedAt: b.settings?.archivedAt ? b.settings.archivedAt.toISOString() : null,
-    billingPlan: b.settings?.billingPlan ?? "credits",
   };
 }
 
@@ -419,14 +412,6 @@ export interface TenantDashboard {
   activationsThisMonthDeltaPct: number | null;
   activeDevices: number;
   totalDevices: number;
-  creditsAvailable: number;
-  // settle + spend ledger rows this UTC month — covers acked triggers that were
-  // paid from credits plus pin changes, so pin activity is visible here even
-  // though it never counts as an activation. Triggers the plan covers write no
-  // ledger row at all (reserveTrigger's "included" path: flat plans, and
-  // base_usage within quota), so on those plans this is NOT total trigger
-  // volume — the UI labels it accordingly.
-  creditsUsedThisMonth: number;
   // Pin commands this UTC month that a device actually applied — one per device
   // per real pin change (a store/tenant pin fans out to one command per
   // affected device). Convergence re-deliveries (claim / move / store deletion,
@@ -458,17 +443,8 @@ export async function getTenantDashboard(
     Math.min(lastMonthStartMs + (now.getTime() - monthStart.getTime()), monthStart.getTime()),
   ).toISOString();
 
-  const [b, balance, [usedRow], [baselineRow], [pinRow]] = await Promise.all([
+  const [b, [baselineRow], [pinRow]] = await Promise.all([
     loadOrg(organizationId),
-    getBalance(organizationId),
-    db
-      .select({ c: sql<number>`coalesce(sum(${creditLedgerTable.credits}), 0)::int` })
-      .from(creditLedgerTable)
-      .where(and(
-        eq(creditLedgerTable.organizationId, organizationId),
-        inArray(creditLedgerTable.kind, ["settle", "spend"]),
-        gte(creditLedgerTable.createdAt, monthStart),
-      )),
     db
       .select({
         yesterday: sql<number>`count(*) FILTER (WHERE ${deviceCommand.createdAt} >= ${yesterdayStartStr}::timestamp AND ${deviceCommand.createdAt} < ${yesterdayCutoffStr}::timestamp)`.mapWith(
@@ -517,8 +493,6 @@ export async function getTenantDashboard(
     activationsThisMonthDeltaPct: deltaPct(activationsThisMonth, baselineRow?.lastMonth ?? 0),
     activeDevices,
     totalDevices: devices.length,
-    creditsAvailable: balance.available,
-    creditsUsedThisMonth: Number(usedRow?.c ?? 0),
     pinUpdatesThisMonth: Number(pinRow?.c ?? 0),
     daily: dailySeries(b),
   };
@@ -1761,7 +1735,7 @@ export async function getArmedAllocationCountByStore(
 // getUnclaimedDevices) — re-exported here so callers have one data entrypoint.
 export { claimDevice, getUnclaimedDevices } from "./device-claim";
 
-// ---- Tenant billing data (credit balance, packs, plan) ----
+// ---- Audit log ----
 
 export async function getOrgAuditLog(organizationId: string, limit = 100) {
   const rows = await db
@@ -2237,128 +2211,83 @@ export async function getApiKeys(organizationId: string): Promise<ApiKeyRow[]> {
 // ============================================================================
 
 export interface ApiUsageData {
-  credits: { available: number; held: number };
-  creditsConsumedThisMonth: number;
   activationsThisMonth: number;
   period: { start: string; end: string };
 }
 
-/** Machine-keyed usage for /api/v1/usage — credit-denominated (UTC month). */
+/** Machine-keyed usage for /api/v1/usage (UTC month). */
 export async function getApiUsage(organizationId: string): Promise<ApiUsageData> {
   const now = new Date();
   const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
   const monthEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
 
-  const [credits, [consumedRow], [actRow]] = await Promise.all([
-    getBalance(organizationId),
-    db
-      .select({ c: sql<number>`coalesce(sum(${creditLedgerTable.credits}), 0)::int` })
-      .from(creditLedgerTable)
-      .where(and(
-        eq(creditLedgerTable.organizationId, organizationId),
-        inArray(creditLedgerTable.kind, ["settle", "spend"]),
-        gte(creditLedgerTable.createdAt, monthStart),
-      )),
-    db
-      .select({ c: count() })
-      .from(deviceCommand)
-      .where(and(
-        eq(deviceCommand.organizationId, organizationId),
-        eq(deviceCommand.type, "trigger"),
-        eq(deviceCommand.status, "acked"),
-        gte(deviceCommand.createdAt, monthStart),
-      )),
-  ]);
+  const [actRow] = await db
+    .select({ c: count() })
+    .from(deviceCommand)
+    .where(and(
+      eq(deviceCommand.organizationId, organizationId),
+      eq(deviceCommand.type, "trigger"),
+      eq(deviceCommand.status, "acked"),
+      gte(deviceCommand.createdAt, monthStart),
+    ));
 
   return {
-    credits,
-    creditsConsumedThisMonth: Number(consumedRow?.c ?? 0),
     activationsThisMonth: Number(actRow?.c ?? 0),
     period: { start: monthStart.toISOString(), end: monthEnd.toISOString() },
   };
 }
 
-export async function getCreditLedger(organizationId: string, limit = 50) {
+/** Platform-admin: acked-trigger volume grouped by org for a period (replaces the retired credit-ledger reporting). */
+export async function getTriggerUsageAllOrgs(since: Date) {
   return db
     .select({
-      id: creditLedgerTable.id,
-      kind: creditLedgerTable.kind,
-      credits: creditLedgerTable.credits,
-      deviceId: creditLedgerTable.deviceId,
-      action: creditLedgerTable.action,
-      note: creditLedgerTable.note,
-      createdAt: creditLedgerTable.createdAt,
-    })
-    .from(creditLedgerTable)
-    .where(eq(creditLedgerTable.organizationId, organizationId))
-    .orderBy(desc(creditLedgerTable.createdAt))
-    .limit(limit);
-}
-
-/** Per-device realized credit spend for a tenant (settle rows >= since). */
-export async function getCreditUsageByDevice(organizationId: string, since: Date) {
-  const rows = await db
-    .select({ deviceId: creditLedgerTable.deviceId, credits: creditLedgerTable.credits })
-    .from(creditLedgerTable)
-    .where(
-      and(
-        eq(creditLedgerTable.organizationId, organizationId),
-        inArray(creditLedgerTable.kind, ["settle", "spend"]),
-        gte(creditLedgerTable.createdAt, since),
-      ),
-    );
-  return rollupByDevice(rows);
-}
-
-/** Platform-admin: realized credit spend grouped by org for a period. */
-export async function getCreditUsageAllOrgs(since: Date) {
-  return db
-    .select({
-      organizationId: creditLedgerTable.organizationId,
+      organizationId: deviceCommand.organizationId,
       name: orgTable.name,
-      credits: sql<number>`sum(${creditLedgerTable.credits})::int`,
-      count: sql<number>`count(*)::int`,
+      triggers: sql<number>`count(*)::int`,
     })
-    .from(creditLedgerTable)
-    .leftJoin(orgTable, eq(orgTable.id, creditLedgerTable.organizationId))
-    .leftJoin(settingsTable, eq(settingsTable.organizationId, creditLedgerTable.organizationId))
+    .from(deviceCommand)
+    .leftJoin(orgTable, eq(orgTable.id, deviceCommand.organizationId))
+    .leftJoin(settingsTable, eq(settingsTable.organizationId, deviceCommand.organizationId))
     .where(
       and(
-        inArray(creditLedgerTable.kind, ["settle", "spend"]),
-        gte(creditLedgerTable.createdAt, since),
+        eq(deviceCommand.type, "trigger"),
+        eq(deviceCommand.status, "acked"),
+        gte(deviceCommand.createdAt, since),
         isNull(settingsTable.archivedAt),
       ),
     )
-    .groupBy(creditLedgerTable.organizationId, orgTable.name)
-    .orderBy(desc(sql`sum(${creditLedgerTable.credits})`));
-}
-
-/** Map of device id → name for an org, to label per-device credit usage. */
-export async function deviceNamesForOrg(organizationId: string): Promise<Map<string, string>> {
-  const rows = await db
-    .select({ id: deviceTable.id, name: deviceTable.name })
-    .from(deviceTable)
-    .where(eq(deviceTable.organizationId, organizationId));
-  return new Map(rows.map((r) => [r.id, r.name]));
+    .groupBy(deviceCommand.organizationId, orgTable.name)
+    .orderBy(desc(sql`count(*)`));
 }
 
 /** Current-calendar-month (UTC) trigger usage per device, with device names. */
 export async function getDeviceUsageThisMonth(
   organizationId: string,
 ): Promise<{ deviceId: string; name: string; triggers: number }[]> {
-  const month = monthKey(new Date());
-  const usage = await getOrgUsageForMonth(organizationId, month);
-  if (usage.length === 0) return [];
+  const monthStart = currentMonthStart();
+  const rows = await db
+    .select({ deviceId: deviceCommand.deviceId })
+    .from(deviceCommand)
+    .where(
+      and(
+        eq(deviceCommand.organizationId, organizationId),
+        eq(deviceCommand.type, "trigger"),
+        eq(deviceCommand.status, "acked"),
+        gte(deviceCommand.createdAt, monthStart),
+      ),
+    );
+  const { byDevice } = rollupTriggersByDevice(rows);
+  if (byDevice.length === 0) return [];
   const devices = await db
     .select({ id: deviceTable.id, name: deviceTable.name })
     .from(deviceTable)
     .where(eq(deviceTable.organizationId, organizationId));
   const names = new Map(devices.map((d) => [d.id, d.name]));
-  return usage
+  return byDevice
     .map((u) => ({
       deviceId: u.deviceId,
       name: names.get(u.deviceId) ?? "Removed device",
-      triggers: u.triggers,
+      triggers: u.count,
     }))
     .sort((a, b) => b.triggers - a.triggers);
 }

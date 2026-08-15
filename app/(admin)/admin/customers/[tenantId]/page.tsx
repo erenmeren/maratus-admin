@@ -35,12 +35,10 @@ import {
   getCustomerDetail,
   getOrgAuditLog,
   getLatestOrgArchivedEntry,
-  getCreditLedger,
   getOrgDevicesForOffboard,
   getArmedAllocationCountByStore,
   getDeviceUsageThisMonth,
 } from "@/lib/data";
-import { getBalance } from "@/lib/credits";
 import { countPaidDevices, listInvoices } from "@/lib/invoices";
 import { DEFAULT_PRICE_PER_DEVICE_CENTS } from "@/lib/invoicing";
 import { SubscriptionCard } from "@/components/billing/subscription-card";
@@ -66,16 +64,12 @@ export default async function CustomerDetailPage({
 
   const activity = await getOrgAuditLog(tenantId, 50);
   const [
-    creditBalance,
-    creditLedger,
     armedByStore,
     deviceUsage,
     subscriptionSettings,
     paidDeviceCount,
     invoices,
   ] = await Promise.all([
-    getBalance(tenantId),
-    getCreditLedger(tenantId),
     getArmedAllocationCountByStore(tenantId),
     getDeviceUsageThisMonth(tenantId),
     db
@@ -259,64 +253,6 @@ export default async function CustomerDetailPage({
         </CardContent>
       </Card>
 
-      {/* Credits */}
-      <Card className="overflow-hidden">
-        <CardHeader>
-          <CardTitle>Credits</CardTitle>
-          <CardDescription>
-            Available:{" "}
-            <span className="font-semibold tabular-nums">
-              {formatNumber(creditBalance.available)}
-            </span>{" "}
-            &middot; Held:{" "}
-            <span className="font-semibold tabular-nums">
-              {formatNumber(creditBalance.held)}
-            </span>
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {tenant.billingPlan === "flat" && (
-            <p className="text-sm text-muted-foreground">
-              This tenant is on the flat plan — triggers do not consume credits.
-            </p>
-          )}
-
-          {creditLedger.length > 0 && (
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="pl-0">Kind</TableHead>
-                  <TableHead>Credits</TableHead>
-                  <TableHead>Device</TableHead>
-                  <TableHead>Note</TableHead>
-                  <TableHead className="text-right">Time</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {creditLedger.map((row) => (
-                  <TableRow key={row.id}>
-                    <TableCell className="pl-0 capitalize">{row.kind}</TableCell>
-                    <TableCell className="tabular-nums">{formatNumber(row.credits)}</TableCell>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {row.deviceId ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {row.note ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground">
-                      {timeAgo(row.createdAt.toISOString())}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-          {creditLedger.length === 0 && (
-            <p className="text-sm text-muted-foreground">No ledger entries yet.</p>
-          )}
-        </CardContent>
-      </Card>
-
       {/* Assigned devices */}
       <Card className="overflow-hidden">
         <CardHeader className="flex-row items-center justify-between space-y-0">
@@ -428,14 +364,6 @@ export default async function CustomerDetailPage({
                   Allocations swept{" "}
                   <strong className="text-foreground">
                     {archiveSummary?.sweptAllocations ?? 0}
-                  </strong>
-                </span>
-                <span className="text-muted-foreground">
-                  Frozen credits{" "}
-                  <strong className="text-foreground">
-                    {formatNumber(archiveSummary?.frozenCreditsAvailable ?? 0)} available
-                    {" · "}
-                    {formatNumber(archiveSummary?.frozenCreditsHeld ?? 0)} held
                   </strong>
                 </span>
               </div>

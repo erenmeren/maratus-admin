@@ -11,7 +11,7 @@
     "/devices/{deviceId}/pin": {
       "put": {
         "summary": "Set the device's pinned QR or switch its pin mode",
-        "description": "Send `{url}` to pin a custom URL the device displays as a persistent QR while idle (1 credit per device whose effective URL actually changes; re-sending the identical URL is a free no-op), or `{mode: \"none\" | \"inherit\"}` to switch the device's pin mode (free — `inherit` follows the store/tenant pin, `none` suppresses any pin). Responses include `pinMode`, the resolved `effectiveUrl` (device > store > tenant precedence), `affectedDevices`, and `creditsCharged`. An optional Idempotency-Key header guards retried URL changes.",
+        "description": "Send `{url}` to pin a custom URL the device displays as a persistent QR while idle (free; re-sending the identical URL is a no-op), or `{mode: \"none\" | \"inherit\"}` to switch the device's pin mode (also free — `inherit` follows the store/tenant pin, `none` suppresses any pin). Responses include `pinMode`, the resolved `effectiveUrl` (device > store > tenant precedence), and `affectedDevices`. An optional Idempotency-Key header guards retried URL changes.",
         "parameters": [
           {
             "name": "deviceId",
@@ -53,8 +53,7 @@
           }
         },
         "responses": {
-          "200": { "description": "Pin state after the call: `{deviceId, pinMode, pin, effectiveUrl, affectedDevices, creditsCharged}`." },
-          "402": { "description": "Not enough credits." },
+          "200": { "description": "Pin state after the call: `{deviceId, pinMode, pin, effectiveUrl, affectedDevices}`." },
           "403": { "description": "Missing devices:pin scope, or organization archived (URL changes only)." },
           "404": { "description": "Device not found." },
           "422": { "description": "Invalid body, URL, or mode." }
@@ -72,7 +71,7 @@
           }
         ],
         "responses": {
-          "200": { "description": "Pin reset: `{deviceId, pinMode: \"inherit\", pin: null, effectiveUrl, affectedDevices, creditsCharged: 0}`." },
+          "200": { "description": "Pin reset: `{deviceId, pinMode: \"inherit\", pin: null, effectiveUrl, affectedDevices}`." },
           "403": { "description": "Missing devices:pin scope." },
           "404": { "description": "Device not found." }
         }
@@ -81,7 +80,7 @@
     "/devices/{deviceId}/trigger": {
       "post": {
         "summary": "Trigger a device",
-        "description": "Activates a device to show a QR code of a caller-supplied URL. Requires the `devices:trigger` scope and a unique `Idempotency-Key` header. Reserves 1 credit; the credit settles when the device acknowledges rendering, or is released on failure/expiry. Returns 202 with a queued command the device will poll for. Retrying with the same Idempotency-Key replays the original response without charging again.",
+        "description": "Activates a device to show a QR code of a caller-supplied URL. Requires the `devices:trigger` scope and a unique `Idempotency-Key` header. The device must be subscribed or still within its trial (else 403 `device_not_subscribed`); billing is post-paid overage, so there is no per-call charge here. Returns 202 with a queued command the device will poll for. Retrying with the same Idempotency-Key replays the original response.",
         "parameters": [
           {
             "name": "deviceId",
@@ -94,7 +93,7 @@
             "name": "Idempotency-Key",
             "in": "header",
             "required": true,
-            "description": "Unique key per logical request. Replaying the same key returns the original response and does not charge a second credit.",
+            "description": "Unique key per logical request. Replaying the same key returns the original response.",
             "schema": { "type": "string" }
           }
         ],
@@ -113,7 +112,6 @@
           },
           "400": { "$ref": "#/components/responses/Error" },
           "401": { "$ref": "#/components/responses/Error" },
-          "402": { "$ref": "#/components/responses/Error" },
           "403": { "$ref": "#/components/responses/Error" },
           "404": { "$ref": "#/components/responses/Error" },
           "409": { "$ref": "#/components/responses/Error" },
@@ -127,7 +125,7 @@
     "/org/pin": {
       "put": {
         "summary": "Set or replace the tenant-wide pinned QR",
-        "description": "Pins a URL that every device resolving to the tenant level (device and store both in `inherit` mode) displays as a persistent QR. Costs 1 credit per device whose effective URL actually changes; re-sending the identical URL is a free no-op. The org level has no modes — send `{url}` only. An optional Idempotency-Key header guards retried changes.",
+        "description": "Pins a URL that every device resolving to the tenant level (device and store both in `inherit` mode) displays as a persistent QR. Free; re-sending the identical URL is a no-op. The org level has no modes — send `{url}` only. An optional Idempotency-Key header guards retried changes.",
         "parameters": [
           {
             "name": "Idempotency-Key",
@@ -152,8 +150,7 @@
           }
         },
         "responses": {
-          "200": { "description": "Pin state after the call: `{pin: {url, pinnedAt}, affectedDevices, creditsCharged}`." },
-          "402": { "description": "Not enough credits." },
+          "200": { "description": "Pin state after the call: `{pin: {url, pinnedAt}, affectedDevices}`." },
           "403": { "description": "Missing devices:pin scope, or organization archived." },
           "422": { "description": "Invalid body or URL (`mode` is not supported at this scope)." }
         }
@@ -162,7 +159,7 @@
         "summary": "Clear the tenant-wide pinned QR",
         "description": "Free. Devices and stores in `inherit` mode fall back to no pin. Idempotent — deleting a non-existent pin succeeds.",
         "responses": {
-          "200": { "description": "Pin cleared: `{pin: null, affectedDevices, creditsCharged: 0}`." },
+          "200": { "description": "Pin cleared: `{pin: null, affectedDevices}`." },
           "403": { "description": "Missing devices:pin scope." }
         }
       }
@@ -170,7 +167,7 @@
     "/stores/{storeId}/pin": {
       "put": {
         "summary": "Set the store's pinned QR or switch its pin mode",
-        "description": "Send `{url}` to pin a custom URL for the store's inheriting devices (1 credit per device whose effective URL actually changes; re-sending the identical URL is a free no-op), or `{mode: \"none\" | \"inherit\"}` to switch the store's pin mode (free — `inherit` follows the tenant pin, `none` suppresses any pin for this store's inheriting devices). An optional Idempotency-Key header guards retried URL changes.",
+        "description": "Send `{url}` to pin a custom URL for the store's inheriting devices (free; re-sending the identical URL is a no-op), or `{mode: \"none\" | \"inherit\"}` to switch the store's pin mode (also free — `inherit` follows the tenant pin, `none` suppresses any pin for this store's inheriting devices). An optional Idempotency-Key header guards retried URL changes.",
         "parameters": [
           {
             "name": "storeId",
@@ -212,8 +209,7 @@
           }
         },
         "responses": {
-          "200": { "description": "Pin state after the call: `{storeId, pinMode, pin, affectedDevices, creditsCharged}`." },
-          "402": { "description": "Not enough credits." },
+          "200": { "description": "Pin state after the call: `{storeId, pinMode, pin, affectedDevices}`." },
           "403": { "description": "Missing devices:pin scope, or organization archived (URL changes only)." },
           "404": { "description": "Store not found." },
           "422": { "description": "Invalid body, URL, or mode." }
@@ -231,7 +227,7 @@
           }
         ],
         "responses": {
-          "200": { "description": "Pin reset: `{storeId, pinMode: \"inherit\", pin: null, affectedDevices, creditsCharged: 0}`." },
+          "200": { "description": "Pin reset: `{storeId, pinMode: \"inherit\", pin: null, affectedDevices}`." },
           "403": { "description": "Missing devices:pin scope." },
           "404": { "description": "Store not found." }
         }
@@ -240,7 +236,7 @@
     "/usage": {
       "get": {
         "summary": "Usage totals",
-        "description": "Credit-denominated usage for the authenticated tenant. Requires the `usage:read` scope.",
+        "description": "Activation usage for the authenticated tenant, current calendar month. Requires the `usage:read` scope.",
         "responses": {
           "200": { "description": "Usage for the org", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Usage" } } } },
           "401": { "$ref": "#/components/responses/Error" },
@@ -291,8 +287,6 @@
       "Usage": {
         "type": "object",
         "properties": {
-          "credits": { "type": "object", "properties": { "available": { "type": "integer" }, "held": { "type": "integer" } } },
-          "credits_consumed_this_month": { "type": "integer" },
           "activations_this_month": { "type": "integer" },
           "period": { "type": "object", "properties": { "start": { "type": "string" }, "end": { "type": "string" } } }
         }

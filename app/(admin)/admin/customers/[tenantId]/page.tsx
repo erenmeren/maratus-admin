@@ -214,7 +214,11 @@ export default async function CustomerDetailPage({
         disabled={isArchived}
       />
 
-      <InvoiceTable invoices={invoices} disabled={isArchived} />
+      <InvoiceTable
+        invoices={invoices}
+        isSubscribed={subscriptionSettings?.startedAt != null}
+        disabled={isArchived}
+      />
 
       {/* Device usage this month */}
       <Card className="overflow-hidden">

@@ -12,7 +12,11 @@ import {
   MONTHS_PER_YEAR,
   startOfUtcDay,
 } from "@/lib/billing-period";
-import { issueSubscriptionInvoice, markInvoicePaid } from "@/lib/invoices";
+import {
+  canVoidInvoice,
+  issueSubscriptionInvoice,
+  markInvoicePaid,
+} from "@/lib/invoices";
 import { DEFAULT_PRICE_PER_DEVICE_CENTS } from "@/lib/invoicing";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -87,12 +91,15 @@ export async function startSubscriptionAction(tenantId: string): Promise<ActionR
   if (!issued) {
     // The unique index is (organizationId, kind, periodStart) with no status
     // predicate, so a paid or voided subscription invoice already issued today
-    // still occupies the slot. Say so, rather than leaving the operator
-    // guessing at a constraint they cannot see.
+    // still occupies the slot — permanently. Say so, rather than leaving the
+    // operator guessing at a constraint they cannot see. "Tomorrow" is honest
+    // for THIS path only, because this is the one issuer whose periodStart is
+    // the current UTC day; a renewal's slot is its fixed anniversary date and
+    // never comes back, which is why canVoidInvoice refuses to void one.
     return {
       ok: false,
       error:
-        "A subscription invoice was already issued for this customer today. If it was voided, re-issue tomorrow.",
+        "This customer already has a subscription invoice dated today, and that day's slot stays taken whatever its status. Start the subscription again tomorrow (UTC).",
     };
   }
 
@@ -176,14 +183,23 @@ export async function markInvoicePaidAction(a: {
 /**
  * Cancels an invoice issued by mistake. Only open → void: a paid invoice has
  * already activated devices and moved money, so it is not reversible here.
- * Voiding has no side effects of its own — it just takes the row out of the
- * overdue sweep and frees the (org, kind, periodStart) slot for a re-issue.
+ *
+ * Voiding has no side effects of its own, but it does NOT free the
+ * (org, kind, periodStart) slot — the unique index has no status predicate, so
+ * a void row occupies its slot forever. That makes voiding safe only for
+ * invoices something can legitimately issue again; canVoidInvoice owns that
+ * rule. This is the boundary, not the invoice table: the UI check is a
+ * courtesy and the action must stand on its own.
  */
 export async function voidInvoiceAction(invoiceId: string): Promise<ActionResult> {
   const ctx = await requirePlatformAdmin();
 
   const [invRow] = await db
-    .select({ organizationId: invoice.organizationId, status: invoice.status })
+    .select({
+      organizationId: invoice.organizationId,
+      status: invoice.status,
+      kind: invoice.kind,
+    })
     .from(invoice)
     .where(eq(invoice.id, invoiceId))
     .limit(1);
@@ -198,6 +214,22 @@ export async function voidInvoiceAction(invoiceId: string): Promise<ActionResult
           ? "A paid invoice cannot be voided."
           : "This invoice is already void.",
     };
+  }
+
+  // Read the subscription state from the DB, never from the caller: whether a
+  // `subscription` invoice is a re-issuable first invoice or an unrecoverable
+  // cron renewal turns entirely on this flag.
+  const [settings] = await db
+    .select({ startedAt: tenantSettings.subscriptionStartedAt })
+    .from(tenantSettings)
+    .where(eq(tenantSettings.organizationId, invRow.organizationId))
+    .limit(1);
+  const eligibility = canVoidInvoice({
+    kind: invRow.kind,
+    isSubscribed: settings?.startedAt != null,
+  });
+  if (!eligibility.ok) {
+    return { ok: false, error: eligibility.reason };
   }
 
   // Conditioned on status so a double-click (or a race with mark-paid) cannot

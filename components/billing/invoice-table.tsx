@@ -14,8 +14,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { formatDate, formatTryKurus, formatUsdCents } from "@/lib/format";
-import { isInvoiceOverdue, type InvoiceRow } from "@/lib/invoices";
+import {
+  canVoidInvoice,
+  isInvoiceOverdue,
+  voidConsequence,
+  type InvoiceRow,
+} from "@/lib/invoices";
 import { MarkPaidDialog } from "./mark-paid-dialog";
 import { VoidInvoiceDialog } from "./void-invoice-dialog";
 
@@ -42,11 +53,19 @@ function displayStatus(inv: InvoiceRow, now: Date): DisplayStatus {
   return isInvoiceOverdue(inv, now) ? "overdue" : inv.status;
 }
 
+/**
+ * `isSubscribed` is what decides whether a `subscription` invoice is a
+ * re-issuable first invoice or an unrecoverable cron renewal — see
+ * canVoidInvoice. It is required rather than optional so a new call site
+ * cannot silently default into offering an unsafe Void.
+ */
 export function InvoiceTable({
   invoices,
+  isSubscribed,
   disabled,
 }: {
   invoices: InvoiceRow[];
+  isSubscribed: boolean;
   disabled?: boolean;
 }) {
   const now = new Date();
@@ -81,6 +100,16 @@ export function InvoiceTable({
               {invoices.map((inv) => {
                 const status = displayStatus(inv, now);
                 const ui = STATUS_UI[status];
+                // A void row keeps its (org, kind, periodStart) slot forever,
+                // so Void is only offered where a re-issue is actually
+                // possible. Where it is not, the button stays visible but
+                // disabled with the reason — an absent affordance would leave
+                // the operator hunting for a control that was deliberately
+                // withheld.
+                const voidable = canVoidInvoice({
+                  kind: inv.kind,
+                  isSubscribed,
+                });
                 return (
                   <TableRow key={inv.id}>
                     <TableCell className="pl-6">
@@ -119,10 +148,28 @@ export function InvoiceTable({
                             invoiceId={inv.id}
                             amountUsdCents={inv.amountUsdCents}
                           />
-                          <VoidInvoiceDialog
-                            invoiceId={inv.id}
-                            amountUsdCents={inv.amountUsdCents}
-                          />
+                          {voidable.ok ? (
+                            <VoidInvoiceDialog
+                              invoiceId={inv.id}
+                              amountUsdCents={inv.amountUsdCents}
+                              consequence={voidConsequence(inv.kind)}
+                            />
+                          ) : (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                {/* A disabled button fires no pointer events,
+                                    so the trigger has to wrap it. */}
+                                <span tabIndex={0}>
+                                  <Button size="sm" variant="ghost" disabled>
+                                    Void
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                {voidable.reason}
+                              </TooltipContent>
+                            </Tooltip>
+                          )}
                         </div>
                       )}
                     </TableCell>

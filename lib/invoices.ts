@@ -74,6 +74,72 @@ export function isInvoiceOverdue(
   return inv.status === "open" && inv.dueAt < now;
 }
 
+export type VoidEligibility = { ok: true } | { ok: false; reason: string };
+
+/**
+ * Whether an open invoice is safe to void.
+ *
+ * Voiding is NOT a neutral "cancel". The (organizationId, kind, periodStart)
+ * unique index has no status predicate, so a void row keeps occupying its slot
+ * forever — every later attempt to issue that same slot conflicts and silently
+ * does nothing. Whether that matters depends entirely on whether anything can
+ * ever legitimately re-issue the slot:
+ *
+ * - `subscription` on an org that is NOT yet subscribed — the only issuer is
+ *   startSubscriptionAction, whose periodStart is today's UTC day. Voiding
+ *   costs the operator a day (tomorrow is a fresh slot), nothing more. SAFE.
+ * - `subscription` on an ALREADY-subscribed org — that is a cron renewal, and
+ *   its periodStart is `subscriptionRenewsAt`, which only advances when a
+ *   renewal is PAID. Void it and the daily sweep re-attempts the identical
+ *   slot every day, conflicts every time, and the customer runs a full year
+ *   with paid devices and no invoice at all — silently. NOT SAFE.
+ * - `proration` — the device is re-prorated the next time a subscription
+ *   invoice is paid; issueProrationsForUnpaidDevices deliberately ignores
+ *   void prorations, which makes voiding the re-issue gesture. SAFE.
+ * - `overage` — its periodStart is a closed, anchor-derived period that never
+ *   comes round again, and issuance already burned the org's legacy credits.
+ *   Void it and that period's usage is never billed and the credits are gone.
+ *   NOT SAFE.
+ *
+ * Pure, so the rule has exactly one definition: the invoice table renders on
+ * it and voidInvoiceAction enforces it.
+ */
+export function canVoidInvoice(a: {
+  kind: InvoiceRow["kind"];
+  isSubscribed: boolean;
+}): VoidEligibility {
+  if (a.kind === "proration") return { ok: true };
+  if (a.kind === "subscription") {
+    return a.isSubscribed
+      ? {
+          ok: false,
+          reason:
+            "A renewal invoice can't be voided: the renewal date only moves when the invoice is paid, so nothing would ever re-issue it and this customer would run a full year unbilled. Correct the amount off-system and mark it paid when the transfer lands.",
+        }
+      : { ok: true };
+  }
+  return {
+    ok: false,
+    reason:
+      "An overage invoice can't be voided: its billing period is closed and is never invoiced again, and any prepaid credits it applied were already spent when it was issued.",
+  };
+}
+
+/**
+ * What voiding actually does, per kind — the dialog's confirmation copy.
+ * Only kinds canVoidInvoice allows are reachable here; `overage` is included
+ * for exhaustiveness rather than because it can be shown.
+ */
+export function voidConsequence(kind: InvoiceRow["kind"]): string {
+  if (kind === "proration") {
+    return "The device stays unpaid and contributes no quota. It is pro-rated again the next time a subscription invoice is paid for this customer.";
+  }
+  if (kind === "subscription") {
+    return "The customer stays unsubscribed and no device is activated. You can start the subscription again to issue a fresh invoice — from tomorrow (UTC) at the earliest, because today's slot stays taken by the voided one.";
+  }
+  return "The invoice stops being owed. It is not issued again.";
+}
+
 /** Paid, non-archived devices — the only ones that contribute pooled quota. */
 export async function countPaidDevices(organizationId: string): Promise<number> {
   const [row] = await db

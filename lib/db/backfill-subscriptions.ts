@@ -10,14 +10,26 @@
 // NOTE: .env.local points at PRODUCTION. This writes to the live database.
 
 import "./load-env"; // MUST be first — hoisted ESM imports read env at load time
-import { eq, isNull, and, isNotNull } from "drizzle-orm";
+import { eq, isNull, and, isNotNull, ne } from "drizzle-orm";
 import { db } from "../db";
 import { creditBalance, device, tenantSettings } from "./schema";
 import { addMonthsAnchored } from "../billing-period";
+import { DEFAULT_INCLUDED_TRIGGERS_PER_DEVICE } from "../invoicing";
 
 async function main() {
   const now = new Date();
   const renewsAt = addMonthsAnchored(now, 12);
+
+  // 0. Align the included-trigger quota on EXISTING rows.
+  // Migration 0042 changes the column default from 2000 to 1000, but a default
+  // only applies to rows inserted afterwards — every pre-existing tenant keeps
+  // the old 2000 and would silently get double the quota the model specifies.
+  // Caught in production during the cutover, where one org was still on 2000.
+  const requoted = await db
+    .update(tenantSettings)
+    .set({ includedTriggersPerDevice: DEFAULT_INCLUDED_TRIGGERS_PER_DEVICE, updatedAt: now })
+    .where(ne(tenantSettings.includedTriggersPerDevice, DEFAULT_INCLUDED_TRIGGERS_PER_DEVICE))
+    .returning({ organizationId: tenantSettings.organizationId });
 
   // 1. Subscribe every non-archived org as of now.
   const orgs = await db
@@ -51,7 +63,7 @@ async function main() {
   }
 
   console.log(
-    `backfill complete: ${orgs.length} orgs subscribed, ${devices.length} devices marked paid, ${credited} credit balances carried over`,
+    `backfill complete: ${requoted.length} quotas aligned to ${DEFAULT_INCLUDED_TRIGGERS_PER_DEVICE}, ${orgs.length} orgs subscribed, ${devices.length} devices marked paid, ${credited} credit balances carried over`,
   );
 }
 

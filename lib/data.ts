@@ -58,6 +58,9 @@ import { resolveEffectivePin } from "@/lib/pin-resolve";
 import type { PinMode } from "@/lib/pin";
 import { AUDIT } from "@/lib/audit";
 import { DEFAULT_INCLUDED_TRIGGERS, monthKey } from "@/lib/billing-plan";
+import { periodStartFor, periodEndFor } from "@/lib/billing-period";
+import { overageFor } from "@/lib/invoicing";
+import { countPaidDevices, countAckedTriggers } from "@/lib/invoices";
 import { getOrgUsageForMonth } from "@/lib/device-usage";
 import type {
   Device,
@@ -519,6 +522,104 @@ export async function getTenantDashboard(
     creditsUsedThisMonth: Number(usedRow?.c ?? 0),
     pinUpdatesThisMonth: Number(pinRow?.c ?? 0),
     daily: dailySeries(b),
+  };
+}
+
+// ============================================================================
+// Tenant billing (subscription-billing spec, 2026-08-15)
+// ============================================================================
+
+export interface TenantBillingOverview {
+  subscribed: boolean;
+  startedAt: Date | null;
+  renewsAt: Date | null;
+  paidDevices: number;
+  // Per-trigger/per-device cents, at rest — the page converts to dollars at
+  // the display edge.
+  pricePerDeviceCents: number;
+  overagePriceCents: number;
+  includedTotal: number;
+  used: number;
+  overageTriggers: number;
+  estimatedOverageUsdCents: number;
+  periodStart: Date | null;
+  periodEnd: Date | null;
+}
+
+export async function getTenantBillingOverview(
+  organizationId: string,
+): Promise<TenantBillingOverview> {
+  const now = new Date();
+  const [[settings], paidDevices] = await Promise.all([
+    db
+      .select({
+        startedAt: settingsTable.subscriptionStartedAt,
+        renewsAt: settingsTable.subscriptionRenewsAt,
+        pricePerDeviceCents: settingsTable.pricePerDeviceCents,
+        overagePriceCents: settingsTable.overagePriceCents,
+        includedTriggersPerDevice: settingsTable.includedTriggersPerDevice,
+      })
+      .from(settingsTable)
+      .where(eq(settingsTable.organizationId, organizationId))
+      .limit(1),
+    countPaidDevices(organizationId),
+  ]);
+
+  const pricePerDeviceCents = settings?.pricePerDeviceCents ?? 0;
+  const overagePriceCents = settings?.overagePriceCents ?? 0;
+
+  // Unsubscribed orgs (subscriptionStartedAt still null) have no anchor to
+  // compute a period from — render nothing rather than a nonsense window.
+  if (!settings?.startedAt) {
+    return {
+      subscribed: false,
+      startedAt: null,
+      renewsAt: settings?.renewsAt ?? null,
+      paidDevices,
+      pricePerDeviceCents,
+      overagePriceCents,
+      includedTotal: 0,
+      used: 0,
+      overageTriggers: 0,
+      estimatedOverageUsdCents: 0,
+      periodStart: null,
+      periodEnd: null,
+    };
+  }
+
+  const periodStart = periodStartFor(settings.startedAt, now);
+  const periodEnd = periodEndFor(settings.startedAt, now);
+  const used = await countAckedTriggers({
+    organizationId,
+    from: periodStart,
+    to: periodEnd,
+  });
+
+  // legacyCredits: 0 — this is a live, in-period estimate. Legacy credits
+  // only settle for real when the closed period's overage invoice is issued
+  // and paid; pre-spending them here would show a number that later changes
+  // for no visible reason.
+  const overage = overageFor({
+    used,
+    includedPerDevice: settings.includedTriggersPerDevice,
+    paidDeviceCount: paidDevices,
+    overagePriceCents,
+    legacyCredits: 0,
+  });
+
+  return {
+    subscribed: true,
+    startedAt: settings.startedAt,
+    renewsAt: settings.renewsAt,
+    paidDevices,
+    pricePerDeviceCents,
+    overagePriceCents,
+    includedTotal: overage.includedTotal,
+    used,
+    overageTriggers: overage.overageTriggers,
+    estimatedOverageUsdCents: overage.amountUsdCents,
+    periodStart,
+    periodEnd,
   };
 }
 

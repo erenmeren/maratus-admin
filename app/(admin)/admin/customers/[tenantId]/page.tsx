@@ -1,5 +1,8 @@
 import { notFound } from "next/navigation";
+import { eq } from "drizzle-orm";
 import { Archive, Cpu, Mail, Phone, Zap, Store } from "lucide-react";
+import { db } from "@/lib/db";
+import { tenantSettings } from "@/lib/db/schema";
 import { PageHeader } from "@/components/page-header";
 import { SectionHeader } from "@/components/section-header";
 import { KpiCard } from "@/components/kpi-card";
@@ -38,8 +41,10 @@ import {
   getDeviceUsageThisMonth,
 } from "@/lib/data";
 import { getBalance } from "@/lib/credits";
-import { AdjustCreditsForm } from "@/components/adjust-credits-form";
-import { BillingPlanCard } from "@/components/billing-plan-card";
+import { countPaidDevices, listInvoices } from "@/lib/invoices";
+import { DEFAULT_PRICE_PER_DEVICE_CENTS } from "@/lib/invoicing";
+import { SubscriptionCard } from "@/components/billing/subscription-card";
+import { InvoiceTable } from "@/components/billing/invoice-table";
 import { formatNumber, timeAgo } from "@/lib/format";
 import { actionLabel } from "@/lib/audit-labels";
 import { deriveArchivedStatus, type OffboardSummary } from "@/lib/offboarding";
@@ -60,11 +65,31 @@ export default async function CustomerDetailPage({
   if (!detail) notFound();
 
   const activity = await getOrgAuditLog(tenantId, 50);
-  const [creditBalance, creditLedger, armedByStore, deviceUsage] = await Promise.all([
+  const [
+    creditBalance,
+    creditLedger,
+    armedByStore,
+    deviceUsage,
+    subscriptionSettings,
+    paidDeviceCount,
+    invoices,
+  ] = await Promise.all([
     getBalance(tenantId),
     getCreditLedger(tenantId),
     getArmedAllocationCountByStore(tenantId),
     getDeviceUsageThisMonth(tenantId),
+    db
+      .select({
+        startedAt: tenantSettings.subscriptionStartedAt,
+        renewsAt: tenantSettings.subscriptionRenewsAt,
+        pricePerDeviceCents: tenantSettings.pricePerDeviceCents,
+      })
+      .from(tenantSettings)
+      .where(eq(tenantSettings.organizationId, tenantId))
+      .limit(1)
+      .then((rows) => rows[0]),
+    countPaidDevices(tenantId),
+    listInvoices(tenantId),
   ]);
 
   const { tenant, summary, devices, health } = detail;
@@ -183,12 +208,19 @@ export default async function CustomerDetailPage({
         }))}
       />
 
-      <BillingPlanCard
-        organizationId={tenant.id}
-        billingPlan={tenant.billingPlan}
-        includedTriggersPerDevice={tenant.includedTriggersPerDevice}
+      <SubscriptionCard
+        tenantId={tenant.id}
+        subscriptionStartedAt={subscriptionSettings?.startedAt ?? null}
+        subscriptionRenewsAt={subscriptionSettings?.renewsAt ?? null}
+        pricePerDeviceCents={
+          subscriptionSettings?.pricePerDeviceCents ?? DEFAULT_PRICE_PER_DEVICE_CENTS
+        }
+        paidDeviceCount={paidDeviceCount}
+        invoices={invoices}
         disabled={isArchived}
       />
+
+      <InvoiceTable tenantId={tenant.id} invoices={invoices} disabled={isArchived} />
 
       {/* Device usage this month */}
       <Card className="overflow-hidden">
@@ -248,7 +280,6 @@ export default async function CustomerDetailPage({
               This tenant is on the flat plan — triggers do not consume credits.
             </p>
           )}
-          {!isArchived && <AdjustCreditsForm organizationId={tenantId} />}
 
           {creditLedger.length > 0 && (
             <Table>

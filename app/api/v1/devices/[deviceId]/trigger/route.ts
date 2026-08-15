@@ -4,9 +4,8 @@ import { device as deviceTable, deviceCommand, apiKey as apiKeyTable, apiIdempot
 import { guardApiRequest } from "@/lib/api/guard";
 import { apiError, apiJson } from "@/lib/api/respond";
 import { hasScope } from "@/lib/api-scopes";
-import { validateTriggerBody, creditCostForAction } from "@/lib/trigger-actions";
-import { reserveTrigger, cancelTriggerReservation } from "@/lib/trigger-billing";
-import { releaseExpiredHolds } from "@/lib/credit-holds";
+import { validateTriggerBody } from "@/lib/trigger-actions";
+import { checkSubscriptionGate } from "@/lib/subscription-gate";
 import { effectiveDeviceStatus } from "@/lib/device-status";
 import { id } from "@/lib/ids";
 import { publishCommand, mqttEnabled } from "@/lib/mqtt";
@@ -46,11 +45,24 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
     return apiError("device_offline", "Device is offline or paused.", 409);
   }
 
+  // Post-paid overage means quota never blocks a request; the only billing
+  // question left is whether this device is paid for (or still in trial).
+  const gate = await checkSubscriptionGate({
+    deviceId,
+    subscriptionPaidAt: dev.subscriptionPaidAt,
+  });
+  if (!gate.ok) {
+    return apiError(
+      "device_not_subscribed",
+      "This device has no active subscription. Contact Ditto to activate it.",
+      403,
+    );
+  }
+
   // Two different 503s, told apart HERE rather than at the publish below, because
   // only one of them can ever succeed on retry. A deployment missing the EMQX env
-  // group has no transport at all: retrying is futile, and reserving a credit only
-  // to refund it seconds later is churn in the ledger for a fault no caller can
-  // fix. Checked before the idempotency claim so this path leaves nothing behind.
+  // group has no transport at all: retrying is futile. Checked before the
+  // idempotency claim so this path leaves nothing behind.
   if (!mqttEnabled()) {
     console.error("[trigger] EMQX env group missing; no device transport is configured", {
       deviceId,
@@ -58,16 +70,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
     });
     return apiError(
       "transport_unconfigured",
-      "The device transport is not configured on this deployment. No credit was charged; retrying will not help.",
+      "The device transport is not configured on this deployment. Retrying will not help.",
       503,
     );
   }
 
-  // Lazily reconcile this org's expired (unacked) holds before checking the balance,
-  // so an active org never waits on the daily backstop cron to reclaim credits.
-  await releaseExpiredHolds({ organizationId: auth.organizationId });
-
-  const cost = creditCostForAction(v.action);
   const commandId = id("cmd");
   const body = { id: commandId, status: "queued" as const };
 
@@ -84,29 +91,13 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
     return apiError("conflict", "Concurrent request in progress.", 409);
   }
 
-  // We own the claim. Reserve (plan-aware); on failure, release the claim so a retry can proceed.
-  const reserved = await reserveTrigger({ organizationId: auth.organizationId, deviceId, action: v.action, commandId, cost });
-  if (!reserved.ok) {
-    await db.delete(apiIdempotency).where(and(eq(apiIdempotency.key, idemKey), eq(apiIdempotency.organizationId, auth.organizationId)));
-    if (reserved.reason === "fair_use_exceeded") {
-      const res = apiError("fair_use_exceeded", "Fair-use trigger ceiling reached for this device this month.", 429);
-      const now = new Date();
-      const nextMonth = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1);
-      const retryAfterSeconds = Math.max(1, Math.ceil((nextMonth - now.getTime()) / 1000));
-      res.headers.set("Retry-After", String(retryAfterSeconds));
-      return res;
-    }
-    return apiError("insufficient_credits", "Not enough credits.", 402);
-  }
-
   try {
     await db.insert(deviceCommand).values({
       id: commandId, deviceId, organizationId: auth.organizationId, type: "trigger",
-      status: "pending", action: v.action, payload: v.payload, billing: reserved.billing,
+      status: "pending", action: v.action, payload: v.payload,
       expiresAt: new Date(Date.now() + TTL_MS),
     });
   } catch {
-    await cancelTriggerReservation({ organizationId: auth.organizationId, deviceId, commandId, cost, billing: reserved.billing, month: reserved.month });
     await db.delete(apiIdempotency).where(and(eq(apiIdempotency.key, idemKey), eq(apiIdempotency.organizationId, auth.organizationId)));
     return apiError("internal_error", "Could not enqueue the command.", 500);
   }
@@ -115,8 +106,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
   // reach the device. A trigger delivered minutes later is worthless — the
   // customer is at the counter now — and leaving the row pending would make the
   // heartbeat republish show an unwanted QR later. Fail closed instead: mark it
-  // failed, refund the reservation, and tell the caller — but only if the row is
-  // still pending (see below; a lost publish response is not a lost publish).
+  // failed and tell the caller — but only if the row is still pending (see
+  // below; a lost publish response is not a lost publish).
   const published = await publishCommand(deviceId, {
     commandId,
     type: "trigger",
@@ -124,18 +115,11 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
     payload: v.payload,
   });
   if (!published) {
-    // A lost publish RESPONSE is not a lost publish. publishCommand gives EMQX's
-    // HTTP publish API two 2-second attempts, and measured device ack latency is
-    // ~1.9s — the same order as that timeout. So the device can genuinely receive
-    // and ack the trigger while we are still deciding the publish "failed", in
-    // which case /api/mqtt/ack has already moved this row to acked and settled
-    // the hold. The status predicate below is what tells the two cases apart:
-    // only a row still `pending` is safe to unwind. Without it we would overwrite
-    // a real ack with `failed` and then call cancelTriggerReservation — and
-    // because holds are a scalar per-org counter (creditBalance.held), that
-    // release can consume a DIFFERENT in-flight trigger's hold, leaving its own
-    // ack to find nothing held and no-op. Two QRs shown, one credit charged, one
-    // bogus `release` ledger row, and a 503 for a trigger that actually worked.
+    // A lost publish RESPONSE is not a lost publish: publishCommand allows two
+    // 2-second attempts and measured ack latency is ~1.9s, so the device can
+    // genuinely ack while we are still deciding the publish "failed". Only a
+    // row still `pending` is safe to mark failed — otherwise we would overwrite
+    // a real ack and report 503 for a trigger that actually reached the screen.
     const failed = await db
       .update(deviceCommand)
       .set({ status: "failed", result: "publish_failed" })
@@ -143,10 +127,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
       .returning({ id: deviceCommand.id });
     if (failed.length === 0) {
       // Something already moved this row past `pending`; in practice that is the
-      // device acking while we timed out. The trigger DID reach the screen and
-      // the credit is correctly settled — so unwind NOTHING: leave the row, the
-      // reservation, and the idempotency claim exactly as the ack left them, and
-      // answer the caller with the normal success body.
+      // device acking while we timed out. The trigger DID reach the screen — so
+      // unwind NOTHING: leave the row and the idempotency claim exactly as the
+      // ack left them, and answer the caller with the normal success body.
       console.warn("[trigger] publish reported failure but command left pending state", {
         commandId,
         deviceId,
@@ -154,14 +137,6 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
       });
       return apiJson(body, 202);
     }
-    await cancelTriggerReservation({
-      organizationId: auth.organizationId,
-      deviceId,
-      commandId,
-      cost,
-      billing: reserved.billing,
-      month: reserved.month,
-    });
     await db
       .delete(apiIdempotency)
       .where(
@@ -180,7 +155,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
     });
     return apiError(
       "transport_unavailable",
-      "Could not reach the device transport. No credit was charged; retry.",
+      "Could not reach the device transport. Retry.",
       503,
     );
   }

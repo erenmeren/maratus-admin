@@ -154,6 +154,13 @@ export async function issueOverageInvoice(a: {
   // Nothing billable and no credits burned → no invoice at all.
   if (r.billableTriggers <= 0 && r.creditsConsumed <= 0) return null;
 
+  // A zero-amount invoice exists only to document that legacy credits absorbed
+  // the whole overage. It is born settled: nothing is owed, no admin action is
+  // possible (markInvoicePaidAction rejects a non-positive TRY amount), and an
+  // "open" $0 row would age into the overdue KPI and flip the tenant's badge
+  // to Overdue for a zero balance.
+  const settledOnIssue = r.amountUsdCents <= 0;
+
   const rows = await db
     .insert(invoice)
     .values({
@@ -167,13 +174,33 @@ export async function issueOverageInvoice(a: {
       overageTriggers: r.billableTriggers,
       creditsConsumed: r.creditsConsumed,
       amountUsdCents: r.amountUsdCents,
-      status: "open",
+      status: settledOnIssue ? "paid" : "open",
       issuedAt: a.issuedAt,
       dueAt: dueAtFrom(a.issuedAt),
+      paidAt: settledOnIssue ? a.issuedAt : null,
+      note: settledOnIssue
+        ? "Fully covered by carried-over prepaid credits; nothing to pay."
+        : undefined,
     })
     .onConflictDoNothing()
     .returning({ id: invoice.id });
-  return rows[0] ?? null;
+  const issued = rows[0] ?? null;
+
+  // Burn the legacy credits HERE, at issuance, not at payment. Spec §5 offsets
+  // them against the first overage invoice only. Zeroing at payment left the
+  // full balance readable by every subsequent cron run in the meantime, so the
+  // same credits offset period after period — and when they fully absorbed the
+  // overage the invoice could never be marked paid at all, so they were never
+  // zeroed. Doing it on a non-null insert result is safe against a re-run: a
+  // second run conflicts, returns null, and burns nothing twice.
+  if (issued && r.creditsConsumed > 0) {
+    await db
+      .update(tenantSettings)
+      .set({ legacyCreditsRemaining: 0, updatedAt: a.issuedAt })
+      .where(eq(tenantSettings.organizationId, a.organizationId));
+  }
+
+  return issued;
 }
 
 export async function listInvoices(
@@ -330,12 +357,8 @@ export async function markInvoicePaid(a: {
     return { ok: true, organizationId: inv.organizationId };
   }
 
-  // overage: settles only itself, and burns the legacy credits it consumed.
-  if (inv.kind === "overage" && (inv.creditsConsumed ?? 0) > 0) {
-    await db
-      .update(tenantSettings)
-      .set({ legacyCreditsRemaining: 0, updatedAt: now })
-      .where(eq(tenantSettings.organizationId, inv.organizationId));
-  }
+  // overage: settles only itself. Legacy credits were already burned when the
+  // invoice was ISSUED (see issueOverageInvoice) — zeroing them here left the
+  // balance re-applicable every period until someone paid.
   return { ok: true, organizationId: inv.organizationId };
 }

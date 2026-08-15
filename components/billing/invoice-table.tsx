@@ -96,6 +96,15 @@ export function InvoiceTable({
                           ({formatTryKurus(inv.tryAmountKurus)})
                         </span>
                       )}
+                      {/* Carried-over prepaid credits are burned at issuance;
+                          when they absorb the whole overage the invoice is
+                          $0 and born paid, so say why. */}
+                      {(inv.creditsConsumed ?? 0) > 0 && (
+                        <span className="ml-1.5 block text-xs text-muted-foreground">
+                          {inv.creditsConsumed} credit
+                          {inv.creditsConsumed === 1 ? "" : "s"} applied
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <Badge variant={ui.variant}>{ui.label}</Badge>

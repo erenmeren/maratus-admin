@@ -19,6 +19,20 @@ import {
 
 export type InvoiceRow = typeof invoice.$inferSelect;
 
+/**
+ * "Overdue" is derived, never stored: an open invoice past its due date.
+ * Small shared helper — the several call sites that inline this check
+ * against a full `InvoiceRow` (components/billing/invoice-table.tsx,
+ * components/billing/subscription-card.tsx, tenant/billing/page.tsx) are
+ * left as-is; this is for new call sites that only have the two fields.
+ */
+export function isInvoiceOverdue(
+  inv: { status: InvoiceRow["status"]; dueAt: Date },
+  now: Date,
+): boolean {
+  return inv.status === "open" && inv.dueAt < now;
+}
+
 /** Paid, non-archived devices — the only ones that contribute pooled quota. */
 export async function countPaidDevices(organizationId: string): Promise<number> {
   const [row] = await db

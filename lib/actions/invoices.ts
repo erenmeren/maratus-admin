@@ -85,7 +85,15 @@ export async function startSubscriptionAction(tenantId: string): Promise<ActionR
     issuedAt: now,
   });
   if (!issued) {
-    return { ok: false, error: "An invoice already exists for this period." };
+    // The unique index is (organizationId, kind, periodStart) with no status
+    // predicate, so a paid or voided subscription invoice already issued today
+    // still occupies the slot. Say so, rather than leaving the operator
+    // guessing at a constraint they cannot see.
+    return {
+      ok: false,
+      error:
+        "A subscription invoice was already issued for this customer today. If it was voided, re-issue tomorrow.",
+    };
   }
 
   await recordAudit({

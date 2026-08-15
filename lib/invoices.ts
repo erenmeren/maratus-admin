@@ -5,7 +5,19 @@
 // unique index turns a duplicate into a no-op, which is what lets the daily
 // cron run more than once over the same period safely.
 
-import { and, asc, desc, eq, gte, isNotNull, isNull, lt, lte, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  ne,
+  sql,
+} from "drizzle-orm";
 import { db } from "./db";
 import { device, deviceCommand, invoice, tenantSettings } from "./db/schema";
 import { id } from "./ids";
@@ -445,9 +457,14 @@ export async function markInvoicePaid(a: {
 }
 
 /**
- * One proration invoice per still-unpaid claimed device, for the rest of the
- * org's subscription year. Idempotent via the (deviceId, periodStart) unique
- * index, so calling it again inside the same period is a no-op.
+ * One proration invoice per still-unpaid claimed device that does not already
+ * have one, for the rest of the org's subscription year.
+ *
+ * The existing-proration check is load-bearing, not just an optimisation: the
+ * (deviceId, periodStart) unique index only dedupes WITHIN a period, so a
+ * device claimed in the renewal lead window and already prorated would be
+ * prorated a second time if the renewal is paid after the next anniversary.
+ * Void invoices don't count — voiding is how an operator re-issues one.
  */
 async function issueProrationsForUnpaidDevices(a: {
   organizationId: string;
@@ -467,8 +484,24 @@ async function issueProrationsForUnpaidDevices(a: {
       ),
     )
     .orderBy(asc(device.claimedAt));
+  if (stillUnpaid.length === 0) return;
+
+  const prorated = await db
+    .select({ deviceId: invoice.deviceId })
+    .from(invoice)
+    .where(
+      and(
+        eq(invoice.organizationId, a.organizationId),
+        eq(invoice.kind, "proration"),
+        ne(invoice.status, "void"),
+      ),
+    );
+  const alreadyProrated = new Set(
+    prorated.map((r) => r.deviceId).filter((x): x is string => x !== null),
+  );
 
   for (const d of stillUnpaid) {
+    if (alreadyProrated.has(d.id)) continue;
     await issueProrationInvoice({
       organizationId: a.organizationId,
       deviceId: d.id,

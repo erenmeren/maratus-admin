@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/card";
 import { formatDate, formatNumber, formatUsdCents } from "@/lib/format";
 import { subscriptionAmountCents } from "@/lib/invoicing";
-import type { InvoiceRow } from "@/lib/invoices";
+import { isInvoiceOverdue, type InvoiceRow } from "@/lib/invoices";
 import { StartSubscriptionButton } from "./start-subscription-button";
 
 type Status = "not_subscribed" | "active" | "overdue";
@@ -32,9 +32,10 @@ export function SubscriptionCard(props: {
   disabled?: boolean;
 }) {
   const now = new Date();
-  // "Overdue" is derived, never stored — an open invoice past its due date.
-  const hasOverdueInvoice = props.invoices.some(
-    (inv) => inv.status === "open" && inv.dueAt < now,
+  // "Overdue" is derived, never stored — the rule lives in lib/invoices.ts.
+  const hasOverdueInvoice = props.invoices.some((inv) => isInvoiceOverdue(inv, now));
+  const hasOpenSubscriptionInvoice = props.invoices.some(
+    (inv) => inv.kind === "subscription" && inv.status === "open",
   );
   const status: Status =
     props.subscriptionStartedAt === null
@@ -61,11 +62,16 @@ export function SubscriptionCard(props: {
         {status === "not_subscribed" ? (
           <div className="flex flex-wrap items-center justify-between gap-4">
             <p className="text-sm text-muted-foreground">
-              No subscription yet. Starting one issues an invoice for every
-              claimed device at {formatUsdCents(props.pricePerDeviceCents)}
-              /device/month, billed annually.
+              {hasOpenSubscriptionInvoice
+                ? "A subscription invoice has been issued and is waiting for payment. Mark it paid below to activate the subscription, or void it to start over."
+                : `No subscription yet. Starting one issues an invoice for every claimed device at ${formatUsdCents(props.pricePerDeviceCents)}/device/month, billed annually.`}
             </p>
-            {!props.disabled && (
+            {/* The Start button stays visible for the whole window between
+                issuing and payment (subscriptionStartedAt is only written on
+                payment), so it is hidden explicitly once an invoice is open —
+                a second click would issue a second full year. The server
+                action rejects it too; this just avoids the dead end. */}
+            {!props.disabled && !hasOpenSubscriptionInvoice && (
               <StartSubscriptionButton tenantId={props.tenantId} />
             )}
           </div>

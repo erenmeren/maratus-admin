@@ -49,6 +49,16 @@ export function periodEndFor(anchor: Date, now: Date): Date {
   return addMonthsAnchored(anchor, periodIndexFor(anchor, now) + 1);
 }
 
+/**
+ * Midnight UTC of `d`'s day. Invoice `periodStart` values must be truncated to
+ * a day before they are stored: the unique (organizationId, kind, periodStart)
+ * index is the only thing preventing duplicate invoices, and a millisecond
+ * timestamp never collides, so the index would never fire.
+ */
+export function startOfUtcDay(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
+}
+
 /** When a subscription anchored at `anchor` comes up for renewal. */
 export function renewalDueAt(anchor: Date): Date {
   return addMonthsAnchored(anchor, MONTHS_PER_YEAR);

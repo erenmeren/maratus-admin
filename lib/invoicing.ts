@@ -40,6 +40,17 @@ export function monthsRemainingUntil(renewsAt: Date, now: Date): number {
   return Math.min(MONTHS_PER_YEAR, Math.max(0, months));
 }
 
+/**
+ * Months a proration is actually billed for. Never zero: a device claimed at
+ * or after `subscriptionRenewsAt` — routine for any org sitting on an unpaid
+ * renewal, which the no-cut-off policy makes a normal state — would otherwise
+ * price at $0, produce no invoice, and leave the device claimed, unpaid and
+ * invisible. A full month is the smallest honest charge.
+ */
+export function prorationMonths(monthsRemaining: number): number {
+  return Math.min(MONTHS_PER_YEAR, Math.max(1, monthsRemaining));
+}
+
 /** One device for the remaining months of an existing subscription year. */
 export function prorationAmountCents(
   pricePerDeviceCents: number,

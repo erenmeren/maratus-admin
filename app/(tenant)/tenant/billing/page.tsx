@@ -1,7 +1,7 @@
 // app/(tenant)/tenant/billing/page.tsx
 import { requireTenant } from "@/lib/session";
 import { getTenantBillingOverview } from "@/lib/data";
-import { listInvoices } from "@/lib/invoices";
+import { isInvoiceOverdue, listInvoices } from "@/lib/invoices";
 import { subscriptionAmountCents } from "@/lib/invoicing";
 import { PageHeader } from "@/components/page-header";
 import { InvoiceTable } from "@/components/billing/invoice-table";
@@ -35,10 +35,8 @@ export default async function TenantBillingPage() {
   ]);
 
   const now = new Date();
-  // "Overdue" is derived, never stored — an open invoice past its due date.
-  const hasOverdueInvoice = invoices.some(
-    (inv) => inv.status === "open" && inv.dueAt < now,
-  );
+  // "Overdue" is derived, never stored — the rule lives in lib/invoices.ts.
+  const hasOverdueInvoice = invoices.some((inv) => isInvoiceOverdue(inv, now));
   const status: SubscriptionStatus = !overview.subscribed
     ? "not_subscribed"
     : hasOverdueInvoice

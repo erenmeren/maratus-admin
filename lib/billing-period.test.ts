@@ -5,6 +5,7 @@ import {
   periodIndexFor,
   periodStartFor,
   renewalDueAt,
+  startOfUtcDay,
 } from "./billing-period";
 
 describe("addMonthsAnchored", () => {
@@ -93,5 +94,24 @@ describe("renewalDueAt", () => {
     expect(renewalDueAt(new Date("2024-02-29T00:00:00Z")).toISOString()).toBe(
       "2025-02-28T00:00:00.000Z",
     );
+  });
+});
+
+describe("startOfUtcDay", () => {
+  it("truncates to midnight UTC so the periodStart unique index can fire", () => {
+    expect(startOfUtcDay(new Date("2026-03-12T09:41:07.512Z")).toISOString()).toBe(
+      "2026-03-12T00:00:00.000Z",
+    );
+  });
+
+  it("is stable: two instants on the same UTC day collapse to one value", () => {
+    const a = startOfUtcDay(new Date("2026-03-12T00:00:00.001Z"));
+    const b = startOfUtcDay(new Date("2026-03-12T23:59:59.999Z"));
+    expect(a.getTime()).toBe(b.getTime());
+  });
+
+  it("is already-truncated-safe", () => {
+    const midnight = new Date("2026-03-12T00:00:00.000Z");
+    expect(startOfUtcDay(midnight).toISOString()).toBe(midnight.toISOString());
   });
 });

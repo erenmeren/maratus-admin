@@ -182,7 +182,9 @@ export async function registerCompany(
     });
 
     // A new org starts unsubscribed — its devices get the 50-trigger trial
-    // (lib/subscription-gate.ts) until the tenant subscribes from /tenant/billing.
+    // (lib/subscription-gate.ts) until a platform admin starts a subscription
+    // from /admin/customers/[tenantId] and marks its invoice paid. There is no
+    // self-serve path: /tenant/billing is read-only.
     await recordAudit({
       organizationId: orgId,
       actor: { type: "user", id: userId, label: email },

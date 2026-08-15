@@ -1,10 +1,11 @@
 // lib/trigger-ack.ts
-// Single home for the "did this trigger ack move credits?" decision and the
-// settle/release side effect. Shared by the HTTP ack route and the MQTT ack
-// webhook so the money rule exists in exactly one place.
-
-import { settleHold, releaseHold } from "@/lib/credits";
-import { creditCostForAction } from "@/lib/trigger-actions";
+// Historically the single home for the "did this trigger ack move credits?"
+// decision and the settle/release side effect, shared by the ack path so the
+// money rule existed in exactly one place. A trigger's cost is now derived at
+// period close by counting acked device_command rows directly, so there is
+// nothing left to settle here: the command row already reached its terminal
+// status (acked/failed) and got ackedAt stamped by the caller before this
+// runs. Kept as a no-op call site for app/api/mqtt/ack/route.ts.
 
 export type AckedCommand = {
   id: string;
@@ -12,22 +13,9 @@ export type AckedCommand = {
   action: string | null;
   organizationId: string;
   deviceId: string;
-  billing: string | null;
 };
 
-/** A credit-billed trigger moves credits on ack; "included" and non-triggers do not.
- *  Null billing = legacy credit-held row → treated as "credits". */
-export function shouldMoveCredits(cmd: { type: string | null; billing: string | null }): boolean {
-  return cmd.type === "trigger" && cmd.billing !== "included";
-}
-
-/** Settle (success) or release (failure) the credit hold for an acked trigger. */
-export async function applyTriggerAck(cmd: AckedCommand, ok: boolean): Promise<void> {
-  if (!shouldMoveCredits(cmd)) return;
-  const cost = creditCostForAction((cmd.action ?? "show_qr") as "show_qr");
-  if (ok) {
-    await settleHold({ organizationId: cmd.organizationId, commandId: cmd.id, cost, deviceId: cmd.deviceId });
-  } else {
-    await releaseHold({ organizationId: cmd.organizationId, commandId: cmd.id, cost, deviceId: cmd.deviceId });
-  }
+/** No-op: there is no credit hold to settle or release on ack any more. */
+export async function applyTriggerAck(_cmd: AckedCommand, _ok: boolean): Promise<void> {
+  return;
 }

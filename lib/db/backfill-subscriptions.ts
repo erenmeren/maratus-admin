@@ -33,17 +33,22 @@ async function main() {
     .where(and(isNull(device.subscriptionPaidAt), sql`${device.claimedAt} is not null`))
     .returning({ id: device.id });
 
-  // 3. Carry prepaid balances over as legacy credits.
+  // 3. Carry prepaid balances over as legacy credits (only for newly subscribed orgs).
+  // This is safe idempotent: step 1 returns only orgs with null subscriptionStartedAt
+  // (a field with no legitimate reset path), so step 3 never touches the same org twice.
   const balances = await db
     .select({ organizationId: creditBalance.organizationId, available: creditBalance.available })
     .from(creditBalance);
+  const balanceMap = new Map(balances.map(b => [b.organizationId, b.available]));
+
   let credited = 0;
-  for (const b of balances) {
-    if (b.available <= 0) continue;
+  for (const org of orgs) {
+    const available = balanceMap.get(org.organizationId);
+    if (available == null || available <= 0) continue;
     const updated = await db
       .update(tenantSettings)
-      .set({ legacyCreditsRemaining: b.available, updatedAt: new Date() })
-      .where(and(eq(tenantSettings.organizationId, b.organizationId), eq(tenantSettings.legacyCreditsRemaining, 0)))
+      .set({ legacyCreditsRemaining: available, updatedAt: new Date() })
+      .where(eq(tenantSettings.organizationId, org.organizationId))
       .returning({ organizationId: tenantSettings.organizationId });
     if (updated.length > 0) credited += 1;
   }

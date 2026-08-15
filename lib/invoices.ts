@@ -5,10 +5,11 @@
 // unique index turns a duplicate into a no-op, which is what lets the daily
 // cron run more than once over the same period safely.
 
-import { and, desc, eq, gte, isNotNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { db } from "./db";
-import { device, deviceCommand, invoice } from "./db/schema";
+import { device, deviceCommand, invoice, tenantSettings } from "./db/schema";
 import { id } from "./ids";
+import { addMonthsAnchored, MONTHS_PER_YEAR, renewalDueAt } from "./billing-period";
 import {
   dueAtFrom,
   overageFor,
@@ -171,4 +172,118 @@ export async function listInvoices(
     .where(eq(invoice.organizationId, organizationId))
     .orderBy(desc(invoice.issuedAt))
     .limit(limit);
+}
+
+/**
+ * Which unpaid devices a paid subscription invoice activates. Exactly
+ * `deviceCount`, oldest-claimed first (the caller supplies that order).
+ * Devices claimed AFTER the invoice was issued deliberately stay unpaid and
+ * get their own proration invoice — otherwise a customer could claim extra
+ * hardware between issue and payment and ride in for free.
+ */
+export function devicesToActivate(a: {
+  deviceCount: number;
+  unpaidDeviceIds: string[];
+}): string[] {
+  return a.unpaidDeviceIds.slice(0, Math.max(0, a.deviceCount));
+}
+
+export async function markInvoicePaid(a: {
+  invoiceId: string;
+  tryAmountKurus: number;
+  fxRate: number;
+  userId: string;
+  now?: Date;
+}): Promise<{ ok: true } | { ok: false; reason: "not_found" | "already_settled" }> {
+  const now = a.now ?? new Date();
+
+  // Settle the row first, conditioned on status — this is the concurrency gate,
+  // so a double-click cannot activate devices twice.
+  const settled = await db
+    .update(invoice)
+    .set({
+      status: "paid",
+      paidAt: now,
+      tryAmountKurus: a.tryAmountKurus,
+      fxRate: a.fxRate,
+      markedPaidByUserId: a.userId,
+    })
+    .where(and(eq(invoice.id, a.invoiceId), eq(invoice.status, "open")))
+    .returning();
+  const inv = settled[0];
+  if (!inv) {
+    const [exists] = await db
+      .select({ id: invoice.id })
+      .from(invoice)
+      .where(eq(invoice.id, a.invoiceId))
+      .limit(1);
+    return { ok: false, reason: exists ? "already_settled" : "not_found" };
+  }
+
+  if (inv.kind === "proration" && inv.deviceId) {
+    await db
+      .update(device)
+      .set({ subscriptionPaidAt: now })
+      .where(eq(device.id, inv.deviceId));
+    return { ok: true };
+  }
+
+  if (inv.kind === "subscription") {
+    const [settings] = await db
+      .select({
+        startedAt: tenantSettings.subscriptionStartedAt,
+        renewsAt: tenantSettings.subscriptionRenewsAt,
+      })
+      .from(tenantSettings)
+      .where(eq(tenantSettings.organizationId, inv.organizationId))
+      .limit(1);
+
+    // First activation anchors the whole billing calendar. A renewal must NOT
+    // recompute year one from the anchor — it advances the CURRENT renewal
+    // date by twelve months, so a second renewal lands in year three.
+    const isFirst = !settings?.startedAt;
+    await db
+      .update(tenantSettings)
+      .set({
+        subscriptionStartedAt: settings?.startedAt ?? now,
+        subscriptionRenewsAt: isFirst
+          ? renewalDueAt(now)
+          : addMonthsAnchored(settings.renewsAt as Date, MONTHS_PER_YEAR),
+        updatedAt: now,
+      })
+      .where(eq(tenantSettings.organizationId, inv.organizationId));
+
+    const unpaid = await db
+      .select({ id: device.id })
+      .from(device)
+      .where(
+        and(
+          eq(device.organizationId, inv.organizationId),
+          isNull(device.subscriptionPaidAt),
+          isNotNull(device.claimedAt),
+        ),
+      )
+      .orderBy(asc(device.claimedAt));
+
+    const toActivate = devicesToActivate({
+      deviceCount: inv.deviceCount ?? 0,
+      unpaidDeviceIds: unpaid.map((d) => d.id),
+    });
+    for (const deviceId of toActivate) {
+      await db
+        .update(device)
+        .set({ subscriptionPaidAt: now })
+        .where(eq(device.id, deviceId));
+    }
+    return { ok: true };
+  }
+
+  // overage: settles only itself, and burns the legacy credits it consumed.
+  if (inv.kind === "overage" && (inv.creditsConsumed ?? 0) > 0) {
+    await db
+      .update(tenantSettings)
+      .set({ legacyCreditsRemaining: 0, updatedAt: now })
+      .where(eq(tenantSettings.organizationId, inv.organizationId));
+  }
+  return { ok: true };
 }

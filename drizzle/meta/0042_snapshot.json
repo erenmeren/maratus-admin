@@ -1,5 +1,5 @@
 {
-  "id": "04bc3a52-22d3-4c7c-b651-3ed2e6fc162b",
+  "id": "8cab6bfb-4f4e-4c9c-b0b7-103aa75d2bac",
   "prevId": "276a6c10-f931-4830-a111-1f524d346357",
   "version": "7",
   "dialect": "postgresql",
@@ -2512,8 +2512,7 @@
           "name": "legacy_credits_remaining",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true,
-          "default": 0
+          "notNull": false
         },
         "billing_plan": {
           "name": "billing_plan",

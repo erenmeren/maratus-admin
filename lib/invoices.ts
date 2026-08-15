@@ -323,17 +323,30 @@ export async function listInvoices(
 }
 
 /**
- * Which unpaid devices a paid subscription invoice activates. Exactly
+ * Which unpaid devices a paid subscription invoice activates. At most
  * `deviceCount`, oldest-claimed first (the caller supplies that order).
- * Devices claimed AFTER the invoice was issued deliberately stay unpaid and
- * get their own proration invoice — otherwise a customer could claim extra
- * hardware between issue and payment and ride in for free.
+ *
+ * Two exclusions, both closing a free-ride:
+ * - Devices claimed AFTER the invoice was issued are never in
+ *   `unpaidDeviceIds` (the caller pins the query to `issuedAt`), or a customer
+ *   could claim extra hardware between issue and payment and ride in free.
+ * - Devices that already hold a live proration invoice are filtered out HERE.
+ *   The count guard (activatableDeviceCount) is not enough on its own: delete
+ *   a paid device and `invoicedDeviceCount − alreadyPaid` goes positive again,
+ *   and the freed slot would activate a device that is separately invoiced —
+ *   a free ride and a standing double charge at once.
+ *
+ * Filter before the slice: a device paying its own way must not consume one of
+ * the invoice's activation slots.
  */
 export function devicesToActivate(a: {
   deviceCount: number;
   unpaidDeviceIds: string[];
+  proratedDeviceIds: ReadonlySet<string>;
 }): string[] {
-  return a.unpaidDeviceIds.slice(0, Math.max(0, a.deviceCount));
+  return a.unpaidDeviceIds
+    .filter((deviceId) => !a.proratedDeviceIds.has(deviceId))
+    .slice(0, Math.max(0, a.deviceCount));
 }
 
 /**
@@ -473,9 +486,17 @@ export async function markInvoicePaid(a: {
       )
       .orderBy(asc(device.claimedAt));
 
+    // A device that already owes a proration is paying its own way and must
+    // not be activated by this invoice — see devicesToActivate. Before the
+    // first subscription payment this set is always empty (prorations need an
+    // anchor, and the anchor is written a few lines above, in this very call),
+    // so nothing that legitimately rides the first invoice is stranded.
+    const alreadyProrated = await proratedDeviceIds(inv.organizationId);
+
     const toActivate = devicesToActivate({
       deviceCount: remaining,
       unpaidDeviceIds: unpaid.map((d) => d.id),
+      proratedDeviceIds: alreadyProrated,
     });
     for (const deviceId of toActivate) {
       await db
@@ -523,6 +544,31 @@ export async function markInvoicePaid(a: {
 }
 
 /**
+ * Devices in this org that already carry a live (non-void) proration invoice.
+ *
+ * Two callers, one definition on purpose. It decides who does NOT need a new
+ * proration (issueProrationsForUnpaidDevices) and who must NOT be activated by
+ * a subscription payment (markInvoicePaid) — a device on both sides of that
+ * split would be charged twice or ride for free, so the two must never drift.
+ *
+ * Void invoices don't count: voiding a proration is how an operator re-issues
+ * one, and canVoidInvoice permits exactly that.
+ */
+async function proratedDeviceIds(organizationId: string): Promise<Set<string>> {
+  const rows = await db
+    .select({ deviceId: invoice.deviceId })
+    .from(invoice)
+    .where(
+      and(
+        eq(invoice.organizationId, organizationId),
+        eq(invoice.kind, "proration"),
+        ne(invoice.status, "void"),
+      ),
+    );
+  return new Set(rows.map((r) => r.deviceId).filter((x): x is string => x !== null));
+}
+
+/**
  * One proration invoice per still-unpaid claimed device that does not already
  * have one, for the rest of the org's subscription year.
  *
@@ -552,19 +598,7 @@ async function issueProrationsForUnpaidDevices(a: {
     .orderBy(asc(device.claimedAt));
   if (stillUnpaid.length === 0) return;
 
-  const prorated = await db
-    .select({ deviceId: invoice.deviceId })
-    .from(invoice)
-    .where(
-      and(
-        eq(invoice.organizationId, a.organizationId),
-        eq(invoice.kind, "proration"),
-        ne(invoice.status, "void"),
-      ),
-    );
-  const alreadyProrated = new Set(
-    prorated.map((r) => r.deviceId).filter((x): x is string => x !== null),
-  );
+  const alreadyProrated = await proratedDeviceIds(a.organizationId);
 
   for (const d of stillUnpaid) {
     if (alreadyProrated.has(d.id)) continue;

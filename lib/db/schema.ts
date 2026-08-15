@@ -219,8 +219,11 @@ export const tenantSettings = pgTable("tenant_settings", {
     .default(1000)
     .notNull(),
   // Migration-only: the org's prepaid credit balance at cutover, offset
-  // against its FIRST overage invoice and then zeroed. See spec §5.
-  legacyCreditsRemaining: integer("legacy_credits_remaining").default(0).notNull(),
+  // against its FIRST overage invoice and then set to 0. NULL means the
+  // cutover backfill has not run for this org — that distinction is what
+  // makes the backfill safe to re-run, since 0 is a state the billing
+  // system reaches legitimately. Readers must coalesce null to 0.
+  legacyCreditsRemaining: integer("legacy_credits_remaining"),
   // Retained for backward compatibility until Task 16 drops it; superseded by
   // the subscription columns above.
   billingPlan: text("billing_plan", { enum: ["credits", "flat", "base_usage"] })

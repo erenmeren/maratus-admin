@@ -21,11 +21,9 @@ import { markInvoicePaidAction } from "@/lib/actions/invoices";
 import { formatUsdCents } from "@/lib/format";
 
 export function MarkPaidDialog({
-  tenantId,
   invoiceId,
   amountUsdCents,
 }: {
-  tenantId: string;
   invoiceId: string;
   amountUsdCents: number;
 }) {
@@ -57,7 +55,6 @@ export function MarkPaidDialog({
     setPending(true);
     try {
       const res = await markInvoicePaidAction({
-        tenantId,
         invoiceId,
         tryAmountKurus,
         fxRate,

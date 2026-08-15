@@ -544,13 +544,19 @@ export const invoice = pgTable(
       .notNull(),
   },
   (t) => [
-    // The cron's idempotency guarantee: a second run over the same period
-    // conflicts and does nothing.
-    uniqueIndex("invoice_org_kind_period_idx").on(
-      t.organizationId,
-      t.kind,
-      t.periodStart,
-    ),
+    // Idempotency for the billing cron: one subscription and one overage
+    // invoice per org per period. Prorations are excluded because several
+    // devices can legitimately be claimed inside the same period — they get
+    // their own constraint below.
+    uniqueIndex("invoice_org_kind_period_idx")
+      .on(t.organizationId, t.kind, t.periodStart)
+      .where(sql`${t.kind} <> 'proration'`),
+    // One proration per device per period: claiming a second device in the
+    // same month must produce its own invoice, but re-running the claim path
+    // for the same device must not.
+    uniqueIndex("invoice_proration_device_period_idx")
+      .on(t.deviceId, t.periodStart)
+      .where(sql`${t.kind} = 'proration'`),
     index("invoice_org_issued_idx").on(t.organizationId, t.issuedAt),
     index("invoice_status_due_idx").on(t.status, t.dueAt),
   ],

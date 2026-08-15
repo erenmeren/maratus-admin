@@ -1,5 +1,5 @@
 {
-  "id": "8cab6bfb-4f4e-4c9c-b0b7-103aa75d2bac",
+  "id": "558f6a20-0975-4a5f-8f5e-f8a02021eb6c",
   "prevId": "276a6c10-f931-4830-a111-1f524d346357",
   "version": "7",
   "dialect": "postgresql",
@@ -1835,6 +1835,29 @@
             }
           ],
           "isUnique": true,
+          "where": "\"invoice\".\"kind\" <> 'proration'",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "invoice_proration_device_period_idx": {
+          "name": "invoice_proration_device_period_idx",
+          "columns": [
+            {
+              "expression": "device_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "period_start",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"invoice\".\"kind\" = 'proration'",
           "concurrently": false,
           "method": "btree",
           "with": {}

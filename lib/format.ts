@@ -22,3 +22,25 @@ export function timeAgo(iso: string): string {
   const days = Math.round(hrs / 24);
   return `${days}d ago`;
 }
+
+/**
+ * USD integer cents → "$1,234.56". Money is stored as cents everywhere;
+ * this is the display edge — never do arithmetic on the formatted string.
+ */
+export function formatUsdCents(cents: number): string {
+  return (cents / 100).toLocaleString("en-US", { style: "currency", currency: "USD" });
+}
+
+/** TRY integer kuruş → "₺1.234,56" — frozen bank-transfer amounts. */
+export function formatTryKurus(kurus: number): string {
+  return (kurus / 100).toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
+}
+
+/** Calendar date, e.g. "Aug 15, 2026". */
+export function formatDate(d: Date | string): string {
+  return new Date(d).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
+}

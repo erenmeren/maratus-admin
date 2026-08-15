@@ -20,13 +20,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { getAdminOverview, getCreditUsageAllOrgs, currentMonthStart } from "@/lib/data";
+import { getAdminOverview, getTriggerUsageAllOrgs, currentMonthStart } from "@/lib/data";
 import { formatCompact, formatNumber } from "@/lib/format";
 
 export default async function AdminOverviewPage() {
-  const [o, creditsByOrg] = await Promise.all([
+  const [o, triggersByOrg] = await Promise.all([
     getAdminOverview(),
-    getCreditUsageAllOrgs(currentMonthStart()),
+    getTriggerUsageAllOrgs(currentMonthStart()),
   ]);
 
   return (
@@ -120,31 +120,29 @@ export default async function AdminOverviewPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Credits by company</CardTitle>
-          <CardDescription>Trigger credits spent this month</CardDescription>
+          <CardTitle>Triggers by company</CardTitle>
+          <CardDescription>Acked triggers this month</CardDescription>
         </CardHeader>
         <CardContent className="px-0">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="pl-6">Company</TableHead>
-                <TableHead className="text-right">Credits spent</TableHead>
                 <TableHead className="text-right pr-6">Triggers</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {creditsByOrg.length === 0 ? (
+              {triggersByOrg.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={3} className="pl-6 text-muted-foreground">
-                    No credit usage yet this month.
+                  <TableCell colSpan={2} className="pl-6 text-muted-foreground">
+                    No trigger usage yet this month.
                   </TableCell>
                 </TableRow>
               ) : (
-                creditsByOrg.slice(0, 10).map((row) => (
+                triggersByOrg.slice(0, 10).map((row) => (
                   <TableRow key={row.organizationId}>
                     <TableCell className="pl-6 font-medium">{row.name ?? row.organizationId}</TableCell>
-                    <TableCell className="text-right tabular-nums">{formatNumber(row.credits)}</TableCell>
-                    <TableCell className="text-right pr-6 tabular-nums">{formatNumber(row.count)}</TableCell>
+                    <TableCell className="text-right pr-6 tabular-nums">{formatNumber(row.triggers)}</TableCell>
                   </TableRow>
                 ))
               )}

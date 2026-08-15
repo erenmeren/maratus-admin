@@ -2,7 +2,7 @@
 
 // Per-store pin management for /tenant/pinned-qr. Each store resolves its own
 // pin chain: "inherit" (follow the tenant-wide pin), "custom" (a store-level
-// URL, paid — charges only the devices in that store that are themselves
+// URL — free, applies to every device in that store that is itself
 // inheriting), or "none" (blocks the tenant pin, store shows no pin). One
 // shared Dialog is reused across rows (state: activeStore), mirroring
 // components/device-pin-control.tsx's useTransition + sonner pattern.
@@ -64,7 +64,6 @@ function ModeBadge({ mode }: { mode: PinMode }) {
 export function StorePinTable(props: {
   stores: StorePinRow[];
   tenantPinnedUrl: string | null;
-  creditsAvailable: number;
   canManage: boolean;
 }) {
   const rows = props.stores;
@@ -83,16 +82,10 @@ export function StorePinTable(props: {
     ? draftMode !== activeStore.pinMode ||
       (draftMode === "custom" && draftUrl.trim() !== (activeStore.pinnedUrl ?? ""))
     : false;
-  // Devices are billed when they END UP showing a pin they weren't showing
-  // (lib/pin-resolve.ts), so leaving "none" for "inherit" while a tenant pin
-  // exists costs the same as a custom set — it isn't a free mode flip.
-  const inheritWillCharge =
+  // Leaving "none" for "inherit" while a tenant pin exists lights up devices
+  // the same as a custom set — it isn't a no-op mode flip.
+  const inheritLightsUpDevices =
     !!activeStore && draftMode === "inherit" && activeStore.pinMode === "none" && props.tenantPinnedUrl !== null;
-  const chargeableDevices =
-    activeStore && isRealChange && (draftMode === "custom" || inheritWillCharge)
-      ? activeStore.inheritingCount
-      : 0;
-  const notEnoughCredits = chargeableDevices > props.creditsAvailable;
 
   function save() {
     if (!activeStore) return;
@@ -109,11 +102,9 @@ export function StorePinTable(props: {
       setActiveStore(null);
       toast.success(
         draftMode === "custom"
-          ? `Pinned on ${res.affectedDevices} device(s) — ${res.creditsCharged} credit(s)`
+          ? `Pinned on ${res.affectedDevices} device(s)`
           : draftMode === "inherit"
-            ? res.creditsCharged
-              ? `Store now follows the tenant-wide pin — ${res.creditsCharged} credit(s)`
-              : "Store now follows the tenant-wide pin"
+            ? "Store now follows the tenant-wide pin"
             : "Store pin set to None — no pin shown",
       );
     });
@@ -206,10 +197,9 @@ export function StorePinTable(props: {
           {draftMode === "inherit" && (
             <p className="text-sm text-muted-foreground">Follows the tenant-wide pin.</p>
           )}
-          {inheritWillCharge && activeStore && (
+          {inheritLightsUpDevices && activeStore && (
             <p className="text-xs text-muted-foreground">
-              Up to {activeStore.inheritingCount} device(s) start showing the tenant pin — up to{" "}
-              {activeStore.inheritingCount} credit(s) (you have {props.creditsAvailable}).
+              Up to {activeStore.inheritingCount} device(s) start showing the tenant pin.
             </p>
           )}
           {draftMode === "none" && (
@@ -226,14 +216,10 @@ export function StorePinTable(props: {
               />
               {activeStore && (
                 <p className="text-xs text-muted-foreground">
-                  Up to {activeStore.inheritingCount} device(s) — up to {activeStore.inheritingCount}{" "}
-                  credit(s) (you have {props.creditsAvailable}).
+                  Up to {activeStore.inheritingCount} device(s).
                 </p>
               )}
             </>
-          )}
-          {draftMode !== "custom" && !inheritWillCharge && (
-            <p className="text-xs text-muted-foreground">Free.</p>
           )}
 
           <DialogFooter>
@@ -242,16 +228,12 @@ export function StorePinTable(props: {
               disabled={
                 pending ||
                 !isRealChange ||
-                (draftMode === "custom" && draftUrl.trim().length === 0) ||
-                notEnoughCredits
+                (draftMode === "custom" && draftUrl.trim().length === 0)
               }
             >
               {pending ? "Saving…" : "Save"}
             </Button>
           </DialogFooter>
-          {notEnoughCredits && (
-            <p className="text-xs text-destructive">Not enough credits — top up from Billing.</p>
-          )}
         </DialogContent>
       </Dialog>
     </>

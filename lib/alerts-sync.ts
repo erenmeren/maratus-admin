@@ -10,7 +10,14 @@ import { shouldMarkOffline } from "./device-status";
 import { recordAudit, AUDIT } from "./audit";
 import { computeAlerts } from "./health";
 import { getAlertInputs } from "./data";
-import { diffAlerts, alertEmail, type OpenAlert } from "./alerts";
+import {
+  diffAlerts,
+  alertEmail,
+  isBillingAlertKey,
+  type AlertDiff,
+  type OpenAlert,
+} from "./alerts";
+import type { HealthAlert } from "./health";
 import { sendEmail } from "./email";
 import { purgeStaleRateLimitRows } from "./rate-limit";
 import { id } from "./ids";
@@ -76,23 +83,26 @@ export async function reconcileOfflineDevices(now: Date): Promise<number> {
   return toFlip.length;
 }
 
-export async function evaluateAndPersistAlerts(): Promise<{
-  opened: number;
-  resolved: number;
-  stillOpen: number;
-  purgedRateLimitRows: number;
-}> {
-  await reconcileOfflineDevices(new Date());
-  const current = computeAlerts(await getAlertInputs());
-
+/**
+ * Reconcile and persist one alert KEY NAMESPACE. Reconciliation resolves every
+ * open row that is no longer tripped, so each sweep (health, billing) must be
+ * restricted to the keys it owns — otherwise each would resolve the other's
+ * alerts on every run. Returns the diff so the caller can notify on new ones.
+ */
+export async function persistAlertScope(
+  current: HealthAlert[],
+  belongsToScope: (key: string) => boolean,
+  now: Date,
+): Promise<AlertDiff> {
   const openRows = await db
     .select({ key: alertTable.key, message: alertTable.message })
     .from(alertTable)
     .where(eq(alertTable.status, "open"));
-  const open: OpenAlert[] = openRows.map((r) => ({ key: r.key, message: r.message }));
+  const open: OpenAlert[] = openRows
+    .filter((r) => belongsToScope(r.key))
+    .map((r) => ({ key: r.key, message: r.message }));
 
   const diff = diffAlerts(current, open);
-  const now = new Date();
 
   if (diff.toResolve.length > 0) {
     await db
@@ -153,6 +163,25 @@ export async function evaluateAndPersistAlerts(): Promise<{
       }
     }
   }
+
+  return diff;
+}
+
+export async function evaluateAndPersistAlerts(): Promise<{
+  opened: number;
+  resolved: number;
+  stillOpen: number;
+  purgedRateLimitRows: number;
+}> {
+  await reconcileOfflineDevices(new Date());
+  const current = computeAlerts(await getAlertInputs());
+
+  // Health owns every key the billing sweep does not.
+  const diff = await persistAlertScope(
+    current,
+    (key) => !isBillingAlertKey(key),
+    new Date(),
+  );
 
   // Housekeeping, not health evaluation — run after alerts so a purge failure
   // (best-effort, fails to 0) never affects the alert diff above.

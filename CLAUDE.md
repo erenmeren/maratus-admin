@@ -47,15 +47,22 @@ env at load time (ESM imports are hoisted, so an inline `dotenv` call runs too l
 Better Auth core: `user` (+`role`), `session` (+`activeOrganizationId`), `account`,
 `verification`. Org plugin: `organization`, `member`, `invitation`.
 App tables (all FK → `organizationId`): `tenantSettings` (PK=orgId), `store`,
-`device`, `deviceCommand`, `apiKey`, `creditBalance`/`creditLedger`,
-`deviceUsageMonth`, `firmwareRelease`, `factoryDevice`, `auditLog`, `alert`.
-Relations in `lib/db/relations.ts`.
+`device`, `deviceCommand`, `apiKey`, `invoice`, `firmwareRelease`,
+`factoryDevice`, `auditLog`, `alert`. Relations in `lib/db/relations.ts`.
+`creditBalance`, `creditLedger`, and `deviceUsageMonth` are still defined in
+the schema but dead code — nothing in the app reads or writes them anymore
+(see Billing below). They stay until the operator runs the deferred
+destructive migration described in
+`docs/runbooks/subscription-billing-cutover.md`; don't build new code against
+them.
 
 - **`organization` = tenant.** Tenant roles (owner/admin/member) live on `member`.
 - **Platform/super-admin is NOT an org membership** — it's `user.role =
   'platform_admin'` (Better Auth `additionalFields`, `input:false`).
-- **Money is stored in integer cents** (`perPrintPriceCents`, `unitPriceCents`,
-  `amountDueCents`); the data layer converts to dollars for the UI.
+- **Money is stored in integer USD cents** (`invoice.amountUsdCents`,
+  `tenantSettings.pricePerDeviceCents`, `tenantSettings.overagePriceCents`);
+  the data layer converts to dollars for the UI. The TRY side of a bank
+  transfer is stored in whole kuruş (`invoice.tryAmountKurus`, `invoice.fxRate`).
 - Indexes: `device.pairingCode` (unique),
   `device.deviceKeyHash`, every `organizationId`.
 
@@ -107,21 +114,24 @@ and pass a URL. The only device-activation path is the trigger API:
    `POST /api/v1/devices/{deviceId}/trigger` with body
    `{ action: "show_qr", payload: { url } }` — `url` points at content the
    caller hosts themselves. `app/api/v1/devices/[deviceId]/trigger/route.ts`
-   checks device ownership/online status, reserves 1 credit
-   (`lib/credits.ts` `reserveCredit`, lazily reconciling expired holds first),
-   enqueues a `deviceCommand` row (`type: "trigger"`, `status: "pending"`), and
-   publishes it to the device's MQTT `cmd` topic (`lib/mqtt.ts`
-   `publishCommand`). MQTT is the only transport — there is no fallback — so a
-   failed publish fails the request closed: the command is marked `failed`,
-   the credit reservation is cancelled, the idempotency claim is released, and
-   the caller gets `503 transport_unavailable`. A deployment with no EMQX env
-   group at all is rejected earlier — before any reservation — with a distinct
+   checks device ownership/online status, then checks the subscription gate
+   (`lib/subscription-gate.ts` `checkSubscriptionGate`): a paid device
+   (`device.subscriptionPaidAt` set) always passes; an unpaid device gets 50
+   lifetime trial triggers, then `403 device_not_subscribed`. Nothing in the
+   request path blocks on quota — overage is billed after the fact (see
+   Billing below). It then enqueues a `deviceCommand` row (`type: "trigger"`,
+   `status: "pending"`), and publishes it to the device's MQTT `cmd` topic
+   (`lib/mqtt.ts` `publishCommand`). MQTT is the only transport — there is no
+   fallback — so a failed publish fails the request closed: the command is
+   marked `failed`, the idempotency claim is released, and the caller gets
+   `503 transport_unavailable`. A deployment with no EMQX env group at all is
+   rejected earlier — before enqueueing anything — with a distinct
    `503 transport_unconfigured`, since that one cannot succeed on retry.
 3. **Deliver + render + ack**: the device is subscribed to `d/{deviceId}/cmd`,
    renders a QR from `payload.url`, and publishes an ack on `d/{deviceId}/ack`.
    EMQX's Data-Integration webhook forwards it to `POST /api/mqtt/ack`, which
-   settles the reserved credit (`settleHold`); a failure or expiry releases it
-   (`releaseHold`).
+   records the terminal `status` (`acked`/`failed`) and `ackedAt` on the
+   `deviceCommand` row — there is no credit to settle or release anymore.
 
 **Device transport, in full.** MQTT (EMQX) carries commands, acks, heartbeat,
 presence, config and the OTA manifest — see `docs/runbooks/emqx-setup.md` for
@@ -139,6 +149,27 @@ device can't learn over MQTT before it can even connect — its own id and the
 broker's coordinates) — plus R2 asset fetches and the OTA binary download. Full
 design: `docs/superpowers/specs/2026-07-29-mqtt-only-device-transport-design.md`.
 
+## Billing (subscription, `lib/invoicing.ts` / `lib/invoices.ts` / `lib/billing-cron.ts`)
+
+Subscriptions replaced prepaid credits. Per device: **$15/month, billed
+annually** ($180/year up front), paid by **bank transfer** — there is no
+payment gateway integration. Billing periods are **anniversary-based**, not
+calendar months: `tenantSettings.subscriptionStartedAt` anchors the org's
+12-month cycle, advanced by `addMonthsAnchored` each time a renewal invoice is
+paid. Each **paid** device includes **1,000 triggers/month**, pooled at the
+org (not per-device); usage past the pool is **post-paid overage at
+$0.02/trigger** — overage never blocks a request, it only shows up on the
+next invoice. An unpaid device gets 50 lifetime trial triggers before the
+trigger route starts rejecting it (see Device trigger flow above). Pin
+changes (`deviceCommand.type: "pin"`) are a separate command from `trigger`
+and are never charged. The daily `GET /api/cron/billing` sweep
+(`runBillingCron`) issues subscription and overage invoices with **net-14**
+terms. There is no automatic settlement: a platform admin records payment
+(`markInvoicePaid` in `lib/invoices.ts`, from the Subscription card on
+`/admin/customers/[tenantId]`; `/admin/billing` is a read-only overview), and *that* is
+what activates a subscription or activates the paid devices on it — nothing
+else does.
+
 ## Gotchas
 
 - **shadcn is style `radix-nova`** (`components.json`), on `radix-ui` + base-ui.
@@ -153,5 +184,5 @@ design: `docs/superpowers/specs/2026-07-29-mqtt-only-device-transport-design.md`
 
 - Platform admin: **admin@ditto.app** / `123456`
 - Tenant owner: **dana@roastwell.co** / `123456`
-- Org "Roastwell Coffee": 3 stores, 6 claimed devices (mixed status), 3 unclaimed
-  devices (with pairing codes), and a starter grant of prepaid credits.
+- Org "Roastwell Coffee": 3 stores, 6 claimed devices (mixed status, all
+  subscribed/paid), 3 unclaimed devices (with pairing codes).

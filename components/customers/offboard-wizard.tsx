@@ -121,9 +121,9 @@ export function OffboardWizard({
           <DialogTitle>Offboard {organizationName}</DialogTitle>
           <DialogDescription>
             Archives the customer: decides each device&apos;s fate, revokes API
-            keys, cancels pending invitations, and freezes the credit balance.
-            This is reversible — a platform admin can restore the customer
-            later, but revoked keys and device dispositions stay undone.
+            keys, and cancels pending invitations. This is reversible — a
+            platform admin can restore the customer later, but revoked keys
+            and device dispositions stay undone.
           </DialogDescription>
         </DialogHeader>
 
@@ -191,8 +191,8 @@ export function OffboardWizard({
           )}
           {devices.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              No devices assigned — archiving will still revoke keys, cancel
-              invitations, and freeze credits.
+              No devices assigned — archiving will still revoke keys and cancel
+              invitations.
             </p>
           )}
 

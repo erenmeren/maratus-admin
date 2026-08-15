@@ -167,8 +167,9 @@ async function republishStaleCommands(dev: PushTarget, now: Date): Promise<numbe
           // standing at the counter *now*: a device that was actually powered
           // off while its lastSeenAt still read "online" would otherwise come
           // back minutes later, heartbeat, and be handed that dead trigger —
-          // showing a stranger's QR to whoever is at the counter, acking it,
-          // and settling the credit. Config and firmware-update rows have a
+          // showing a stranger's QR to whoever is at the counter and acking
+          // it, wrongly counting toward that device's billed usage. Config
+          // and firmware-update rows have a
           // NULL expiresAt on purpose: they are desired-state, so late
           // delivery is correct for them and they stay eligible. Compared
           // against the route's own `now` so every time comparison here (and

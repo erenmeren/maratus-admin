@@ -1,5 +1,5 @@
 // lib/api/pin-idempotency.ts
-// Shared Idempotency-Key claim/replay/release for the paid pin PUTs. The
+// Shared Idempotency-Key claim/replay/release for the pin PUTs. The
 // apiIdempotency table is shared with /trigger, so every endpoint namespaces
 // its keys ("pin:" | "storepin:" | "orgpin:") — a key reused across endpoints
 // must never replay another endpoint's stored body.
@@ -7,10 +7,9 @@
 // The claim is a RESERVATION, not an answer. It is inserted with
 // responseStatus 0 (IN_PROGRESS) and an empty body; the real status/body land
 // only once the work has actually happened. A concurrent loser therefore gets
-// 409 "still in progress" rather than an optimistic 200 — the winner may still
-// fail on credits (402), and reporting a pin that was never applied (with
-// affectedDevices/creditsCharged of 0, which is wrong for a fan-out anyway) is
-// worse than making the caller retry.
+// 409 "still in progress" rather than an optimistic 200 — reporting a pin that
+// was never applied (with affectedDevices of 0, which is wrong for a fan-out
+// anyway) is worse than making the caller retry.
 import { createHash } from "node:crypto";
 import type { NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
@@ -94,10 +93,6 @@ export function pinIdempotencyResponse(claim: Extract<IdemClaim, { owned: false 
     );
   }
   return apiError("conflict", "A request with this Idempotency-Key is still in progress.", 409);
-}
-
-export async function releasePinIdempotency(nsKey: string, organizationId: string): Promise<void> {
-  await db.delete(apiIdempotency).where(and(eq(apiIdempotency.key, nsKey), eq(apiIdempotency.organizationId, organizationId)));
 }
 
 /** Publish the real outcome, flipping the row out of IDEM_IN_PROGRESS. */

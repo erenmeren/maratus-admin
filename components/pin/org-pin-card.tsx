@@ -4,8 +4,8 @@
 // "inherit" AND whose store also inherits fall all the way through to this
 // pin. Modeled directly on components/device-pin-control.tsx (same Card +
 // Dialog + useTransition + toast + QrSvg preview treatment), scaled to the
-// org-wide scope: cost previews use `reach` (device count) instead of a flat
-// 1 credit, and success reports the real affected-device/credit charge.
+// org-wide scope: the dialog previews `reach` (device count) it will update,
+// and success reports the real affected-device count. Pin changes are free.
 
 import { useState, useTransition } from "react";
 import { Pin, PinOff } from "lucide-react";
@@ -34,7 +34,6 @@ const PIN_QR_DIM_PX = 128;
 export function OrgPinCard(props: {
   tenant: { pinnedUrl: string | null; pinnedAt: string | null; reach: number };
   qrStyle: QrStyle;
-  creditsAvailable: number;
   canManage: boolean;
 }) {
   const [pinnedUrl, setPinnedUrl] = useState(props.tenant.pinnedUrl);
@@ -44,9 +43,7 @@ export function OrgPinCard(props: {
   const [pending, startTransition] = useTransition();
 
   const isChange = pinnedUrl !== null;
-  const willCharge = draftUrl.trim() !== (pinnedUrl ?? "");
   const { reach } = props.tenant;
-  const notEnoughCredits = willCharge && reach > props.creditsAvailable;
 
   function submit() {
     // Capture before dispatch: resubmitting the identical URL is a free
@@ -61,7 +58,7 @@ export function OrgPinCard(props: {
       setPinnedUrl(res.pinnedUrl ?? null);
       if (isRealChange) setPinnedAt(new Date().toISOString());
       setDialogOpen(false);
-      toast.success(`Pinned on ${res.affectedDevices} device(s) — ${res.creditsCharged} credit(s)`);
+      toast.success(`Pinned on ${res.affectedDevices} device(s)`);
     });
   }
 
@@ -138,8 +135,7 @@ export function OrgPinCard(props: {
                 <DialogHeader>
                   <DialogTitle>{isChange ? "Change tenant-wide pin" : "Set tenant-wide pin"}</DialogTitle>
                   <DialogDescription>
-                    Pinning tenant-wide updates up to {reach} device(s) — up to {reach} credit(s) (you
-                    have {props.creditsAvailable}). Removing is free.
+                    Pinning tenant-wide updates up to {reach} device(s).
                   </DialogDescription>
                 </DialogHeader>
                 <Input
@@ -150,16 +146,10 @@ export function OrgPinCard(props: {
                   autoFocus
                 />
                 <DialogFooter>
-                  <Button
-                    onClick={submit}
-                    disabled={pending || draftUrl.trim().length === 0 || notEnoughCredits}
-                  >
-                    {pending ? "Saving…" : willCharge ? `Pin (up to ${reach} credit(s))` : "Pin"}
+                  <Button onClick={submit} disabled={pending || draftUrl.trim().length === 0}>
+                    {pending ? "Saving…" : "Pin"}
                   </Button>
                 </DialogFooter>
-                {notEnoughCredits && (
-                  <p className="text-xs text-destructive">Not enough credits — top up from Billing.</p>
-                )}
               </DialogContent>
             </Dialog>
             {isChange && (

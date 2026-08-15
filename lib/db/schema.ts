@@ -201,16 +201,33 @@ export const tenantSettings = pgTable("tenant_settings", {
   // On-device Settings PIN: sha256(salt + pin). Device validates locally. null = ungated.
   deviceSettingsPasswordHash: text("device_settings_password_hash"),
   deviceSettingsPasswordSalt: text("device_settings_password_salt"),
-  // --- Pricing plan (dual-track pricing spec 2026-07-11) -------------------
-  // credits    = prepaid credits only (self-service default; legacy behavior)
-  // flat       = Track B: per-device subscription, unlimited triggers (fair-use)
-  // base_usage = Track C: per-device base + included monthly quota, credit overage
+  // --- Subscription plan (2026-08-15 subscription-billing spec) ------------
+  // One plan: $15/device/month billed annually by bank transfer, 1000 triggers
+  // per paid device per month POOLED at the org, $0.02/trigger post-paid
+  // overage. `billingPlan` and the credit ledger are removed in migration 0043.
+  //
+  // null = not subscribed yet. Set when a platform admin marks the first
+  // subscription invoice paid; it is the anchor for every billing period.
+  subscriptionStartedAt: timestamp("subscription_started_at"),
+  // Advanced by 12 months each time a renewal invoice is marked paid.
+  subscriptionRenewsAt: timestamp("subscription_renews_at"),
+  // Per-tenant so a negotiated discount needs no code change.
+  pricePerDeviceCents: integer("price_per_device_cents").default(1500).notNull(),
+  overagePriceCents: integer("overage_price_cents").default(2).notNull(),
+  // Triggers included per PAID device per month; pooled org-wide.
+  includedTriggersPerDevice: integer("included_triggers_per_device")
+    .default(1000)
+    .notNull(),
+  // Migration-only: the org's prepaid credit balance at cutover, offset
+  // against its FIRST overage invoice and then set to 0. NULL means the
+  // cutover backfill has not run for this org — that distinction is what
+  // makes the backfill safe to re-run, since 0 is a state the billing
+  // system reaches legitimately. Readers must coalesce null to 0.
+  legacyCreditsRemaining: integer("legacy_credits_remaining"),
+  // Retained for backward compatibility until Task 16 drops it; superseded by
+  // the subscription columns above.
   billingPlan: text("billing_plan", { enum: ["credits", "flat", "base_usage"] })
     .default("credits")
-    .notNull(),
-  // Track C: triggers included per device per calendar month (UTC).
-  includedTriggersPerDevice: integer("included_triggers_per_device")
-    .default(2000)
     .notNull(),
   status: text("status", { enum: ["active", "paused"] })
     .default("active")
@@ -299,7 +316,8 @@ export const device = pgTable(
     serialConflict: boolean("serial_conflict").default(false).notNull(),
     // Pinned QR: when set, the device shows this URL as a persistent QR while
     // idle (triggers temporarily override, then return to it). Null = no pin.
-    // Setting/changing costs 1 credit (kind "spend"); clearing is free.
+    // Pin changes are free — they are a "pin" command, never a "trigger", and
+    // nothing in the subscription model charges for them.
     // Pin mode: "custom" = show pinnedUrl below, "none" = never show a pin
     // even if the store/tenant has one, "inherit" = resolve store → tenant.
     // custom ⇔ pinnedUrl set (enforced by write paths).
@@ -308,6 +326,11 @@ export const device = pgTable(
       .notNull(),
     pinnedUrl: text("pinned_url"),
     pinnedAt: timestamp("pinned_at"),
+    // Source of truth for both the trigger gate and pooled quota. null = the
+    // device is unpaid: it may still run 50 trial triggers, and it contributes
+    // NO quota to the org pool (otherwise a customer inflates quota by claiming
+    // hardware without paying).
+    subscriptionPaidAt: timestamp("subscription_paid_at"),
     createdAt: timestamp("created_at")
       .$defaultFn(() => new Date())
       .notNull(),
@@ -484,6 +507,62 @@ export const creditLedger = pgTable(
   ],
 );
 
+// Bank-transfer invoices. Money is USD cents; the TRY amount and FX rate are
+// frozen onto the row when a platform admin marks it paid, so a later rate
+// move never rewrites history. "Overdue" is derived (status = "open" AND
+// dueAt < now), not stored — no job exists whose only purpose is a flag flip.
+export const invoice = pgTable(
+  "invoice",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organization.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["subscription", "proration", "overage"] }).notNull(),
+    periodStart: timestamp("period_start").notNull(),
+    periodEnd: timestamp("period_end").notNull(),
+    // subscription / proration
+    deviceCount: integer("device_count"),
+    deviceId: text("device_id").references(() => device.id, { onDelete: "set null" }),
+    // overage
+    triggersUsed: integer("triggers_used"),
+    triggersIncluded: integer("triggers_included"),
+    overageTriggers: integer("overage_triggers"), // billable, after credit offset
+    creditsConsumed: integer("credits_consumed"),
+    amountUsdCents: integer("amount_usd_cents").notNull(),
+    tryAmountKurus: integer("try_amount_kurus"),
+    fxRate: integer("fx_rate"), // kuruş per USD, frozen at payment
+    status: text("status", { enum: ["open", "paid", "void"] })
+      .default("open")
+      .notNull(),
+    issuedAt: timestamp("issued_at").notNull(),
+    dueAt: timestamp("due_at").notNull(),
+    paidAt: timestamp("paid_at"),
+    markedPaidByUserId: text("marked_paid_by_user_id"),
+    note: text("note"),
+    createdAt: timestamp("created_at")
+      .$defaultFn(() => new Date())
+      .notNull(),
+  },
+  (t) => [
+    // Idempotency for the billing cron: one subscription and one overage
+    // invoice per org per period. Prorations are excluded because several
+    // devices can legitimately be claimed inside the same period — they get
+    // their own constraint below.
+    uniqueIndex("invoice_org_kind_period_idx")
+      .on(t.organizationId, t.kind, t.periodStart)
+      .where(sql`${t.kind} <> 'proration'`),
+    // One proration per device per period: claiming a second device in the
+    // same month must produce its own invoice, but re-running the claim path
+    // for the same device must not.
+    uniqueIndex("invoice_proration_device_period_idx")
+      .on(t.deviceId, t.periodStart)
+      .where(sql`${t.kind} = 'proration'`),
+    index("invoice_org_issued_idx").on(t.organizationId, t.issuedAt),
+    index("invoice_status_due_idx").on(t.status, t.dueAt),
+  ],
+);
+
 // Per-device monthly trigger counter (calendar month, UTC, "YYYY-MM").
 // Bumped at trigger-reservation time (counts attempts, not acks — an expired
 // included trigger deliberately still consumes a quota unit; accepted spec
@@ -603,6 +682,7 @@ export const schema = {
   apiKey,
   creditBalance,
   creditLedger,
+  invoice,
   apiIdempotency,
   rateLimit,
   auditLog,

@@ -20,7 +20,6 @@ import { db } from "@/lib/db";
 import { firmwareRelease } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
 import { canManageTenant } from "@/lib/roles";
-import { getBalance } from "@/lib/credits";
 import { formatNumber, timeAgo } from "@/lib/format";
 
 // Friendly names for the raw deviceCommand type/status values shown in the
@@ -60,7 +59,6 @@ export default async function DeviceDetailPage({
 
   const { device, store } = result;
   const commands = await getDeviceCommands(device.id, 8);
-  const balance = await getBalance(organizationId);
   const qrStyle = await getOrgQrStyle(organizationId);
   const pinCtx = await getDevicePinContext(organizationId, deviceId);
 
@@ -212,7 +210,6 @@ export default async function DeviceDetailPage({
             pinMode={pinCtx?.pinMode ?? "inherit"}
             inheritedUrl={pinCtx?.inheritedUrl ?? null}
             inheritedSource={pinCtx?.inheritedSource ?? null}
-            creditsAvailable={balance.available}
             canManage={canManage}
             qrShape={qrStyle.qrShape}
             qrFg={qrStyle.qrFg}

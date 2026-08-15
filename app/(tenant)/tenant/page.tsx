@@ -1,4 +1,4 @@
-import { CalendarDays, Coins, Cpu, FileText, Pin, Wallet } from "lucide-react";
+import { CalendarDays, Cpu, FileText, Pin } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { ActivationsAreaChart } from "@/components/charts";
@@ -10,16 +10,6 @@ import { formatNumber } from "@/lib/format";
 export default async function TenantDashboardPage() {
   const { ctx, organizationId } = await requireTenant();
   const dash = await getTenantDashboard(organizationId);
-
-  // Only the credits plan pays for every trigger. On flat, triggers never touch
-  // the ledger; on base_usage only the over-quota ones do. Saying "triggers"
-  // there would read as "you fired 0 triggers this month".
-  const creditsUsedHint =
-    dash.tenant.billingPlan === "flat"
-      ? "pin updates (triggers included in plan)"
-      : dash.tenant.billingPlan === "base_usage"
-        ? "over-quota triggers + pin updates"
-        : "triggers + pin updates";
 
   return (
     <>
@@ -53,18 +43,6 @@ export default async function TenantDashboardPage() {
           value={`${dash.activeDevices}/${dash.totalDevices}`}
           hint="screens online now"
           icon={Cpu}
-        />
-        <KpiCard
-          label="Credits remaining"
-          value={formatNumber(dash.creditsAvailable)}
-          hint="available balance"
-          icon={Wallet}
-        />
-        <KpiCard
-          label="Credits used this month"
-          value={formatNumber(dash.creditsUsedThisMonth)}
-          hint={creditsUsedHint}
-          icon={Coins}
         />
         <KpiCard
           label="Pin updates this month"

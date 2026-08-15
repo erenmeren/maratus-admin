@@ -4,8 +4,9 @@ import { tenantSettings } from "@/lib/db/schema";
 
 /**
  * True when the org has been offboarded (tenantSettings.archivedAt is
- * non-null). Platform-admin actions that mutate a SPECIFIC org (credits,
- * store/device provisioning, device edits) must refuse once archived — the
+ * non-null). Platform-admin actions that mutate a SPECIFIC org (subscription
+ * changes, store/device provisioning, device edits) must refuse once
+ * archived — the
  * UI already goes read-only, but a stale tab or direct call can still hit
  * the server action, so this is the server-side backstop. Callers are
  * expected to have already gated auth (requirePlatformAdmin) before calling.

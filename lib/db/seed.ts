@@ -13,7 +13,7 @@ import "./load-env"; // must be first: loads env before ../db reads it
 import { eq } from "drizzle-orm";
 import { db } from "../db";
 import { auth } from "../auth";
-import { grantCredits, STARTER_CREDITS } from "../credits";
+import { addMonthsAnchored } from "../billing-period";
 import {
   device,
   member,
@@ -125,18 +125,11 @@ async function main() {
     });
   }
 
-  // Starter credits: prepaid is the only payment path, so a brand-new org
-  // needs an allotment or its first trigger 402s. Idempotent by org id, so
-  // re-seeding is safe.
-  await grantCredits({
-    organizationId: orgId,
-    credits: STARTER_CREDITS,
-    kind: "grant",
-    idempotencyKey: `starter-grant:${orgId}`,
-    note: "starter grant",
-  });
-
   // --- Tenant settings ----------------------------------------------------
+  // Subscribed org: a real device trigger needs subscriptionPaidAt on the
+  // device (below) or a live trial, so seed data is a paid, subscribed
+  // tenant rather than an unsubscribed one on the 50-trigger trial.
+  const subscribedAt = new Date();
   await db
     .insert(tenantSettings)
     .values({
@@ -145,6 +138,8 @@ async function main() {
       logoUrl: null,
       staffPin: "4827",
       status: "active",
+      subscriptionStartedAt: subscribedAt,
+      subscriptionRenewsAt: addMonthsAnchored(subscribedAt, 1),
     })
     .onConflictDoNothing();
 
@@ -185,6 +180,9 @@ async function main() {
         pairingCode: null,
         deviceKeyHash: hash,
         claimedAt: new Date(),
+        // Paid: the org is subscribed (see tenantSettings above), so its
+        // claimed devices are paid too rather than sitting on the trial.
+        subscriptionPaidAt: subscribedAt,
         createdAt: new Date(),
       });
       allDeviceIds.push({ deviceId, storeId });

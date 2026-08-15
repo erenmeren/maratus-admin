@@ -1,9 +1,9 @@
 "use server";
 
-// Pinned-QR mutations (tenant-scoped), all scopes (org/store/device). Money/
-// no-op/delivery rules live in lib/pin-service.ts — these wrappers only do
-// session/RBAC/ownership guards and cache revalidation (mirrors
-// lib/actions/devices.ts setDeviceActive).
+// Pinned-QR mutations (tenant-scoped), all scopes (org/store/device). Pin
+// changes are free under the subscription model; delivery/no-op rules live in
+// lib/pin-service.ts. These wrappers only do session/RBAC/ownership guards
+// and cache revalidation (mirrors lib/actions/devices.ts setDeviceActive).
 
 import { revalidatePath } from "next/cache";
 import { and, eq } from "drizzle-orm";
@@ -24,7 +24,6 @@ export interface ScopedPinActionResult {
   ok: boolean;
   error?: string;
   affectedDevices?: number;
-  creditsCharged?: number;
   pinnedUrl?: string | null;
 }
 
@@ -85,11 +84,8 @@ export async function setOrgPinAction(url: string): Promise<ScopedPinActionResul
     via: "ui",
     createdByUserId: g.ctx.user.id,
   });
-  if (!res.ok) {
-    return { ok: false, error: `Not enough credits — this change needs ${res.required}. Top up from Billing.` };
-  }
   revalidatePinSurfaces();
-  return { ok: true, affectedDevices: res.affectedDevices, creditsCharged: res.creditsCharged, pinnedUrl: v.url };
+  return { ok: true, affectedDevices: res.affectedDevices, pinnedUrl: v.url };
 }
 
 export async function clearOrgPinAction(): Promise<ScopedPinActionResult> {
@@ -102,11 +98,8 @@ export async function clearOrgPinAction(): Promise<ScopedPinActionResult> {
     via: "ui",
     createdByUserId: g.ctx.user.id,
   });
-  if (!res.ok) {
-    return { ok: false, error: `Not enough credits — this change needs ${res.required}. Top up from Billing.` };
-  }
   revalidatePinSurfaces();
-  return { ok: true, affectedDevices: res.affectedDevices, creditsCharged: res.creditsCharged, pinnedUrl: null };
+  return { ok: true, affectedDevices: res.affectedDevices, pinnedUrl: null };
 }
 
 export async function setStorePinAction(storeId: string, url: string): Promise<ScopedPinActionResult> {
@@ -123,11 +116,8 @@ export async function setStorePinAction(storeId: string, url: string): Promise<S
     via: "ui",
     createdByUserId: g.ctx.user.id,
   });
-  if (!res.ok) {
-    return { ok: false, error: `Not enough credits — this change needs ${res.required}. Top up from Billing.` };
-  }
   revalidatePinSurfaces();
-  return { ok: true, affectedDevices: res.affectedDevices, creditsCharged: res.creditsCharged, pinnedUrl: v.url };
+  return { ok: true, affectedDevices: res.affectedDevices, pinnedUrl: v.url };
 }
 
 export async function setStorePinModeAction(
@@ -145,11 +135,8 @@ export async function setStorePinModeAction(
     via: "ui",
     createdByUserId: g.ctx.user.id,
   });
-  if (!res.ok) {
-    return { ok: false, error: `Not enough credits — this change needs ${res.required}. Top up from Billing.` };
-  }
   revalidatePinSurfaces();
-  return { ok: true, affectedDevices: res.affectedDevices, creditsCharged: res.creditsCharged, pinnedUrl: null };
+  return { ok: true, affectedDevices: res.affectedDevices, pinnedUrl: null };
 }
 
 export async function setDevicePinAction(deviceId: string, url: string): Promise<PinActionResult> {
@@ -160,16 +147,13 @@ export async function setDevicePinAction(deviceId: string, url: string): Promise
   const device = await loadTenantDevice(deviceId, g.organizationId);
   if (!device) return { ok: false, error: "Device not found." };
 
-  const res = await applyScopedPinChange({
+  await applyScopedPinChange({
     organizationId: g.organizationId,
     change: { scope: "device", deviceId, mode: "custom", url: v.url },
     actor: { type: "user", id: g.ctx.user.id, label: g.ctx.user.email },
     via: "ui",
     createdByUserId: g.ctx.user.id,
   });
-  if (!res.ok) {
-    return { ok: false, error: `Not enough credits — this change needs ${res.required}. Top up from Billing.` };
-  }
 
   revalidateDevicePages(device.storeId, deviceId);
   revalidatePath("/tenant/pinned-qr");
@@ -182,16 +166,13 @@ export async function clearDevicePinAction(deviceId: string): Promise<PinActionR
   const device = await loadTenantDevice(deviceId, g.organizationId);
   if (!device) return { ok: false, error: "Device not found." };
 
-  const res = await applyScopedPinChange({
+  await applyScopedPinChange({
     organizationId: g.organizationId,
     change: { scope: "device", deviceId, mode: "inherit", url: null },
     actor: { type: "user", id: g.ctx.user.id, label: g.ctx.user.email },
     via: "ui",
     createdByUserId: g.ctx.user.id,
   });
-  if (!res.ok) {
-    return { ok: false, error: `Not enough credits — this change needs ${res.required}. Top up from Billing.` };
-  }
 
   revalidateDevicePages(device.storeId, deviceId);
   revalidatePath("/tenant/pinned-qr");
@@ -214,11 +195,8 @@ export async function setDevicePinModeAction(
     via: "ui",
     createdByUserId: g.ctx.user.id,
   });
-  if (!res.ok) {
-    return { ok: false, error: `Not enough credits — this change needs ${res.required}. Top up from Billing.` };
-  }
 
   revalidateDevicePages(device.storeId, deviceId);
   revalidatePath("/tenant/pinned-qr");
-  return { ok: true, affectedDevices: res.affectedDevices, creditsCharged: res.creditsCharged, pinnedUrl: null };
+  return { ok: true, affectedDevices: res.affectedDevices, pinnedUrl: null };
 }

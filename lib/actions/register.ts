@@ -14,7 +14,6 @@ import { eq } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db, dbTx } from "@/lib/db";
 import { member, organization, tenantSettings, user } from "@/lib/db/schema";
-import { grantCredits, STARTER_CREDITS } from "@/lib/credits";
 import { id } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { emailVerificationEnabled } from "@/lib/email-verification";
@@ -182,16 +181,8 @@ export async function registerCompany(
         .onConflictDoNothing();
     });
 
-    // Starter credits: prepaid is the only payment path, so a brand-new org
-    // needs an allotment or its first trigger 402s. Idempotent by org id.
-    await grantCredits({
-      organizationId: orgId,
-      credits: STARTER_CREDITS,
-      kind: "grant",
-      idempotencyKey: `starter-grant:${orgId}`,
-      note: "starter grant",
-    });
-
+    // A new org starts unsubscribed — its devices get the 50-trigger trial
+    // (lib/subscription-gate.ts) until the tenant subscribes from /tenant/billing.
     await recordAudit({
       organizationId: orgId,
       actor: { type: "user", id: userId, label: email },

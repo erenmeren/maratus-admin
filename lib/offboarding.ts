@@ -34,8 +34,6 @@ export interface OffboardSummary {
   leftWithCustomer: number;
   revokedKeys: number;
   sweptAllocations: number;
-  frozenCreditsAvailable: number;
-  frozenCreditsHeld: number;
 }
 
 export function buildOffboardMetadata(

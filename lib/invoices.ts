@@ -5,7 +5,7 @@
 // unique index turns a duplicate into a no-op, which is what lets the daily
 // cron run more than once over the same period safely.
 
-import { and, asc, desc, eq, gte, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, isNull, lt, lte, sql } from "drizzle-orm";
 import { db } from "./db";
 import { device, deviceCommand, invoice, tenantSettings } from "./db/schema";
 import { id } from "./ids";
@@ -202,6 +202,26 @@ export function devicesToActivate(a: {
   return a.unpaidDeviceIds.slice(0, Math.max(0, a.deviceCount));
 }
 
+/**
+ * How many devices a subscription invoice still has left to activate.
+ *
+ * `invoice.deviceCount` is what the invoice was PRICED for, not what it still
+ * owes. At first activation the two coincide (nothing is paid yet). At renewal
+ * the cron prices the invoice with `countPaidDevices` — devices that are
+ * ALREADY paid — so activating `deviceCount` more devices would hand free
+ * activation to whatever unpaid devices happen to exist (e.g. one claimed
+ * during the 30-day renewal lead window, which has its own proration invoice
+ * still open). Subtracting the already-paid count makes a renewal activate
+ * exactly zero, which is correct: a renewal buys another year for devices that
+ * are already on the subscription.
+ */
+export function activatableDeviceCount(a: {
+  invoicedDeviceCount: number;
+  alreadyPaidCount: number;
+}): number {
+  return Math.max(0, a.invoicedDeviceCount - Math.max(0, a.alreadyPaidCount));
+}
+
 export async function markInvoicePaid(a: {
   invoiceId: string;
   tryAmountKurus: number;
@@ -270,6 +290,20 @@ export async function markInvoicePaid(a: {
       })
       .where(eq(tenantSettings.organizationId, inv.organizationId));
 
+    // What the invoice still OWES, not what it was priced for. A renewal is
+    // priced with countPaidDevices, so its deviceCount describes devices that
+    // are already paid; without this cap it would activate that many *unpaid*
+    // devices for free. See activatableDeviceCount.
+    const alreadyPaid = await countPaidDevices(inv.organizationId);
+    const remaining = activatableDeviceCount({
+      invoicedDeviceCount: inv.deviceCount ?? 0,
+      alreadyPaidCount: alreadyPaid,
+    });
+
+    // Pinned to the invoice's issuance moment: a device claimed AFTER the
+    // invoice was issued is not on it and must ride its own proration invoice,
+    // otherwise a customer claims extra hardware between issue and payment and
+    // rides in for free.
     const unpaid = await db
       .select({ id: device.id })
       .from(device)
@@ -278,12 +312,13 @@ export async function markInvoicePaid(a: {
           eq(device.organizationId, inv.organizationId),
           isNull(device.subscriptionPaidAt),
           isNotNull(device.claimedAt),
+          lte(device.claimedAt, inv.issuedAt),
         ),
       )
       .orderBy(asc(device.claimedAt));
 
     const toActivate = devicesToActivate({
-      deviceCount: inv.deviceCount ?? 0,
+      deviceCount: remaining,
       unpaidDeviceIds: unpaid.map((d) => d.id),
     });
     for (const deviceId of toActivate) {

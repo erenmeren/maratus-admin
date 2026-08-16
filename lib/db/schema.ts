@@ -214,6 +214,13 @@ export const tenantSettings = pgTable("tenant_settings", {
   // Per-tenant so a negotiated discount needs no code change.
   pricePerDeviceCents: integer("price_per_device_cents").default(1500).notNull(),
   overagePriceCents: integer("overage_price_cents").default(2).notNull(),
+  // Device slots the org has PAID for. Deliberately outlives the devices
+  // occupying it: an RMA'd or removed device frees its slot without shrinking
+  // this number, so the customer keeps the quota they bought until the year
+  // ends. Written ONLY when an invoice is paid (see lib/invoices.ts
+  // markInvoicePaid); nothing decrements it. Quota is slots × included, never
+  // a live device count.
+  paidDeviceSlots: integer("paid_device_slots").default(0).notNull(),
   // Triggers included per PAID device per month; pooled org-wide.
   includedTriggersPerDevice: integer("included_triggers_per_device")
     .default(1000)

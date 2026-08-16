@@ -535,7 +535,14 @@ export async function retireDeviceWithCustomer(
       return { ok: true, changed: false, serial: dev.serial, deviceName: dev.name };
     }
 
-    await tx.update(deviceTable).set({ status: "paused" }).where(eq(deviceTable.id, deviceId));
+    // Releasing the slot here too: a retired-with-customer device can no
+    // longer trigger (it's paused), so it must stop occupying a paid slot —
+    // tenantSettings.paidDeviceSlots is untouched, so the org keeps the
+    // quota it paid for and a replacement can claim into the vacancy free.
+    await tx
+      .update(deviceTable)
+      .set({ status: "paused", subscriptionPaidAt: null })
+      .where(eq(deviceTable.id, deviceId));
     if (dev.serial) {
       await tx
         .update(factoryDevice)

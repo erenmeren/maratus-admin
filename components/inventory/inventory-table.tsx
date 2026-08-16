@@ -143,6 +143,11 @@ export function InventoryTable({
   const [reverting, setReverting] = useState<string | null>(null); // serial
   const [revertBusy, setRevertBusy] = useState(false);
 
+  // Mark-as-RMA confirm dialog state. Confirmed, not fired straight from the
+  // menu: this releases the device's paid billing slot.
+  const [rmaSerial, setRmaSerial] = useState<string | null>(null);
+  const [rmaBusy, setRmaBusy] = useState(false);
+
   async function onImportFile(file: File) {
     setBusy(true);
     try {
@@ -226,6 +231,21 @@ export function InventoryTable({
     } finally {
       setRevertBusy(false);
       closeRevertDialog();
+    }
+  }
+
+  async function onMarkRma() {
+    if (!rmaSerial) return;
+    setRmaBusy(true);
+    try {
+      const res = await setRegistryStatusAction(rmaSerial, "rma");
+      if (res.ok) toast.success("Marked as RMA — the device's paid slot is free.");
+      else toast.error(res.error ?? "Failed to mark as RMA.");
+    } catch {
+      toast.error("Failed to mark as RMA.");
+    } finally {
+      setRmaBusy(false);
+      setRmaSerial(null);
     }
   }
 
@@ -404,17 +424,9 @@ export function InventoryTable({
                     {r.status !== "rma" && (
                       <DropdownMenuItem
                         variant="destructive"
-                        onSelect={async () => {
-                          try {
-                            const res = await setRegistryStatusAction(r.serial, "rma");
-                            if (res.ok) toast.success("Marked as RMA.");
-                            else toast.error("Failed to mark as RMA.");
-                          } catch {
-                            toast.error("Failed to mark as RMA.");
-                          }
-                        }}
+                        onSelect={() => setRmaSerial(r.serial)}
                       >
-                        Mark as RMA
+                        Mark as RMA…
                       </DropdownMenuItem>
                     )}
                   </DropdownMenuContent>
@@ -502,6 +514,29 @@ export function InventoryTable({
             <Button variant="outline" onClick={closeRevertDialog}>Cancel</Button>
             <Button variant="destructive" disabled={revertBusy} onClick={onRevertClaim}>
               Revert
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={rmaSerial !== null} onOpenChange={(o) => !o && !rmaBusy && setRmaSerial(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mark {rmaSerial} as RMA?</DialogTitle>
+            <DialogDescription>
+              This releases the device&apos;s paid slot: it stops counting as a
+              subscribed device and stops triggering. The customer keeps the slot
+              they paid for, so a replacement device can then activate into it for
+              free — no second invoice for the rest of the year. There is no
+              undo from this screen.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" disabled={rmaBusy} onClick={() => setRmaSerial(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" disabled={rmaBusy} onClick={onMarkRma}>
+              Mark as RMA
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -670,6 +670,66 @@ async function proratedDeviceIds(organizationId: string): Promise<Set<string>> {
  * Void invoices don't count — voiding is how an operator re-issues one.
  */
 /**
+ * Fill this org's free slots with its unpaid claimed devices, oldest claim
+ * first. The org PAID for these slots, so anything sitting in one costs the
+ * customer nothing more — and `activateDeviceIntoSlot` voids the open
+ * proration a device may already be carrying, so the customer is not billed
+ * for a device that ends up free.
+ *
+ * Called when a slot is RELEASED (an RMA or retirement in the inventory
+ * registry). Without it, only two paths ever fill a vacancy — claim time and
+ * a subscription payment — and the ordinary operator sequence hits neither:
+ * the replacement is claimed while the org is still full (so it is prorated
+ * for the rest of the year), and only afterwards is the dead serial marked
+ * `rma`. The vacancy would sit empty, the proration would stand, and the
+ * customer would pay twice inside one year for one device.
+ *
+ * `unpaidClaimedDevices` already excludes `rma`/`retired` registry rows, so
+ * the device whose release opened the vacancy can never take it straight back.
+ *
+ * NOTE: `markInvoicePaid`'s subscription branch deliberately does NOT route
+ * through here — it must activate against the slot count it just WROTE and
+ * the paid-device count it read alongside it, not a fresh read that a
+ * concurrent change could have moved.
+ *
+ * Returns the ids actually activated (empty when there is no vacancy or
+ * nobody eligible).
+ */
+export async function fillFreeSlots(a: {
+  organizationId: string;
+  now?: Date;
+  actor?: AuditActor;
+}): Promise<string[]> {
+  const now = a.now ?? new Date();
+  const actor: AuditActor = a.actor ?? { type: "system" };
+
+  const [settings] = await db
+    .select({ slots: tenantSettings.paidDeviceSlots })
+    .from(tenantSettings)
+    .where(eq(tenantSettings.organizationId, a.organizationId))
+    .limit(1);
+
+  const paidDevices = await countPaidDevices(a.organizationId);
+  const free = freeSlots({ paidDeviceSlots: settings?.slots ?? 0, paidDevices });
+  if (free <= 0) return [];
+
+  const unpaid = await unpaidClaimedDevices(a.organizationId);
+  const toActivate = devicesForFreeSlots({
+    eligibleDeviceIds: unpaid.map((d) => d.id),
+    freeSlots: free,
+  });
+
+  for (const deviceId of toActivate) {
+    await activateDeviceIntoSlot(deviceId, a.organizationId, now, actor);
+    console.warn("[billing] activated a device into a slot freed by a device leaving", {
+      organizationId: a.organizationId,
+      deviceId,
+    });
+  }
+  return toActivate;
+}
+
+/**
  * Claim-time billing settlement — the ONE place that decides what a freshly
  * claimed device costs. Shared by both live claim paths: the pairing-code
  * claim (`lib/device-claim.ts`) and the zero-touch serial auto-claim

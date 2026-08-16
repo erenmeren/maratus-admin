@@ -680,16 +680,6 @@ async function proratedDeviceIds(organizationId: string): Promise<Set<string>> {
 }
 
 /**
- * One proration invoice per still-unpaid claimed device that does not already
- * have one, for the rest of the org's subscription year.
- *
- * The existing-proration check is load-bearing, not just an optimisation: the
- * (deviceId, periodStart) unique index only dedupes WITHIN a period, so a
- * device claimed in the renewal lead window and already prorated would be
- * prorated a second time if the renewal is paid after the next anniversary.
- * Void invoices don't count — voiding is how an operator re-issues one.
- */
-/**
  * Fill this org's free slots with its unpaid claimed devices, oldest claim
  * first. The org PAID for these slots, so anything sitting in one costs the
  * customer nothing more — and `activateDeviceIntoSlot` voids the open
@@ -826,6 +816,16 @@ export async function settleClaimBilling(
   }
 }
 
+/**
+ * One proration invoice per still-unpaid claimed device that does not already
+ * have one, for the rest of the org's subscription year.
+ *
+ * The existing-proration check is load-bearing, not just an optimisation: the
+ * (deviceId, periodStart) unique index only dedupes WITHIN a period, so a
+ * device claimed in the renewal lead window and already prorated would be
+ * prorated a second time if the renewal is paid after the next anniversary.
+ * Void invoices don't count — voiding is how an operator re-issues one.
+ */
 async function issueProrationsForUnpaidDevices(a: {
   organizationId: string;
   startedAt: Date;

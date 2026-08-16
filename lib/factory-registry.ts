@@ -2,7 +2,7 @@
 // serial operations (one-shot auto-claim + serial stamping). Pure decision
 // logic lives in lib/provisioning.ts / lib/factory-registry-csv.ts.
 
-import { and, count, eq, ilike, inArray, isNull, sql, TransactionRollbackError } from "drizzle-orm";
+import { and, count, eq, ilike, inArray, isNotNull, isNull, sql, TransactionRollbackError } from "drizzle-orm";
 import { db, dbTx } from "./db";
 import {
   device as deviceTable,
@@ -280,7 +280,30 @@ export async function setRegistryStatus(
   serial: string,
   status: "rma" | "retired",
 ): Promise<void> {
-  await db.update(factoryDevice).set({ status }).where(eq(factoryDevice.serial, serial));
+  const [row] = await db
+    .update(factoryDevice)
+    .set({ status })
+    .where(eq(factoryDevice.serial, serial))
+    .returning({ deviceId: factoryDevice.deviceId });
+
+  // Releasing the slot is the point: the device stops passing the subscription
+  // gate and stops occupying a slot, while tenantSettings.paidDeviceSlots is
+  // untouched — so the org keeps the quota it paid for and a replacement can
+  // claim into the vacancy for free.
+  if (!row?.deviceId) return;
+  const released = await db
+    .update(deviceTable)
+    .set({ subscriptionPaidAt: null })
+    .where(and(eq(deviceTable.id, row.deviceId), isNotNull(deviceTable.subscriptionPaidAt)))
+    .returning({ id: deviceTable.id });
+
+  if (released.length > 0) {
+    console.warn("[billing] released a device slot on registry status change", {
+      serial,
+      status,
+      deviceId: row.deviceId,
+    });
+  }
 }
 
 /**

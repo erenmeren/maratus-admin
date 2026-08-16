@@ -144,8 +144,12 @@ export function InventoryTable({
   const [revertBusy, setRevertBusy] = useState(false);
 
   // Mark-as-RMA confirm dialog state. Confirmed, not fired straight from the
-  // menu: this releases the device's paid billing slot.
-  const [rmaSerial, setRmaSerial] = useState<string | null>(null);
+  // menu: this releases the device's paid billing slot, when there is one.
+  // Holds the whole row (not just the serial) so the dialog can word itself
+  // correctly for both cohorts the unconditional menu item is offered on: an
+  // already-`rma` row (re-marking) vs. one with no linked device (no billing
+  // effect at all).
+  const [rmaRow, setRmaRow] = useState<InventoryRow | null>(null);
   const [rmaBusy, setRmaBusy] = useState(false);
 
   async function onImportFile(file: File) {
@@ -235,17 +239,24 @@ export function InventoryTable({
   }
 
   async function onMarkRma() {
-    if (!rmaSerial) return;
+    if (!rmaRow) return;
     setRmaBusy(true);
     try {
-      const res = await setRegistryStatusAction(rmaSerial, "rma");
-      if (res.ok) toast.success("Marked as RMA — the device's paid slot is free.");
-      else toast.error(res.error ?? "Failed to mark as RMA.");
+      const res = await setRegistryStatusAction(rmaRow.serial, "rma");
+      if (res.ok) {
+        toast.success(
+          rmaRow.deviceId
+            ? "Marked as RMA — the device's paid slot is free."
+            : "Marked as RMA.",
+        );
+      } else {
+        toast.error(res.error ?? "Failed to mark as RMA.");
+      }
     } catch {
       toast.error("Failed to mark as RMA.");
     } finally {
       setRmaBusy(false);
-      setRmaSerial(null);
+      setRmaRow(null);
     }
   }
 
@@ -430,7 +441,7 @@ export function InventoryTable({
                         device. */}
                     <DropdownMenuItem
                       variant="destructive"
-                      onSelect={() => setRmaSerial(r.serial)}
+                      onSelect={() => setRmaRow(r)}
                     >
                       {r.status === "rma" ? "Re-mark as RMA…" : "Mark as RMA…"}
                     </DropdownMenuItem>
@@ -524,20 +535,32 @@ export function InventoryTable({
         </DialogContent>
       </Dialog>
 
-      <Dialog open={rmaSerial !== null} onOpenChange={(o) => !o && !rmaBusy && setRmaSerial(null)}>
+      <Dialog open={rmaRow !== null} onOpenChange={(o) => !o && !rmaBusy && setRmaRow(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Mark {rmaSerial} as RMA?</DialogTitle>
+            <DialogTitle>
+              {rmaRow?.status === "rma" ? "Re-mark" : "Mark"} {rmaRow?.serial} as RMA?
+            </DialogTitle>
             <DialogDescription>
-              This releases the device&apos;s paid slot: it stops counting as a
-              subscribed device and stops triggering. The customer keeps the slot
-              they paid for, so a replacement device can then activate into it for
-              free — no second invoice for the rest of the year. There is no
-              undo from this screen.
+              {rmaRow?.deviceId ? (
+                <>
+                  This releases the device&apos;s paid slot: it stops counting as a
+                  subscribed device and stops triggering. The customer keeps the slot
+                  they paid for, so a replacement device can then activate into it for
+                  free — no second invoice for the rest of the year. There is no
+                  undo from this screen.
+                </>
+              ) : (
+                <>
+                  This serial has no linked device right now, so it has no billing
+                  effect — it only records the RMA status on this registry row.
+                  There is no undo from this screen.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" disabled={rmaBusy} onClick={() => setRmaSerial(null)}>
+            <Button variant="outline" disabled={rmaBusy} onClick={() => setRmaRow(null)}>
               Cancel
             </Button>
             <Button variant="destructive" disabled={rmaBusy} onClick={onMarkRma}>

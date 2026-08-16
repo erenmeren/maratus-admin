@@ -192,39 +192,91 @@ vercel --prod --yes
 If either fails, treat it as a stop — do not proceed to §6 while the slot
 figures on the billing pages are wrong.
 
-### 5.5. Re-mark every serial that is ALREADY at `rma`
+### 5.5. Release slots for serials ALREADY at `rma` or `retired`
 
 **Do this once, right after the deploy.** Before this branch, marking a serial
-`rma` had no billing effect at all — the device kept `subscriptionPaidAt` set
-forever. So the §5.2 backfill, which seeds `paidDeviceSlots` from devices with
-`subscriptionPaidAt` set, hands each of those dead units a slot of its own. The
-customer is entitled to that slot (they paid for it), but it is occupied by
-hardware that no longer exists, so a replacement cannot claim into it and the
-whole point of the branch misses for exactly the customers who already had an
-RMA.
+`rma` or `retired` had no billing effect at all — the device kept
+`subscriptionPaidAt` set forever. So the §5.2 backfill, which seeds
+`paidDeviceSlots` from devices with `subscriptionPaidAt` set, hands each of
+those dead units a slot of its own. The customer is entitled to that slot
+(they paid for it), but it is occupied by hardware that no longer exists, so a
+replacement cannot claim into it and the whole point of the branch misses for
+exactly the customers who already had an RMA or a pre-cutover offboard.
 
-Find them:
+**These two cohorts need different treatment. Do not run the same action on
+both — the `retired` case is destructive if you do.**
+
+- **`rma` rows** — use the admin UI's **Re-mark as RMA**. Safe and idempotent:
+  the row was already `rma` before this branch, so re-marking only performs
+  the (new) slot-release side effect; it doesn't change what the row records.
+- **`retired` rows** — **never click Mark/Re-mark as RMA on one of these.**
+  `retired` records that the device was left with the customer during
+  offboarding (`retireDeviceWithCustomer`, `lib/factory-registry.ts`) — a
+  distinct disposition from RMA, and every pre-cutover "left with customer"
+  device in the fleet still has `subscription_paid_at` set, so this cohort is
+  real, not hypothetical. Clicking the action rewrites `factory_device.status`
+  from `retired` to `rma`, which (a) permanently destroys the "left with
+  customer" record on that row, and (b) moves the row outside
+  `restoreCustomerAction`'s filter (`eq(factoryDevice.status, "retired")` in
+  `lib/actions/offboarding.ts`) — the exact filter that exists so an
+  offboard-then-restore doesn't strand a device unbillable forever. Release
+  these slots with a direct `UPDATE` below instead, which touches only
+  `device` and never rewrites `factory_device.status`.
+
+Find the `rma` cohort:
 
 ```sql
 SELECT fd.serial, fd.status, d.id AS device_id, d.organization_id
 FROM factory_device fd
 JOIN device d ON d.id = fd.device_id
-WHERE fd.status IN ('rma', 'retired')
+WHERE fd.status = 'rma'
   AND d.subscription_paid_at IS NOT NULL;
 ```
 
-For each row, open `/admin/inventory`, filter to that status, and use **Re-mark
-as RMA** on the serial (the row action is offered on rows already at `rma`
+For each row, open `/admin/inventory`, filter to `rma`, and use **Re-mark as
+RMA…** on the serial (the row action is offered on rows already at `rma`
 precisely for this). Re-marking is what releases the slot: the status write is
 idempotent, and the release + slot-fill side effect runs on every call. The
 confirmation dialog spells out the consequence, and each one writes an audit
 row against the customer.
 
-Afterwards re-run the query: it must return no rows. Each release frees a slot
-that the org keeps, so the customer's replacement device activates for free
-the moment it claims — and if the replacement is already claimed and carrying
-a proration invoice, releasing the old serial voids that invoice and activates
-it on the spot.
+Find the `retired` cohort:
+
+```sql
+SELECT fd.serial, fd.status, d.id AS device_id, d.organization_id
+FROM factory_device fd
+JOIN device d ON d.id = fd.device_id
+WHERE fd.status = 'retired'
+  AND d.subscription_paid_at IS NOT NULL;
+```
+
+For these, release the slot directly — do **not** open `/admin/inventory` for
+them:
+
+```sql
+UPDATE device
+SET subscription_paid_at = NULL
+WHERE id IN (/* device_id values from the SELECT above */);
+```
+
+This writes exactly what `setRegistryStatus` would have written to `device` —
+`subscription_paid_at = NULL` — without touching `factory_device.status` at
+all, so the `retired` disposition (and `restoreCustomerAction`'s ability to
+find and un-retire the row later) survives intact. Two things this raw
+`UPDATE` does **not** do, unlike the UI path: it writes no audit row, and it
+does not run `fillFreeSlots` to immediately hand the freed slot to an
+already-claimed, unpaid replacement device on the same org — that vacancy is
+picked up automatically the next time that org has a claim or a payment run
+through `lib/invoices.ts`. If a replacement device is already claimed and
+sitting on an open proration invoice and you want it resolved immediately
+rather than waiting, mark that invoice paid (or trigger any other
+`fillFreeSlots` call for the org) after running the `UPDATE`.
+
+Afterwards re-run both `SELECT`s above: each must return no rows. Every
+release frees a slot that the org keeps, so the customer's replacement device
+activates for free the moment it claims — and for the `rma` cohort, if the
+replacement is already claimed and carrying a proration invoice, releasing the
+old serial voids that invoice and activates it on the spot.
 
 Do **not** re-run `backfill-device-slots.ts` after any of this (see §5.2): it
 recomputes from live occupancy and would confiscate exactly the slots this

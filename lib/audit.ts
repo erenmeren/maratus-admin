@@ -55,6 +55,11 @@ export const AUDIT = {
   registryAllocated: "registry.allocated",
   registryDeallocated: "registry.deallocated",
   registryClaimReverted: "registry.claim_reverted",
+  // Two constants rather than one with the status in metadata: the audit
+  // tables render the LABEL only, and these are money-affecting events (both
+  // release the device's paid slot) that must be readable at a glance.
+  registryMarkedRma: "registry.marked_rma",
+  registryRetired: "registry.retired",
   registryAllocationConflict: "registry.allocation_conflict",
   orgArchived: "org.archived",
   orgRestored: "org.restored",

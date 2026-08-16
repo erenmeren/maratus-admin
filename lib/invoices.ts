@@ -15,11 +15,14 @@ import {
   isNull,
   lt,
   ne,
+  notInArray,
+  or,
   sql,
 } from "drizzle-orm";
 import { db } from "./db";
-import { device, deviceCommand, invoice, tenantSettings } from "./db/schema";
+import { device, deviceCommand, factoryDevice, invoice, tenantSettings } from "./db/schema";
 import { id } from "./ids";
+import { AUDIT, recordAudit } from "./audit";
 import {
   addMonthsAnchored,
   MONTHS_PER_YEAR,
@@ -339,6 +342,22 @@ export async function listInvoices(
     .limit(limit);
 }
 
+/**
+ * Which of the org's eligible unpaid devices a subscription payment
+ * activates: at most `freeSlots` of them, oldest-claimed first (the caller
+ * supplies that order via `eligibleDeviceIds`). Pure, so the QUEUE policy —
+ * who goes first when a slot is short — has exactly one definition and is
+ * testable without a database. Eligibility itself (claimed, currently
+ * unpaid, and not an RMA'd/retired unit sitting in the same device row) is a
+ * DB concern and lives in the query that builds `eligibleDeviceIds`.
+ */
+export function devicesForFreeSlots(a: {
+  eligibleDeviceIds: string[];
+  freeSlots: number;
+}): string[] {
+  return a.eligibleDeviceIds.slice(0, Math.max(0, a.freeSlots));
+}
+
 export async function markInvoicePaid(a: {
   invoiceId: string;
   tryAmountKurus: number;
@@ -391,7 +410,7 @@ export async function markInvoicePaid(a: {
     // device's own open proration — but it can't be the one voided: the void
     // is conditioned on status = "open" and this row was just marked "paid"
     // above, so it never matches.
-    await activateDeviceIntoSlot(inv.deviceId, inv.organizationId, now);
+    await activateDeviceIntoSlot(inv.deviceId, inv.organizationId, now, a.userId);
     return { ok: true, organizationId: inv.organizationId };
   }
 
@@ -421,14 +440,24 @@ export async function markInvoicePaid(a: {
       : addMonthsAnchored(settings.renewsAt ?? renewalDueAt(now), MONTHS_PER_YEAR);
     const pricePerDeviceCents = settings?.price ?? DEFAULT_PRICE_PER_DEVICE_CENTS;
 
+    // Read once and reused below in both slotsAfterPayment (the max-floor
+    // ruling) and freeSlots — a second read could see a different number if a
+    // device's paid status changed in between, and the two must agree.
+    const paidNow = await countPaidDevices(inv.organizationId);
+
     // Computed once, reused in the upsert below and in the activation step
     // that follows — two copies would invite drift. A subscription payment
     // REPLACES the entitlement with what it was priced for, first activation
-    // or renewal alike.
+    // or renewal alike — except it never drops BELOW `paidNow`. See
+    // slotsAfterPayment: the invoice's deviceCount is fixed at issuance, and a
+    // device prorated and paid for in the lead window (after issuance, before
+    // this renewal payment) would otherwise have its slot confiscated by a
+    // stale, lower number.
     const newSlots = slotsAfterPayment({
       kind: "subscription",
       currentSlots: settings?.slots ?? 0,
       invoiceDeviceCount: inv.deviceCount,
+      paidDevices: paidNow,
     });
 
     // UPSERT, not UPDATE: an org can exist without a tenantSettings row (it is
@@ -462,23 +491,16 @@ export async function markInvoicePaid(a: {
     // device has since gone to RMA, free is 1 and the replacement takes it,
     // which is exactly the intended behaviour rather than the accident it used
     // to be.
-    const paidNow = await countPaidDevices(inv.organizationId);
     const free = freeSlots({ paidDeviceSlots: newSlots, paidDevices: paidNow });
 
-    const unpaid = await db
-      .select({ id: device.id })
-      .from(device)
-      .where(
-        and(
-          eq(device.organizationId, inv.organizationId),
-          isNull(device.subscriptionPaidAt),
-          isNotNull(device.claimedAt),
-        ),
-      )
-      .orderBy(asc(device.claimedAt));
+    const unpaid = await unpaidClaimedDevices(inv.organizationId);
 
-    for (const d of unpaid.slice(0, free)) {
-      await activateDeviceIntoSlot(d.id, inv.organizationId, now);
+    const toActivate = devicesForFreeSlots({
+      eligibleDeviceIds: unpaid.map((d) => d.id),
+      freeSlots: free,
+    });
+    for (const deviceId of toActivate) {
+      await activateDeviceIntoSlot(deviceId, inv.organizationId, now, a.userId);
     }
 
     // Anything still unpaid now needs its own proration invoice. A device
@@ -520,6 +542,39 @@ export async function markInvoicePaid(a: {
 }
 
 /**
+ * Claimed devices in this org that are currently unpaid AND are not a
+ * retired/RMA'd unit. Shared by `markInvoicePaid` (who may be activated for
+ * free) and `issueProrationsForUnpaidDevices` (who still needs a bill).
+ *
+ * The registry-status exclusion matters: releasing a slot (Task 7,
+ * `setRegistryStatus`) clears `device.subscriptionPaidAt` but leaves the
+ * device row — and its `claimedAt` — in place, because there is no retired
+ * flag on `device` itself. Without this join a dead unit would sit in the
+ * same "still needs billing/activation" pool as a live one: it could be
+ * reactivated for free instead of its replacement, or invoiced for a device
+ * that no longer exists. `factoryDevice.status IS NULL` covers a device with
+ * no registry row at all (nothing to exclude it on).
+ */
+async function unpaidClaimedDevices(organizationId: string): Promise<{ id: string }[]> {
+  return db
+    .select({ id: device.id })
+    .from(device)
+    .leftJoin(factoryDevice, eq(factoryDevice.deviceId, device.id))
+    .where(
+      and(
+        eq(device.organizationId, organizationId),
+        isNull(device.subscriptionPaidAt),
+        isNotNull(device.claimedAt),
+        or(
+          isNull(factoryDevice.status),
+          notInArray(factoryDevice.status, ["rma", "retired"]),
+        ),
+      ),
+    )
+    .orderBy(asc(device.claimedAt));
+}
+
+/**
  * Put a device into a paid slot and make sure it leaves no bill behind. A
  * device can hold an open proration invoice and only LATER find itself in a
  * free slot — it was claimed while the org was full, and a paid device went to
@@ -531,18 +586,20 @@ async function activateDeviceIntoSlot(
   deviceId: string,
   organizationId: string,
   now: Date,
+  actorUserId: string,
 ): Promise<void> {
   await db
     .update(device)
     .set({ subscriptionPaidAt: now })
     .where(eq(device.id, deviceId));
 
+  // Note is left untouched: issueProrationInvoice never sets one today, but
+  // overwriting whatever a future writer put there would destroy it. The
+  // "why" lives on the audit row instead, matching voidInvoiceAction's
+  // operator-initiated void — this is the same event, just system-triggered.
   const voided = await db
     .update(invoice)
-    .set({
-      status: "void",
-      note: "Superseded: the device was activated into a free slot.",
-    })
+    .set({ status: "void" })
     .where(
       and(
         eq(invoice.deviceId, deviceId),
@@ -552,11 +609,24 @@ async function activateDeviceIntoSlot(
     )
     .returning({ id: invoice.id });
 
-  if (voided.length > 0) {
+  for (const v of voided) {
     console.warn("[billing] voided a proration superseded by a free slot", {
       deviceId,
       organizationId,
-      invoiceIds: voided.map((v) => v.id),
+      invoiceId: v.id,
+    });
+    // Best-effort, like every other recordAudit call — the void itself
+    // already happened and must not be undone by an audit-log hiccup. Actor
+    // is the admin who marked the ORIGINAL invoice paid (that's all that's in
+    // scope here; unlike the action layer this function never sees an email),
+    // because it is that payment which freed the slot this device now
+    // occupies.
+    await recordAudit({
+      organizationId,
+      actor: { type: "user", id: actorUserId, label: actorUserId },
+      action: AUDIT.invoiceVoided,
+      target: { type: "invoice", id: v.id },
+      metadata: { reason: "device_activated_into_free_slot", deviceId },
     });
   }
 }
@@ -602,17 +672,7 @@ async function issueProrationsForUnpaidDevices(a: {
   pricePerDeviceCents: number;
   now: Date;
 }): Promise<void> {
-  const stillUnpaid = await db
-    .select({ id: device.id })
-    .from(device)
-    .where(
-      and(
-        eq(device.organizationId, a.organizationId),
-        isNull(device.subscriptionPaidAt),
-        isNotNull(device.claimedAt),
-      ),
-    )
-    .orderBy(asc(device.claimedAt));
+  const stillUnpaid = await unpaidClaimedDevices(a.organizationId);
   if (stillUnpaid.length === 0) return;
 
   const alreadyProrated = await proratedDeviceIds(a.organizationId);

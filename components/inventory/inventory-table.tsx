@@ -421,14 +421,19 @@ export function InventoryTable({
                     <DropdownMenuItem onSelect={() => onShowQr(r.serial)}>
                       <QrCode className="size-4" /> Show label QR
                     </DropdownMenuItem>
-                    {r.status !== "rma" && (
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onSelect={() => setRmaSerial(r.serial)}
-                      >
-                        Mark as RMA…
-                      </DropdownMenuItem>
-                    )}
+                    {/* Offered on an already-`rma` row too: re-marking is the
+                        gesture that releases a slot for a unit that went to
+                        RMA before slots existed (see the cutover runbook
+                        §5.5), and it is the only way back from a release that
+                        failed halfway. Idempotent — the status write repeats
+                        and the release is a no-op on an already-unpaid
+                        device. */}
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => setRmaSerial(r.serial)}
+                    >
+                      {r.status === "rma" ? "Re-mark as RMA…" : "Mark as RMA…"}
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>

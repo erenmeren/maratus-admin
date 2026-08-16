@@ -192,6 +192,44 @@ vercel --prod --yes
 If either fails, treat it as a stop — do not proceed to §6 while the slot
 figures on the billing pages are wrong.
 
+### 5.5. Re-mark every serial that is ALREADY at `rma`
+
+**Do this once, right after the deploy.** Before this branch, marking a serial
+`rma` had no billing effect at all — the device kept `subscriptionPaidAt` set
+forever. So the §5.2 backfill, which seeds `paidDeviceSlots` from devices with
+`subscriptionPaidAt` set, hands each of those dead units a slot of its own. The
+customer is entitled to that slot (they paid for it), but it is occupied by
+hardware that no longer exists, so a replacement cannot claim into it and the
+whole point of the branch misses for exactly the customers who already had an
+RMA.
+
+Find them:
+
+```sql
+SELECT fd.serial, fd.status, d.id AS device_id, d.organization_id
+FROM factory_device fd
+JOIN device d ON d.id = fd.device_id
+WHERE fd.status IN ('rma', 'retired')
+  AND d.subscription_paid_at IS NOT NULL;
+```
+
+For each row, open `/admin/inventory`, filter to that status, and use **Re-mark
+as RMA** on the serial (the row action is offered on rows already at `rma`
+precisely for this). Re-marking is what releases the slot: the status write is
+idempotent, and the release + slot-fill side effect runs on every call. The
+confirmation dialog spells out the consequence, and each one writes an audit
+row against the customer.
+
+Afterwards re-run the query: it must return no rows. Each release frees a slot
+that the org keeps, so the customer's replacement device activates for free
+the moment it claims — and if the replacement is already claimed and carrying
+a proration invoice, releasing the old serial voids that invoice and activates
+it on the spot.
+
+Do **not** re-run `backfill-device-slots.ts` after any of this (see §5.2): it
+recomputes from live occupancy and would confiscate exactly the slots this
+step just freed.
+
 ---
 
 ## 6. Deferred: the destructive follow-up

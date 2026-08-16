@@ -204,7 +204,8 @@ export const tenantSettings = pgTable("tenant_settings", {
   // --- Subscription plan (2026-08-15 subscription-billing spec) ------------
   // One plan: $15/device/month billed annually by bank transfer, 1000 triggers
   // per paid device per month POOLED at the org, $0.02/trigger post-paid
-  // overage. `billingPlan` and the credit ledger are removed in migration 0043.
+  // overage. `billingPlan` and the credit ledger are removed in migration 0044
+  // (0043 was taken by `paid_device_slots`, see below).
   //
   // null = not subscribed yet. Set when a platform admin marks the first
   // subscription invoice paid; it is the anchor for every billing period.
@@ -214,6 +215,13 @@ export const tenantSettings = pgTable("tenant_settings", {
   // Per-tenant so a negotiated discount needs no code change.
   pricePerDeviceCents: integer("price_per_device_cents").default(1500).notNull(),
   overagePriceCents: integer("overage_price_cents").default(2).notNull(),
+  // Device slots the org has PAID for. Deliberately outlives the devices
+  // occupying it: an RMA'd or removed device frees its slot without shrinking
+  // this number, so the customer keeps the quota they bought until the year
+  // ends. Written ONLY when an invoice is paid (see lib/invoices.ts
+  // markInvoicePaid); nothing decrements it. Quota is slots × included, never
+  // a live device count.
+  paidDeviceSlots: integer("paid_device_slots").default(0).notNull(),
   // Triggers included per PAID device per month; pooled org-wide.
   includedTriggersPerDevice: integer("included_triggers_per_device")
     .default(1000)

@@ -28,6 +28,8 @@ export function SubscriptionCard(props: {
   subscriptionRenewsAt: Date | null;
   pricePerDeviceCents: number;
   paidDeviceCount: number;
+  paidDeviceSlots: number;
+  freeSlots: number;
   invoices: InvoiceRow[];
   disabled?: boolean;
 }) {
@@ -44,8 +46,12 @@ export function SubscriptionCard(props: {
         ? "overdue"
         : "active";
   const ui = STATUS_UI[status];
+  // The entitlement for this contract year, not a live-occupancy snapshot —
+  // it must not drop when an RMA frees a slot; the org already paid for the
+  // full year. A renewal preview (a different question) is priced from live
+  // occupancy at issuance time, in lib/billing-cron.ts.
   const annualAmountCents = subscriptionAmountCents(
-    props.paidDeviceCount,
+    props.paidDeviceSlots,
     props.pricePerDeviceCents,
   );
 
@@ -92,9 +98,15 @@ export function SubscriptionCard(props: {
               </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Paid devices</p>
-              <p className="font-medium tabular-nums">
-                {formatNumber(props.paidDeviceCount)}
+              <p className="text-xs text-muted-foreground">Slots</p>
+              <p className="flex items-center gap-2 font-medium tabular-nums">
+                {formatNumber(props.paidDeviceCount)} of{" "}
+                {formatNumber(props.paidDeviceSlots)} in use
+                {props.freeSlots > 0 && (
+                  <Badge variant="secondary" className="tabular-nums">
+                    {formatNumber(props.freeSlots)} free
+                  </Badge>
+                )}
               </p>
             </div>
             <div>

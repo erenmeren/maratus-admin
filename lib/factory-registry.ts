@@ -2,7 +2,7 @@
 // serial operations (one-shot auto-claim + serial stamping). Pure decision
 // logic lives in lib/provisioning.ts / lib/factory-registry-csv.ts.
 
-import { and, count, eq, ilike, inArray, isNull, sql, TransactionRollbackError } from "drizzle-orm";
+import { and, count, eq, ilike, inArray, isNotNull, isNull, sql, TransactionRollbackError } from "drizzle-orm";
 import { db, dbTx } from "./db";
 import {
   device as deviceTable,
@@ -15,6 +15,7 @@ import { chunk } from "./chunk";
 import { generateDeviceKey, id } from "./ids";
 import { deprovisionDeviceMqtt, provisionDeviceMqtt } from "@/lib/mqtt";
 import { pushEffectivePinSafe } from "@/lib/pin-service";
+import { fillFreeSlots, settleClaimBilling } from "@/lib/invoices";
 import type { RegistryAllocationSnapshot, RegistryStatus } from "./provisioning";
 import type { RegistryCsvRow } from "./factory-registry-csv";
 import { clampPage, foldDeallocatedByOrg } from "./factory-registry-fold";
@@ -276,11 +277,87 @@ export async function deallocateSerials(
   });
 }
 
+/**
+ * Mark a serial `rma` / `retired` and release the billing slot its linked
+ * device occupied. Returns the affected org (for the caller's audit row) and
+ * whether a slot was actually released — null org when the serial has no
+ * linked device, which is the no-op case on the billing side.
+ */
 export async function setRegistryStatus(
   serial: string,
   status: "rma" | "retired",
-): Promise<void> {
-  await db.update(factoryDevice).set({ status }).where(eq(factoryDevice.serial, serial));
+): Promise<{ organizationId: string | null; deviceId: string | null; released: boolean }> {
+  const [row] = await db
+    .update(factoryDevice)
+    .set({ status })
+    .where(eq(factoryDevice.serial, serial))
+    .returning({ deviceId: factoryDevice.deviceId });
+
+  // Releasing the slot is the point: the device stops passing the subscription
+  // gate and stops occupying a slot, while tenantSettings.paidDeviceSlots is
+  // untouched — so the org keeps the quota it paid for and a replacement can
+  // claim into the vacancy for free.
+  if (!row?.deviceId) return { organizationId: null, deviceId: null, released: false };
+  const released = await db
+    .update(deviceTable)
+    .set({ subscriptionPaidAt: null })
+    .where(and(eq(deviceTable.id, row.deviceId), isNotNull(deviceTable.subscriptionPaidAt)))
+    .returning({ id: deviceTable.id, organizationId: deviceTable.organizationId });
+
+  // The org id is wanted even when nothing was released (the caller audits the
+  // status change either way), and the conditional UPDATE above returns no row
+  // when the device was already unpaid.
+  //
+  // Fail-open, same posture as the fillFreeSlots call below: the status write
+  // and the slot release have already committed by this point, and nothing
+  // wraps them in a transaction with this read. If this SELECT throws, the
+  // caller must not see a failure for work that already succeeded — it just
+  // loses the org id it would have audited against (setRegistryStatusAction
+  // skips the audit row when organizationId is null).
+  let organizationId = released[0]?.organizationId ?? null;
+  if (!organizationId) {
+    try {
+      const [dev] = await db
+        .select({ organizationId: deviceTable.organizationId })
+        .from(deviceTable)
+        .where(eq(deviceTable.id, row.deviceId))
+        .limit(1);
+      organizationId = dev?.organizationId ?? null;
+    } catch (err) {
+      console.error("[billing] org-id fallback read after registry status change failed", err);
+    }
+  }
+
+  if (released.length > 0) {
+    console.warn("[billing] released a device slot on registry status change", {
+      serial,
+      status,
+      deviceId: row.deviceId,
+    });
+
+    // Hand the vacancy straight to a device that is claimed but unpaid — the
+    // replacement the customer already plugged in and was pro-rated for,
+    // because it was claimed while the org was still full. Without this the
+    // ordinary operator ordering (claim the replacement first, mark the dead
+    // serial `rma` afterwards) leaves the slot empty and the proration
+    // standing, and the customer pays twice inside one year for one device.
+    // `fillFreeSlots` voids that proration as it activates. The just-released
+    // device cannot take its own slot back: it is now `rma`/`retired`, which
+    // the eligibility query excludes.
+    //
+    // Fail-open: an inventory status change must never fail because a billing
+    // follow-up threw. The release above has already committed and is the part
+    // that matters; a missed fill is swept up by the next claim or payment.
+    if (organizationId) {
+      try {
+        await fillFreeSlots({ organizationId });
+      } catch (err) {
+        console.error("[billing] filling the freed slot after a status change failed", err);
+      }
+    }
+  }
+
+  return { organizationId, deviceId: row.deviceId, released: released.length > 0 };
 }
 
 /**
@@ -426,6 +503,16 @@ export async function autoClaimDevice(
   // hiccup must never unwind a committed claim.
   await pushEffectivePinSafe(claimedOrganizationId, [deviceId]);
 
+  // Claim-time billing, identical to the pairing-code path (lib/device-claim.ts):
+  // a free slot activates this device for nothing, otherwise it is pro-rated
+  // for the rest of the org's subscription year. This path is the one that
+  // MATTERS for the slot model — RMA status lives on `factoryDevice`, so a
+  // replacement for an RMA'd unit reaches its customer by allocation +
+  // zero-touch and lands exactly here. Fail-open (settleClaimBilling swallows
+  // its own errors) + outside the transaction, same posture as MQTT and pin
+  // above: a billing hiccup must never unwind a committed claim.
+  await settleClaimBilling(claimedOrganizationId, deviceId);
+
   return { deviceKey: key, deviceId, organizationId: claimedOrganizationId };
 }
 
@@ -512,7 +599,14 @@ export async function retireDeviceWithCustomer(
       return { ok: true, changed: false, serial: dev.serial, deviceName: dev.name };
     }
 
-    await tx.update(deviceTable).set({ status: "paused" }).where(eq(deviceTable.id, deviceId));
+    // Releasing the slot here too: a retired-with-customer device can no
+    // longer trigger (it's paused), so it must stop occupying a paid slot —
+    // tenantSettings.paidDeviceSlots is untouched, so the org keeps the
+    // quota it paid for and a replacement can claim into the vacancy free.
+    await tx
+      .update(deviceTable)
+      .set({ status: "paused", subscriptionPaidAt: null })
+      .where(eq(deviceTable.id, deviceId));
     if (dev.serial) {
       await tx
         .update(factoryDevice)

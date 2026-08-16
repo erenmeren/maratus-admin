@@ -1,0 +1,1 @@
+ALTER TABLE "tenant_settings" ADD COLUMN "paid_device_slots" integer DEFAULT 0 NOT NULL;

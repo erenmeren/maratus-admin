@@ -60,13 +60,15 @@ export function prorationAmountCents(
 }
 
 /**
- * Overage for one closed period. Quota is pooled across PAID devices only;
- * legacy credits (migrated prepaid balance) offset the overage before billing.
+ * Overage for one closed period. Quota is pooled across paid SLOTS — what the
+ * org paid for, not a live device count — so an RMA'd device freeing its slot
+ * never shrinks the pool. Legacy credits (migrated prepaid balance) offset
+ * the overage before billing.
  */
 export function overageFor(a: {
   used: number;
   includedPerDevice: number;
-  paidDeviceCount: number;
+  slotCount: number;
   overagePriceCents: number;
   legacyCredits: number;
 }): {
@@ -76,7 +78,7 @@ export function overageFor(a: {
   billableTriggers: number;
   amountUsdCents: number;
 } {
-  const includedTotal = a.paidDeviceCount * a.includedPerDevice;
+  const includedTotal = a.slotCount * a.includedPerDevice;
   const overageTriggers = Math.max(0, a.used - includedTotal);
   const creditsConsumed = Math.min(Math.max(0, a.legacyCredits), overageTriggers);
   const billableTriggers = overageTriggers - creditsConsumed;

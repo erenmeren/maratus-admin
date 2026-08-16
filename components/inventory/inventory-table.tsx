@@ -143,6 +143,15 @@ export function InventoryTable({
   const [reverting, setReverting] = useState<string | null>(null); // serial
   const [revertBusy, setRevertBusy] = useState(false);
 
+  // Mark-as-RMA confirm dialog state. Confirmed, not fired straight from the
+  // menu: this releases the device's paid billing slot, when there is one.
+  // Holds the whole row (not just the serial) so the dialog can word itself
+  // correctly for both cohorts the unconditional menu item is offered on: an
+  // already-`rma` row (re-marking) vs. one with no linked device (no billing
+  // effect at all).
+  const [rmaRow, setRmaRow] = useState<InventoryRow | null>(null);
+  const [rmaBusy, setRmaBusy] = useState(false);
+
   async function onImportFile(file: File) {
     setBusy(true);
     try {
@@ -226,6 +235,28 @@ export function InventoryTable({
     } finally {
       setRevertBusy(false);
       closeRevertDialog();
+    }
+  }
+
+  async function onMarkRma() {
+    if (!rmaRow) return;
+    setRmaBusy(true);
+    try {
+      const res = await setRegistryStatusAction(rmaRow.serial, "rma");
+      if (res.ok) {
+        toast.success(
+          rmaRow.deviceId
+            ? "Marked as RMA — the device's paid slot is free."
+            : "Marked as RMA.",
+        );
+      } else {
+        toast.error(res.error ?? "Failed to mark as RMA.");
+      }
+    } catch {
+      toast.error("Failed to mark as RMA.");
+    } finally {
+      setRmaBusy(false);
+      setRmaRow(null);
     }
   }
 
@@ -401,22 +432,19 @@ export function InventoryTable({
                     <DropdownMenuItem onSelect={() => onShowQr(r.serial)}>
                       <QrCode className="size-4" /> Show label QR
                     </DropdownMenuItem>
-                    {r.status !== "rma" && (
-                      <DropdownMenuItem
-                        variant="destructive"
-                        onSelect={async () => {
-                          try {
-                            const res = await setRegistryStatusAction(r.serial, "rma");
-                            if (res.ok) toast.success("Marked as RMA.");
-                            else toast.error("Failed to mark as RMA.");
-                          } catch {
-                            toast.error("Failed to mark as RMA.");
-                          }
-                        }}
-                      >
-                        Mark as RMA
-                      </DropdownMenuItem>
-                    )}
+                    {/* Offered on an already-`rma` row too: re-marking is the
+                        gesture that releases a slot for a unit that went to
+                        RMA before slots existed (see the cutover runbook
+                        §5.5), and it is the only way back from a release that
+                        failed halfway. Idempotent — the status write repeats
+                        and the release is a no-op on an already-unpaid
+                        device. */}
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => setRmaRow(r)}
+                    >
+                      {r.status === "rma" ? "Re-mark as RMA…" : "Mark as RMA…"}
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </TableCell>
@@ -502,6 +530,41 @@ export function InventoryTable({
             <Button variant="outline" onClick={closeRevertDialog}>Cancel</Button>
             <Button variant="destructive" disabled={revertBusy} onClick={onRevertClaim}>
               Revert
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={rmaRow !== null} onOpenChange={(o) => !o && !rmaBusy && setRmaRow(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {rmaRow?.status === "rma" ? "Re-mark" : "Mark"} {rmaRow?.serial} as RMA?
+            </DialogTitle>
+            <DialogDescription>
+              {rmaRow?.deviceId ? (
+                <>
+                  This releases the device&apos;s paid slot: it stops counting as a
+                  subscribed device and stops triggering. The customer keeps the slot
+                  they paid for, so a replacement device can then activate into it for
+                  free — no second invoice for the rest of the year. There is no
+                  undo from this screen.
+                </>
+              ) : (
+                <>
+                  This serial has no linked device right now, so it has no billing
+                  effect — it only records the RMA status on this registry row.
+                  There is no undo from this screen.
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" disabled={rmaBusy} onClick={() => setRmaRow(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" disabled={rmaBusy} onClick={onMarkRma}>
+              Mark as RMA
             </Button>
           </DialogFooter>
         </DialogContent>

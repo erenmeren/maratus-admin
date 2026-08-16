@@ -1,143 +1,93 @@
 import { describe, expect, it } from "vitest";
-import { activatableDeviceCount, devicesToActivate } from "./invoices";
+import { devicesForFreeSlots } from "./invoices";
+import { freeSlots, slotsAfterPayment } from "./device-slots";
 
-/** No device is separately invoiced — the common case. */
-const NONE: ReadonlySet<string> = new Set<string>();
+// markInvoicePaid's activation step is now bounded by the entitlement itself
+// (freeSlots / slotsAfterPayment, exhaustively tested in device-slots.test.ts)
+// rather than by devicesToActivate/activatableDeviceCount, which this file
+// used to test. Those two pure functions were deleted along with the guards
+// they backed. What replaced their ORDERING role — oldest-claimed-first,
+// bounded by however many slots are free — is `devicesForFreeSlots`, tested
+// below. Eligibility (which devices even reach that list — claimed, unpaid,
+// and not an RMA'd/retired unit) is a DB concern and lives in the query in
+// lib/invoices.ts (`unpaidClaimedDevices`), not here.
 
-describe("devicesToActivate", () => {
-  it("activates exactly the invoiced device count", () => {
-    expect(
-      devicesToActivate({
-        deviceCount: 2,
-        unpaidDeviceIds: ["a", "b", "c"],
-        proratedDeviceIds: NONE,
-      }),
-    ).toEqual(["a", "b"]);
+describe("the slot bound subsumes the old activation guards", () => {
+  it("a renewal priced at the already-paid count leaves zero free slots", () => {
+    // The cron issues renewals with deviceCount = countPaidDevices(org), so
+    // slotsAfterPayment REPLACES the entitlement with that same number.
+    const newSlots = slotsAfterPayment({
+      kind: "subscription",
+      currentSlots: 3,
+      invoiceDeviceCount: 3,
+      paidDevices: 3,
+    });
+    expect(newSlots).toBe(3);
+    // A device claimed during the renewal lead window (D4) is unpaid and
+    // holds its own open proration, but there is no free slot for it to
+    // occupy — it is not activated by this payment.
+    expect(freeSlots({ paidDeviceSlots: newSlots, paidDevices: 3 })).toBe(0);
   });
 
+  it("a paid device that went to RMA frees exactly one slot for a replacement", () => {
+    // Same org: 3 slots paid for, but only 2 devices are currently paid
+    // (one was RMA'd and its subscriptionPaidAt cleared). The renewal was
+    // priced at 3 before the RMA, so the invoice's own number is unaffected.
+    const newSlots = slotsAfterPayment({
+      kind: "subscription",
+      currentSlots: 3,
+      invoiceDeviceCount: 3,
+      paidDevices: 2,
+    });
+    expect(freeSlots({ paidDeviceSlots: newSlots, paidDevices: 2 })).toBe(1);
+  });
+
+  it("a proration payment adds exactly one slot", () => {
+    expect(
+      slotsAfterPayment({
+        kind: "proration",
+        currentSlots: 3,
+        invoiceDeviceCount: null,
+        paidDevices: 4,
+      }),
+    ).toBe(4);
+  });
+});
+
+describe("devicesForFreeSlots", () => {
   it("takes the oldest claimed devices first (caller supplies that order)", () => {
     expect(
-      devicesToActivate({
-        deviceCount: 1,
-        unpaidDeviceIds: ["oldest", "newer"],
-        proratedDeviceIds: NONE,
+      devicesForFreeSlots({
+        eligibleDeviceIds: ["oldest", "newer"],
+        freeSlots: 1,
       }),
     ).toEqual(["oldest"]);
   });
 
-  it("never activates more than exist", () => {
+  it("never activates more than are free", () => {
     expect(
-      devicesToActivate({
-        deviceCount: 5,
-        unpaidDeviceIds: ["a"],
-        proratedDeviceIds: NONE,
+      devicesForFreeSlots({
+        eligibleDeviceIds: ["a", "b", "c"],
+        freeSlots: 2,
+      }),
+    ).toEqual(["a", "b"]);
+  });
+
+  it("activates nothing when no slot is free", () => {
+    expect(
+      devicesForFreeSlots({
+        eligibleDeviceIds: ["a"],
+        freeSlots: 0,
+      }),
+    ).toEqual([]);
+  });
+
+  it("never activates more than exist, even with more free slots than devices", () => {
+    expect(
+      devicesForFreeSlots({
+        eligibleDeviceIds: ["a"],
+        freeSlots: 5,
       }),
     ).toEqual(["a"]);
-  });
-
-  it("activates nothing for a zero-device invoice", () => {
-    expect(
-      devicesToActivate({
-        deviceCount: 0,
-        unpaidDeviceIds: ["a"],
-        proratedDeviceIds: NONE,
-      }),
-    ).toEqual([]);
-  });
-
-  it("never activates a device that already holds a proration invoice", () => {
-    expect(
-      devicesToActivate({
-        deviceCount: 2,
-        unpaidDeviceIds: ["D4", "D5"],
-        proratedDeviceIds: new Set(["D4"]),
-      }),
-    ).toEqual(["D5"]);
-  });
-
-  it("filters before slicing, so a separately-invoiced device burns no slot", () => {
-    // D4 is oldest and pro-rated; the one available slot must still reach D5.
-    expect(
-      devicesToActivate({
-        deviceCount: 1,
-        unpaidDeviceIds: ["D4", "D5"],
-        proratedDeviceIds: new Set(["D4"]),
-      }),
-    ).toEqual(["D5"]);
-  });
-
-  it("activates the whole first-subscription set when nothing is pro-rated yet", () => {
-    // Before the first payment the anchor is null, so no proration can exist —
-    // the exclusion must not strand a device the first invoice legitimately
-    // paid for.
-    expect(
-      devicesToActivate({
-        deviceCount: 3,
-        unpaidDeviceIds: ["D1", "D2", "D3"],
-        proratedDeviceIds: NONE,
-      }),
-    ).toEqual(["D1", "D2", "D3"]);
-  });
-});
-
-describe("activatableDeviceCount", () => {
-  it("activates the whole invoice at first subscription (nothing paid yet)", () => {
-    expect(
-      activatableDeviceCount({ invoicedDeviceCount: 3, alreadyPaidCount: 0 }),
-    ).toBe(3);
-  });
-
-  it("activates nothing on a renewal priced from the already-paid devices", () => {
-    // The cron issues renewals with deviceCount = countPaidDevices(org).
-    expect(
-      activatableDeviceCount({ invoicedDeviceCount: 3, alreadyPaidCount: 3 }),
-    ).toBe(0);
-  });
-
-  it("does not activate a device claimed during the renewal lead window", () => {
-    // 3 paid devices, renewal deviceCount = 3, D4 claimed later and unpaid.
-    const remaining = activatableDeviceCount({
-      invoicedDeviceCount: 3,
-      alreadyPaidCount: 3,
-    });
-    expect(
-      devicesToActivate({
-        deviceCount: remaining,
-        unpaidDeviceIds: ["D4"],
-        proratedDeviceIds: NONE,
-      }),
-    ).toEqual([]);
-  });
-
-  it("never goes negative when more devices are paid than the invoice covered", () => {
-    expect(
-      activatableDeviceCount({ invoicedDeviceCount: 2, alreadyPaidCount: 5 }),
-    ).toBe(0);
-  });
-
-  it("activates only the shortfall on a partially-paid subscription", () => {
-    expect(
-      activatableDeviceCount({ invoicedDeviceCount: 5, alreadyPaidCount: 2 }),
-    ).toBe(3);
-  });
-
-  it("a deleted paid device frees a slot, but a pro-rated device may not take it", () => {
-    // 3 paid devices; D4 claimed 1 Jul with its own open proration; renewal
-    // issued 1 Aug for deviceCount 3; D1 deleted 5 Aug; renewal paid 20 Aug.
-    // alreadyPaid is now 2, so the count guard leaves one slot open, and D4
-    // passes the claimedAt <= issuedAt pin. Only the proration exclusion stops
-    // D4 riding free while its own invoice stays open.
-    const remaining = activatableDeviceCount({
-      invoicedDeviceCount: 3,
-      alreadyPaidCount: 2,
-    });
-    expect(remaining).toBe(1);
-    expect(
-      devicesToActivate({
-        deviceCount: remaining,
-        unpaidDeviceIds: ["D4"],
-        proratedDeviceIds: new Set(["D4"]),
-      }),
-    ).toEqual([]);
   });
 });

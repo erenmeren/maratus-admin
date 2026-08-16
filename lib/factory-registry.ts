@@ -307,14 +307,25 @@ export async function setRegistryStatus(
   // The org id is wanted even when nothing was released (the caller audits the
   // status change either way), and the conditional UPDATE above returns no row
   // when the device was already unpaid.
+  //
+  // Fail-open, same posture as the fillFreeSlots call below: the status write
+  // and the slot release have already committed by this point, and nothing
+  // wraps them in a transaction with this read. If this SELECT throws, the
+  // caller must not see a failure for work that already succeeded — it just
+  // loses the org id it would have audited against (setRegistryStatusAction
+  // skips the audit row when organizationId is null).
   let organizationId = released[0]?.organizationId ?? null;
   if (!organizationId) {
-    const [dev] = await db
-      .select({ organizationId: deviceTable.organizationId })
-      .from(deviceTable)
-      .where(eq(deviceTable.id, row.deviceId))
-      .limit(1);
-    organizationId = dev?.organizationId ?? null;
+    try {
+      const [dev] = await db
+        .select({ organizationId: deviceTable.organizationId })
+        .from(deviceTable)
+        .where(eq(deviceTable.id, row.deviceId))
+        .limit(1);
+      organizationId = dev?.organizationId ?? null;
+    } catch (err) {
+      console.error("[billing] org-id fallback read after registry status change failed", err);
+    }
   }
 
   if (released.length > 0) {

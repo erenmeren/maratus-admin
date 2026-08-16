@@ -14,7 +14,8 @@ import { provisionDeviceMqtt } from "@/lib/mqtt";
 import { pushEffectivePinSafe } from "@/lib/pin-service";
 import { periodEndFor, periodStartFor } from "@/lib/billing-period";
 import { monthsRemainingUntil } from "@/lib/invoicing";
-import { issueProrationInvoice, prorationMonths } from "@/lib/invoices";
+import { countPaidDevices, issueProrationInvoice, prorationMonths } from "@/lib/invoices";
+import { freeSlots } from "@/lib/device-slots";
 
 /**
  * A device claimed mid-year is billed for the remaining months of the org's
@@ -38,12 +39,29 @@ async function issueProrationForClaimSafe(
         startedAt: tenantSettings.subscriptionStartedAt,
         renewsAt: tenantSettings.subscriptionRenewsAt,
         price: tenantSettings.pricePerDeviceCents,
+        slots: tenantSettings.paidDeviceSlots,
       })
       .from(tenantSettings)
       .where(eq(tenantSettings.organizationId, organizationId))
       .limit(1);
 
     if (!settings?.startedAt || !settings.renewsAt) return;
+
+    // A free slot means the org already paid for this device's place — a
+    // replacement for one that went to RMA, or a device filling a slot its
+    // predecessor vacated. Activate it and bill nothing.
+    const paidDevices = await countPaidDevices(organizationId);
+    if (freeSlots({ paidDeviceSlots: settings.slots, paidDevices }) > 0) {
+      await db
+        .update(deviceTable)
+        .set({ subscriptionPaidAt: new Date() })
+        .where(eq(deviceTable.id, deviceId));
+      console.warn("[billing] device claimed into a free slot; no invoice issued", {
+        deviceId,
+        organizationId,
+      });
+      return;
+    }
 
     const now = new Date();
     await issueProrationInvoice({

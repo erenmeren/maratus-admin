@@ -43,8 +43,12 @@ export default async function TenantBillingPage() {
       ? "overdue"
       : "active";
   const statusUi = STATUS_UI[status];
+  // The entitlement for this contract year, not a live-occupancy snapshot —
+  // it must not drop when an RMA frees a slot; the org already paid for the
+  // full year. A renewal preview (a different question) is priced from live
+  // occupancy at issuance time, in lib/billing-cron.ts.
   const annualAmountCents = subscriptionAmountCents(
-    overview.paidDevices,
+    overview.paidDeviceSlots,
     overview.pricePerDeviceCents,
   );
 
@@ -83,9 +87,15 @@ export default async function TenantBillingPage() {
                 </p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Paid devices</p>
-                <p className="font-medium tabular-nums">
-                  {formatNumber(overview.paidDevices)}
+                <p className="text-xs text-muted-foreground">Slots</p>
+                <p className="flex items-center gap-2 font-medium tabular-nums">
+                  {formatNumber(overview.paidDevices)} of{" "}
+                  {formatNumber(overview.paidDeviceSlots)} in use
+                  {overview.freeSlots > 0 && (
+                    <Badge variant="secondary" className="tabular-nums">
+                      {formatNumber(overview.freeSlots)} free
+                    </Badge>
+                  )}
                 </p>
               </div>
               <div>

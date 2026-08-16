@@ -157,14 +157,44 @@ export async function deallocateSerialsAction(
   return { ok: true, updated: result.updated };
 }
 
+/**
+ * Mark a serial `rma` / `retired`. This is a MONEY-AFFECTING click: it
+ * releases the linked device's paid slot (the device stops passing the
+ * subscription gate) and hands that slot to a replacement for free — so it is
+ * audited like every other billing mutation (markInvoicePaidAction,
+ * voidInvoiceAction, offboarding, deallocation), and the UI confirms it.
+ */
 export async function setRegistryStatusAction(
   serial: string,
   status: "rma" | "retired",
 ): Promise<{ ok: boolean; error?: string }> {
-  await requirePlatformAdmin();
+  const ctx = await requirePlatformAdmin();
   const parsed = setStatusInputSchema.safeParse({ serial, status });
   if (!parsed.success) return { ok: false, error: "Invalid input." };
-  await setRegistryStatus(parsed.data.serial, parsed.data.status);
+  const result = await setRegistryStatus(parsed.data.serial, parsed.data.status);
+
+  // Scoped to the org that owned the device — the only org this event means
+  // anything to. A serial with no linked device has nothing to scope to (and
+  // no billing effect either), so it is not audited; recordAudit requires an
+  // organizationId.
+  if (result.organizationId) {
+    await recordAudit({
+      organizationId: result.organizationId,
+      actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+      action:
+        parsed.data.status === "rma" ? AUDIT.registryMarkedRma : AUDIT.registryRetired,
+      target: { type: "registry", id: parsed.data.serial },
+      metadata: {
+        serial: parsed.data.serial,
+        status: parsed.data.status,
+        deviceId: result.deviceId,
+        // Whether this click actually vacated a paid slot, or the device was
+        // already unpaid — the difference between a billing event and a
+        // bookkeeping one.
+        slotReleased: result.released,
+      },
+    });
+  }
   revalidatePath("/admin/inventory");
   return { ok: true };
 }

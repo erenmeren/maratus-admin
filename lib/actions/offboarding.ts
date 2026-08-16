@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   tenantSettings,
   apiKey as apiKeyTable,
+  device as deviceTable,
   invitation as invitationTable,
   factoryDevice,
   auditLog,
@@ -217,6 +218,45 @@ export async function restoreCustomerAction(
     .update(tenantSettings)
     .set({ archivedAt: null, archivedNote: null })
     .where(eq(tenantSettings.organizationId, organizationId));
+
+  // Un-retire the registry rows of devices this customer still has. A
+  // "leave with customer" offboard marked them `retired`, and lib/invoices.ts
+  // excludes `retired`/`rma` rows from BOTH free-slot activation and
+  // proration issuance — so a restored customer's devices would be unpaid AND
+  // invisible to every billing path. No invoice could ever make them work
+  // again; recovery would be surgery (delete the device, revert the registry
+  // claim, re-claim). Before the slot model, restore left a paid-if-paused
+  // device that simply worked once unpaused, so leaving this would be a
+  // regression against shipped behaviour.
+  //
+  // Scoped to rows still LINKED to a live device of THIS org: a retirement
+  // recorded against hardware that has since left is genuine and stays.
+  // `claimed` is the status to return to — the device row exists and is
+  // claimed. (The device itself stays paused, as it did before this branch;
+  // the tenant resumes it.)
+  //
+  // Fail-open: the archive stamp is already cleared above, which is the part
+  // the operator asked for.
+  try {
+    await db
+      .update(factoryDevice)
+      .set({ status: "claimed" })
+      .where(
+        and(
+          eq(factoryDevice.status, "retired"),
+          inArray(
+            factoryDevice.deviceId,
+            db
+              .select({ id: deviceTable.id })
+              .from(deviceTable)
+              .where(eq(deviceTable.organizationId, organizationId)),
+          ),
+        ),
+      );
+  } catch (err) {
+    console.error("[offboarding] un-retiring registry rows on restore failed", err);
+  }
+
   await recordAudit({
     organizationId,
     actor: { type: "user", id: ctx.user.id, label: ctx.user.email },

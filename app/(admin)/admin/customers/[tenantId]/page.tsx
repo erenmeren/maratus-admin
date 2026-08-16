@@ -41,6 +41,7 @@ import {
 } from "@/lib/data";
 import { countPaidDevices, listInvoices } from "@/lib/invoices";
 import { DEFAULT_PRICE_PER_DEVICE_CENTS } from "@/lib/invoicing";
+import { freeSlots as computeFreeSlots } from "@/lib/device-slots";
 import { SubscriptionCard } from "@/components/billing/subscription-card";
 import { InvoiceTable } from "@/components/billing/invoice-table";
 import { formatNumber, timeAgo } from "@/lib/format";
@@ -77,6 +78,7 @@ export default async function CustomerDetailPage({
         startedAt: tenantSettings.subscriptionStartedAt,
         renewsAt: tenantSettings.subscriptionRenewsAt,
         pricePerDeviceCents: tenantSettings.pricePerDeviceCents,
+        paidDeviceSlots: tenantSettings.paidDeviceSlots,
       })
       .from(tenantSettings)
       .where(eq(tenantSettings.organizationId, tenantId))
@@ -210,6 +212,11 @@ export default async function CustomerDetailPage({
           subscriptionSettings?.pricePerDeviceCents ?? DEFAULT_PRICE_PER_DEVICE_CENTS
         }
         paidDeviceCount={paidDeviceCount}
+        paidDeviceSlots={subscriptionSettings?.paidDeviceSlots ?? 0}
+        freeSlots={computeFreeSlots({
+          paidDeviceSlots: subscriptionSettings?.paidDeviceSlots ?? 0,
+          paidDevices: paidDeviceCount,
+        })}
         invoices={invoices}
         disabled={isArchived}
       />

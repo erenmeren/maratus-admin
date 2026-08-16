@@ -4,68 +4,14 @@
 
 import { and, eq, isNull } from "drizzle-orm";
 import { db } from "./db";
-import {
-  device as deviceTable,
-  store as storeTable,
-  tenantSettings,
-} from "./db/schema";
+import { device as deviceTable, store as storeTable } from "./db/schema";
 import { generateDeviceKey, id } from "./ids";
 import { provisionDeviceMqtt } from "@/lib/mqtt";
 import { pushEffectivePinSafe } from "@/lib/pin-service";
-import { periodEndFor, periodStartFor } from "@/lib/billing-period";
-import { monthsRemainingUntil } from "@/lib/invoicing";
-import { issueProrationInvoice, prorationMonths } from "@/lib/invoices";
-
-/**
- * A device claimed mid-year is billed for the remaining months of the org's
- * subscription year and stays UNPAID (contributing no quota) until that
- * invoice is marked paid. No subscription yet → nothing to pro-rate; the
- * device rides the org's first subscription invoice instead — and if that
- * invoice is issued but not yet paid, markInvoicePaid issues the proration at
- * payment time, once the anchor exists.
- *
- * Fail-open, matching the MQTT/pin posture above: the device is already
- * bound and its key already returned to the caller by the time this runs, so
- * a failed invoice write must never undo a successful claim.
- */
-async function issueProrationForClaimSafe(
-  organizationId: string,
-  deviceId: string,
-): Promise<void> {
-  try {
-    const [settings] = await db
-      .select({
-        startedAt: tenantSettings.subscriptionStartedAt,
-        renewsAt: tenantSettings.subscriptionRenewsAt,
-        price: tenantSettings.pricePerDeviceCents,
-      })
-      .from(tenantSettings)
-      .where(eq(tenantSettings.organizationId, organizationId))
-      .limit(1);
-
-    if (!settings?.startedAt || !settings.renewsAt) return;
-
-    const now = new Date();
-    await issueProrationInvoice({
-      organizationId,
-      deviceId,
-      pricePerDeviceCents: settings.price,
-      // Clamped to at least one month: a device claimed at or after the
-      // renewal instant (routine while a renewal sits unpaid — there is no
-      // cut-off) would otherwise price at zero, produce no invoice at all,
-      // and be claimed, unpaid and invisible.
-      monthsRemaining: prorationMonths(
-        monthsRemainingUntil(settings.renewsAt, now),
-        { deviceId, organizationId },
-      ),
-      periodStart: periodStartFor(settings.startedAt, now),
-      periodEnd: periodEndFor(settings.startedAt, now),
-      issuedAt: now,
-    });
-  } catch (err) {
-    console.error("proration invoice after claim failed", err);
-  }
-}
+// Claim-time billing (free slot vs. proration) lives in lib/invoices.ts so the
+// pairing-code claim below and the zero-touch auto-claim in
+// lib/factory-registry.ts settle identically. It is fail-open internally.
+import { settleClaimBilling } from "@/lib/invoices";
 
 export interface ClaimResult {
   deviceId: string;
@@ -141,7 +87,7 @@ export async function claimDevice(
     // Free. Fail-open, matching the subscription/MQTT posture above — a pin
     // hiccup must never fail a claim.
     await pushEffectivePinSafe(store.organizationId, [existing.id]);
-    await issueProrationForClaimSafe(store.organizationId, existing.id);
+    await settleClaimBilling(store.organizationId, existing.id);
     return { deviceId: existing.id, deviceName: existing.name, deviceKey: key };
   }
 
@@ -186,7 +132,7 @@ export async function claimDevice(
   // Free. Fail-open, matching the subscription/MQTT posture above — a pin
   // hiccup must never fail a claim.
   await pushEffectivePinSafe(store.organizationId, [deviceId]);
-  await issueProrationForClaimSafe(store.organizationId, deviceId);
+  await settleClaimBilling(store.organizationId, deviceId);
   return { deviceId, deviceName: name, deviceKey: key };
 }
 

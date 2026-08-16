@@ -266,7 +266,7 @@ export async function issueOverageInvoice(a: {
   periodEnd: Date;
   used: number;
   includedPerDevice: number;
-  paidDeviceCount: number;
+  slotCount: number;
   overagePriceCents: number;
   legacyCredits: number;
   issuedAt: Date;
@@ -274,9 +274,7 @@ export async function issueOverageInvoice(a: {
   const r = overageFor({
     used: a.used,
     includedPerDevice: a.includedPerDevice,
-    // Caller passes paid device SLOTS through this field, not a live device
-    // count — see overageFor's slotCount for why.
-    slotCount: a.paidDeviceCount,
+    slotCount: a.slotCount,
     overagePriceCents: a.overagePriceCents,
     legacyCredits: a.legacyCredits,
   });

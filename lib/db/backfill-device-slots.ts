@@ -6,6 +6,13 @@
 // Seeds each org's entitlement from what it currently occupies:
 //   paidDeviceSlots = count(devices with subscriptionPaidAt set)
 //
+// DO NOT re-run this after the deploy. It recomputes purely from live device
+// occupancy, so a later run would clobber an entitlement that has since
+// become independent of occupancy by design — invoice payments move it
+// (lib/invoices.ts markInvoicePaid), and RMA/device removal deliberately does
+// not shrink it. Re-running post-deploy would silently confiscate slots the
+// org already paid for.
+//
 // Run:  npx tsx lib/db/backfill-device-slots.ts
 // NOTE: .env.local points at PRODUCTION. This writes to the live database.
 

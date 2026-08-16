@@ -204,7 +204,8 @@ export const tenantSettings = pgTable("tenant_settings", {
   // --- Subscription plan (2026-08-15 subscription-billing spec) ------------
   // One plan: $15/device/month billed annually by bank transfer, 1000 triggers
   // per paid device per month POOLED at the org, $0.02/trigger post-paid
-  // overage. `billingPlan` and the credit ledger are removed in migration 0043.
+  // overage. `billingPlan` and the credit ledger are removed in migration 0044
+  // (0043 was taken by `paid_device_slots`, see below).
   //
   // null = not subscribed yet. Set when a platform admin marks the first
   // subscription invoice paid; it is the anchor for every billing period.

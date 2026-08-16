@@ -46,8 +46,12 @@ export function SubscriptionCard(props: {
         ? "overdue"
         : "active";
   const ui = STATUS_UI[status];
+  // The entitlement for this contract year, not a live-occupancy snapshot —
+  // it must not drop when an RMA frees a slot; the org already paid for the
+  // full year. A renewal preview (a different question) is priced from live
+  // occupancy at issuance time, in lib/billing-cron.ts.
   const annualAmountCents = subscriptionAmountCents(
-    props.paidDeviceCount,
+    props.paidDeviceSlots,
     props.pricePerDeviceCents,
   );
 

@@ -14,7 +14,6 @@ import {
   isNotNull,
   isNull,
   lt,
-  lte,
   ne,
   sql,
 } from "drizzle-orm";
@@ -37,6 +36,7 @@ import {
   prorationMonths as clampProrationMonths,
   subscriptionAmountCents,
 } from "./invoicing";
+import { freeSlots, slotsAfterPayment } from "./device-slots";
 
 /**
  * `prorationMonths` with a log when the clamp fires. A zero-month proration
@@ -339,53 +339,6 @@ export async function listInvoices(
     .limit(limit);
 }
 
-/**
- * Which unpaid devices a paid subscription invoice activates. At most
- * `deviceCount`, oldest-claimed first (the caller supplies that order).
- *
- * Two exclusions, both closing a free-ride:
- * - Devices claimed AFTER the invoice was issued are never in
- *   `unpaidDeviceIds` (the caller pins the query to `issuedAt`), or a customer
- *   could claim extra hardware between issue and payment and ride in free.
- * - Devices that already hold a live proration invoice are filtered out HERE.
- *   The count guard (activatableDeviceCount) is not enough on its own: delete
- *   a paid device and `invoicedDeviceCount − alreadyPaid` goes positive again,
- *   and the freed slot would activate a device that is separately invoiced —
- *   a free ride and a standing double charge at once.
- *
- * Filter before the slice: a device paying its own way must not consume one of
- * the invoice's activation slots.
- */
-export function devicesToActivate(a: {
-  deviceCount: number;
-  unpaidDeviceIds: string[];
-  proratedDeviceIds: ReadonlySet<string>;
-}): string[] {
-  return a.unpaidDeviceIds
-    .filter((deviceId) => !a.proratedDeviceIds.has(deviceId))
-    .slice(0, Math.max(0, a.deviceCount));
-}
-
-/**
- * How many devices a subscription invoice still has left to activate.
- *
- * `invoice.deviceCount` is what the invoice was PRICED for, not what it still
- * owes. At first activation the two coincide (nothing is paid yet). At renewal
- * the cron prices the invoice with `countPaidDevices` — devices that are
- * ALREADY paid — so activating `deviceCount` more devices would hand free
- * activation to whatever unpaid devices happen to exist (e.g. one claimed
- * during the 30-day renewal lead window, which has its own proration invoice
- * still open). Subtracting the already-paid count makes a renewal activate
- * exactly zero, which is correct: a renewal buys another year for devices that
- * are already on the subscription.
- */
-export function activatableDeviceCount(a: {
-  invoicedDeviceCount: number;
-  alreadyPaidCount: number;
-}): number {
-  return Math.max(0, a.invoicedDeviceCount - Math.max(0, a.alreadyPaidCount));
-}
-
 export async function markInvoicePaid(a: {
   invoiceId: string;
   tryAmountKurus: number;
@@ -422,10 +375,23 @@ export async function markInvoicePaid(a: {
   }
 
   if (inv.kind === "proration" && inv.deviceId) {
+    // A proration buys exactly the one device it covers, so the entitlement
+    // rises by one. The SQL increment (not read-then-write) matters: two
+    // prorations settled concurrently must both count.
     await db
-      .update(device)
-      .set({ subscriptionPaidAt: now })
-      .where(eq(device.id, inv.deviceId));
+      .update(tenantSettings)
+      .set({
+        paidDeviceSlots: sql`${tenantSettings.paidDeviceSlots} + 1`,
+        updatedAt: now,
+      })
+      .where(eq(tenantSettings.organizationId, inv.organizationId));
+
+    // Same helper as the subscription path, so the void-the-superseded-invoice
+    // rule applies uniformly. Note the invoice being paid here IS this
+    // device's own open proration — but it can't be the one voided: the void
+    // is conditioned on status = "open" and this row was just marked "paid"
+    // above, so it never matches.
+    await activateDeviceIntoSlot(inv.deviceId, inv.organizationId, now);
     return { ok: true, organizationId: inv.organizationId };
   }
 
@@ -435,6 +401,7 @@ export async function markInvoicePaid(a: {
         startedAt: tenantSettings.subscriptionStartedAt,
         renewsAt: tenantSettings.subscriptionRenewsAt,
         price: tenantSettings.pricePerDeviceCents,
+        slots: tenantSettings.paidDeviceSlots,
       })
       .from(tenantSettings)
       .where(eq(tenantSettings.organizationId, inv.organizationId))
@@ -454,6 +421,16 @@ export async function markInvoicePaid(a: {
       : addMonthsAnchored(settings.renewsAt ?? renewalDueAt(now), MONTHS_PER_YEAR);
     const pricePerDeviceCents = settings?.price ?? DEFAULT_PRICE_PER_DEVICE_CENTS;
 
+    // Computed once, reused in the upsert below and in the activation step
+    // that follows — two copies would invite drift. A subscription payment
+    // REPLACES the entitlement with what it was priced for, first activation
+    // or renewal alike.
+    const newSlots = slotsAfterPayment({
+      kind: "subscription",
+      currentSlots: settings?.slots ?? 0,
+      invoiceDeviceCount: inv.deviceCount,
+    });
+
     // UPSERT, not UPDATE: an org can exist without a tenantSettings row (it is
     // created lazily by Branding / Device Settings and by registration), and a
     // bare UPDATE would match zero rows — devices would activate while
@@ -466,30 +443,28 @@ export async function markInvoicePaid(a: {
         organizationId: inv.organizationId,
         subscriptionStartedAt: startedAt,
         subscriptionRenewsAt: renewsAt,
+        paidDeviceSlots: newSlots,
       })
       .onConflictDoUpdate({
         target: tenantSettings.organizationId,
         set: {
           subscriptionStartedAt: startedAt,
           subscriptionRenewsAt: renewsAt,
+          paidDeviceSlots: newSlots,
           updatedAt: now,
         },
       });
 
-    // What the invoice still OWES, not what it was priced for. A renewal is
-    // priced with countPaidDevices, so its deviceCount describes devices that
-    // are already paid; without this cap it would activate that many *unpaid*
-    // devices for free. See activatableDeviceCount.
-    const alreadyPaid = await countPaidDevices(inv.organizationId);
-    const remaining = activatableDeviceCount({
-      invoicedDeviceCount: inv.deviceCount ?? 0,
-      alreadyPaidCount: alreadyPaid,
-    });
+    // Activation is now bounded by the entitlement itself: you cannot occupy a
+    // slot that does not exist. This replaces the old count cap and the
+    // issuance-time pin — at a renewal the newly written slots equal the
+    // already-paid devices, so free is 0 and nothing rides in free. When a paid
+    // device has since gone to RMA, free is 1 and the replacement takes it,
+    // which is exactly the intended behaviour rather than the accident it used
+    // to be.
+    const paidNow = await countPaidDevices(inv.organizationId);
+    const free = freeSlots({ paidDeviceSlots: newSlots, paidDevices: paidNow });
 
-    // Pinned to the invoice's issuance moment: a device claimed AFTER the
-    // invoice was issued is not on it and must ride its own proration invoice,
-    // otherwise a customer claims extra hardware between issue and payment and
-    // rides in for free.
     const unpaid = await db
       .select({ id: device.id })
       .from(device)
@@ -498,28 +473,12 @@ export async function markInvoicePaid(a: {
           eq(device.organizationId, inv.organizationId),
           isNull(device.subscriptionPaidAt),
           isNotNull(device.claimedAt),
-          lte(device.claimedAt, inv.issuedAt),
         ),
       )
       .orderBy(asc(device.claimedAt));
 
-    // A device that already owes a proration is paying its own way and must
-    // not be activated by this invoice — see devicesToActivate. Before the
-    // first subscription payment this set is always empty (prorations need an
-    // anchor, and the anchor is written a few lines above, in this very call),
-    // so nothing that legitimately rides the first invoice is stranded.
-    const alreadyProrated = await proratedDeviceIds(inv.organizationId);
-
-    const toActivate = devicesToActivate({
-      deviceCount: remaining,
-      unpaidDeviceIds: unpaid.map((d) => d.id),
-      proratedDeviceIds: alreadyProrated,
-    });
-    for (const deviceId of toActivate) {
-      await db
-        .update(device)
-        .set({ subscriptionPaidAt: now })
-        .where(eq(device.id, deviceId));
+    for (const d of unpaid.slice(0, free)) {
+      await activateDeviceIntoSlot(d.id, inv.organizationId, now);
     }
 
     // Anything still unpaid now needs its own proration invoice. A device
@@ -561,12 +520,53 @@ export async function markInvoicePaid(a: {
 }
 
 /**
+ * Put a device into a paid slot and make sure it leaves no bill behind. A
+ * device can hold an open proration invoice and only LATER find itself in a
+ * free slot — it was claimed while the org was full, and a paid device went to
+ * RMA afterwards. Activating it for free while that invoice still stands would
+ * charge the customer for a device they were given, which is the exact
+ * double-charge the slot model exists to remove.
+ */
+async function activateDeviceIntoSlot(
+  deviceId: string,
+  organizationId: string,
+  now: Date,
+): Promise<void> {
+  await db
+    .update(device)
+    .set({ subscriptionPaidAt: now })
+    .where(eq(device.id, deviceId));
+
+  const voided = await db
+    .update(invoice)
+    .set({
+      status: "void",
+      note: "Superseded: the device was activated into a free slot.",
+    })
+    .where(
+      and(
+        eq(invoice.deviceId, deviceId),
+        eq(invoice.kind, "proration"),
+        eq(invoice.status, "open"),
+      ),
+    )
+    .returning({ id: invoice.id });
+
+  if (voided.length > 0) {
+    console.warn("[billing] voided a proration superseded by a free slot", {
+      deviceId,
+      organizationId,
+      invoiceIds: voided.map((v) => v.id),
+    });
+  }
+}
+
+/**
  * Devices in this org that already carry a live (non-void) proration invoice.
- *
- * Two callers, one definition on purpose. It decides who does NOT need a new
- * proration (issueProrationsForUnpaidDevices) and who must NOT be activated by
- * a subscription payment (markInvoicePaid) — a device on both sides of that
- * split would be charged twice or ride for free, so the two must never drift.
+ * Used by `issueProrationsForUnpaidDevices` to decide who does NOT need a new
+ * one. (The `markInvoicePaid` subscription path used to consult this too, to
+ * decide who must NOT be activated for free — that job now belongs to the
+ * slot count itself; see `activateDeviceIntoSlot`.)
  *
  * Void invoices don't count: voiding a proration is how an operator re-issues
  * one, and canVoidInvoice permits exactly that.

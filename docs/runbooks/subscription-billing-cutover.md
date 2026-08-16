@@ -3,6 +3,8 @@
 This is the operator checklist for taking the `feat/subscription-billing`
 branch live: applying its migration, backfilling existing data, deploying,
 verifying, and — later, separately — removing the credit system it replaces.
+It also covers the `feat/device-slots` follow-up branch built on top of it
+(§5), which separates the paid entitlement from the device occupying it.
 
 `.env.local` in this repo points at the **production** Neon database. Every
 command below that touches the database is a production write. Do not run any
@@ -11,9 +13,11 @@ to the next one.
 
 Background: `.superpowers/sdd/2026-08-15-subscription-billing/task-16-brief.md`
 describes the full plan this runbook is drawn from. Its cutover steps become
-§1–4 below (migrate, backfill, deploy, verify); its clean-up steps become §5,
+§1–4 below (migrate, backfill, deploy, verify); its clean-up steps become §6,
 the destructive follow-up, which is deliberately deferred to a later sitting.
-The additive
+§5, the device-slot cutover, is a separate later branch (plan:
+`docs/superpowers/plans/2026-08-16-device-slots.md`) slotted in before that
+deferred clean-up because it is additive and unrelated to it. The additive
 migration file (`drizzle/0042_magical_korg.sql`) and every code change it
 depends on — the subscription gate, the new `tenantSettings`/`device`
 columns, the `invoice` table, the admin/tenant billing pages — are already
@@ -107,7 +111,7 @@ vercel --prod --yes
 
 ## 4. Verify before touching anything else
 
-Confirm all four of these hold on production. **Do not start step 5 (the
+Confirm all four of these hold on production. **Do not start §6 (the
 destructive follow-up) until they do:**
 
 1. A real device still triggers successfully.
@@ -128,7 +132,69 @@ while the fleet or the billing UI is in a broken state.
 
 ---
 
-## 5. Deferred: the destructive follow-up
+## 5. Device-slot cutover (`feat/device-slots`)
+
+This section takes the `feat/device-slots` branch live: applying its
+migration, backfilling the entitlement, deploying, and verifying. It is
+additive — like §1–4, it is safe to run against a database the currently
+deployed (pre-cutover) code is still reading from — so it does not need to
+wait for §6 (the deferred destructive follow-up) below; run it whenever this
+branch is ready. Migration numbering: this branch claimed **0043** for
+`paid_device_slots`, so the credit-teardown migration in §6 has been renumbered
+to **0044** — do not generate a `0043` migration for that work, it would
+collide with what §5.1 already applied.
+
+### 5.1. Apply migration 0043
+
+```bash
+npm run db:migrate
+```
+
+Migration 0043 is additive only — it adds `tenant_settings.paid_device_slots`
+(`integer`, default `0`, not null). It does not drop or rename anything, so
+it is safe to run before the new code deploys.
+
+### 5.2. Run the backfill
+
+```bash
+npx tsx lib/db/backfill-device-slots.ts
+```
+
+**This step is not optional.** Migration 0043 adds `paid_device_slots` with a
+default of `0` — every existing org reads 0 slots until this script runs,
+which zeroes quotas and causes replacement-device activations to be refused.
+Deploy the new code (§5.3) before this script has run and the entire fleet
+loses its quota the moment the new code starts reading the column.
+
+The script (`lib/db/backfill-device-slots.ts`) seeds each org's entitlement
+from what it currently occupies: `paidDeviceSlots = count(devices with
+subscriptionPaidAt set)`. It is idempotent **only up to the deploy** — it
+recomputes from live device occupancy, so run it before §5.3 and not again
+after. A slot deliberately becomes independent of occupancy the moment the
+new code is live (invoice payments move it; RMA/removal does not shrink it),
+and a post-deploy re-run would clobber that by recomputing from occupancy
+again, silently confiscating slots the org already paid for.
+
+### 5.3. Deploy the application
+
+```bash
+vercel --prod --yes
+```
+
+### 5.4. Verify
+
+1. A tenant's `/tenant/billing` page shows the expected slot count (`N of M
+   slots in use`, with a free-slot callout if any are vacant).
+2. On a test serial, mark it `rma` in `/admin/inventory` and confirm that
+   device's paid status clears and the org's free-slot count on its billing
+   page goes up by one.
+
+If either fails, treat it as a stop — do not proceed to §6 while the slot
+figures on the billing pages are wrong.
+
+---
+
+## 6. Deferred: the destructive follow-up
 
 Do this later, once step 4 has held for long enough that you're confident the
 cutover is solid — not in the same sitting as steps 1–4. It removes the
@@ -155,7 +221,7 @@ credit system entirely, so it should not be rushed.
    ```bash
    npm run db:generate
    ```
-   Open the new `drizzle/0043_*.sql`. This repo has a known drizzle-kit
+   Open the new `drizzle/0044_*.sql`. This repo has a known drizzle-kit
    snapshot-drift issue (see the `drizzle-snapshot-drift` memory) where
    `db:generate` can emit spurious churn unrelated to your actual change —
    **strip the file down to exactly three `DROP TABLE` statements
@@ -166,7 +232,7 @@ credit system entirely, so it should not be rushed.
    ```bash
    npx tsc --noEmit && npm test && npm run build
    git add -A
-   git commit -m "feat(db): drop credit tables and billing_plan (migration 0043)"
+   git commit -m "feat(db): drop credit tables and billing_plan (migration 0044)"
    ```
 6. **Apply and deploy:**
    ```bash
@@ -174,7 +240,7 @@ credit system entirely, so it should not be rushed.
    vercel --prod --yes
    ```
 
-## 6. Known-inert until you act on them
+## 7. Known-inert until you act on them
 
 - **Invoice email does not reach customers.** Resend has no verified sending
   domain on this project (see `docs/runbooks/phase-0-activation.md` §2 for the

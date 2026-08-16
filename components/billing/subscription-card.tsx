@@ -28,6 +28,8 @@ export function SubscriptionCard(props: {
   subscriptionRenewsAt: Date | null;
   pricePerDeviceCents: number;
   paidDeviceCount: number;
+  paidDeviceSlots: number;
+  freeSlots: number;
   invoices: InvoiceRow[];
   disabled?: boolean;
 }) {
@@ -92,9 +94,15 @@ export function SubscriptionCard(props: {
               </p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground">Paid devices</p>
-              <p className="font-medium tabular-nums">
-                {formatNumber(props.paidDeviceCount)}
+              <p className="text-xs text-muted-foreground">Slots</p>
+              <p className="flex items-center gap-2 font-medium tabular-nums">
+                {formatNumber(props.paidDeviceCount)} of{" "}
+                {formatNumber(props.paidDeviceSlots)} in use
+                {props.freeSlots > 0 && (
+                  <Badge variant="secondary" className="tabular-nums">
+                    {formatNumber(props.freeSlots)} free
+                  </Badge>
+                )}
               </p>
             </div>
             <div>

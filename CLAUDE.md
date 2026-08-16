@@ -156,11 +156,17 @@ annually** ($180/year up front), paid by **bank transfer** — there is no
 payment gateway integration. Billing periods are **anniversary-based**, not
 calendar months: `tenantSettings.subscriptionStartedAt` anchors the org's
 12-month cycle, advanced by `addMonthsAnchored` each time a renewal invoice is
-paid. Each **paid** device includes **1,000 triggers/month**, pooled at the
-org (not per-device); usage past the pool is **post-paid overage at
-$0.02/trigger** — overage never blocks a request, it only shows up on the
-next invoice. An unpaid device gets 50 lifetime trial triggers before the
-trigger route starts rejecting it (see Device trigger flow above). Pin
+paid. Included quota derives from **slots, not live devices**:
+`tenantSettings.paidDeviceSlots` is what the org PAID for, written only when
+an invoice is paid (`lib/invoices.ts` markInvoicePaid) — a slot deliberately
+outlives the device occupying it, so an RMA'd or removed device frees its
+slot (`lib/device-slots.ts` `freeSlots`) without shrinking the entitlement
+until renewal, and a replacement device claims into the vacancy for free.
+Each paid **slot** includes **1,000 triggers/month**, pooled at the org (not
+per-device); usage past the pool is **post-paid overage at $0.02/trigger** —
+overage never blocks a request, it only shows up on the next invoice. An
+unpaid device gets 50 lifetime trial triggers before the trigger route starts
+rejecting it (see Device trigger flow above). Pin
 changes (`deviceCommand.type: "pin"`) are a separate command from `trigger`
 and are never charged. The daily `GET /api/cron/billing` sweep
 (`runBillingCron`) issues subscription and overage invoices with **net-14**

@@ -130,6 +130,7 @@ export async function runBillingCron(now: Date = new Date()): Promise<{
       overagePrice: tenantSettings.overagePriceCents,
       included: tenantSettings.includedTriggersPerDevice,
       legacyCredits: tenantSettings.legacyCreditsRemaining,
+      paidDeviceSlots: tenantSettings.paidDeviceSlots,
     })
     .from(tenantSettings)
     .where(
@@ -164,14 +165,15 @@ export async function runBillingCron(now: Date = new Date()): Promise<{
           from: closedStart,
           to: closedEnd,
         });
-        const paidDevices = await countPaidDevices(org.organizationId);
         const issued = await issueOverageInvoice({
           organizationId: org.organizationId,
           periodStart: closedStart,
           periodEnd: closedEnd,
           used,
           includedPerDevice: org.included,
-          paidDeviceCount: paidDevices,
+          // Quota is pooled from paid SLOTS, not a live device count — an
+          // RMA'd device frees its slot without shrinking the entitlement.
+          paidDeviceCount: org.paidDeviceSlots,
           overagePriceCents: org.overagePrice,
           // legacyCreditsRemaining is nullable: null means the cutover backfill
           // has not run for this org yet, which means zero credits, not "skip".

@@ -173,7 +173,7 @@ export async function runBillingCron(now: Date = new Date()): Promise<{
           includedPerDevice: org.included,
           // Quota is pooled from paid SLOTS, not a live device count — an
           // RMA'd device frees its slot without shrinking the entitlement.
-          paidDeviceCount: org.paidDeviceSlots,
+          slotCount: org.paidDeviceSlots,
           overagePriceCents: org.overagePrice,
           // legacyCreditsRemaining is nullable: null means the cutover backfill
           // has not run for this org yet, which means zero credits, not "skip".

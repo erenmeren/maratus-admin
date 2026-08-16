@@ -11,6 +11,30 @@ export function freeSlots(a: { paidDeviceSlots: number; paidDevices: number }): 
 }
 
 /**
+ * How many slots a subscription payment writes that its invoice was never
+ * priced for — the size of the `max(…, paidDevices)` floor in
+ * `slotsAfterPayment` when it actually fires.
+ *
+ * Normally zero. It is non-zero on a reachable, blameless sequence: an org
+ * drops from 2 devices to 1, the cron prices the renewal at 1, a device then
+ * claims into the still-vacant slot during the lead window (correctly free
+ * for the remainder of the OLD year), and the renewal is paid — so the floor
+ * writes 2 slots against an invoice for 1 and the customer runs two devices
+ * for a year having paid for one.
+ *
+ * The floor stays: the alternative is confiscating quota the customer paid
+ * for, which is worse, and the leak self-corrects at the following renewal
+ * (bounded at one device-year). This function exists so the operator can SEE
+ * it — nothing surfaced it before.
+ */
+export function unpricedSlots(a: {
+  invoiceDeviceCount: number | null;
+  paidDevices: number;
+}): number {
+  return Math.max(0, a.paidDevices - (a.invoiceDeviceCount ?? 0));
+}
+
+/**
  * The entitlement after an invoice is paid. A subscription invoice — first
  * activation or renewal alike — REPLACES the entitlement with what it was
  * priced for, which is how a voluntary reduction settles once a year. A

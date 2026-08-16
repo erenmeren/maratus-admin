@@ -39,7 +39,7 @@ import {
   prorationMonths as clampProrationMonths,
   subscriptionAmountCents,
 } from "./invoicing";
-import { freeSlots, slotsAfterPayment } from "./device-slots";
+import { freeSlots, slotsAfterPayment, unpricedSlots } from "./device-slots";
 
 /**
  * `prorationMonths` with a log when the clamp fires. A zero-month proration
@@ -464,6 +464,26 @@ export async function markInvoicePaid(a: {
       invoiceDeviceCount: inv.deviceCount,
       paidDevices: paidNow,
     });
+
+    // The floor above can write more slots than this invoice was priced for —
+    // see unpricedSlots for the sequence, which is reachable without malice.
+    // The arithmetic is deliberate (confiscating paid-for quota would be
+    // worse) and the loss is bounded at one device-year, but nothing surfaced
+    // it. Say so, naming the org, the invoiced count and what was written, so
+    // the operator can decide whether to bill the difference off-system.
+    const unpriced = unpricedSlots({
+      invoiceDeviceCount: inv.deviceCount,
+      paidDevices: paidNow,
+    });
+    if (unpriced > 0) {
+      console.warn("[billing] renewal wrote more slots than it was priced for", {
+        organizationId: inv.organizationId,
+        invoiceId: inv.id,
+        invoicedDeviceCount: inv.deviceCount,
+        slotsWritten: newSlots,
+        unpricedSlots: unpriced,
+      });
+    }
 
     // UPSERT, not UPDATE: an org can exist without a tenantSettings row (it is
     // created lazily by Branding / Device Settings and by registration), and a

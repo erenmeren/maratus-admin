@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { freeSlots, slotsAfterPayment } from "./device-slots";
+import { freeSlots, slotsAfterPayment, unpricedSlots } from "./device-slots";
 
 describe("freeSlots", () => {
   it("is the entitlement minus what occupies it", () => {
@@ -22,6 +22,29 @@ describe("freeSlots", () => {
   it("frees a slot when a paid device leaves", () => {
     // The RMA case: entitlement holds, occupancy drops.
     expect(freeSlots({ paidDeviceSlots: 2, paidDevices: 1 })).toBe(1);
+  });
+});
+
+describe("unpricedSlots", () => {
+  it("is zero when the invoice covers every paid device", () => {
+    expect(unpricedSlots({ invoiceDeviceCount: 2, paidDevices: 2 })).toBe(0);
+  });
+
+  it("is zero when the invoice was priced for more than is occupied", () => {
+    // The customer paid for a slot that now sits empty — their money, their
+    // slot. Nothing to surface.
+    expect(unpricedSlots({ invoiceDeviceCount: 3, paidDevices: 1 })).toBe(0);
+  });
+
+  it("counts the lead-window device the renewal was never priced for", () => {
+    // Renewal issued at 1 device; a replacement then claimed into the still
+    // vacant slot for free before the renewal was paid, so 2 slots get
+    // written against an invoice for 1.
+    expect(unpricedSlots({ invoiceDeviceCount: 1, paidDevices: 2 })).toBe(1);
+  });
+
+  it("treats a null deviceCount as zero", () => {
+    expect(unpricedSlots({ invoiceDeviceCount: null, paidDevices: 2 })).toBe(2);
   });
 });
 

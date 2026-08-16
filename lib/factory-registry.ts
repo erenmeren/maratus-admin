@@ -15,6 +15,7 @@ import { chunk } from "./chunk";
 import { generateDeviceKey, id } from "./ids";
 import { deprovisionDeviceMqtt, provisionDeviceMqtt } from "@/lib/mqtt";
 import { pushEffectivePinSafe } from "@/lib/pin-service";
+import { settleClaimBilling } from "@/lib/invoices";
 import type { RegistryAllocationSnapshot, RegistryStatus } from "./provisioning";
 import type { RegistryCsvRow } from "./factory-registry-csv";
 import { clampPage, foldDeallocatedByOrg } from "./factory-registry-fold";
@@ -448,6 +449,16 @@ export async function autoClaimDevice(
   // Free. Fail-open + outside the transaction, same posture as above — a pin
   // hiccup must never unwind a committed claim.
   await pushEffectivePinSafe(claimedOrganizationId, [deviceId]);
+
+  // Claim-time billing, identical to the pairing-code path (lib/device-claim.ts):
+  // a free slot activates this device for nothing, otherwise it is pro-rated
+  // for the rest of the org's subscription year. This path is the one that
+  // MATTERS for the slot model — RMA status lives on `factoryDevice`, so a
+  // replacement for an RMA'd unit reaches its customer by allocation +
+  // zero-touch and lands exactly here. Fail-open (settleClaimBilling swallows
+  // its own errors) + outside the transaction, same posture as MQTT and pin
+  // above: a billing hiccup must never unwind a committed claim.
+  await settleClaimBilling(claimedOrganizationId, deviceId);
 
   return { deviceKey: key, deviceId, organizationId: claimedOrganizationId };
 }

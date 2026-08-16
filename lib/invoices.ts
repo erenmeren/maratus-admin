@@ -22,7 +22,7 @@ import {
 import { db } from "./db";
 import { device, deviceCommand, factoryDevice, invoice, tenantSettings } from "./db/schema";
 import { id } from "./ids";
-import { AUDIT, recordAudit } from "./audit";
+import { AUDIT, recordAudit, type AuditActor } from "./audit";
 import {
   addMonthsAnchored,
   MONTHS_PER_YEAR,
@@ -369,6 +369,11 @@ export async function markInvoicePaid(a: {
   | { ok: false; reason: "not_found" | "already_settled" }
 > {
   const now = a.now ?? new Date();
+  // The admin who marked this invoice paid: the actor on every audit row this
+  // settlement writes downstream (a superseded proration voided by an
+  // activation is a consequence of THIS click). No email is in scope here —
+  // unlike the action layer, this function only ever sees a user id.
+  const actor: AuditActor = { type: "user", id: a.userId, label: a.userId };
 
   // Settle the row first, conditioned on status — this is the concurrency gate,
   // so a double-click cannot activate devices twice.
@@ -410,7 +415,7 @@ export async function markInvoicePaid(a: {
     // device's own open proration — but it can't be the one voided: the void
     // is conditioned on status = "open" and this row was just marked "paid"
     // above, so it never matches.
-    await activateDeviceIntoSlot(inv.deviceId, inv.organizationId, now, a.userId);
+    await activateDeviceIntoSlot(inv.deviceId, inv.organizationId, now, actor);
     return { ok: true, organizationId: inv.organizationId };
   }
 
@@ -500,7 +505,7 @@ export async function markInvoicePaid(a: {
       freeSlots: free,
     });
     for (const deviceId of toActivate) {
-      await activateDeviceIntoSlot(deviceId, inv.organizationId, now, a.userId);
+      await activateDeviceIntoSlot(deviceId, inv.organizationId, now, actor);
     }
 
     // Anything still unpaid now needs its own proration invoice. A device
@@ -586,7 +591,7 @@ async function activateDeviceIntoSlot(
   deviceId: string,
   organizationId: string,
   now: Date,
-  actorUserId: string,
+  actor: AuditActor,
 ): Promise<void> {
   await db
     .update(device)
@@ -616,14 +621,13 @@ async function activateDeviceIntoSlot(
       invoiceId: v.id,
     });
     // Best-effort, like every other recordAudit call — the void itself
-    // already happened and must not be undone by an audit-log hiccup. Actor
-    // is the admin who marked the ORIGINAL invoice paid (that's all that's in
-    // scope here; unlike the action layer this function never sees an email),
-    // because it is that payment which freed the slot this device now
-    // occupies.
+    // already happened and must not be undone by an audit-log hiccup. The
+    // actor is whoever caused the slot to open up: the admin who marked the
+    // freeing invoice paid, or `system` when the trigger was an inventory
+    // status change or a claim landing in an already-vacant slot.
     await recordAudit({
       organizationId,
-      actor: { type: "user", id: actorUserId, label: actorUserId },
+      actor,
       action: AUDIT.invoiceVoided,
       target: { type: "invoice", id: v.id },
       metadata: { reason: "device_activated_into_free_slot", deviceId },
@@ -665,6 +669,83 @@ async function proratedDeviceIds(organizationId: string): Promise<Set<string>> {
  * prorated a second time if the renewal is paid after the next anniversary.
  * Void invoices don't count — voiding is how an operator re-issues one.
  */
+/**
+ * Claim-time billing settlement — the ONE place that decides what a freshly
+ * claimed device costs. Shared by both live claim paths: the pairing-code
+ * claim (`lib/device-claim.ts`) and the zero-touch serial auto-claim
+ * (`lib/factory-registry.ts`). They must agree: RMA status lives on
+ * `factoryDevice`, so the customers the slot model is FOR are precisely the
+ * serial-provisioned ones whose replacements arrive by allocation +
+ * zero-touch. A path that skips this both fails to hand the replacement its
+ * free slot (it goes dark after the trial) and never bills the device at all.
+ *
+ * A free slot means the org already paid for this device's place — a
+ * replacement for one that went to RMA, or a device filling a slot its
+ * predecessor vacated. Activate it and bill nothing. Otherwise the device is
+ * billed for the remaining months of the org's subscription year and stays
+ * UNPAID (contributing no quota) until that invoice is marked paid.
+ *
+ * No subscription yet → nothing to pro-rate; the device rides the org's first
+ * subscription invoice instead — and if that invoice is issued but not yet
+ * paid, `markInvoicePaid` issues the proration at payment time, once the
+ * anchor exists.
+ *
+ * Fail-open, matching the MQTT/pin posture at both call sites: the device is
+ * already bound and its key already returned to the caller by the time this
+ * runs, so a failed invoice write must never undo a successful claim.
+ */
+export async function settleClaimBilling(
+  organizationId: string,
+  deviceId: string,
+): Promise<void> {
+  try {
+    const [settings] = await db
+      .select({
+        startedAt: tenantSettings.subscriptionStartedAt,
+        renewsAt: tenantSettings.subscriptionRenewsAt,
+        price: tenantSettings.pricePerDeviceCents,
+        slots: tenantSettings.paidDeviceSlots,
+      })
+      .from(tenantSettings)
+      .where(eq(tenantSettings.organizationId, organizationId))
+      .limit(1);
+
+    if (!settings?.startedAt || !settings.renewsAt) return;
+
+    const now = new Date();
+    const paidDevices = await countPaidDevices(organizationId);
+    if (freeSlots({ paidDeviceSlots: settings.slots, paidDevices }) > 0) {
+      // `system`, not a user: nobody clicked anything — the device claimed
+      // itself into a slot the org already owns.
+      await activateDeviceIntoSlot(deviceId, organizationId, now, { type: "system" });
+      console.warn("[billing] device claimed into a free slot; no invoice issued", {
+        deviceId,
+        organizationId,
+      });
+      return;
+    }
+
+    await issueProrationInvoice({
+      organizationId,
+      deviceId,
+      pricePerDeviceCents: settings.price,
+      // Clamped to at least one month: a device claimed at or after the
+      // renewal instant (routine while a renewal sits unpaid — there is no
+      // cut-off) would otherwise price at zero, produce no invoice at all,
+      // and be claimed, unpaid and invisible.
+      monthsRemaining: prorationMonths(monthsRemainingUntil(settings.renewsAt, now), {
+        deviceId,
+        organizationId,
+      }),
+      periodStart: periodStartFor(settings.startedAt, now),
+      periodEnd: periodEndFor(settings.startedAt, now),
+      issuedAt: now,
+    });
+  } catch (err) {
+    console.error("claim billing settlement failed", err);
+  }
+}
+
 async function issueProrationsForUnpaidDevices(a: {
   organizationId: string;
   startedAt: Date;

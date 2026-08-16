@@ -70,7 +70,7 @@ describe("prorationAmountCents", () => {
 describe("overageFor", () => {
   const base = {
     includedPerDevice: 1000,
-    paidDeviceCount: 2,
+    slotCount: 2,
     overagePriceCents: 2,
     legacyCredits: 0,
   };
@@ -95,9 +95,23 @@ describe("overageFor", () => {
   });
 
   it("gives an unpaid fleet no quota at all", () => {
-    const r = overageFor({ ...base, paidDeviceCount: 0, used: 10 });
+    const r = overageFor({ ...base, slotCount: 0, used: 10 });
     expect(r.includedTotal).toBe(0);
     expect(r.overageTriggers).toBe(10);
+  });
+
+  it("pools quota from paid SLOTS, not from live devices", () => {
+    // Two slots paid for, one device currently occupying them (the other is at
+    // RMA). The pool must stay at 2000 — this is the whole point of slots.
+    const r = overageFor({
+      used: 2500,
+      includedPerDevice: 1000,
+      slotCount: 2,
+      overagePriceCents: 2,
+      legacyCredits: 0,
+    });
+    expect(r.includedTotal).toBe(2000);
+    expect(r.overageTriggers).toBe(500);
   });
 
   it("offsets legacy credits before billing", () => {

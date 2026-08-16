@@ -507,6 +507,11 @@ export interface TenantBillingOverview {
   startedAt: Date | null;
   renewsAt: Date | null;
   paidDevices: number;
+  // Paid slots — what the org paid for, held separately from live device
+  // occupancy — and how many of those slots currently sit empty (an RMA'd
+  // device freed its slot without shrinking the entitlement).
+  paidDeviceSlots: number;
+  freeSlots: number;
   // Per-trigger/per-device cents, at rest — the page converts to dollars at
   // the display edge.
   pricePerDeviceCents: number;
@@ -531,6 +536,7 @@ export async function getTenantBillingOverview(
         pricePerDeviceCents: settingsTable.pricePerDeviceCents,
         overagePriceCents: settingsTable.overagePriceCents,
         includedTriggersPerDevice: settingsTable.includedTriggersPerDevice,
+        paidDeviceSlots: settingsTable.paidDeviceSlots,
       })
       .from(settingsTable)
       .where(eq(settingsTable.organizationId, organizationId))
@@ -540,6 +546,8 @@ export async function getTenantBillingOverview(
 
   const pricePerDeviceCents = settings?.pricePerDeviceCents ?? 0;
   const overagePriceCents = settings?.overagePriceCents ?? 0;
+  const paidDeviceSlots = settings?.paidDeviceSlots ?? 0;
+  const freeSlots = Math.max(0, paidDeviceSlots - paidDevices);
 
   // Unsubscribed orgs (subscriptionStartedAt still null) have no anchor to
   // compute a period from — render nothing rather than a nonsense window.
@@ -549,6 +557,8 @@ export async function getTenantBillingOverview(
       startedAt: null,
       renewsAt: settings?.renewsAt ?? null,
       paidDevices,
+      paidDeviceSlots,
+      freeSlots,
       pricePerDeviceCents,
       overagePriceCents,
       includedTotal: 0,
@@ -575,7 +585,7 @@ export async function getTenantBillingOverview(
   const overage = overageFor({
     used,
     includedPerDevice: settings.includedTriggersPerDevice,
-    paidDeviceCount: paidDevices,
+    slotCount: paidDeviceSlots,
     overagePriceCents,
     legacyCredits: 0,
   });
@@ -585,6 +595,8 @@ export async function getTenantBillingOverview(
     startedAt: settings.startedAt,
     renewsAt: settings.renewsAt,
     paidDevices,
+    paidDeviceSlots,
+    freeSlots,
     pricePerDeviceCents,
     overagePriceCents,
     includedTotal: overage.includedTotal,

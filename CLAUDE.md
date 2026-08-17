@@ -49,12 +49,13 @@ Better Auth core: `user` (+`role`), `session` (+`activeOrganizationId`), `accoun
 App tables (all FK → `organizationId`): `tenantSettings` (PK=orgId), `store`,
 `device`, `deviceCommand`, `apiKey`, `invoice`, `firmwareRelease`,
 `factoryDevice`, `auditLog`, `alert`. Relations in `lib/db/relations.ts`.
-`creditBalance`, `creditLedger`, and `deviceUsageMonth` are still defined in
-the schema but dead code — nothing in the app reads or writes them anymore
-(see Billing below). They stay until the operator runs the deferred
-destructive migration described in
-`docs/runbooks/subscription-billing-cutover.md`; don't build new code against
-them.
+The credit system is gone: `creditBalance`, `creditLedger` and
+`deviceUsageMonth`, plus `tenantSettings.billingPlan` and
+`deviceCommand.billing`, were dropped in migration 0044 (2026-08-17). The one
+survivor is `tenantSettings.legacyCreditsRemaining`, which offsets a cutover
+org's first overage invoice. Historical `credits.*` rows in `auditLog` still
+render — their labels stay in `lib/audit-labels.ts` even though nothing can
+write those actions anymore.
 
 - **`organization` = tenant.** Tenant roles (owner/admin/member) live on `member`.
 - **Platform/super-admin is NOT an org membership** — it's `user.role =

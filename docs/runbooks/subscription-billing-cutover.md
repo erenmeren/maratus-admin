@@ -132,7 +132,15 @@ while the fleet or the billing UI is in a broken state.
 
 ---
 
-## 5. Device-slot cutover (`feat/device-slots`)
+## 5. Device-slot cutover (`feat/device-slots`) — ✅ DONE 2026-08-17
+
+Ran against production on 2026-08-17: migration 0043 applied, the backfill
+seeded the single org with 1 slot, `79674b7` deployed
+(`ditto-admin-9yrwg2t0q`). §5.4's first check passed
+(`paidDeviceSlots: 1, freeSlots: 0, includedTotal: 1000`); its second (marking
+a serial `rma` to watch a slot free) was **skipped** — the only live device is
+the real b580 and there is no un-RMA action. §5.5's cohort query returned no
+rows, so there was nothing to release. Kept below for the record.
 
 This section takes the `feat/device-slots` branch live: applying its
 migration, backfilling the entitlement, deploying, and verifying. It is
@@ -284,11 +292,14 @@ step just freed.
 
 ---
 
-## 6. Deferred: the destructive follow-up
+## 6. The destructive follow-up — ✅ DONE 2026-08-17
 
-Do this later, once step 4 has held for long enough that you're confident the
-cutover is solid — not in the same sitting as steps 1–4. It removes the
-credit system entirely, so it should not be rushed.
+Ran on 2026-08-17, right after §5. Migration `0044_rainy_whirlwind.sql` came
+out of `db:generate` as exactly the five statements below with no snapshot
+drift, so nothing had to be stripped. Kept for the record; nothing here is
+outstanding.
+
+It removed the credit system entirely.
 
 1. **Edit `lib/db/schema.ts`.** Delete `tenantSettings.billingPlan`,
    `deviceCommand.billing`, and the `creditBalance`, `creditLedger`, and

@@ -204,8 +204,8 @@ export const tenantSettings = pgTable("tenant_settings", {
   // --- Subscription plan (2026-08-15 subscription-billing spec) ------------
   // One plan: $15/device/month billed annually by bank transfer, 1000 triggers
   // per paid device per month POOLED at the org, $0.02/trigger post-paid
-  // overage. `billingPlan` and the credit ledger are removed in migration 0044
-  // (0043 was taken by `paid_device_slots`, see below).
+  // overage. `billingPlan` and the credit ledger it selected were dropped in
+  // migration 0044; `legacyCreditsRemaining` below is all that outlived them.
   //
   // null = not subscribed yet. Set when a platform admin marks the first
   // subscription invoice paid; it is the anchor for every billing period.
@@ -232,11 +232,6 @@ export const tenantSettings = pgTable("tenant_settings", {
   // makes the backfill safe to re-run, since 0 is a state the billing
   // system reaches legitimately. Readers must coalesce null to 0.
   legacyCreditsRemaining: integer("legacy_credits_remaining"),
-  // Retained for backward compatibility until Task 16 drops it; superseded by
-  // the subscription columns above.
-  billingPlan: text("billing_plan", { enum: ["credits", "flat", "base_usage"] })
-    .default("credits")
-    .notNull(),
   status: text("status", { enum: ["active", "paused"] })
     .default("active")
     .notNull(),
@@ -410,11 +405,6 @@ export const deviceCommand = pgTable(
     status: text("status", { enum: ["pending", "acked", "failed", "expired"] }).default("pending").notNull(),
     result: text("result"),
     action: text("action"),
-    // How this trigger was paid: "credits" = a credit hold exists for this
-    // commandId; "included" = covered by the org's plan (flat / base quota) —
-    // ack/expiry must NOT move credits for "included". Null on non-trigger
-    // commands and on pre-plan legacy rows (treated as "credits").
-    billing: text("billing", { enum: ["credits", "included"] }),
     // Pin commands only: true when this row merely re-delivers the CURRENT
     // effective pin after a membership change (claim, move, store deletion) —
     // nothing the tenant asked for, never charged. False = the command carries
@@ -484,37 +474,6 @@ export const apiKey = pgTable(
   ],
 );
 
-export const creditBalance = pgTable("credit_balance", {
-  organizationId: text("organization_id").primaryKey().references(() => organization.id, { onDelete: "cascade" }),
-  available: integer("available").notNull().default(0),
-  held: integer("held").notNull().default(0),
-  updatedAt: timestamp("updated_at").$defaultFn(() => new Date()).notNull(),
-});
-
-export const creditLedger = pgTable(
-  "credit_ledger",
-  {
-    id: text("id").primaryKey(),
-    organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
-    deviceId: text("device_id").references(() => device.id, { onDelete: "set null" }),
-    kind: text("kind", { enum: ["grant", "purchase", "hold", "settle", "release", "spend", "adjust"] }).notNull(),
-    credits: integer("credits").notNull(),
-    action: text("action"),
-    commandId: text("command_id"),
-    idempotencyKey: text("idempotency_key"),
-    balanceAfterAvailable: integer("balance_after_available"),
-    note: text("note"),
-    createdByUserId: text("created_by_user_id"),
-    createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
-  },
-  (t) => [
-    index("credit_ledger_org_created_idx").on(t.organizationId, t.createdAt),
-    index("credit_ledger_device_created_idx").on(t.deviceId, t.createdAt),
-    index("credit_ledger_command_idx").on(t.commandId),
-    uniqueIndex("credit_ledger_kind_idem_idx").on(t.kind, t.idempotencyKey).where(sql`${t.idempotencyKey} is not null`),
-  ],
-);
-
 // Bank-transfer invoices. Money is USD cents; the TRY amount and FX rate are
 // frozen onto the row when a platform admin marks it paid, so a later rate
 // move never rewrites history. "Overdue" is derived (status = "open" AND
@@ -568,32 +527,6 @@ export const invoice = pgTable(
       .where(sql`${t.kind} = 'proration'`),
     index("invoice_org_issued_idx").on(t.organizationId, t.issuedAt),
     index("invoice_status_due_idx").on(t.status, t.dueAt),
-  ],
-);
-
-// Per-device monthly trigger counter (calendar month, UTC, "YYYY-MM").
-// Bumped at trigger-reservation time (counts attempts, not acks — an expired
-// included trigger deliberately still consumes a quota unit; accepted spec
-// trade-off). Drives Track C included-quota checks, Track B fair-use, and
-// usage reporting.
-export const deviceUsageMonth = pgTable(
-  "device_usage_month",
-  {
-    deviceId: text("device_id")
-      .notNull()
-      .references(() => device.id, { onDelete: "cascade" }),
-    organizationId: text("organization_id")
-      .notNull()
-      .references(() => organization.id, { onDelete: "cascade" }),
-    month: text("month").notNull(),
-    triggers: integer("triggers").notNull().default(0),
-    updatedAt: timestamp("updated_at")
-      .$defaultFn(() => new Date())
-      .notNull(),
-  },
-  (t) => [
-    primaryKey({ columns: [t.deviceId, t.month] }),
-    index("device_usage_month_org_month_idx").on(t.organizationId, t.month),
   ],
 );
 
@@ -688,8 +621,6 @@ export const schema = {
   factoryDevice,
   deviceCommand,
   apiKey,
-  creditBalance,
-  creditLedger,
   invoice,
   apiIdempotency,
   rateLimit,

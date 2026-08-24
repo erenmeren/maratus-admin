@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { DittoWordmark } from "@/components/brand";
+import { MaratusWordmark } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { authClient } from "@/lib/auth-client";
 
@@ -55,7 +55,7 @@ function LoginForm() {
       {/* Form side */}
       <div className="flex flex-col px-6 py-8 sm:px-12">
         <div className="flex items-center justify-between">
-          <DittoWordmark />
+          <MaratusWordmark />
           <ThemeToggle />
         </div>
 

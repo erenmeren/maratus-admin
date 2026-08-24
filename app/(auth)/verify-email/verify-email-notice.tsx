@@ -5,7 +5,7 @@ import Link from "next/link";
 import { MailCheck, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { DittoWordmark } from "@/components/brand";
+import { MaratusWordmark } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { authClient } from "@/lib/auth-client";
 
@@ -28,7 +28,7 @@ export function VerifyEmailNotice({ email }: { email?: string }) {
   return (
     <div className="flex min-h-svh flex-col px-6 py-8 sm:px-12">
       <div className="flex items-center justify-between">
-        <DittoWordmark />
+        <MaratusWordmark />
         <ThemeToggle />
       </div>
       <div className="flex flex-1 items-center justify-center">

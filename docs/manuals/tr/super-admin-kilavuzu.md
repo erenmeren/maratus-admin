@@ -1,15 +1,15 @@
 # Süper Admin Kullanım Kılavuzu
 
-*Ditto Admin — Platform Yöneticisi (Süper Admin) Rehberi*
+*Maratus Admin — Platform Yöneticisi (Süper Admin) Rehberi*
 
 ## 1. Giriş & Bu Kılavuz Hakkında
 
-Bu kılavuz, Ditto Admin uygulamasının **Süper Admin (Platform Admin)** bölümünü
-kullanacak Ditto platform yöneticileri için hazırlanmıştır. Ditto'yu daha önce
+Bu kılavuz, Maratus Admin uygulamasının **Süper Admin (Platform Admin)** bölümünü
+kullanacak Maratus platform yöneticileri için hazırlanmıştır. Maratus'u daha önce
 hiç kullanmamış olduğunuzu varsayarak, en temel kavramlardan başlayıp adım adım
 ilerler; hiçbir ön bilgi gerektirmez.
 
-Ditto Admin uygulamasının arayüzü **İngilizce**'dir; bu kılavuz Türkçe yazılmış
+Maratus Admin uygulamasının arayüzü **İngilizce**'dir; bu kılavuz Türkçe yazılmış
 olsa da uygulamanın kendisi Türkçeleştirilmemiştir. Bu nedenle bir ekran adı,
 düğme veya alan adı ilk kez geçtiğinde, "**Türkçe karşılığı (İngilizce arayüz
 metni)**" biçiminde verilir — örneğin **Genel Bakış (Overview)**. Parantez
@@ -17,30 +17,30 @@ içindeki İngilizce metin, ekranda aynen göreceğiniz metindir; parantezden ö
 Türkçe kısım ise bunun açıklaması/çevirisidir.
 
 Kılavuzu okurken şu sırayı izlemenizi öneririz: önce **kavramları** öğrenin
-(Ditto nedir, kiracı/tenant ne demek, Süper Admin kimdir, cihaz-tetikleme akışı
+(Maratus nedir, kiracı/tenant ne demek, Süper Admin kimdir, cihaz-tetikleme akışı
 nasıl işler, kredi sistemi nasıl çalışır), ardından uygulamadaki **her ekranı**
 tek tek keşfedin. Bu sıralama, ekranlarda gördüğünüz her düğme ve alanın "neden"
 orada olduğunu anlamanızı kolaylaştırır.
 
-## 2. Ditto Nedir? (Kavramsal Model)
+## 2. Maratus Nedir? (Kavramsal Model)
 
-### 2.1 Ditto ne işe yarar?
+### 2.1 Maratus ne işe yarar?
 
-Ditto, işletmelerin kağıt belge (fiş, fatura, garanti kartı vb.) basmak yerine
+Maratus, işletmelerin kağıt belge (fiş, fatura, garanti kartı vb.) basmak yerine
 müşterilerine bir **QR kod** göstermesini sağlayan bir sistemdir. Müşteri bu QR
 kodu telefonuyla okutur ve ilgili dijital belgeyi indirir. Böylece kağıt israfı
 ortadan kalkar.
 
-Önemli bir noktayı baştan netleştirmek gerekir: Ditto **yalnızca tetikleme
-(trigger-only) modeliyle** çalışır — yani Ditto artık belgeleri kendi
+Önemli bir noktayı baştan netleştirmek gerekir: Maratus **yalnızca tetikleme
+(trigger-only) modeliyle** çalışır — yani Maratus artık belgeleri kendi
 sunucularında barındırmaz. Cihaz, çağıran tarafın (işletmenin kendi sisteminin)
 sağladığı bir URL'nin QR kodunu ekranda gösterir; belgenin kendisi işletmenin
-kendi altyapısında durur, Ditto sadece "bu URL'nin QR kodunu göster" komutunu
+kendi altyapısında durur, Maratus sadece "bu URL'nin QR kodunu göster" komutunu
 cihaza iletir.
 
 ### 2.2 Çok kiracılı yapı (Multi-tenant) — Organizasyon = Kiracı
 
-Ditto Admin, **çok kiracılı (multi-tenant)** bir sistemdir: Ditto'yu kullanan
+Maratus Admin, **çok kiracılı (multi-tenant)** bir sistemdir: Maratus'u kullanan
 her **müşteri firma, bir "organizasyon" (kiracı / tenant)** olarak temsil edilir.
 Her kiracının kendi mağazaları, cihazları ve kullanıcıları vardır; bir kiracının
 verileri diğerine karışmaz.
@@ -64,7 +64,7 @@ sadece kendi kiracısını yönetir.
 
 ### 2.4 Cihaz = Yazıcı (Printer)
 
-Ditto'da bahsedilen "cihaz (device)", fiziksel bir **yazıcı (printer)**
+Maratus'ta bahsedilen "cihaz (device)", fiziksel bir **yazıcı (printer)**
 donanımıdır. Bu donanım, kağıda bir şey basmaz; ekranında müşteriye taranacak
 QR kodu gösterir.
 
@@ -72,7 +72,7 @@ QR kodu gösterir.
 
 Bir cihazın müşteriye QR kod gösterebilmesi için aşağıdaki akış izlenir:
 
-1. Yetkilendirilmiş bir çağıran taraf (işletmenin kendi sistemi), Ditto'ya
+1. Yetkilendirilmiş bir çağıran taraf (işletmenin kendi sistemi), Maratus'a
    "bu cihazda şu URL'nin QR'ını göster" isteği gönderir (bir **tetikleme /
    trigger** isteği).
 2. Bu istek karşılığında kiracının kredi bakiyesinden **1 kredi rezerve edilir**
@@ -87,7 +87,7 @@ Bir cihazın müşteriye QR kod gösterebilmesi için aşağıdaki akış izleni
 
 ### 2.6 Ön ödemeli kredi sistemi (Prepaid Credits)
 
-Ditto, kullanım başına **ön ödemeli kredi** modeliyle ücretlendirilir: her
+Maratus, kullanım başına **ön ödemeli kredi** modeliyle ücretlendirilir: her
 başarılı tetikleme (yukarıdaki akışın tamamlanması) kiracıya **1 kredi**ye mal
 olur. Krediler önce rezerve edilir, işlem başarıyla tamamlanınca kesin olarak
 düşülür (settle), başarısız olursa serbest bırakılır (release). Yeni kaydolan
@@ -103,13 +103,13 @@ hedefleyeceği sürümdür.
 
 ## 3. Başlarken (Giriş ve Gezinme)
 
-Bu bölümde Ditto Admin'e Süper Admin olarak nasıl giriş yapacağınızı, giriş
+Bu bölümde Maratus Admin'e Süper Admin olarak nasıl giriş yapacağınızı, giriş
 sonrası nereye yönlendirileceğinizi, erişim kurallarını ve ana gezinme
 menüsünü öğreneceksiniz.
 
 ### 3.1 Amaç
 
-Bu bölümü tamamladığınızda, Ditto Admin'e giriş yapabilecek ve Süper Admin
+Bu bölümü tamamladığınızda, Maratus Admin'e giriş yapabilecek ve Süper Admin
 paneli içinde temel gezinmeyi (sol menü ve üst çubuk) yapabilecek durumda
 olacaksınız.
 
@@ -124,12 +124,12 @@ Giriş sayfasında bir **"Demo hesapları" (Demo accounts)** paneli bulunur; bu
 panel, şifresi ortak olan (`123456`) **iki** demo hesabı listeler:
 
 - **Kiracı sahibi (Tenant owner):** `dana@roastwell.co`
-- **Platform admin (Süper Admin):** `admin@ditto.app`
+- **Platform admin (Süper Admin):** `admin@maratus.co`
 
 > **Dikkat:** Giriş formu, sayfa ilk açıldığında **varsayılan olarak kiracı
 > hesabıyla (`dana@roastwell.co`)** önceden doldurulmuş gelir. Siz bir Süper
 > Admin olarak giriş yapmak istediğinizde, **E-posta (Email)** alanını elle
-> `admin@ditto.app` olarak değiştirmeniz gerekir; **Şifre (Password)** alanı
+> `admin@maratus.co` olarak değiştirmeniz gerekir; **Şifre (Password)** alanı
 > her iki hesap için de aynıdır: `123456`.
 
 > **Önemli — çalışmayan bağlantılar:** Giriş sayfasındaki **"Şifremi unuttum?"
@@ -194,7 +194,7 @@ tamamına ait özet bilgileri gösteren ekrandır.
 ### Bu ekran ne işe yarar?
 
 Genel Bakış ekranının başlığı **"Overview"**, alt açıklaması ise **"Platform-wide
-performance across all Ditto customers."** ("Ditto'nun tüm müşterileri
+performance across all Maratus customers."** ("Maratus'un tüm müşterileri
 genelinde platform performansı") biçimindedir. Bu ekran, tek bir kiracıya değil,
 **platformdaki tüm kiracılara (müşterilere)** ait verilerin özetini bir arada
 gösterir; böylece Süper Admin, tek bir bakışta platformun genel durumunu
@@ -285,7 +285,7 @@ anlatır. Bu ekranın adresi **`/admin/customers`**'dır.
 ### Bu ekran ne işe yarar?
 
 Müşteriler ekranının başlığı **"Customers"**, alt açıklaması ise platformdaki
-toplam mağaza zinciri sayısını gösteren "{N} store chains on Ditto" ("Ditto'da
+toplam mağaza zinciri sayısını gösteren "{N} store chains on Maratus" ("Maratus'ta
 {N} mağaza zinciri") biçimindedir — buradaki {N} sayısı, o an platformdaki
 toplam müşteri sayısına göre otomatik güncellenir. Bu ekran, Süper Admin'in
 platformdaki **tüm müşterileri (kiracıları)** tek bir tabloda görmesini ve
@@ -327,7 +327,7 @@ Tablodaki herhangi bir satıra tıkladığınızda, o müşterinin ayrıntı say
 1. Müşteriler ekranının sağ üst köşesindeki **Yeni müşteri (New customer)**
    düğmesine tıklayın.
 2. Karşınıza başlığı **"New customer"**, açıklaması **"Add a store chain to
-   the Ditto platform."** ("Ditto platformuna bir mağaza zinciri ekleyin.")
+   the Maratus platform."** ("Maratus platformuna bir mağaza zinciri ekleyin.")
    olan bir pencere (dialog) açılır. Bu pencerede üç alan bulunur:
    - **Şirket adı (Company name)** — **zorunlu** bir alandır; örnek olarak
      "e.g. Roastwell Coffee" ("örn. Roastwell Coffee") yer tutucusu
@@ -346,7 +346,7 @@ Tablodaki herhangi bir satıra tıkladığınızda, o müşterinin ayrıntı say
    olarak değişir.
 6. İşlem başarılı olursa ekranda **"Customer created"** ("Müşteri
    oluşturuldu") başlıklı bir bildirim (toast) belirir; bildirimin alt
-   satırında "{isim} has been added to Ditto." ("{isim} Ditto'ya eklendi.")
+   satırında "{isim} has been added to Maratus." ("{isim} Maratus'a eklendi.")
    açıklaması yer alır ve yeni müşteri tabloya eklenir. İşlem başarısız
    olursa, **"Couldn't create customer"** ("Müşteri oluşturulamadı") başlıklı
    bir hata bildirimi görünür; bildirimin açıklama kısmında sunucudan dönen
@@ -901,7 +901,7 @@ listelenir:
 > kasıtlı olarak yeniden adlandırılmamıştır. Ancak ekranda gerçekten
 > gördüğünüz **kullanıcıya açık metin artık bu eski adı taşımaz**: yukarıdaki
 > "trigger(s) stuck pending 30+ minutes" ve "no activations in 7 days"
-> ifadeleri, Ditto'nun tetikleme-modeline (trigger-only) geçişiyle birlikte
+> ifadeleri, Maratus'un tetikleme-modeline (trigger-only) geçişiyle birlikte
 > zaten güncellenmiştir (bkz. Bölüm 2.1). Yani arayüzde "document" kelimesini
 > görmezsiniz — bu adın kalan tek izi, ekranda hiç görünmeyen dahili
 > `documents-stuck` anahtarıdır.
@@ -941,7 +941,7 @@ göre dökümünü gösterir.
   zamanlarda hiçbir şey çözülmedi.") mesajı görüntülenir.
 
 **Entegrasyonlar (Integrations) bölümü:** Bu bölümde tek bir kart bulunur;
-kartta yalnızca **"Transactional email"** satırı yer alır — Ditto'nun
+kartta yalnızca **"Transactional email"** satırı yer alır — Maratus'un
 işlemsel e-posta gönderiminin şu anki durumunu gösterir. Satırda gönderen
 adresi, bir durum rozeti ve tek cümlelik bir açıklama bulunur. Rozet şu
 değerlerden birini alır: **"delivering"** — özel gönderen alan adı Resend'de
@@ -1046,15 +1046,15 @@ görüntülenir.
 1. Faturalandırma & Krediler ekranının sağ üst köşesindeki **Kiracıları
    dışa aktar (Export tenants)** düğmesine tıklayın.
 2. Düğmeye tıklandığı anda, herhangi bir onay penceresi açılmadan, tarayıcınız
-   **`ditto-credits.csv`** adlı bir CSV dosyasını doğrudan indirir. Dosyanın
+   **`maratus-credits.csv`** adlı bir CSV dosyasını doğrudan indirir. Dosyanın
    sütun başlıkları sırasıyla **Customer**, **Balance**, **Consumed (mo.)**
    ve **Lifetime purchased**'dır; her satır, o anda **Kiracı bazlı krediler
    (Per-tenant credits)** tablosunda görünen bir kiracıya karşılık gelir.
 3. İndirme tamamlandığında ekranda "**Export ready**" ("Dışa aktarma hazır")
    başlıklı bir bildirim (toast) belirir; açıklama satırında "**{n} rows →
-   ditto-credits.csv**" ("{n} satır → ditto-credits.csv") biçiminde kaç
+   maratus-credits.csv**" ("{n} satır → maratus-credits.csv") biçiminde kaç
    satırın dışa aktarıldığı gösterilir.
-4. İndirilen `ditto-credits.csv` dosyasını, bilgisayarınızdaki bir tablolama
+4. İndirilen `maratus-credits.csv` dosyasını, bilgisayarınızdaki bir tablolama
    programıyla (örn. Excel, Google E-Tablolar) açarak inceleyebilirsiniz.
 
 ### İpuçları ve dikkat edilecekler
@@ -1091,7 +1091,7 @@ Bu rozet **Müşteriler (Customers)** (Bölüm 5) ve **Müşteri Detayı**
 
 > **Önemli — askıya alma/yeniden etkinleştirme düğmesi yoktur:** **Askıya
 > alınmış (Suspended)** durumu ekranlarda bir rozet olarak **görüntülenir**,
-> ancak Ditto Admin arayüzünün **hiçbir yerinde** bir kiracıyı askıya almak
+> ancak Maratus Admin arayüzünün **hiçbir yerinde** bir kiracıyı askıya almak
 > (Suspend) veya askıdan çıkarıp yeniden etkinleştirmek (Reactivate) için bir
 > **düğme veya işlem bulunmaz**. Bir kiracı denetim (Activity) geçmişinde
 > "askıya alındı"/"yeniden etkinleştirildi" türü kayıtlar görülebilir, ancak
@@ -1156,13 +1156,13 @@ güncellenebileceğini belirtir.
 
 Bu bölüm, kılavuz boyunca kullanılan temel terimleri kısaca tanımlar.
 
-- **Kiracı (Tenant / Organization):** Ditto'yu kullanan bir müşteri firma;
+- **Kiracı (Tenant / Organization):** Maratus'u kullanan bir müşteri firma;
   sistemde bir "organizasyon" olarak temsil edilir. Her kiracının kendi
   mağazaları, cihazları ve kullanıcıları vardır (bkz. Bölüm 2.2).
 - **Süper Admin (platform_admin):** Herhangi bir kiracıya üye olmadan, tüm
   platformu yönetme yetkisine sahip kullanıcı rolü; kullanıcının kendi
   hesabında tanımlı, kiracıdan bağımsız bir yetkidir (bkz. Bölüm 2.3).
-- **Kredi (Credit):** Ditto'nun ön ödemeli ücretlendirme biriminde,
+- **Kredi (Credit):** Maratus'un ön ödemeli ücretlendirme biriminde,
   başarıyla tamamlanan her tetiklemenin (activation) kiracıya mal olduğu
   birim; başarılı bir tetikleme 1 krediye mal olur (bkz. Bölüm 2.6).
 - **Tetikleme (Trigger):** Yetkilendirilmiş bir çağıran tarafın, bir cihazda
@@ -1172,7 +1172,7 @@ Bu bölüm, kılavuz boyunca kullanılan temel terimleri kısaca tanımlar.
   işlenip müşteriye QR kodun gösterilmesiyle sonuçlanan tamamlanmış işlem;
   KPI kartlarında ve grafiklerde sayılan birimdir.
 - **Cihaz / Yazıcı (Device / Printer):** Müşteriye taranacak QR kodu
-  ekranında gösteren fiziksel donanım; Ditto'da "cihaz" olarak anılsa da
+  ekranında gösteren fiziksel donanım; Maratus'ta "cihaz" olarak anılsa da
   aslında bir yazıcıdır (bkz. Bölüm 2.4).
 - **Eşleştirme kodu (Pairing code):** Yeni sağlanan bir cihaza fiziksel
   olarak girilen, cihazı ilgili kiracı/mağazaya bağlayan tek kullanımlık
@@ -1222,7 +1222,7 @@ Detayı** ekranındaki (Bölüm 7) **Ürün yazılımını güncelle (Update fir
 komutu da çevrimiçi bir cihaza anında iletilir.
 
 **Neden bir kiracıyı askıya alamıyorum (veya askıdan çıkaramıyorum)?**
-Çünkü Ditto Admin arayüzünde bunu yapacak bir düğme veya işlem
+Çünkü Maratus Admin arayüzünde bunu yapacak bir düğme veya işlem
 **bulunmamaktadır**. **Askıya alınmış (Suspended)** durumu ekranlarda bir
 rozet olarak görüntülenir (bkz. Bölüm 11.1) ve denetim (Activity) geçmişinde
 bu yöndeki geçmiş kayıtlara rastlayabilirsiniz, ancak Süper Admin panelinden

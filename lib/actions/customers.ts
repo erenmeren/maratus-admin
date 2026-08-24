@@ -134,9 +134,9 @@ export async function inviteOwnerAction(
   const url = `${getEnv().BETTER_AUTH_URL}/signup?invite=${invId}`;
   const emailed = await sendEmail(
     email,
-    `You're invited to own ${org.name} on Ditto`,
-    `<p>The Ditto team invited you to own ` +
-      `<b>${org.name}</b> on Ditto.</p>` +
+    `You're invited to own ${org.name} on Maratus`,
+    `<p>The Maratus team invited you to own ` +
+      `<b>${org.name}</b> on Maratus.</p>` +
       `<p><a href="${url}">Accept the invitation</a></p>`,
   );
 

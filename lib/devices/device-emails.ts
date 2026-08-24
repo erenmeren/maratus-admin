@@ -8,7 +8,7 @@ export function deviceOfflineEmail(input: {
   devices: { name: string; storeName: string; lastSeenLabel: string }[];
 }): { subject: string; html: string } {
   const n = input.devices.length;
-  const subject = n === 1 ? "A Ditto printer went offline" : `${n} Ditto printers went offline`;
+  const subject = n === 1 ? "A Maratus printer went offline" : `${n} Maratus printers went offline`;
   const items = input.devices
     .map(
       (d) =>

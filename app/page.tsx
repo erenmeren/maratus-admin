@@ -17,7 +17,7 @@ export default async function Home() {
           Any content, one scan away.
         </h1>
         <p className="max-w-md text-lg text-muted-foreground">
-          Trigger a Ditto screen from your own systems and a QR appears — menus,
+          Trigger a Maratus screen from your own systems and a QR appears — menus,
           campaigns, receipts, anything you host. Manage your stores, devices,
           and billing from one console.
         </p>

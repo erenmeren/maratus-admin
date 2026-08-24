@@ -161,7 +161,7 @@ export function ClaimDeviceDialog({ storeId }: { storeId: string }) {
                     <span>
                       Only needed if the device doesn’t activate on its own. This
                       key is shown once and can’t be retrieved later — for
-                      security, Ditto only keeps a hashed copy.
+                      security, Maratus only keeps a hashed copy.
                     </span>
                   </div>
 

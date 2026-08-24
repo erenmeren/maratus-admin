@@ -1,16 +1,16 @@
 # Kiracı Yöneticisi Kullanım Kılavuzu
 
-*Ditto Admin — Kiracı (Mağaza Zinciri) Yöneticisi Rehberi*
+*Maratus Admin — Kiracı (Mağaza Zinciri) Yöneticisi Rehberi*
 
 ## 1. Giriş & Bu Kılavuz Hakkında
 
-Bu kılavuz, Ditto Admin uygulamasının **Kiracı (Tenant)** bölümünü kullanacak
+Bu kılavuz, Maratus Admin uygulamasının **Kiracı (Tenant)** bölümünü kullanacak
 kişiler için hazırlanmıştır: bir mağaza zincirinin (kiracının) **sahibi
 (owner)**, **yöneticisi (admin)** veya **üyesi (member)** olarak sisteme
-giren herkes. Ditto'yu daha önce hiç kullanmamış olduğunuzu varsayarak en
+giren herkes. Maratus'u daha önce hiç kullanmamış olduğunuzu varsayarak en
 temel kavramlardan başlar ve adım adım ilerler; hiçbir ön bilgi gerektirmez.
 
-Ditto Admin uygulamasının arayüzü **İngilizce**'dir; bu kılavuz Türkçe
+Maratus Admin uygulamasının arayüzü **İngilizce**'dir; bu kılavuz Türkçe
 yazılmış olsa da uygulamanın kendisi Türkçeleştirilmemiştir. Bu nedenle bir
 ekran adı, düğme veya alan adı ilk kez geçtiğinde, "**Türkçe karşılığı
 (İngilizce arayüz metni)**" biçiminde verilir — örneğin **Panel
@@ -19,23 +19,23 @@ ekranda aynen göreceğiniz metindir; parantezden önceki Türkçe kısım ise
 bunun açıklaması/çevirisidir.
 
 Kılavuzu okurken şu sırayı izlemenizi öneririz: önce **kavramları** öğrenin
-(Ditto nedir, kiracı/mağaza/cihaz ne demek, tetikleme→QR akışı nasıl işler,
+(Maratus nedir, kiracı/mağaza/cihaz ne demek, tetikleme→QR akışı nasıl işler,
 kredi sistemi nasıl çalışır, kiracı içindeki roller nelerdir), ardından
 uygulamaya nasıl gireceğinizi ve ana gezinme yapısını keşfedin. Bu sıralama,
 ekranlarda gördüğünüz her düğme ve alanın "neden" orada olduğunu anlamanızı
 kolaylaştırır.
 
-## 2. Ditto Nedir? (Kiracı Bakışıyla)
+## 2. Maratus Nedir? (Kiracı Bakışıyla)
 
-### 2.1 Ditto ne işe yarar?
+### 2.1 Maratus ne işe yarar?
 
-Ditto, işletmelerin kağıt belge basmak yerine müşterilerine bir **QR kod**
+Maratus, işletmelerin kağıt belge basmak yerine müşterilerine bir **QR kod**
 gösterebilmesini sağlayan bir sistemdir. Müşteri, yazıcının ekranındaki bu QR
 kodu telefonuyla tarar. Böylece kağıt kullanımına gerek kalmaz.
 
 ### 2.2 Kiracı = Organizasyon (bir mağaza zinciri)
 
-Sizin firmanız, Ditto Admin içinde bir **organizasyon** olarak temsil edilir;
+Sizin firmanız, Maratus Admin içinde bir **organizasyon** olarak temsil edilir;
 bu kılavuzda buna **kiracı (tenant)** denir. Bir kiracı, tek bir mağazayı
 değil, tipik olarak **bir mağaza zincirinin tamamını** kapsar: birden çok
 mağaza, bu mağazalara bağlı cihazlar ve bu kiracıda çalışan kullanıcılar,
@@ -43,7 +43,7 @@ hep aynı kiracının altında yer alır.
 
 ### 2.3 Cihaz = Yazıcı (Printer)
 
-Ditto'da bahsedilen "cihaz (device)", fiziksel bir **yazıcı** donanımıdır. Bu
+Maratus'ta bahsedilen "cihaz (device)", fiziksel bir **yazıcı** donanımıdır. Bu
 donanım kağıda bir şey basmaz; ekranında müşteriye taranacak QR kodu
 gösterir.
 
@@ -61,7 +61,7 @@ Bir cihazın müşteriye QR kod gösterebilmesi için şu akış izlenir:
 
 ### 2.5 Ön ödemeli kredi sistemi (Prepaid Credits)
 
-Ditto, kullanım başına **ön ödemeli kredi** modeliyle ücretlendirilir: her
+Maratus, kullanım başına **ön ödemeli kredi** modeliyle ücretlendirilir: her
 **tetikleme**, kiracıya **1 kredi**ye mal olur. Krediler önce rezerve edilir,
 işlem başarıyla tamamlanınca (ack ile) kesin olarak düşülür.
 
@@ -81,7 +81,7 @@ yoluyla atanamaz — bu rol korunur.
 
 ## 3. Başlarken (Giriş ve Gezinme)
 
-Bu bölümde Ditto Admin'e kiracı kullanıcısı olarak nasıl giriş yapacağınızı,
+Bu bölümde Maratus Admin'e kiracı kullanıcısı olarak nasıl giriş yapacağınızı,
 giriş sonrası nereye yönlendirileceğinizi, erişim kurallarını ve ana gezinme
 yapısını (sol menü, üst çubuk, çalışma alanı değiştirici, hesap menüsü)
 öğreneceksiniz.
@@ -150,8 +150,8 @@ Panelin üst kısmında şu ortak kontroller bulunur:
 - Listeden başka bir organizasyon seçildiğinde, `setActive()` çağrısıyla o
   organizasyon **aktif organizasyon** yapılır ve **`/tenant`** adresine
   yönlendirilirsiniz.
-- Hesabınız aynı zamanda **platform_admin** ise, menüde ayrıca **"Ditto
-  Merkez / Süper Yönetici (Ditto HQ / Super Admin)"** adlı bir seçenek
+- Hesabınız aynı zamanda **platform_admin** ise, menüde ayrıca **"Maratus
+  Merkez / Süper Yönetici (Maratus HQ / Super Admin)"** adlı bir seçenek
   görünür; bu seçenek sizi **`/admin`** adresine götürür.
 
 ### Hesap menüsü
@@ -424,10 +424,10 @@ yönlendirir.
    key)** görürsünüz (mono yazı tipiyle, yanında bir **kopyala (copy)**
    düğmesiyle). Bu bölümün üstünde şu **kritik uyarı** yer alır: "**Only
    needed if the device doesn't activate on its own. This key is shown
-   once and can't be retrieved later — for security, Ditto only keeps a
+   once and can't be retrieved later — for security, Maratus only keeps a
    hashed copy.**" (Yalnızca cihaz kendiliğinden etkinleşmezse gerekir. Bu
    anahtar yalnızca bir kez gösterilir ve daha sonra tekrar alınamaz —
-   güvenlik nedeniyle Ditto yalnızca anahtarın hash'lenmiş (özetlenmiş) bir
+   güvenlik nedeniyle Maratus yalnızca anahtarın hash'lenmiş (özetlenmiş) bir
    kopyasını saklar.) **Bu anahtarı bu ekrandan ayrılmadan önce mutlaka
    kopyalayıp güvenli bir yere kaydedin; diyaloğu kapattıktan sonra bir
    daha görüntüleyemezsiniz.**
@@ -545,7 +545,7 @@ bölümü bulunur.
   (Pause)/Etkinleştir (Activate)** anahtarını rolünüz ne olursa olsun
   kullanabilirsiniz — bu kontrol için herhangi bir rol kısıtlaması
   gözlenmemiştir; tek kısıtlama cihazın **çevrimdışı** olmamasıdır.
-- **Cihaz anahtarını (Device key)** kaybederseniz geri getirilemez — Ditto
+- **Cihaz anahtarını (Device key)** kaybederseniz geri getirilemez — Maratus
   yalnızca hash'lenmiş bir kopyasını saklar. Cihaz zaten kendiliğinden
   etkinleşeceği için bu anahtara normal şartlarda ihtiyacınız olmaz;
   yalnızca cihaz otomatik etkinleşmezse "Manuel kurulum (gelişmiş)"
@@ -994,19 +994,19 @@ işlem düğmesini görmezler, yalnızca üye ve davet listelerini görüntüley
 **Faturalandırma (Billing)** ekranı (adres: **`/tenant/billing`**, başlığı "**Billing**",
 açıklaması "**Manage your prepaid credit balance.**" — ön ödemeli kredi
 bakiyenizi yönetin) kiracınızın **kredi bakiyesini** görüntülemenizi ve bu
-ayki kredi/cihaz kullanımını incelemenizi sağlar. Ditto'da faturalandırma
+ayki kredi/cihaz kullanımını incelemenizi sağlar. Maratus'ta faturalandırma
 tamamen **ön ödemeli krediye** dayanır: bu ekranda fatura (invoice),
 abonelik (subscription) veya kayıtlı ödeme yöntemi (payment method) gibi
 bir kavram **yoktur** — yalnızca bakiye ve kullanım özeti bulunur. Sayfada
 herhangi bir rol kısıtlaması yoktur; **Sahip (Owner)**, **Yönetici (Admin)**
 ve **Üye (Member)** rolündeki tüm kullanıcılar bu ekranı aynı şekilde görür.
 
-> **Önemli — krediler artık uygulama içinden satın alınamaz:** Ditto,
+> **Önemli — krediler artık uygulama içinden satın alınamaz:** Maratus,
 > uygulama içi kredi paketi satın alma akışını tamamen kaldırdı. Krediler
-> yalnızca **Ditto ekibi tarafından**, süper yönetici panelinden manuel
+> yalnızca **Maratus ekibi tarafından**, süper yönetici panelinden manuel
 > olarak eklenir (ya da gerektiğinde düşülür) — bkz. Süper Yönetici
 > Kullanım Kılavuzu, "Krediler" bölümü. Bakiyenizi yükseltmek isterseniz
-> Ditto ekibiyle **iletişime geçin**; bu ekrandaki **"Krediler (Credits)"**
+> Maratus ekibiyle **iletişime geçin**; bu ekrandaki **"Krediler (Credits)"**
 > bölümünde de aynı yönlendirme yer alır.
 
 ### Ekranda neler var?
@@ -1014,9 +1014,9 @@ ve **Üye (Member)** rolündeki tüm kullanıcılar bu ekranı aynı şekilde g�
 - **Başlık ve açıklama:** "**Billing**" / "**Manage your prepaid credit
   balance.**".
 - **"Krediler (Credits)" bölümü:** Şu açıklama metni görünür: "**Credits
-  are added to your account by the Ditto team. Contact us to top up your
+  are added to your account by the Maratus team. Contact us to top up your
   balance — current balance and this month's usage are shown below.**"
-  (krediler Ditto ekibi tarafından hesabınıza eklenir; bakiyenizi
+  (krediler Maratus ekibi tarafından hesabınıza eklenir; bakiyenizi
   yükseltmek için bizimle iletişime geçin — güncel bakiye ve bu ayki
   kullanım aşağıda gösterilir). Bu bölümde herhangi bir satın alma düğmesi,
   paket seçimi ya da ödeme formu **bulunmaz**.
@@ -1061,7 +1061,7 @@ ve **Üye (Member)** rolündeki tüm kullanıcılar bu ekranı aynı şekilde g�
 
 - Bu ekranda fatura (invoice), abonelik (subscription) ya da kayıtlı ödeme
   yöntemi (payment method) yönetimi **yoktur** ve kredi **satın alınamaz**
-  — bakiyenizi yükseltmek için Ditto ekibiyle iletişime geçmeniz gerekir.
+  — bakiyenizi yükseltmek için Maratus ekibiyle iletişime geçmeniz gerekir.
 - **"Bu ayki kredi kullanımı (Credit usage this month)"** tablosundaki
   **"Unattributed"** satırı, hangi cihaza ait olduğu belirlenemeyen bir
   harcamayı temsil eder; bunu bir hata olarak yorumlamayın.
@@ -1077,8 +1077,8 @@ ve **Üye (Member)** rolündeki tüm kullanıcılar bu ekranı aynı şekilde g�
 ### Bu ekran ne işe yarar?
 
 **API anahtarları (API keys)** ekranı (adres: **`/tenant/api`**, başlığı "**API keys**",
-açıklaması "**Read-only keys for the Ditto public API.**" — Ditto genel
-API'si için salt-okunur anahtarlar) kiracınız adına Ditto'nun genel (public)
+açıklaması "**Read-only keys for the Maratus public API.**" — Maratus genel
+API'si için salt-okunur anahtarlar) kiracınız adına Maratus'un genel (public)
 API'sine erişim için **API anahtarları (API keys)** oluşturmanızı,
 listelemenizi ve iptal etmenizi sağlar. Anahtar oluşturma ve iptal etme
 işlemleri yalnızca **Sahip (Owner)** ve **Yönetici (Admin)** rolündeki
@@ -1101,7 +1101,7 @@ işlemini göremezler.
 
 ### Ekranda neler var?
 
-- **Başlık ve açıklama:** "**API keys**" / "**Read-only keys for the Ditto
+- **Başlık ve açıklama:** "**API keys**" / "**Read-only keys for the Maratus
   public API.**"; yalnızca Sahip/Yönetici rolündeki kullanıcılar için sağ
   üstte bir **"API anahtarı oluştur (Create API key)"** düğmesi bulunur
   (Üye rolündeyseniz bu düğme hiç görünmez).
@@ -1360,7 +1360,7 @@ durumundan türetilir:
 
 ### 14.4 Sözlük (Terimler)
 
-- **Kiracı (Tenant / Organization):** Ditto Admin'de sizin firmanızı temsil
+- **Kiracı (Tenant / Organization):** Maratus Admin'de sizin firmanızı temsil
   eden organizasyon; tipik olarak bir mağaza zincirinin tamamını kapsar
   (bkz. Bölüm 2.2).
 - **Mağaza (Store / Branch):** Kiracıya bağlı tek bir şube/lokasyon; kendi
@@ -1376,7 +1376,7 @@ durumundan türetilir:
   sayılan** işlem; KPI kartlarında ve grafiklerde ("Activations today/this
   month", vb.) gösterilen sayı budur. **Kısaca:** Tetikleme = istek,
   Aktivasyon = bu isteğin başarıyla tamamlanıp sayılan hâli.
-- **Kredi (Credit — ön ödemeli/prepaid):** Ditto'nun ücretlendirme birimi;
+- **Kredi (Credit — ön ödemeli/prepaid):** Maratus'un ücretlendirme birimi;
   her tetikleme kiracının bakiyesinden 1 kredi rezerve eder, işlem
   başarıyla tamamlanınca (ack ile) bu kredi kesin olarak düşülür
   (bkz. Bölüm 2.5, Bölüm 11).
@@ -1384,7 +1384,7 @@ durumundan türetilir:
   görünen, o cihazı bir mağazaya bağlamak (claim) için kullanılan kod
   (bkz. Bölüm 6, Yazıcı sahiplenme).
 - **Cihaz anahtarı (Device key):** Bir cihaz sahiplenildiğinde yalnızca
-  **bir kez** gösterilen anahtar; Ditto yalnızca bunun hash'lenmiş bir
+  **bir kez** gösterilen anahtar; Maratus yalnızca bunun hash'lenmiş bir
   kopyasını saklar, kaybedilirse tekrar görüntülenemez (bkz. Bölüm 6).
 - **Ürün yazılımı (Firmware):** Cihazın çalıştırdığı, uzaktan
   güncellenebilen yazılım; Cihaz Detayı ekranında sürüm numarasıyla
@@ -1407,8 +1407,8 @@ asla "Çevrimdışı" görünmez (bkz. Bölüm 14.1).
 **Kredi bakiyem nasıl yükseltilir?**
 Krediler uygulama içinden **satın alınamaz**. **Faturalandırma (Billing)**
 ekranındaki (Bölüm 11) **"Krediler (Credits)"** bölümü, bakiyenizi
-yükseltmek için Ditto ekibiyle iletişime geçmenizi söyler; krediler yalnızca
-Ditto ekibi tarafından süper yönetici panelinden manuel olarak eklenir (bkz.
+yükseltmek için Maratus ekibiyle iletişime geçmenizi söyler; krediler yalnızca
+Maratus ekibi tarafından süper yönetici panelinden manuel olarak eklenir (bkz.
 Bölüm 11'deki "Önemli" notu).
 
 **Bir yazıcıyı nasıl eklerim?**

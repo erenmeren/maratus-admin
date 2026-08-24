@@ -16,7 +16,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { DittoMark } from "@/components/brand";
+import { MaratusMark } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 import type { OrgRef } from "@/lib/session";
 import { cn } from "@/lib/utils";
@@ -39,7 +39,7 @@ export function WorkspaceSwitcher({
   const router = useRouter();
   const isPlatformAdmin = role === "platform_admin";
 
-  const headerName = active === "admin" ? "Ditto HQ" : activeName;
+  const headerName = active === "admin" ? "Maratus HQ" : activeName;
   const headerRole = active === "admin" ? "Super Admin" : "Tenant Workspace";
 
   async function switchOrg(orgId: string) {
@@ -61,7 +61,7 @@ export function WorkspaceSwitcher({
               size="lg"
               className="data-[state=open]:bg-sidebar-accent"
             >
-              <DittoMark className="size-7" />
+              <MaratusMark className="size-7" />
               <div className="grid flex-1 text-left leading-tight">
                 <span className="truncate font-display text-sm font-semibold">
                   {headerName}
@@ -97,7 +97,7 @@ export function WorkspaceSwitcher({
                     <Shield className="size-4" />
                   </span>
                   <div className="grid flex-1 leading-tight">
-                    <span className="text-sm font-medium">Ditto HQ</span>
+                    <span className="text-sm font-medium">Maratus HQ</span>
                     <span className="text-xs text-muted-foreground">
                       Super Admin
                     </span>

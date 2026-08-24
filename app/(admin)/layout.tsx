@@ -11,11 +11,11 @@ export default async function AdminLayout({
     <AppShell
       workspace="admin"
       groupLabel="Platform"
-      topBarLabel="Super Admin · Ditto HQ"
+      topBarLabel="Super Admin · Maratus HQ"
       user={ctx.user}
       organizations={ctx.organizations}
       role={ctx.user.role}
-      activeName="Ditto HQ"
+      activeName="Maratus HQ"
       activeOrganizationId={ctx.activeOrganizationId}
     >
       {children}

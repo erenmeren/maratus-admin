@@ -20,9 +20,9 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ditto — Admin Console",
+  title: "Maratus — Admin Console",
   description:
-    "Ditto admin console: manage screens, stores, and triggered content.",
+    "Maratus admin console: manage screens, stores, and triggered content.",
 };
 
 export default function RootLayout({

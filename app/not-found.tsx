@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { DittoWordmark } from "@/components/brand";
+import { MaratusWordmark } from "@/components/brand";
 import { Button } from "@/components/ui/button";
 
 export default function NotFound() {
   return (
     <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
-      <DittoWordmark />
+      <MaratusWordmark />
       <div className="space-y-2">
         <p className="font-display text-6xl font-bold tracking-tight text-primary">
           404

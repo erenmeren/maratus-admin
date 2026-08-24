@@ -51,9 +51,14 @@ Decision record: docs/naming-candidates.md (top block)
 - Prod platform-admin login is still the old seed e-mail (admin@ditto.app).
   Either keep it, or update the user row's e-mail to admin@maratus.co manually
   (Drizzle Studio) — the login page demo hint now shows admin@maratus.co.
-- GitHub/local repo directory renames (ditto-admin → maratus-admin,
-  ditto-firmware → maratus-firmware): defer; breaks local paths, Vercel link
-  and memory-dir naming. Do both in one sitting later if desired.
+- ✅ GitHub repo renames — DONE 2026-08-24: `ditto-admin`→`maratus-admin`,
+  `ditto-firmware`→`maratus-firmware`, `ditto-site`→`maratus-site` (GitHub
+  leaves permanent redirects on the old names — never create new repos under
+  the old names or the redirects break). Local remotes updated; GitHub Pages
+  landing on maratus.co verified serving after the rename.
+  **Local DIRECTORY names deliberately kept** (`~/projects/ditto-admin`,
+  `~/projects/ditto-firmware`) — Claude's project memory and session history
+  are keyed to these paths; a dir rename needs a manual memory-dir migration.
 - Turkish manual PDFs: regenerate via make-pdf next time manuals ship.
 - maratus.dev: park or redirect to maratus.co until a docs site exists.
 

@@ -56,9 +56,13 @@ Decision record: docs/naming-candidates.md (top block)
   leaves permanent redirects on the old names — never create new repos under
   the old names or the redirects break). Local remotes updated; GitHub Pages
   landing on maratus.co verified serving after the rename.
-  **Local DIRECTORY names deliberately kept** (`~/projects/ditto-admin`,
-  `~/projects/ditto-firmware`) — Claude's project memory and session history
-  are keyed to these paths; a dir rename needs a manual memory-dir migration.
+  Local directories: `~/projects/ditto-admin` → **`~/projects/maratus-admin`**
+  renamed 2026-08-24 with the Claude project-state dir copied to the new
+  path key (`~/.claude/projects/-home-meren-projects-maratus-admin`).
+  `~/projects/ditto-firmware` deliberately still old-named — rename it the
+  same way (mv + copy its `~/.claude/projects/-home-meren-projects-ditto-firmware`
+  dir) if desired. claude-mem observations recorded before the rename remain
+  tagged under the old `ditto-admin` project name — history, not breakage.
 - ✅ Turkish manuals DELETED 2026-08-24 (user decision): content described the
   retired prepaid-credits era end-to-end; rather than refresh, `docs/manuals/`
   was removed. Write new manuals from scratch when they're next needed.

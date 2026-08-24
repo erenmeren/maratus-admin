@@ -22,24 +22,19 @@ Decision record: docs/naming-candidates.md (top block)
    had defaulted to localhost), redeployed. `*.vercel.app` stays trusted.
 4. ✅ **Local env** — `.env.local` keeps `BETTER_AUTH_URL="http://localhost:3000"`
    (correct for dev; the original step assumed it held a prod URL — it doesn't).
-5. ⏳ **Resend (closes the standing e-mail blocker)** — IN PROGRESS 2026-08-24:
-   - ✅ `maratus.co` registered in Resend (id c2d58ff7-18ea-4e3b-b884-95c262947665,
-     region us-east-1); `RESEND_API_KEY` confirmed present in Vercel Production.
-   - ⏳ **WAITING ON OPERATOR — add these 3 records in Cloudflare DNS** (DNS-only /
-     grey cloud, do NOT proxy):
-     | Type | Name | Content | Prio |
-     |---|---|---|---|
-     | TXT | `resend._domainkey` | `p=MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQCgkXuzkNqhFZnNkM75wMll3/4HrDwC9OLHC1Xei5qFnjFn9++NIySMTelZOOGcR2N1q1Df6V5O9K6j+wuFyWYAC6BbwdkdGwVVR1hro+Q2KB2D1SgghB/nF7baEUFjJ6xb5K1xAA9VIexxd2uMpyUAvaHYSCd3oxs2Wk3K1w3HaQIDAQAB` | — |
-     | MX | `send` | `feedback-smtp.us-east-1.amazonses.com` | 10 |
-     | TXT | `send` | `v=spf1 include:amazonses.com ~all` | — |
-   - ⏳ Then trigger verification (Resend dashboard "Verify", or
-     `POST https://api.resend.com/domains/c2d58ff7-18ea-4e3b-b884-95c262947665/verify`),
-     wait for **Verified**, then set Vercel env
-     `EMAIL_FROM=Maratus <noreply@maratus.co>` and redeploy.
+5. ✅ **Resend — DONE 2026-08-24, e-mail blocker CLOSED:**
+   - `maratus.co` registered in Resend (id c2d58ff7-18ea-4e3b-b884-95c262947665,
+     region us-east-1); `RESEND_API_KEY` was already in Vercel Production.
+   - DKIM TXT (`resend._domainkey`), SPF MX + TXT (`send`) created in Cloudflare
+     via API (DNS-only); domain **verified** ~3.5 min later (all 3 records).
+   - Vercel Production env `EMAIL_FROM=Maratus <noreply@maratus.co>` set,
+     redeployed (READY). Customer-facing mail (invoices, offline alerts,
+     invites) is now able to flow from noreply@maratus.co.
 6. ⏳ **Verify**: ✅ login page + Better Auth endpoint 200 on https://api.maratus.co;
    ✅ old bootstrap URL still serving (ditto-admin-brown.vercel.app 200, claim route
-   alive). REMAINING: one end-to-end trigger against a test device; after step 5
-   completes, check an invite e-mail arrives from noreply@maratus.co.
+   alive). REMAINING: one end-to-end trigger against a test device; send one real
+   invite/e-mail and confirm it arrives from noreply@maratus.co with Maratus
+   branding.
 
 ## Do NOT do
 

@@ -57,10 +57,20 @@ Decision record: docs/naming-candidates.md (top block)
 - Turkish manual PDFs: regenerate via make-pdf next time manuals ship.
 - maratus.dev: park or redirect to maratus.co until a docs site exists.
 
-## Firmware follow-up (separate plan, ditto-firmware repo)
+## Firmware follow-up — ✅ DONE 2026-08-24 (fw 0.19.0 on OTA)
 
-User-visible "Ditto" strings live in firmware too ("Contacting Ditto..." boot
-stage, Kconfig menu names) and the prod build's base URL points at the old
-domain. Plan separately: restring UI copy → point DITTO_API_BASE_URL at
-https://api.maratus.co → ship as an OTA release → only after the fleet converges
-may the old URL ever be retired (in practice: never retire it; it costs nothing).
+Shipped in ditto-firmware merge c3b1f39 (branch fw/maratus-rebrand, reviewed):
+- Restring: splash title "Maratus", "Contacting Maratus...", setup steps, Kconfig
+  prompts, QR fallback URL → https://maratus.co, module docs + boot log.
+- New brand look: amber `0xE8A33D` backgrounds + ink `0x111827` bold text on
+  splash / pre-claim / Wi-Fi screens (matches the maratus.co landing); rust
+  `0xB4541F` accent on white panels; old green `0x10A765` fully removed. Semantic
+  status colors (online dot etc.) unchanged.
+- `CONFIG_DITTO_API_BASE_URL` → https://api.maratus.co; version 0.19.0.
+- Deliberate keeps: `CONFIG_DITTO_*` symbol NAMES, NVS namespace "ditto" (data
+  continuity — renaming would wipe device state), `ditto-firmware.bin` artifact
+  name, `mqtt_ditto` component, task names/TAGs, MQTT topics, repo name.
+- OTA published via lib/db/publish-firmware.ts (R2 firmware/0.19.0, latest;
+  1 device took the live push, offline devices converge via heartbeat).
+- The old *.vercel.app URL stays alive regardless (pre-0.19.0 devices and any
+  un-updated stock still bootstrap against it); it costs nothing — never retire.

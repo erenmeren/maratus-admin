@@ -1,4 +1,4 @@
-# Ditto Device Protocol
+# Maratus Device Protocol
 
 MQTT (EMQX) carries everything after bootstrap: commands, acks, heartbeat,
 presence, and config/OTA delivery. Only two HTTPS routes survive, and both

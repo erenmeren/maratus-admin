@@ -4,12 +4,12 @@
 > [README](../README.md). This guide covers setup, architecture, and
 > internals for developers.
 
-Multi-tenant admin console for **Maratus**, a digital-document SaaS. Stores install
+Multi-tenant admin console for **Maratus**, a trigger-to-screen SaaS. Stores install
 printer devices that replace paper documents with a QR code customers scan. Maratus
 no longer ingests or hosts document content — a caller triggers a device over the
 API and passes a URL to content it hosts itself; the device renders that URL as a
 QR. This repo is the admin console plus the device-facing trigger/command API —
-backed by a real database, auth, object storage, and prepaid-credit billing.
+backed by a real database, auth, object storage, and subscription billing.
 
 ## Stack
 
@@ -51,9 +51,9 @@ npm run dev                  # http://localhost:3000
 
 - **Platform admin:** `admin@maratus.co` / `123456`
 - **Tenant owner:** `dana@roastwell.co` / `123456`
-- Org "Roastwell Coffee": 3 stores, 6 claimed devices (mixed status), 3 unclaimed
-  devices (with pairing codes, ready to claim in the UI), and a starter grant of
-  prepaid credits.
+- Org "Roastwell Coffee": 3 stores, 6 claimed devices (mixed status, all
+  subscribed/paid), 3 unclaimed devices (with pairing codes, ready to claim in
+  the UI).
 
 ## Commands
 
@@ -76,34 +76,35 @@ Two access tiers behind one app shell:
 
 - **Tenant workspace** (`/tenant/*`) — a store chain manages its stores, devices,
   branding, device settings, members, analytics, reports, activity (audit log),
-  and billing (prepaid credits). Scoped to the user's active organization.
+  and billing (subscription). Scoped to the user's active organization.
 - **Super Admin** (`/admin/*`) — Maratus staff (`user.role = 'platform_admin'`) see
   across all customers: overview, customers, the global device fleet, factory
   **inventory** (manufacturing registry, `/admin/inventory`), firmware releases,
-  platform health, and billing (credit usage across all orgs).
+  platform health, and billing (a read-only invoice overview across all orgs;
+  payments are recorded on the customer page).
 
 Key seams:
 
 - **`lib/data.ts`** — the single data layer. Tenant-panel functions take an
   `organizationId`; super-admin functions span all orgs. All DB→view-model
   conversions (cents→dollars, `lastSeenAt`→ISO, status derivation, activation
-  time-series, credit ledger/usage rollups) happen here.
+  time-series, billing/usage rollups) happen here.
 - **`lib/session.ts`** — `getContext()`, `requireTenant()`, `requirePlatformAdmin()`.
   Route-group layouts call these to gate access. `middleware.ts` is an optimistic
   cookie check at the edge; real role checks run in the layouts.
 - **`lib/db/schema.ts`** — Better Auth tables + org plugin + app tables (all FK →
   `organizationId`): `tenantSettings` (incl. `archivedAt`/`archivedNote` for the
   customer-archive lifecycle), `store`, `device` (incl. `serial`), `deviceCommand`,
-  `firmwareRelease`, `apiKey`, `creditBalance`, `creditLedger`, `factoryDevice`
+  `firmwareRelease`, `apiKey`, `invoice`, `factoryDevice`
   (the manufacturing registry, keyed by eFuse-MAC serial), plus infra tables
   (`apiIdempotency`, `rateLimit`, `auditLog`, `alert`). `organization = tenant`;
   platform admin is a user role, not a membership. Money is stored in integer
-  **cents**; prepaid credits are the sole payment path.
+  **cents**; subscriptions are the sole payment path (see Billing below).
 - **Server actions** (`lib/actions/*`, route-local `actions.ts`) authorize, mutate
   via Drizzle, record an audit entry (`lib/audit.ts`, best-effort), then
   `revalidatePath`. Pure, IO-free logic is split into testable modules
-  (`device-status`, `health`, `credit-usage`, `credits-overview`, …) with
-  colocated `*.test.ts` (vitest).
+  (`device-status`, `health`, `invoicing`, `subscription-gate`, `device-slots`, …)
+  with colocated `*.test.ts` (vitest).
 
 ## Device → trigger → QR flow
 
@@ -120,15 +121,17 @@ passes a URL.
 3. **Trigger** — `POST /api/v1/devices/{deviceId}/trigger`, authenticated by an
    API key with the `devices:trigger` scope plus a required `Idempotency-Key`
    header. Body `{ action: "show_qr", payload: { url } }`. The route checks device
-   ownership/online status, **reserves 1 credit** (`lib/credits.ts`), and enqueues
-   a `deviceCommand` row (`type: "trigger"`, `status: "pending"`).
+   ownership/online status and the **subscription gate**
+   (`lib/subscription-gate.ts` — a paid device always passes; an unpaid device
+   gets 50 lifetime trial triggers, then `403 device_not_subscribed`), and
+   enqueues a `deviceCommand` row (`type: "trigger"`, `status: "pending"`).
 4. **Publish, render, ack** — the trigger route publishes a `trigger` command
    on the device's MQTT `d/{deviceId}/cmd` topic (device-key auth against the
    broker, not HTTP). The device renders a QR from `payload.url`, then
-   publishes `{ commandId, ok }` to `d/{deviceId}/ack`. A success ack settles
-   the reserved credit; a failure or expiry releases it. A publish that fails
-   fails closed — the command, reservation, and idempotency claim all unwind
-   and the caller gets `503`.
+   publishes `{ commandId, ok }` to `d/{deviceId}/ack`. A publish that fails
+   fails closed — the command and idempotency claim unwind and the caller gets
+   `503`. Nothing in the request path blocks on quota; overage past the pooled
+   monthly allowance is billed after the fact (see Billing below).
 
 Org-wide device policy (brightness / sleep / QR duration / PIN) and the
 firmware manifest ride the same MQTT `cmd` topic as payload-carrying
@@ -157,27 +160,34 @@ documented in [`runbooks/factory-registry-hijack-recovery.md`](runbooks/factory-
 ## Customer lifecycle (offboarding & archive)
 
 Customers are never hard-deleted — "deleting" a churned customer **archives** it
-(`tenantSettings.archivedAt`), a reversible soft-delete that keeps all credit and
+(`tenantSettings.archivedAt`), a reversible soft-delete that keeps all billing and
 audit history. The admin offboard wizard (customer detail → danger zone) decides
 each device's fate (return to stock → device row deleted + its registry serial
 reverted to `manufactured`, re-allocatable; or leave with customer → device paused
 + serial `retired`), sweeps still-allocated serials, revokes API keys, cancels
-pending invitations, freezes the credit balance, and stamps `archivedAt` last (so
+pending invitations, and stamps `archivedAt` last (so
 the flow is idempotently re-runnable). `requireTenant` gates archived orgs out of
 the tenant panel; `lib/data.ts` excludes them from KPIs/lists by default; a
 server-side `isOrgArchived` guard blocks admin mutations. **Restore** un-archives
 (it does not undo device dispositions or key revocations). See
 `lib/actions/offboarding.ts`.
 
-## Billing (prepaid credits)
+## Billing (subscription)
 
-Credits are the **only** payment path — there is no per-print invoicing or metered
-subscription. Each successful device trigger consumes one credit
-(reserve → settle on ack, release on failure/expiry). New orgs receive a starter
-grant on signup. Tenants cannot buy credits in-app: the operator invoices customers
-manually and grants (or deducts) credits from the super-admin customer page. The
-`creditLedger` table is the append-only source of truth; `creditBalance` is the
-running total.
+Subscriptions are the **only** payment path: **$15/device/month, billed annually**
+($180/year up front) by **bank transfer** — there is no payment gateway. Billing
+periods are anniversary-based, anchored by `tenantSettings.subscriptionStartedAt`.
+Included quota derives from **slots, not live devices**:
+`tenantSettings.paidDeviceSlots` is what the org paid for, written only when an
+invoice is marked paid — an RMA'd or removed device frees its slot
+(`lib/device-slots.ts`) without shrinking the entitlement until renewal, and a
+replacement device claims into the vacancy for free. Each paid slot includes
+**1,000 triggers/month**, pooled at the org; usage past the pool is post-paid
+overage at **$0.02/trigger** and never blocks a request. An unpaid device gets 50
+lifetime trial triggers. The daily `GET /api/cron/billing` sweep
+(`lib/billing-cron.ts`) issues subscription and overage invoices with net-14
+terms; a platform admin records payment (`markInvoicePaid` in `lib/invoices.ts`,
+from the customer page), and *that* is what activates a subscription.
 
 ## Testing
 
@@ -185,8 +195,8 @@ running total.
 npm test
 ```
 
-Pure domain logic is unit-tested with vitest (`lib/**/*.test.ts`, 48 suites /
-474 tests) — device status derivation, health alerts, credit usage/overview
-rollups, API-key scopes, OpenAPI/serialization, audit labels, rate limiting,
+Pure domain logic is unit-tested with vitest (`lib/**/*.test.ts`, 540 tests) —
+device status derivation, health alerts, invoicing/billing and device-slot
+logic, API-key scopes, OpenAPI/serialization, audit labels, rate limiting,
 trigger actions, provisioning + factory-registry decision logic, offboarding
 helpers, printer layout/geometry, timezones, and member-role rules.

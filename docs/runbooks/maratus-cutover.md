@@ -59,7 +59,9 @@ Decision record: docs/naming-candidates.md (top block)
   **Local DIRECTORY names deliberately kept** (`~/projects/ditto-admin`,
   `~/projects/ditto-firmware`) — Claude's project memory and session history
   are keyed to these paths; a dir rename needs a manual memory-dir migration.
-- Turkish manual PDFs: regenerate via make-pdf next time manuals ship.
+- ✅ Turkish manuals DELETED 2026-08-24 (user decision): content described the
+  retired prepaid-credits era end-to-end; rather than refresh, `docs/manuals/`
+  was removed. Write new manuals from scratch when they're next needed.
 - maratus.dev: park or redirect to maratus.co until a docs site exists.
 
 ## Firmware follow-up — ✅ DONE 2026-08-24 (fw 0.19.0 on OTA)

@@ -1,4 +1,4 @@
-// Drizzle schema for Ditto.
+// Drizzle schema for Maratus.
 //
 // Two layers live here:
 //   1. Better Auth tables (user, session, account, verification + organization
@@ -35,7 +35,7 @@ export const user = pgTable("user", {
     .$defaultFn(() => false)
     .notNull(),
   image: text("image"),
-  // Platform-level role. Ditto staff = 'platform_admin'; everyone else 'user'.
+  // Platform-level role. Maratus staff = 'platform_admin'; everyone else 'user'.
   // Tenant roles live on the `member` table (owner/admin/member), not here.
   role: text("role").default("user").notNull(),
   createdAt: timestamp("created_at")

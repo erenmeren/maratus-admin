@@ -15,7 +15,7 @@ export default async function ArchivedNoticePage() {
       <h1 className="font-display text-2xl font-bold">No active organization</h1>
       <p className="text-sm text-muted-foreground">
         You don&apos;t have access to an active organization. If you believe this
-        is a mistake, contact your Ditto account manager.
+        is a mistake, contact your Maratus account manager.
       </p>
     </div>
   );

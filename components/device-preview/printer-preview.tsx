@@ -273,7 +273,7 @@ function ImageObject({ object }: { object: PrinterObject }) {
 
 // Illustrative-only value for editor/studio previews — no real device trigger
 // URL is available in this context, so the QR just needs to look right.
-const PREVIEW_QR_VALUE = "https://ditto.app";
+const PREVIEW_QR_VALUE = "https://maratus.co";
 
 /**
  * QrObject — lifted from the QR screen's QR card and the SetupScreen's compact

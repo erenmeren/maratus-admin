@@ -68,7 +68,7 @@ export default async function CustomersPage({
     <>
       <PageHeader
         title="Customers"
-        description={`${formatNumber(counts.all)} store chains on Ditto`}
+        description={`${formatNumber(counts.all)} store chains on Maratus`}
       >
         <NewCustomerDialog />
       </PageHeader>

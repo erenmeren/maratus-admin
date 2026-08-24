@@ -24,9 +24,9 @@ const envSchema = z.object({
   RESEND_API_KEY: z.string().optional(),
   // From-address for transactional email. Defaults to Resend's shared test
   // sender (works with no verified domain, but only delivers to your own Resend
-  // account email). Set to "Ditto <noreply@yourdomain.com>" once a domain is
+  // account email). Set to "Maratus <noreply@maratus.co>" once a domain is
   // verified in Resend.
-  EMAIL_FROM: z.string().default("Ditto <onboarding@resend.dev>"),
+  EMAIL_FROM: z.string().default("Maratus <onboarding@resend.dev>"),
 
   // Error tracking (Sentry). All optional: absent → the SDK is never
   // initialized (no-ops). NEXT_PUBLIC_ is required for the browser DSN.

@@ -43,10 +43,10 @@ describe("scrubSentryEvent", () => {
 
   it("leaves urls and transaction names untouched (no capability lives in URLs anymore)", () => {
     const event = scrubSentryEvent({
-      request: { url: "https://app.ditto/tenant/stores/str_1?x=1" },
+      request: { url: "https://app.maratus.co/tenant/stores/str_1?x=1" },
       transaction: "GET /tenant/stores/[storeId]",
     });
-    expect(event.request?.url).toBe("https://app.ditto/tenant/stores/str_1?x=1");
+    expect(event.request?.url).toBe("https://app.maratus.co/tenant/stores/str_1?x=1");
     expect(event.transaction).toBe("GET /tenant/stores/[storeId]");
   });
 

@@ -22,7 +22,7 @@ export interface EmailStatus {
 
 export const SANDBOX_SENDER_DOMAIN = "resend.dev";
 
-/** `Ditto <noreply@ditto.app>` → `ditto.app`; a bare address works too. */
+/** `Maratus <noreply@maratus.co>` → `maratus.co`; a bare address works too. */
 export function senderDomain(from: string): string | null {
   const angle = from.match(/<([^>]+)>/);
   const address = (angle ? angle[1] : from).trim();

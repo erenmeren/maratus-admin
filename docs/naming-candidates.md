@@ -1,6 +1,20 @@
 # Proje Yeniden Adlandırma — İsim Adayları
 
-*Tarih: 2026-07-21 · Durum: karar verilmedi, ileride değerlendirilecek. Şimdilik hiçbir yeniden adlandırma yapılmıyor.*
+> ## ✅ KARAR VERİLDİ — **MARATUS** (2026-08-24)
+>
+> Kullanıcı kararı: projenin yeni adı **Maratus** (2. tur, Hayvanlar & Doğa dalı, #10).
+> Tavuskuşu örümceği — sinyal anında renkli kanadını **ekran gibi kaldırır**, sonra kapatır.
+>
+> Karar anında bilinen açık işler (bu dosyanın "Sonraki adım" uyarıları Maratus için hâlâ geçerli):
+> - Domain: ✅ **`maratus.co` + `maratus.dev` SATIN ALINDI (2026-08-24).** Roller: `.co` = birincil marka/app, `.dev` = geliştirici dokümanları. Ayrıca serbest görülüp alınmayanlar: `.uk`, `.org`, `.net`; `.io/.app` bakılmadı; `.com` muhtemelen dolu.
+> - Marka: TÜRKPATENT + EUIPO + USPTO **sınıf 9 & 42** taraması yapılmadı.
+> - Bilinen adaşlar: üç küçük ajans (Katar web ajansı, Belçika oyun stüdyosu, UK tasarım) — fonlu tech şirketi yok.
+> - EN telaffuz kayması: "muh-RAY-tus".
+>
+> Rename kapsamı (karar rehberinden): repo/paket adı, UI marka geçişleri, seed verisi,
+> e-posta şablonları, Türkçe kılavuzlar, Vercel proje adı, firmware'deki kullanıcıya görünen metinler.
+
+*Tarih: 2026-07-21 · Durum: ~~karar verilmedi~~ → **karar verildi 2026-08-24: Maratus** (yukarıya bak). Aşağısı araştırma arşividir.*
 
 Bağlam: Ürün pivotu sonrası "Ditto" adı gözden geçiriliyor. Yeni öz: cihaz yalnızca
 tetiklenme ile çalışır; tetikleyen, QR üzerinden karşıdakine **istediği her içeriği**

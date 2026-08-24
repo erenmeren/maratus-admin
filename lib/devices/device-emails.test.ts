@@ -8,7 +8,7 @@ const one = {
 
 describe("deviceOfflineEmail", () => {
   it("singular subject for one device", () => {
-    expect(deviceOfflineEmail(one).subject).toBe("A Ditto printer went offline");
+    expect(deviceOfflineEmail(one).subject).toBe("A Maratus printer went offline");
   });
   it("plural subject for multiple devices", () => {
     const m = deviceOfflineEmail({
@@ -18,7 +18,7 @@ describe("deviceOfflineEmail", () => {
         { name: "B", storeName: "S2", lastSeenLabel: "y" },
       ],
     });
-    expect(m.subject).toBe("2 Ditto printers went offline");
+    expect(m.subject).toBe("2 Maratus printers went offline");
   });
   it("lists each device with name, store, and last-seen", () => {
     const { html } = deviceOfflineEmail(one);

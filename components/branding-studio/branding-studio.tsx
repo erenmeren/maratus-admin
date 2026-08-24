@@ -537,7 +537,7 @@ const QR_SHADOW_MODE_LABEL: Record<QrShadowMode, string> = {
 };
 
 // Illustrative-only value — same one QrObject (printer-preview) uses for mockups.
-const QR_STYLE_PREVIEW_VALUE = "https://ditto.app";
+const QR_STYLE_PREVIEW_VALUE = "https://maratus.co";
 
 /** Org-wide QR shape, colors, background corner + shadow — its own studio tab
  *  (moved out of Theme 2026-07-23 so the theme panel isn't as crowded). Saved

@@ -1,11 +1,11 @@
-# Ditto — Development Guide
+# Maratus — Development Guide
 
-> Looking for what Ditto *is*? See the product overview in the
+> Looking for what Maratus *is*? See the product overview in the
 > [README](../README.md). This guide covers setup, architecture, and
 > internals for developers.
 
-Multi-tenant admin console for **Ditto**, a digital-document SaaS. Stores install
-printer devices that replace paper documents with a QR code customers scan. Ditto
+Multi-tenant admin console for **Maratus**, a digital-document SaaS. Stores install
+printer devices that replace paper documents with a QR code customers scan. Maratus
 no longer ingests or hosts document content — a caller triggers a device over the
 API and passes a URL to content it hosts itself; the device renders that URL as a
 QR. This repo is the admin console plus the device-facing trigger/command API —
@@ -49,7 +49,7 @@ npm run dev                  # http://localhost:3000
 
 ### Seed accounts (`npm run db:seed`)
 
-- **Platform admin:** `admin@ditto.app` / `123456`
+- **Platform admin:** `admin@maratus.co` / `123456`
 - **Tenant owner:** `dana@roastwell.co` / `123456`
 - Org "Roastwell Coffee": 3 stores, 6 claimed devices (mixed status), 3 unclaimed
   devices (with pairing codes, ready to claim in the UI), and a starter grant of
@@ -77,7 +77,7 @@ Two access tiers behind one app shell:
 - **Tenant workspace** (`/tenant/*`) — a store chain manages its stores, devices,
   branding, device settings, members, analytics, reports, activity (audit log),
   and billing (prepaid credits). Scoped to the user's active organization.
-- **Super Admin** (`/admin/*`) — Ditto staff (`user.role = 'platform_admin'`) see
+- **Super Admin** (`/admin/*`) — Maratus staff (`user.role = 'platform_admin'`) see
   across all customers: overview, customers, the global device fleet, factory
   **inventory** (manufacturing registry, `/admin/inventory`), firmware releases,
   platform health, and billing (credit usage across all orgs).
@@ -107,7 +107,7 @@ Key seams:
 
 ## Device → trigger → QR flow
 
-Trigger-only model: Ditto never sees the document content — the caller hosts it and
+Trigger-only model: Maratus never sees the document content — the caller hosts it and
 passes a URL.
 
 1. **Provision** — a platform admin creates a device with a one-time pairing code.

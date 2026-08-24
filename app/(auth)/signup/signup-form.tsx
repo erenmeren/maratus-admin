@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { DittoWordmark } from "@/components/brand";
+import { MaratusWordmark } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { registerCompany } from "@/lib/actions/register";
 
@@ -31,7 +31,7 @@ export function SignupForm() {
       router.push(`/verify-email?email=${encodeURIComponent(res.email ?? "")}`);
       return;
     }
-    toast.success("Welcome to Ditto", {
+    toast.success("Welcome to Maratus", {
       description: "Your workspace is ready.",
     });
     router.push("/tenant");
@@ -43,7 +43,7 @@ export function SignupForm() {
       {/* Form side */}
       <div className="flex flex-col px-6 py-8 sm:px-12">
         <div className="flex items-center justify-between">
-          <DittoWordmark />
+          <MaratusWordmark />
           <ThemeToggle />
         </div>
 
@@ -130,7 +130,7 @@ export function SignupForm() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground">
-          © 2026 Ditto · Any content, one scan away.
+          © 2026 Maratus · Any content, one scan away.
         </p>
       </div>
 

@@ -20,7 +20,7 @@ export default async function ApiKeysPage() {
     <>
       <PageHeader
         title="API keys"
-        description="Read-only keys for the Ditto public API."
+        description="Read-only keys for the Maratus public API."
       >
         {canManage && <ApiKeyCreateDialog />}
       </PageHeader>

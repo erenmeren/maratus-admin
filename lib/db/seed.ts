@@ -1,7 +1,7 @@
 // Seed script: `npm run db:seed`.
 //
 // Inserts realistic sample data so the existing UI keeps working end-to-end:
-//   • 1 platform_admin user (Ditto staff)
+//   • 1 platform_admin user (Maratus staff)
 //   • 1 coffee-chain organization with an owner user
 //   • ~3 stores, ~6 devices (mixed status)
 //
@@ -25,8 +25,8 @@ import {
 import { generateDeviceKey, id, pairingCode } from "../ids";
 
 const PLATFORM_ADMIN = {
-  name: "Ditto Staff",
-  email: "admin@ditto.app",
+  name: "Maratus Staff",
+  email: "admin@maratus.co",
   password: "123456",
 };
 
@@ -75,7 +75,7 @@ async function ensureUser(u: typeof OWNER): Promise<string> {
 }
 
 async function main() {
-  console.log("Seeding Ditto…");
+  console.log("Seeding Maratus…");
 
   // --- Users --------------------------------------------------------------
   await ensureUser(PLATFORM_ADMIN);

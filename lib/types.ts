@@ -1,4 +1,4 @@
-// Core domain types for the Ditto admin app.
+// Core domain types for the Maratus admin app.
 // These mirror the shape a real API would eventually return.
 
 import type { HealthLevel } from "./tenant-health";

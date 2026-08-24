@@ -1,10 +1,10 @@
 import { cn } from "@/lib/utils";
 
 /**
- * Ditto wordmark. The mark is a pair of overlapping rounded squares — the device
+ * Maratus wordmark. The mark is a pair of overlapping rounded squares — the device
  * screen and the phone showing the same thing. Uses the app's emerald primary token.
  */
-export function DittoMark({ className }: { className?: string }) {
+export function MaratusMark({ className }: { className?: string }) {
   return (
     <span
       className={cn(
@@ -28,7 +28,7 @@ export function DittoMark({ className }: { className?: string }) {
   );
 }
 
-export function DittoWordmark({
+export function MaratusWordmark({
   className,
   subtle = false,
 }: {
@@ -37,9 +37,9 @@ export function DittoWordmark({
 }) {
   return (
     <span className={cn("flex items-center gap-2", className)}>
-      <DittoMark />
+      <MaratusMark />
       <span className="flex items-baseline gap-1">
-        <span className="font-display text-lg font-bold tracking-tight">Ditto</span>
+        <span className="font-display text-lg font-bold tracking-tight">Maratus</span>
         {!subtle && (
           <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
             Admin

@@ -8,9 +8,9 @@ describe("escapeHtml", () => {
 });
 
 describe("emailLayout", () => {
-  it("wraps the body with the Ditto wordmark", () => {
+  it("wraps the body with the Maratus wordmark", () => {
     const html = emailLayout("<p>hi</p>");
-    expect(html).toContain("Ditto");
+    expect(html).toContain("Maratus");
     expect(html).toContain("<p>hi</p>");
   });
 });

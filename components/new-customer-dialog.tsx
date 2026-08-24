@@ -37,7 +37,7 @@ export function NewCustomerDialog() {
     }
     setOpen(false);
     toast.success("Customer created", {
-      description: `${name} has been added to Ditto.`,
+      description: `${name} has been added to Maratus.`,
     });
     router.refresh();
   }
@@ -55,7 +55,7 @@ export function NewCustomerDialog() {
           <DialogHeader>
             <DialogTitle>New customer</DialogTitle>
             <DialogDescription>
-              Add a store chain to the Ditto platform.
+              Add a store chain to the Maratus platform.
             </DialogDescription>
           </DialogHeader>
 

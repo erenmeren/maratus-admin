@@ -1,10 +1,10 @@
 @AGENTS.md
 
-# Ditto Admin
+# Maratus Admin
 
-Multi-tenant admin console for **Ditto**, a trigger-to-screen SaaS. In-store
+Multi-tenant admin console for **Maratus**, a trigger-to-screen SaaS. In-store
 devices show a QR code on demand; customers scan it to open whatever content
-the caller chose to show (trigger-only model — Ditto hosts nothing).
+the caller chose to show (trigger-only model — Maratus hosts nothing).
 
 ## Stack
 
@@ -103,7 +103,7 @@ write those actions anymore.
 
 ## Device trigger flow (trigger-only model)
 
-Ditto no longer ingests or hosts documents — customers host their own content
+Maratus no longer ingests or hosts documents — customers host their own content
 and pass a URL. The only device-activation path is the trigger API:
 
 1. **Provision**: a device is seeded/created with a one-time `pairingCode`.
@@ -189,7 +189,7 @@ else does.
 
 ## Seed accounts (`npm run db:seed`)
 
-- Platform admin: **admin@ditto.app** / `123456`
+- Platform admin: **admin@maratus.co** / `123456`
 - Tenant owner: **dana@roastwell.co** / `123456`
 - Org "Roastwell Coffee": 3 stores, 6 claimed devices (mixed status, all
   subscribed/paid), 3 unclaimed devices (with pairing codes).

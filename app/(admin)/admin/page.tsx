@@ -33,7 +33,7 @@ export default async function AdminOverviewPage() {
     <>
       <PageHeader
         title="Overview"
-        description="Platform-wide performance across all Ditto customers."
+        description="Platform-wide performance across all Maratus customers."
       />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

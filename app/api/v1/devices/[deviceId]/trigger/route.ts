@@ -54,7 +54,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
   if (!gate.ok) {
     return apiError(
       "device_not_subscribed",
-      "This device has no active subscription. Contact Ditto to activate it.",
+      "This device has no active subscription. Contact Maratus to activate it.",
       403,
     );
   }

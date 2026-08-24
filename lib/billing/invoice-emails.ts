@@ -11,7 +11,7 @@ import { db } from "@/lib/db";
 import { member, user, organization } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 
-const BRAND = "Ditto";
+const BRAND = "Maratus";
 
 export function escapeHtml(s: string): string {
   return s

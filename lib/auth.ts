@@ -1,7 +1,7 @@
 // Better Auth server instance.
 //
 // Email/password auth + the organization plugin (organization = tenant).
-// A platform-level `role` field on the user lets Ditto staff
+// A platform-level `role` field on the user lets Maratus staff
 // (role = 'platform_admin') see across all organizations — that access is NOT
 // an org membership.
 
@@ -17,7 +17,7 @@ import { sendEmail } from "./email";
 const env = getEnv();
 
 export const auth = betterAuth({
-  appName: "Ditto",
+  appName: "Maratus",
   baseURL: env.BETTER_AUTH_URL,
   secret: env.BETTER_AUTH_SECRET,
   // Trust the base URL plus all Vercel deployment domains (the production alias
@@ -46,15 +46,15 @@ export const auth = betterAuth({
     sendVerificationEmail: async ({ user, url }) => {
       await sendEmail(
         user.email,
-        "Verify your Ditto account",
-        `<p>Welcome to Ditto. Confirm your email to finish setting up your account:</p>` +
+        "Verify your Maratus account",
+        `<p>Welcome to Maratus. Confirm your email to finish setting up your account:</p>` +
           `<p><a href="${url}">Verify my email</a></p>`,
       );
     },
   },
   user: {
     additionalFields: {
-      // Platform role: 'user' (default) or 'platform_admin' (Ditto staff).
+      // Platform role: 'user' (default) or 'platform_admin' (Maratus staff).
       role: {
         type: "string",
         required: false,
@@ -69,9 +69,9 @@ export const auth = betterAuth({
         const url = `${env.BETTER_AUTH_URL}/signup?invite=${data.id}`;
         await sendEmail(
           data.email,
-          `You're invited to ${data.organization.name} on Ditto`,
+          `You're invited to ${data.organization.name} on Maratus`,
           `<p>${data.inviter.user.name} invited you to join ` +
-            `<b>${data.organization.name}</b> on Ditto.</p>` +
+            `<b>${data.organization.name}</b> on Maratus.</p>` +
             `<p><a href="${url}">Accept the invitation</a></p>`,
         );
       },

@@ -179,7 +179,7 @@ function LoginForm() {
             </div>
 
             <p className="text-center text-sm text-muted-foreground">
-              New to Ditto?{" "}
+              New to Maratus?{" "}
               <Link
                 href="/signup"
                 className="font-medium text-primary hover:underline"
@@ -191,7 +191,7 @@ function LoginForm() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground">
-          © 2026 Ditto · Any content, one scan away.
+          © 2026 Maratus · Any content, one scan away.
         </p>
       </div>
 
@@ -212,7 +212,7 @@ function LoginForm() {
               Show anything with a single scan.
             </h2>
             <p className="max-w-md text-primary-foreground/80">
-              Trigger a Ditto screen from your systems and a QR appears. Customers
+              Trigger a Maratus screen from your systems and a QR appears. Customers
               scan, view, and walk away — no paper, no reprints.
             </p>
             <div className="grid grid-cols-3 gap-4 pt-2">

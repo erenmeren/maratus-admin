@@ -59,7 +59,7 @@ export default async function BillingPage() {
       >
         <ExportButton
           label="Export tenants"
-          filename="ditto-billing.csv"
+          filename="maratus-billing.csv"
           headers={exportHeaders}
           rows={exportRows}
         />

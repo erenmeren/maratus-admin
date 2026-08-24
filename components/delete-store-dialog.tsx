@@ -54,7 +54,7 @@ export function DeleteStoreDialog({
               {armedCount > 0 && (
                 <p className="text-amber-600 dark:text-amber-500">
                   {armedCount} {armedCount === 1 ? "device" : "devices"} prepared for
-                  zero-touch setup will need to be re-armed by Ditto.
+                  zero-touch setup will need to be re-armed by Maratus.
                 </p>
               )}
             </div>

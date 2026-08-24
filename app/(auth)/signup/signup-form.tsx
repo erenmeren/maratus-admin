@@ -31,7 +31,7 @@ export function SignupForm() {
       router.push(`/verify-email?email=${encodeURIComponent(res.email ?? "")}`);
       return;
     }
-    toast.success("Welcome to Ditto", {
+    toast.success("Welcome to Maratus", {
       description: "Your workspace is ready.",
     });
     router.push("/tenant");
@@ -130,7 +130,7 @@ export function SignupForm() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground">
-          © 2026 Ditto · Any content, one scan away.
+          © 2026 Maratus · Any content, one scan away.
         </p>
       </div>
 

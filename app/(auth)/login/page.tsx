@@ -163,14 +163,14 @@ function LoginForm() {
               <button
                 type="button"
                 onClick={() => {
-                  setEmail("admin@ditto.app");
+                  setEmail("admin@maratus.co");
                   setPassword("123456");
                 }}
                 className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent"
               >
                 <span className="font-medium">Platform admin</span>
                 <span className="font-mono text-muted-foreground">
-                  admin@ditto.app
+                  admin@maratus.co
                 </span>
               </button>
               <p className="px-2 text-[11px] text-muted-foreground">

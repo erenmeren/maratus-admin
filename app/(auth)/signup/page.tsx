@@ -22,7 +22,8 @@ export default async function SignupPage({
   }
 
   const inv = await getInvitationForSignup(invite);
-  if (!inv) {
+  if (!inv || inv.state === "accepted") {
+    const used = inv?.state === "accepted";
     return (
       <AuthShell
         panelTitle="Your team is already here."
@@ -35,14 +36,15 @@ export default async function SignupPage({
       >
         <div className="space-y-2">
           <h1 className="font-display text-3xl font-bold tracking-tight">
-            Invitation not found
+            {used ? "Invitation already accepted" : "Invitation not found"}
           </h1>
           <p className="text-sm text-muted-foreground">
-            This invitation is invalid or has expired. Ask a workspace admin to
-            send you a new one — invitation links only work once.
+            {used
+              ? "This invitation has already been used — your account is set up. Sign in to get to your workspace."
+              : "This invitation is invalid or has expired. Ask a workspace admin to send you a new one — invitation links only work once."}
           </p>
         </div>
-        <Button variant="outline" className="w-full" asChild>
+        <Button variant={used ? "default" : "outline"} className="w-full" asChild>
           <Link href="/login">Go to sign in</Link>
         </Button>
       </AuthShell>

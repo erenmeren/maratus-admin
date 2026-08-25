@@ -90,17 +90,21 @@ export async function updateMemberRole(memberId: string, role: string): Promise<
   return { ok: true };
 }
 
-/** Load a pending invitation for the signup page (server-read). Returns null if invalid/expired/used. */
+/** Load a pending invitation for the signup page (server-read). Returns null if
+ *  invalid/expired, or `{ state: "accepted" }` for an already-used link so the
+ *  page can point the visitor at sign-in instead of a dead "not found". */
 export async function getInvitationForSignup(invitationId: string) {
   const [inv] = await db
     .select({ id: invitation.id, email: invitation.email, role: invitation.role, status: invitation.status, organizationId: invitation.organizationId, expiresAt: invitation.expiresAt })
     .from(invitation)
     .where(eq(invitation.id, invitationId))
     .limit(1);
-  if (!inv || inv.status !== "pending" || inv.expiresAt.getTime() < Date.now()) return null;
+  if (!inv) return null;
+  if (inv.status === "accepted") return { state: "accepted" as const };
+  if (inv.status !== "pending" || inv.expiresAt.getTime() < Date.now()) return null;
   const { organization } = await import("@/lib/db/schema");
   const [org] = await db.select({ name: organization.name }).from(organization).where(eq(organization.id, inv.organizationId)).limit(1);
-  return { id: inv.id, email: inv.email, role: inv.role ?? "member", orgName: org?.name ?? "the team" };
+  return { state: "ok" as const, id: inv.id, email: inv.email, role: inv.role ?? "member", orgName: org?.name ?? "the team" };
 }
 
 /** Accept as an already-signed-in user whose email matches the invite. */

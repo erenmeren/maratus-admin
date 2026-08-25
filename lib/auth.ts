@@ -35,6 +35,20 @@ export const auth = betterAuth({
     // Demo/seed accounts use a short password (123456); Better Auth's default
     // minimum is 8, which would reject them on a fresh `npm run db:seed`.
     minPasswordLength: 6,
+    // Reset links are short-lived. Value is in SECONDS (Better Auth's own
+    // default is also 3600, but pin it so a library change can't widen it).
+    resetPasswordTokenExpiresIn: 3600,
+    // `url` already points at /api/auth/reset-password/{token}?callbackURL=…,
+    // which validates the token and then bounces to our /reset-password page.
+    sendResetPassword: async ({ user, url }) => {
+      await sendEmail(
+        user.email,
+        "Reset your Maratus password",
+        `<p>We got a request to reset the password on your Maratus account.</p>` +
+          `<p><a href="${url}">Choose a new password</a></p>` +
+          `<p>This link expires in 1 hour. If you didn't ask for it, you can ignore this email.</p>`,
+      );
+    },
   },
   emailVerification: {
     sendOnSignUp: true,

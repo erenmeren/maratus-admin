@@ -16,14 +16,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { TIMEZONES, normalizeTimezone } from "@/lib/timezones";
+import { TimezoneSelect } from "@/components/timezone-select";
+import { normalizeTimezone } from "@/lib/timezones";
 import { updateStore } from "@/lib/actions/stores";
 
 export function EditStoreDialog({
@@ -75,18 +69,11 @@ export function EditStoreDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-timezone">Timezone</Label>
-              <Select value={timezone} onValueChange={setTimezone}>
-                <SelectTrigger id="edit-timezone" className="w-full">
-                  <SelectValue placeholder="Select timezone" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIMEZONES.map((tz) => (
-                    <SelectItem key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <TimezoneSelect
+                id="edit-timezone"
+                value={timezone}
+                onValueChange={setTimezone}
+              />
               <p className="text-xs text-muted-foreground">
                 The store’s local time zone.
               </p>

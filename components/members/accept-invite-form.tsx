@@ -30,7 +30,7 @@ export function AcceptInviteForm({
   invitationId: string;
   email: string;
   orgName: string;
-  mode: "accept" | "wrong-user" | "signup";
+  mode: "accept" | "wrong-user" | "needs-signin" | "signup";
   currentEmail: string | null;
 }) {
   const [name, setName] = useState("");
@@ -58,6 +58,11 @@ export function AcceptInviteForm({
         <p className="text-sm text-muted-foreground">
           {mode === "wrong-user" ? (
             <>This invitation was sent to a different account.</>
+          ) : mode === "needs-signin" ? (
+            <>
+              You already have a Maratus account with this email. Sign in and
+              reopen this link to join {orgName}.
+            </>
           ) : mode === "accept" ? (
             <>
               You&apos;ve been invited to join {orgName} on Maratus. Accept the
@@ -82,6 +87,27 @@ export function AcceptInviteForm({
             Sign out, then reopen the invitation link to accept it.
           </p>
           <Button variant="outline" className="w-full" asChild>
+            <Link href="/login">
+              Go to sign in
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+        </div>
+      ) : mode === "needs-signin" ? (
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="invite-email">Invited email</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input id="invite-email" value={email} className="pl-9" disabled readOnly />
+            </div>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Signing up again isn&apos;t possible with an email that already has
+            an account. Sign in first, then open the invitation link again — it
+            stays valid until you accept it.
+          </p>
+          <Button className="w-full" asChild>
             <Link href="/login">
               Go to sign in
               <ArrowRight className="size-4" />

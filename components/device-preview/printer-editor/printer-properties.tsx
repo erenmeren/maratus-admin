@@ -16,14 +16,7 @@ import type { PrinterEditor } from "./use-printer-editor";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { TIMEZONES } from "@/lib/timezones";
+import { TimezoneSelect } from "@/components/timezone-select";
 import { cn } from "@/lib/utils";
 
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, n));
@@ -93,12 +86,7 @@ export function PropertyFields({
         <>
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">Timezone</Label>
-            <Select value={editor.config.clockTimezone} onValueChange={(v) => editor.setShared({ clockTimezone: v })} disabled={disabled}>
-              <SelectTrigger className="h-8 w-full"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {TIMEZONES.map((tz) => (<SelectItem key={tz.value} value={tz.value}>{tz.label}</SelectItem>))}
-              </SelectContent>
-            </Select>
+            <TimezoneSelect className="h-8" value={editor.config.clockTimezone} onValueChange={(v) => editor.setShared({ clockTimezone: v })} disabled={disabled} />
           </div>
           <SwitchField id={`clock-24h-${object.id}`} label="24-hour" checked={editor.config.clock24h} disabled={disabled} onChange={(v) => editor.setShared({ clock24h: v })} />
           <AlignPicker value={object.align ?? "center"} disabled={disabled} onChange={(a) => set({ align: a })} />

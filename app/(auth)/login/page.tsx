@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { MaratusWordmark } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { authClient } from "@/lib/auth-client";
@@ -87,7 +86,7 @@ function LoginForm() {
                 <div className="flex items-center justify-between">
                   <Label htmlFor="password">Password</Label>
                   <Link
-                    href="#"
+                    href="/forgot-password"
                     className="text-xs font-medium text-primary hover:underline"
                   >
                     Forgot password?
@@ -114,31 +113,6 @@ function LoginForm() {
                 )}
               </Button>
             </form>
-
-            <div className="flex items-center gap-3">
-              <Separator className="flex-1" />
-              <span className="text-xs text-muted-foreground">or</span>
-              <Separator className="flex-1" />
-            </div>
-
-            <Button
-              variant="outline"
-              className="w-full"
-              type="button"
-              onClick={() =>
-                toast.info("SSO not configured", {
-                  description: "Single sign-on isn't set up in this prototype.",
-                })
-              }
-            >
-              <svg viewBox="0 0 24 24" className="size-4" aria-hidden>
-                <path
-                  fill="currentColor"
-                  d="M21.35 11.1H12v3.83h5.35c-.23 1.4-1.62 4.1-5.35 4.1-3.22 0-5.85-2.67-5.85-5.95S8.78 7.13 12 7.13c1.83 0 3.06.78 3.76 1.45l2.56-2.47C16.74 4.6 14.6 3.6 12 3.6 6.95 3.6 2.85 7.7 2.85 12.75S6.95 21.9 12 21.9c5.27 0 8.76-3.7 8.76-8.92 0-.6-.06-1.05-.16-1.5z"
-                />
-              </svg>
-              Continue with SSO
-            </Button>
 
             <p className="text-center text-sm text-muted-foreground">
               New to Maratus?{" "}

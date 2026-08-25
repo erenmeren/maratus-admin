@@ -16,6 +16,7 @@ import { OffboardWizard } from "@/components/customers/offboard-wizard";
 import { RestoreCustomerButton } from "@/components/customers/restore-customer-button";
 import { AdminStoresCard } from "@/components/customers/admin-stores-card";
 import { InviteOwnerDialog } from "@/components/customers/invite-owner-dialog";
+import { RenameCustomerDialog } from "@/components/customers/rename-customer-dialog";
 import {
   Card,
   CardContent,
@@ -134,6 +135,10 @@ export default async function CustomerDetailPage({
       >
         {!isArchived && (
           <>
+            <RenameCustomerDialog
+              organizationId={tenant.id}
+              currentName={tenant.name}
+            />
             <InviteOwnerDialog organizationId={tenant.id} />
             <AddBranchDialog organizationId={tenant.id} customerName={tenant.name} />
           </>

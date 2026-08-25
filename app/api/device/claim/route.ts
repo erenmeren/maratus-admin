@@ -3,14 +3,20 @@
 // this until claimed, then receives its device key ONCE.
 //   malformed code                    → 400 (validated before any DB hit)
 //   no row, serial allocated          → auto-claim: key delivered + consumed NOW
-//                                       { status: "claimed", deviceKey, deviceId, mqtt }
+//                                       { status: "claimed", deviceKey, deviceId }
 //   no row otherwise                  → { status: "pending" }
-//   pendingDeviceKey set              → { status: "claimed", deviceKey, deviceId, mqtt },
+//   pendingDeviceKey set              → { status: "claimed", deviceKey, deviceId },
 //                                       then null key + code, stamp serial
 //   key already delivered             → { status: "claimed" }
-// deviceId + mqtt (see lib/mqtt.ts buildMqttConfigBlock) ride along on every key
-// delivery so a freshly claimed device never needs the extra /api/device/identity
-// round trip; mqtt is null when the EMQX env group is absent.
+//
+// KEEP THIS RESPONSE SMALL — the provisioning firmware reads it into a 256-byte
+// stack buffer (cloud_claim_poll) and silently truncates anything longer, which
+// fails the JSON parse and leaves the device polling forever while the one-shot
+// key is consumed server-side. An mqtt block used to ride along here to save the
+// device an /api/device/identity round trip; at 263 bytes it pushed the response
+// past that buffer and bricked zero-touch claiming. No firmware ever read it
+// (provisioning_parse_claim only extracts deviceKey), so it is gone: the device
+// learns its broker from /api/device/identity, which has a 512-byte buffer.
 // The serial is public (box label) and NEVER authenticates by itself; auto-claim
 // is the one-shot allocated→claimed transition only (hijack guard).
 
@@ -32,7 +38,6 @@ import {
 } from "@/lib/factory-registry";
 import { sendEmail } from "@/lib/email";
 import { autoClaimEmail } from "@/lib/registry-emails";
-import { buildMqttConfigBlock } from "@/lib/mqtt";
 
 export const runtime = "nodejs";
 
@@ -101,12 +106,10 @@ export async function GET(req: Request) {
             console.error("[claim] auto-claim admin email failed (non-fatal)", err);
           }
         });
-        const mqtt = await buildMqttConfigBlock(auto.deviceId);
         return NextResponse.json({
           status: "claimed",
           deviceKey: auto.deviceKey,
           deviceId: auto.deviceId,
-          mqtt,
         });
       }
     }
@@ -132,12 +135,10 @@ export async function GET(req: Request) {
   }
 
   if (decision.deviceKey && device) {
-    const mqtt = await buildMqttConfigBlock(device.id);
     return NextResponse.json({
       status: decision.status,
       deviceKey: decision.deviceKey,
       deviceId: device.id,
-      mqtt,
     });
   }
 

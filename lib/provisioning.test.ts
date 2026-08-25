@@ -86,3 +86,24 @@ describe("shouldAutoClaim", () => {
     expect(shouldAutoClaim(false, { ...allocated, allocatedStoreId: null })).toBe(true);
   });
 });
+
+// The provisioning firmware reads the claim response into a 256-byte stack
+// buffer (cloud_claim_poll) and silently truncates the overflow, so an oversized
+// response fails the device's JSON parse while the one-shot key is consumed
+// server-side — the device then polls forever and can never be claimed. An mqtt
+// block riding along here once pushed it to 263 bytes and bricked exactly that.
+describe("claim response size budget", () => {
+  const FIRMWARE_BUFFER_BYTES = 256;
+
+  it("stays inside the firmware's claim buffer for a key delivery", () => {
+    const body = JSON.stringify({
+      status: "claimed",
+      // `dvk_` + nanoid(40) — see generateDeviceKey in lib/ids.ts.
+      deviceKey: `dvk_${"x".repeat(40)}`,
+      // `dev_` + nanoid(21) — see id() in lib/ids.ts.
+      deviceId: `dev_${"x".repeat(21)}`,
+    });
+    // -1 for the NUL the firmware writes at body[resp.len].
+    expect(body.length).toBeLessThan(FIRMWARE_BUFFER_BYTES - 1);
+  });
+});

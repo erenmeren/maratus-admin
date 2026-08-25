@@ -24,8 +24,8 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
-  const [email, setEmail] = React.useState("dana@roastwell.co");
-  const [password, setPassword] = React.useState("123456");
+  const [email, setEmail] = React.useState("");
+  const [password, setPassword] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -139,44 +139,6 @@ function LoginForm() {
               </svg>
               Continue with SSO
             </Button>
-
-            <Separator />
-
-            {/* Demo accounts seeded into the database */}
-            <div className="space-y-2 rounded-lg border bg-muted/40 p-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Demo accounts
-              </p>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail("dana@roastwell.co");
-                  setPassword("123456");
-                }}
-                className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent"
-              >
-                <span className="font-medium">Tenant owner</span>
-                <span className="font-mono text-muted-foreground">
-                  dana@roastwell.co
-                </span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setEmail("admin@maratus.co");
-                  setPassword("123456");
-                }}
-                className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs hover:bg-accent"
-              >
-                <span className="font-medium">Platform admin</span>
-                <span className="font-mono text-muted-foreground">
-                  admin@maratus.co
-                </span>
-              </button>
-              <p className="px-2 text-[11px] text-muted-foreground">
-                Password for both: <span className="font-mono">123456</span>
-              </p>
-            </div>
 
             <p className="text-center text-sm text-muted-foreground">
               New to Maratus?{" "}

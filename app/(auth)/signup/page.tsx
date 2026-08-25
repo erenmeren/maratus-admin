@@ -1,6 +1,9 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getContext } from "@/lib/session";
 import { getInvitationForSignup } from "@/lib/actions/members";
+import { Button } from "@/components/ui/button";
+import { AuthShell } from "@/components/auth-shell";
 import { SignupForm } from "./signup-form";
 import { AcceptInviteForm } from "@/components/members/accept-invite-form";
 
@@ -20,7 +23,30 @@ export default async function SignupPage({
 
   const inv = await getInvitationForSignup(invite);
   if (!inv) {
-    return <p className="p-8 text-center text-sm text-muted-foreground">This invitation is invalid or has expired.</p>;
+    return (
+      <AuthShell
+        panelTitle="Your team is already here."
+        panelCopy="Accept your invitation and start managing stores, screens, and triggered content together."
+        panelStats={[
+          { k: "1 min", v: "to join" },
+          { k: "0", v: "paper printed" },
+          { k: "∞", v: "things to show" },
+        ]}
+      >
+        <div className="space-y-2">
+          <h1 className="font-display text-3xl font-bold tracking-tight">
+            Invitation not found
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            This invitation is invalid or has expired. Ask a workspace admin to
+            send you a new one — invitation links only work once.
+          </p>
+        </div>
+        <Button variant="outline" className="w-full" asChild>
+          <Link href="/login">Go to sign in</Link>
+        </Button>
+      </AuthShell>
+    );
   }
   const ctx = await getContext();
   const signedInMatch = ctx?.user.email.toLowerCase() === inv.email.toLowerCase();

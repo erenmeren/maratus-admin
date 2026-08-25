@@ -71,6 +71,50 @@ export async function createCustomer(
   return { ok: true, organizationId: orgId };
 }
 
+/**
+ * Rename a customer (organization display name). The slug is deliberately left
+ * alone — it's the org's stable identifier for Better Auth lookups, and a
+ * typo-fix on the display name shouldn't invalidate it.
+ */
+export async function renameCustomerAction(
+  organizationId: string,
+  rawName: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const ctx = await requirePlatformAdmin();
+
+  const name = rawName.trim();
+  if (!name) return { ok: false, error: "Company name is required." };
+  if (name.length > 120) return { ok: false, error: "That name is too long." };
+
+  const [org] = await db
+    .select({ name: organization.name })
+    .from(organization)
+    .where(eq(organization.id, organizationId))
+    .limit(1);
+  if (!org) return { ok: false, error: "Customer not found." };
+  if (await isOrgArchived(organizationId)) {
+    return { ok: false, error: "Customer is archived." };
+  }
+  if (org.name === name) return { ok: true };
+
+  await db
+    .update(organization)
+    .set({ name })
+    .where(eq(organization.id, organizationId));
+
+  await recordAudit({
+    organizationId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    action: AUDIT.customerRenamed,
+    metadata: { from: org.name, to: name },
+  });
+
+  revalidatePath(`/admin/customers/${organizationId}`);
+  revalidatePath("/admin/customers");
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
 export type InviteOwnerState = {
   ok: boolean;
   error?: string;

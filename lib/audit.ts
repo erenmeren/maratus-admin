@@ -17,6 +17,7 @@ export const AUDIT = {
   orgSuspended: "org.suspended",
   orgReactivated: "org.reactivated",
   customerCreated: "customer.created",
+  customerRenamed: "customer.renamed",
   deviceProvisioned: "device.provisioned",
   deviceRenamed: "device.renamed",
   deviceReassigned: "device.reassigned",

@@ -18,6 +18,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "invoice.overdue": "Invoice overdue",
   "billing.activated": "Billing activated",
   "customer.created": "Customer created",
+  "customer.renamed": "Customer renamed",
   "device.provisioned": "Device provisioned",
   "device.renamed": "Device renamed",
   "device.reassigned": "Device reassigned",

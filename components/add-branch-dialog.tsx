@@ -17,14 +17,8 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { TIMEZONES, DEFAULT_TIMEZONE } from "@/lib/timezones";
+import { TimezoneSelect } from "@/components/timezone-select";
+import { DEFAULT_TIMEZONE } from "@/lib/timezones";
 import { createStoreForOrg } from "@/lib/actions/stores";
 
 export function AddBranchDialog({
@@ -94,18 +88,11 @@ export function AddBranchDialog({
             </div>
             <div className="space-y-2">
               <Label htmlFor="branch-timezone">Timezone</Label>
-              <Select value={timezone} onValueChange={setTimezone}>
-                <SelectTrigger id="branch-timezone" className="w-full">
-                  <SelectValue placeholder="Select timezone" />
-                </SelectTrigger>
-                <SelectContent>
-                  {TIMEZONES.map((tz) => (
-                    <SelectItem key={tz.value} value={tz.value}>
-                      {tz.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <TimezoneSelect
+                id="branch-timezone"
+                value={timezone}
+                onValueChange={setTimezone}
+              />
               <p className="text-xs text-muted-foreground">
                 The store’s local time zone.
               </p>

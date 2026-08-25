@@ -59,7 +59,15 @@ export default async function SignupPage({
       invitationId={inv.id}
       email={inv.email}
       orgName={inv.orgName}
-      mode={signedInMatch ? "accept" : signedInOther ? "wrong-user" : "signup"}
+      mode={
+        signedInMatch
+          ? "accept"
+          : signedInOther
+            ? "wrong-user"
+            : inv.hasAccount
+              ? "needs-signin"
+              : "signup"
+      }
       currentEmail={ctx?.user.email ?? null}
     />
   );

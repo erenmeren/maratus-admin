@@ -104,7 +104,11 @@ export async function getInvitationForSignup(invitationId: string) {
   if (inv.status !== "pending" || inv.expiresAt.getTime() < Date.now()) return null;
   const { organization } = await import("@/lib/db/schema");
   const [org] = await db.select({ name: organization.name }).from(organization).where(eq(organization.id, inv.organizationId)).limit(1);
-  return { state: "ok" as const, id: inv.id, email: inv.email, role: inv.role ?? "member", orgName: org?.name ?? "the team" };
+  // Someone invited to a SECOND org already has an account from the first one.
+  // Signing them up again would fail on the unique email, so the page needs to
+  // ask them to sign in instead of showing a dead-end signup form.
+  const [existing] = await db.select({ id: user.id }).from(user).where(eq(user.email, inv.email)).limit(1);
+  return { state: "ok" as const, id: inv.id, email: inv.email, role: inv.role ?? "member", orgName: org?.name ?? "the team", hasAccount: !!existing };
 }
 
 /** Accept as an already-signed-in user whose email matches the invite. */

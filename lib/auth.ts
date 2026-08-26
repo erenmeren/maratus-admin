@@ -6,6 +6,7 @@
 // an org membership.
 
 import { betterAuth } from "better-auth";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization } from "better-auth/plugins";
 import { nextCookies } from "better-auth/next-js";
@@ -13,6 +14,7 @@ import { db } from "./db";
 import { schema } from "./db/schema";
 import { getEnv } from "./env";
 import { sendEmail } from "./email";
+import { checkSignUpGate } from "./signup-gate";
 import { computeTrustedOrigins } from "./trusted-origins";
 
 const env = getEnv();
@@ -72,6 +74,27 @@ export const auth = betterAuth({
         input: false, // not settable via sign-up payload
       },
     },
+  },
+  hooks: {
+    // Invite-only: sign-up is not a public door. Removing the self-serve form
+    // isn't enough — POST /api/auth/sign-up/email is still routed by the
+    // catch-all handler — so every sign-up, from the HTTP route or from our own
+    // auth.api.signUpEmail call, must be backed by a pending invitation.
+    // See lib/signup-gate.ts.
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== "/sign-up/email") return;
+      const email = String(
+        (ctx.body as { email?: unknown } | undefined)?.email ?? "",
+      );
+      const decision = await checkSignUpGate(email);
+      if (!decision.ok) {
+        throw new APIError("FORBIDDEN", {
+          code: "SIGNUP_DISABLED",
+          message:
+            "Maratus accounts are invite-only. Ask a workspace admin to invite you.",
+        });
+      }
+    }),
   },
   plugins: [
     organization({

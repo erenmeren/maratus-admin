@@ -1,6 +1,8 @@
 import { VerifyEmailNotice } from "./verify-email-notice";
 
-// Shown after self-serve signup when email verification is active.
+// Shown when a sign-up left the account unverified and email verification is
+// active. Self-serve sign-up is gone (invite-only), so this is reached only
+// from Better Auth verification links.
 export default async function VerifyEmailPage({
   searchParams,
 }: {

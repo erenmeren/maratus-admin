@@ -22,13 +22,13 @@ export default async function Home() {
           and billing from one console.
         </p>
       </div>
-      <div className="flex flex-col gap-3 sm:flex-row">
+      <div className="flex flex-col items-center gap-3">
         <Button asChild size="lg">
-          <Link href="/signup">Start free</Link>
-        </Button>
-        <Button asChild size="lg" variant="outline">
           <Link href="/login">Sign in</Link>
         </Button>
+        <p className="text-sm text-muted-foreground">
+          Maratus is invite-only — your workspace admin sends the invitation.
+        </p>
       </div>
     </main>
   );

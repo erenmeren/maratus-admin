@@ -115,13 +115,8 @@ function LoginForm() {
             </form>
 
             <p className="text-center text-sm text-muted-foreground">
-              New to Maratus?{" "}
-              <Link
-                href="/signup"
-                className="font-medium text-primary hover:underline"
-              >
-                Create an account
-              </Link>
+              Maratus accounts are invite-only — ask your workspace admin to
+              send you an invitation.
             </p>
           </div>
         </div>

@@ -4,7 +4,6 @@ import { getContext } from "@/lib/session";
 import { getInvitationForSignup } from "@/lib/actions/members";
 import { Button } from "@/components/ui/button";
 import { AuthShell } from "@/components/auth-shell";
-import { SignupForm } from "./signup-form";
 import { AcceptInviteForm } from "@/components/members/accept-invite-form";
 
 export default async function SignupPage({
@@ -14,11 +13,14 @@ export default async function SignupPage({
 }) {
   const { invite } = await searchParams;
   if (!invite) {
-    // A signed-in user can't create a new company from here (see registerCompany's
-    // guard) — send them to their dashboard instead of showing a dead-end form.
+    // Invite-only: there is no self-serve sign-up. Without an invitation token
+    // this route has nothing to show — signed-in visitors go to their
+    // workspace, everyone else to sign-in. The account-creating half of this
+    // page lives on only for invitees (AcceptInviteForm, below); the server
+    // side of that door is lib/signup-gate.ts.
     const ctx = await getContext();
     if (ctx) redirect(ctx.user.role === "platform_admin" ? "/admin" : "/tenant");
-    return <SignupForm />;
+    redirect("/login");
   }
 
   const inv = await getInvitationForSignup(invite);

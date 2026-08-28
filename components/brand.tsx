@@ -42,7 +42,7 @@ export function MaratusWordmark({
         <span className="font-display text-lg font-bold tracking-tight">Maratus</span>
         {!subtle && (
           <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-muted-foreground">
-            Admin
+            Console
           </span>
         )}
       </span>

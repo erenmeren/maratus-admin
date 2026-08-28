@@ -20,9 +20,9 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Maratus — Admin Console",
+  title: "Maratus Console",
   description:
-    "Maratus admin console: manage screens, stores, and triggered content.",
+    "Maratus console: manage screens, stores, and triggered content.",
 };
 
 export default function RootLayout({

@@ -48,7 +48,7 @@ export default async function HealthPage() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCard label="Activations (1h)" value={String(h.activity.last1h)} />
           <KpiCard label="Activations (24h)" value={String(h.activity.last24h)} />
-          <KpiCard label="Stuck pending" value={String(h.activity.stuckPending)} />
+          <KpiCard label="Undelivered (24h)" value={String(h.activity.stuckPending)} />
         </div>
         <p className="text-sm text-muted-foreground">
           Last 24h: {h.activity.acked} acked · {h.activity.pending} pending · {h.activity.failed} failed

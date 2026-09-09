@@ -171,7 +171,7 @@ export default async function CustomerDetailPage({
           <span className="text-muted-foreground">Online <strong className="text-foreground">{health.online}</strong></span>
           <span className="text-muted-foreground">Offline <strong className="text-foreground">{health.offline}</strong></span>
           <span className="text-muted-foreground">Paused <strong className="text-foreground">{health.paused}</strong></span>
-          <span className="text-muted-foreground">Stuck pending <strong className="text-foreground">{health.stuckPendingCount}</strong></span>
+          <span className="text-muted-foreground">Undelivered (24h) <strong className="text-foreground">{health.stuckPendingCount}</strong></span>
         </CardContent>
       </Card>
 

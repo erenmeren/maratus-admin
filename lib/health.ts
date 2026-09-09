@@ -2,7 +2,6 @@
 // Pure operational-health thresholds + alert rules (no IO).
 
 export const STALE_MINUTES = 15;
-export const STUCK_PENDING_MINUTES = 30;
 export const INACTIVE_DAYS = 7;
 /** Above this many inactive tenants, collapse into one summarized alert. */
 export const INACTIVE_ALERT_CAP = 5;
@@ -42,9 +41,11 @@ export function computeAlerts(input: {
     alerts.push({
       // Key kept as "documents-stuck": it is the persisted alert identity (alert
       // rows + dedupe); only the human-readable copy moved to trigger vocabulary.
+      // The count is "undelivered triggers in the last 24h" — see
+      // undeliveredTriggerWhere in lib/command-expiry.ts.
       key: "documents-stuck",
       severity: "warning",
-      message: `${input.stuckPendingCount} trigger(s) stuck pending ${STUCK_PENDING_MINUTES}+ minutes`,
+      message: `${input.stuckPendingCount} trigger(s) undelivered in the last 24h`,
     });
   // Per-tenant alerts up to a cap; beyond that, one summarized alert so a
   // platform with many empty orgs doesn't produce an alert wall.

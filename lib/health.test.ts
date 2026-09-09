@@ -22,10 +22,11 @@ describe("computeAlerts", () => {
   it("no alerts when everything is clear", () => {
     expect(computeAlerts({ staleCount: 0, stuckPendingCount: 0, inactiveTenants: [] })).toEqual([]);
   });
-  it("warns on stale devices and stuck triggers", () => {
+  it("warns on stale devices and undelivered triggers", () => {
     const a = computeAlerts({ staleCount: 3, stuckPendingCount: 2, inactiveTenants: [] });
     expect(a.map((x) => x.key)).toEqual(["devices-stale", "documents-stuck"]);
     expect(a.every((x) => x.severity === "warning")).toBe(true);
+    expect(a[1].message).toBe("2 trigger(s) undelivered in the last 24h");
   });
   it("emits one info per inactive tenant", () => {
     const a = computeAlerts({ staleCount: 0, stuckPendingCount: 0, inactiveTenants: [{ id: "o1", name: "Acme" }] });

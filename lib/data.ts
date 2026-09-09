@@ -40,8 +40,8 @@ import {
   type BucketCount,
   type StoreAnalytics,
 } from "./analytics";
-import { computeAlerts, STALE_MINUTES, STUCK_PENDING_MINUTES, INACTIVE_DAYS, type HealthAlert } from "./health";
-import { stuckPendingTriggerWhere } from "./command-expiry";
+import { computeAlerts, STALE_MINUTES, INACTIVE_DAYS, type HealthAlert } from "./health";
+import { undeliveredTriggerWhere } from "./command-expiry";
 import { presignedGetUrl } from "./storage";
 import { env } from "@/lib/env";
 import { resolveBrandTokens } from "./color";
@@ -1195,7 +1195,7 @@ async function getTenantSummaries(opts?: {
     db
       .select({ org: deviceCommand.organizationId, c: count() })
       .from(deviceCommand)
-      .where(stuckPendingTriggerWhere(new Date(), STUCK_PENDING_MINUTES))
+      .where(undeliveredTriggerWhere(new Date()))
       .groupBy(deviceCommand.organizationId),
     db
       .select({ org: deviceCommand.organizationId, last: max(deviceCommand.createdAt) })
@@ -1341,7 +1341,7 @@ export async function getCustomerDetail(
   const [{ stuck }] = await db
     .select({ stuck: sql<number>`count(*)::int` })
     .from(deviceCommand)
-    .where(and(eq(deviceCommand.organizationId, organizationId), stuckPendingTriggerWhere(now, STUCK_PENDING_MINUTES)));
+    .where(and(eq(deviceCommand.organizationId, organizationId), undeliveredTriggerWhere(now)));
   const [{ last }] = await db
     .select({ last: max(deviceCommand.createdAt) })
     .from(deviceCommand)
@@ -1975,7 +1975,7 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
     const [{ stuckPending }] = await db
       .select({ stuckPending: count() })
       .from(deviceCommand)
-      .where(stuckPendingTriggerWhere(now, STUCK_PENDING_MINUTES));
+      .where(undeliveredTriggerWhere(now));
 
     const topRows = await db
       .select({ id: orgTable.id, name: orgTable.name, c: count() })
@@ -2078,7 +2078,7 @@ export async function getAlertInputs(): Promise<{
   const [{ stuckPendingCount }] = await db
     .select({ stuckPendingCount: count() })
     .from(deviceCommand)
-    .where(stuckPendingTriggerWhere(now, STUCK_PENDING_MINUTES));
+    .where(undeliveredTriggerWhere(now));
 
   const allOrgs = excludeArchived(
     await db

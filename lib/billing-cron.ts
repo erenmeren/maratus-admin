@@ -20,6 +20,7 @@ import {
   periodIndexFor,
 } from "./billing-period";
 import { FAIR_USE_TRIGGERS_PER_DEVICE_MONTH } from "./invoicing";
+import { applyPendingSlots } from "./device-slots";
 import {
   countAckedTriggers,
   countPaidDevices,
@@ -131,6 +132,8 @@ export async function runBillingCron(now: Date = new Date()): Promise<{
       included: tenantSettings.includedTriggersPerDevice,
       legacyCredits: tenantSettings.legacyCreditsRemaining,
       paidDeviceSlots: tenantSettings.paidDeviceSlots,
+      pendingSlots: tenantSettings.pendingDeviceSlots,
+      pendingAt: tenantSettings.pendingSlotsAt,
     })
     .from(tenantSettings)
     .where(
@@ -187,6 +190,29 @@ export async function runBillingCron(now: Date = new Date()): Promise<{
           overageIssued += 1;
           legacyCredits = 0;
         }
+      }
+
+      // 1b. A renewal paid early parked its lower slot count (see
+      //     renewalSlotWrite). Once the anniversary has passed, apply it —
+      //     after closing the old year's periods above, which were owed the
+      //     old entitlement. Conditional on pendingSlotsAt so a concurrent
+      //     payment that re-parked a different value is not clobbered.
+      if (org.pendingAt !== null && org.pendingSlots !== null && org.pendingAt.getTime() <= now.getTime()) {
+        const paidDevices = await countPaidDevices(org.organizationId);
+        await db
+          .update(tenantSettings)
+          .set({
+            paidDeviceSlots: applyPendingSlots({ pending: org.pendingSlots, paidDevices }),
+            pendingDeviceSlots: null,
+            pendingSlotsAt: null,
+            updatedAt: now,
+          })
+          .where(
+            and(
+              eq(tenantSettings.organizationId, org.organizationId),
+              eq(tenantSettings.pendingSlotsAt, org.pendingAt),
+            ),
+          );
       }
 
       // 2. Renewal, 30 days ahead. The unique index on (org, kind="subscription",

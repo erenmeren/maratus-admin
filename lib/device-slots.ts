@@ -74,3 +74,31 @@ export function slotsAfterPayment(a: {
       return a.currentSlots;
   }
 }
+
+/**
+ * What a renewal payment writes to `paidDeviceSlots` NOW, and what it parks
+ * for the anniversary. A renewal is issued 30 days early and priced at that
+ * moment's paid-device count; when it is paid before the anniversary and that
+ * count is LOWER than the current entitlement (a slot went vacant via RMA or
+ * removal), the customer still owns the old year's slots through its last
+ * day. Shrinking immediately would bill overage against a pool they paid
+ * for, so the lower number is parked (`pending`) and applied by the billing
+ * cron once the anniversary has passed. Paid at/after the anniversary, or
+ * not lower at all → write it now, nothing pending.
+ */
+export function renewalSlotWrite(a: {
+  currentSlots: number;
+  newSlots: number;
+  paidBeforeAnniversary: boolean;
+}): { writeNow: number; pending: number | null } {
+  if (!a.paidBeforeAnniversary || a.newSlots >= a.currentSlots) {
+    return { writeNow: a.newSlots, pending: null };
+  }
+  return { writeNow: a.currentSlots, pending: a.newSlots };
+}
+
+/** The parked count takes effect, but never below what is paid by then — a
+ *  proration settled in the meantime added a slot the customer paid for. */
+export function applyPendingSlots(a: { pending: number; paidDevices: number }): number {
+  return Math.max(a.pending, a.paidDevices);
+}

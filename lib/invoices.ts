@@ -24,11 +24,9 @@ import { device, deviceCommand, factoryDevice, invoice, tenantSettings } from ".
 import { id } from "./ids";
 import { AUDIT, recordAudit, type AuditActor } from "./audit";
 import {
-  addMonthsAnchored,
-  MONTHS_PER_YEAR,
-  periodEndFor,
-  periodStartFor,
+  nextRenewalAt,
   renewalDueAt,
+  startOfUtcDay,
 } from "./billing-period";
 import {
   DEFAULT_PRICE_PER_DEVICE_CENTS,
@@ -462,17 +460,20 @@ export async function markInvoicePaid(a: {
       .limit(1);
 
     // First activation anchors the whole billing calendar. A renewal must NOT
-    // recompute year one from the anchor — it advances the CURRENT renewal
-    // date by twelve months, so a second renewal lands in year three.
+    // recompute year one from the anchor — it steps to the anniversary AFTER
+    // the current renewal date, so a second renewal lands in year three.
     const isFirst = !settings?.startedAt;
-    const startedAt = settings?.startedAt ?? now;
+    // First payment anchors the calendar at MIDNIGHT UTC of the payment day,
+    // so every period boundary — and the invoice's own stated period — sits
+    // on a day boundary rather than at the second the admin clicked.
+    const startedAt = settings?.startedAt ?? startOfUtcDay(now);
     // A non-first invoice with a null renewsAt should be unreachable, but this
     // is the most important write in the product: fall back to a fresh year
     // rather than casting the null away and throwing mid-settlement, with the
     // invoice already marked paid.
     const renewsAt = isFirst
-      ? renewalDueAt(now)
-      : addMonthsAnchored(settings.renewsAt ?? renewalDueAt(now), MONTHS_PER_YEAR);
+      ? renewalDueAt(startedAt)
+      : nextRenewalAt(startedAt, settings.renewsAt ?? renewalDueAt(startedAt));
     const pricePerDeviceCents = settings?.price ?? DEFAULT_PRICE_PER_DEVICE_CENTS;
 
     // Read once and reused below in both slotsAfterPayment (the max-floor
@@ -588,6 +589,26 @@ export async function markInvoicePaid(a: {
         },
       });
 
+    // Make the first invoice say what it actually covers: it was issued with
+    // periodStart = the issue day and a nominal year, but the anchor is only
+    // fixed now, at payment. Best-effort — the (organizationId, kind,
+    // periodStart) unique index could collide with a same-day voided invoice,
+    // and this is a label, not an entitlement.
+    if (isFirst) {
+      try {
+        await db
+          .update(invoice)
+          .set({ periodStart: startedAt, periodEnd: renewsAt })
+          .where(eq(invoice.id, inv.id));
+      } catch (err) {
+        console.warn("[billing] could not align the first invoice's period to the anchor (label only)", {
+          invoiceId: inv.id,
+          organizationId: inv.organizationId,
+          err: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
     // Activation is now bounded by the entitlement itself: you cannot occupy a
     // slot that does not exist. This replaces the old count cap and the
     // issuance-time pin — at a renewal the newly written slots equal the
@@ -620,7 +641,6 @@ export async function markInvoicePaid(a: {
     try {
       await issueProrationsForUnpaidDevices({
         organizationId: inv.organizationId,
-        startedAt,
         renewsAt,
         pricePerDeviceCents,
         now,
@@ -939,6 +959,18 @@ export async function settleClaimBilling(
       .limit(1);
     const openRenewalPeriodEnd = openRenewal?.periodEnd ?? null;
 
+    // prorationMonthsThrough clamps to one month when the anniversary has
+    // already passed with no renewal issued — the device is then billed a
+    // whole month for a year that is over. Legitimate (an unpaid renewal is
+    // never cut off) but worth seeing.
+    if (openRenewalPeriodEnd === null && now.getTime() >= settings.renewsAt.getTime()) {
+      console.warn("[billing] device claimed after the anniversary with no renewal issued; proration clamped to one month", {
+        deviceId,
+        organizationId,
+        renewsAt: settings.renewsAt.toISOString(),
+      });
+    }
+
     await issueProrationInvoice({
       organizationId,
       deviceId,
@@ -950,8 +982,11 @@ export async function settleClaimBilling(
       // already issued, this runs through THAT year's end instead, because
       // the issued invoice was priced before this device existed.
       monthsRemaining: prorationMonthsThrough({ renewsAt: settings.renewsAt, now, openRenewalPeriodEnd }),
-      periodStart: periodStartFor(settings.startedAt, now),
-      periodEnd: openRenewalPeriodEnd ?? periodEndFor(settings.startedAt, now),
+      // The row describes what is charged: from the claim day until the
+      // horizon the months were priced to (the issued renewal's end, or the
+      // current anniversary).
+      periodStart: startOfUtcDay(now),
+      periodEnd: openRenewalPeriodEnd ?? settings.renewsAt,
       issuedAt: now,
     });
   } catch (err) {
@@ -971,7 +1006,6 @@ export async function settleClaimBilling(
  */
 async function issueProrationsForUnpaidDevices(a: {
   organizationId: string;
-  startedAt: Date;
   renewsAt: Date;
   pricePerDeviceCents: number;
   now: Date;
@@ -991,8 +1025,10 @@ async function issueProrationsForUnpaidDevices(a: {
         monthsRemainingUntil(a.renewsAt, a.now),
         { deviceId: d.id, organizationId: a.organizationId },
       ),
-      periodStart: periodStartFor(a.startedAt, a.now),
-      periodEnd: periodEndFor(a.startedAt, a.now),
+      // Same rule as settleClaimBilling: the period is what the charge covers
+      // — the claim day through the horizon the months were priced to.
+      periodStart: startOfUtcDay(a.now),
+      periodEnd: a.renewsAt,
       issuedAt: a.now,
     });
   }

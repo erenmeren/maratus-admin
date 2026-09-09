@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addMonthsAnchored,
+  nextRenewalAt,
   periodEndFor,
   periodIndexFor,
   periodStartFor,
@@ -113,5 +114,26 @@ describe("startOfUtcDay", () => {
   it("is already-truncated-safe", () => {
     const midnight = new Date("2026-03-12T00:00:00.000Z");
     expect(startOfUtcDay(midnight).toISOString()).toBe(midnight.toISOString());
+  });
+});
+
+describe("nextRenewalAt", () => {
+  it("advances a normal anchor by exactly one year", () => {
+    const anchor = new Date("2026-09-10T00:00:00Z");
+    expect(nextRenewalAt(anchor, new Date("2027-09-10T00:00:00Z"))).toEqual(new Date("2028-09-10T00:00:00Z"));
+  });
+  it("does not carry a Feb-28 clamp forward across leap years", () => {
+    const anchor = new Date("2028-02-29T00:00:00Z");
+    const y1 = nextRenewalAt(anchor, anchor); // first renewal
+    expect(y1).toEqual(new Date("2029-02-28T00:00:00Z"));
+    const y2 = nextRenewalAt(anchor, y1);
+    expect(y2).toEqual(new Date("2030-02-28T00:00:00Z"));
+    const y3 = nextRenewalAt(anchor, y2);
+    const y4 = nextRenewalAt(anchor, y3);
+    expect(y4).toEqual(new Date("2032-02-29T00:00:00Z")); // back on the true anniversary
+  });
+  it("tolerates a renewsAt that drifted a day off the anchor grid", () => {
+    const anchor = new Date("2028-02-29T00:00:00Z");
+    expect(nextRenewalAt(anchor, new Date("2031-02-28T00:00:00Z"))).toEqual(new Date("2032-02-29T00:00:00Z"));
   });
 });

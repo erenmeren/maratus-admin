@@ -32,9 +32,9 @@ export function freeSlots(a: { paidDeviceSlots: number; paidDevices: number }): 
  * The floor stays either way: the alternative is confiscating quota the
  * customer paid for, which is worse, and case 2 self-corrects at the
  * following renewal (bounded at one device-year). This function exists so the
- * operator can SEE the surplus — but before billing anything off-system they
- * must check the org's PAID prorations and whether any of them covers the
- * renewal period (compare a proration's periodEnd with the renewal's).
+ * operator can SEE the surplus — the `markInvoicePaid` call site already
+ * subtracts any covered prorations before computing it, so a non-zero result
+ * here means a genuinely unpriced surplus (case 2), not case 1 double-counted.
  */
 export function unpricedSlots(a: {
   invoiceDeviceCount: number | null;
@@ -110,6 +110,10 @@ export function applyPendingSlots(a: { pending: number; paidDevices: number }): 
  * out for the new year, or a device would occupy one, be kept by
  * applyPendingSlots' paid-device floor, and ride a whole year unpriced.
  * Never above what is actually paid for.
+ *
+ * The UI free-slot counters (`getTenantBillingOverview`, the customer detail
+ * page) run through this too, so they never advertise a slot
+ * `settleClaimBilling` would refuse to hand out.
  */
 export function effectiveSlots(a: {
   paidDeviceSlots: number;

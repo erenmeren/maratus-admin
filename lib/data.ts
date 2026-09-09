@@ -58,7 +58,7 @@ import { AUDIT } from "@/lib/audit";
 import { periodStartFor, periodEndFor } from "@/lib/billing-period";
 import { overageFor } from "@/lib/invoicing";
 import { countPaidDevices, countAckedTriggers, isInvoiceOverdue } from "@/lib/invoices";
-import { freeSlots as computeFreeSlots } from "@/lib/device-slots";
+import { freeSlots as computeFreeSlots, effectiveSlots } from "@/lib/device-slots";
 import { isTenantImageKey } from "./asset-keys";
 import type {
   Device,
@@ -187,7 +187,8 @@ async function loadOrg(organizationId: string): Promise<OrgBundle | null> {
   const todayByDevice = new Map<string, number>();
   const monthByDevice = new Map<string, number>();
   for (const r of deviceCountRows) {
-    // deviceId is non-null on device_command; the guard is cheap insurance.
+    // Guard is load-bearing, not insurance: device_id is nullable (SET NULL
+    // since migration 0045) — commands of deleted devices carry a null id.
     if (!r.deviceId) continue;
     monthByDevice.set(r.deviceId, r.month);
     if (r.today) todayByDevice.set(r.deviceId, r.today);
@@ -540,6 +541,7 @@ export async function getTenantBillingOverview(
         overagePriceCents: settingsTable.overagePriceCents,
         includedTriggersPerDevice: settingsTable.includedTriggersPerDevice,
         paidDeviceSlots: settingsTable.paidDeviceSlots,
+        pendingDeviceSlots: settingsTable.pendingDeviceSlots,
       })
       .from(settingsTable)
       .where(eq(settingsTable.organizationId, organizationId))
@@ -550,7 +552,13 @@ export async function getTenantBillingOverview(
   const pricePerDeviceCents = settings?.pricePerDeviceCents ?? 0;
   const overagePriceCents = settings?.overagePriceCents ?? 0;
   const paidDeviceSlots = settings?.paidDeviceSlots ?? 0;
-  const freeSlots = computeFreeSlots({ paidDeviceSlots, paidDevices });
+  const freeSlots = computeFreeSlots({
+    paidDeviceSlots: effectiveSlots({
+      paidDeviceSlots,
+      pendingDeviceSlots: settings?.pendingDeviceSlots ?? null,
+    }),
+    paidDevices,
+  });
 
   // Unsubscribed orgs (subscriptionStartedAt still null) have no anchor to
   // compute a period from — render nothing rather than a nonsense window.

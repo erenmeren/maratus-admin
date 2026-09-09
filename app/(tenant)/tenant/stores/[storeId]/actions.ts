@@ -35,8 +35,12 @@ export async function claimDeviceAction(
     return { ok: false, error: "You don't have permission to claim devices." };
   }
 
-  // Normalize the pairing code (uppercase, dash-separated, no stray spaces).
-  const pairingCode = pairingCodeRaw.trim().toUpperCase();
+  // Normalize the pairing code as it is read off the screen: spaces anywhere, and the
+  // dash optional (the device shows ABCD-EFGH; people type ABCDEFGH).
+  const typed = pairingCodeRaw.replace(/\s+/g, "").toUpperCase();
+  const pairingCode = /^[A-HJ-NP-Z2-9]{8}$/.test(typed)
+    ? `${typed.slice(0, 4)}-${typed.slice(4)}`
+    : typed;
   // A code that cannot have been shown by a device must never reach
   // claimDevice: its create-row path would mint a phantom "New Printer" that
   // occupies a paid slot or gets prorated, while the real device keeps polling.

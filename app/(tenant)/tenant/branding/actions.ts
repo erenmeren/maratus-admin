@@ -67,6 +67,23 @@ export async function saveBranding(
     }
   }
 
+  // Every non-direct image url must be one of THIS org's keys. The JSON is
+  // tenant input; a foreign key here would later be presigned for the browser
+  // and deleted as an "orphan" — i.e. read/delete of any bucket object. Runs
+  // BEFORE the upload loop below: rejecting after we have written objects to R2
+  // would orphan them. "pending:" markers are skipped — the loop rewrites them
+  // to a key it minted itself, which is this org's by construction.
+  if (printerConfig !== undefined) {
+    for (const screen of PRINTER_SCREENS) {
+      for (const o of printerConfig.screens[screen].objects) {
+        const u = o.type === "image" ? o.image?.url : undefined;
+        if (u && !u.startsWith("pending:") && !isDirectAssetUrl(u) && !isTenantImageKey(organizationId, u)) {
+          return { ok: false, error: "Invalid image reference." };
+        }
+      }
+    }
+  }
+
   // Process newly-uploaded image files. The client sets image.url = "pending:<objectId>"
   // and sends the file under "image:<objectId>". Rewrite urls to the stored R2 key.
   if (printerConfig !== undefined) {
@@ -101,20 +118,6 @@ export async function saveBranding(
             // dangling "pending:" url is persisted.
             o.image = {};
           }
-        }
-      }
-    }
-  }
-
-  // Every remaining non-direct image url must be one of THIS org's keys. The
-  // JSON is tenant input; a foreign key here would later be presigned for the
-  // browser and deleted as an "orphan" — i.e. read/delete of any bucket object.
-  if (printerConfig !== undefined) {
-    for (const screen of PRINTER_SCREENS) {
-      for (const o of printerConfig.screens[screen].objects) {
-        const u = o.type === "image" ? o.image?.url : undefined;
-        if (u && !isDirectAssetUrl(u) && !isTenantImageKey(organizationId, u)) {
-          return { ok: false, error: "Invalid image reference." };
         }
       }
     }

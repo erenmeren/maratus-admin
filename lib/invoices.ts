@@ -24,6 +24,7 @@ import { device, deviceCommand, factoryDevice, invoice, tenantSettings } from ".
 import { id } from "./ids";
 import { AUDIT, recordAudit, type AuditActor } from "./audit";
 import {
+  addMonthsAnchored,
   nextRenewalAt,
   renewalDueAt,
   startOfUtcDay,
@@ -971,6 +972,17 @@ export async function settleClaimBilling(
       });
     }
 
+    const claimDay = startOfUtcDay(now);
+    // Label horizon = what the months were priced to. Past the anniversary with
+    // no renewal issued, the charge is the one-month clamp, so the label is one
+    // month forward from the claim day — never the anniversary already behind
+    // us, which would render as a backwards range in the invoice table.
+    const prorationEnd =
+      openRenewalPeriodEnd ??
+      (now.getTime() >= settings.renewsAt.getTime()
+        ? addMonthsAnchored(claimDay, 1)
+        : settings.renewsAt);
+
     await issueProrationInvoice({
       organizationId,
       deviceId,
@@ -983,10 +995,9 @@ export async function settleClaimBilling(
       // the issued invoice was priced before this device existed.
       monthsRemaining: prorationMonthsThrough({ renewsAt: settings.renewsAt, now, openRenewalPeriodEnd }),
       // The row describes what is charged: from the claim day until the
-      // horizon the months were priced to (the issued renewal's end, or the
-      // current anniversary).
-      periodStart: startOfUtcDay(now),
-      periodEnd: openRenewalPeriodEnd ?? settings.renewsAt,
+      // horizon the months were priced to.
+      periodStart: claimDay,
+      periodEnd: prorationEnd,
       issuedAt: now,
     });
   } catch (err) {
@@ -1015,6 +1026,17 @@ async function issueProrationsForUnpaidDevices(a: {
 
   const alreadyProrated = await proratedDeviceIds(a.organizationId);
 
+  const claimDay = startOfUtcDay(a.now);
+  // Same rule as settleClaimBilling. `a.renewsAt` is the just-advanced
+  // anniversary, so it is normally in the future — but a renewal invoice paid
+  // more than twelve months after its own anniversary (nothing cuts one off)
+  // leaves it in the past, monthsRemainingUntil returns 0, prorationMonths
+  // clamps to one, and the label must point forward with the charge.
+  const prorationEnd =
+    a.now.getTime() >= a.renewsAt.getTime()
+      ? addMonthsAnchored(claimDay, 1)
+      : a.renewsAt;
+
   for (const d of stillUnpaid) {
     if (alreadyProrated.has(d.id)) continue;
     await issueProrationInvoice({
@@ -1025,10 +1047,8 @@ async function issueProrationsForUnpaidDevices(a: {
         monthsRemainingUntil(a.renewsAt, a.now),
         { deviceId: d.id, organizationId: a.organizationId },
       ),
-      // Same rule as settleClaimBilling: the period is what the charge covers
-      // — the claim day through the horizon the months were priced to.
-      periodStart: startOfUtcDay(a.now),
-      periodEnd: a.renewsAt,
+      periodStart: claimDay,
+      periodEnd: prorationEnd,
       issuedAt: a.now,
     });
   }

@@ -1,10 +1,9 @@
 // Terminal state for triggers nobody acked. A trigger carries
 // expiresAt = createdAt + 60 s (app/api/v1/devices/[deviceId]/trigger/route.ts)
 // because it is a QR for the customer at the counter NOW; once that passes it
-// must become `expired`, not sit `pending` forever inflating every "stuck
-// pending" KPI and keeping the documents-stuck alert open. The heartbeat
+// must become `expired`, not sit `pending` forever. The heartbeat
 // republish already refuses expired rows; this sweep just records the fact.
-import { and, eq, gt, isNotNull, isNull, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, gt, isNotNull, lt, or, sql, type SQL } from "drizzle-orm";
 import { db } from "./db";
 import { deviceCommand } from "./db/schema";
 
@@ -15,17 +14,41 @@ export function isExpiredPending(
   return cmd.status === "pending" && cmd.expiresAt !== null && cmd.expiresAt.getTime() < now.getTime();
 }
 
-/** WHERE for "a trigger that is genuinely stuck": pending, older than the
- *  stuck threshold, AND not merely past its TTL (those are `expired` in
- *  waiting — the sweep below records them; until it runs they must not count). */
-export function stuckPendingTriggerWhere(now: Date, stuckMinutes: number): SQL {
-  const stuckCut = new Date(now.getTime() - stuckMinutes * 60_000);
+/** Window for the "undelivered trigger" signal: a QR that never reached a
+ *  screen is only news while it is recent. */
+export const UNDELIVERED_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+/** WHERE for "a trigger that never reached a screen in the window": recent AND
+ *  either already recorded `expired` by the daily sweep, or still `pending`
+ *  past its 60 s TTL — the same fact before the sweep has run. (The old
+ *  "pending for 30+ minutes with an open TTL" predicate was unsatisfiable: a
+ *  trigger's TTL closes 60 s after it is created.) */
+export function undeliveredTriggerWhere(now: Date, windowMs = UNDELIVERED_WINDOW_MS): SQL {
+  const from = new Date(now.getTime() - windowMs);
   return and(
     eq(deviceCommand.type, "trigger"),
-    eq(deviceCommand.status, "pending"),
-    lt(deviceCommand.createdAt, stuckCut),
-    or(isNull(deviceCommand.expiresAt), gt(deviceCommand.expiresAt, now)),
+    gt(deviceCommand.createdAt, from),
+    or(
+      eq(deviceCommand.status, "expired"),
+      and(
+        eq(deviceCommand.status, "pending"),
+        isNotNull(deviceCommand.expiresAt),
+        lt(deviceCommand.expiresAt, now),
+      ),
+    ),
   )!;
+}
+
+/** Pure mirror of `undeliveredTriggerWhere` (same predicate, in JS). */
+export function isUndeliveredTrigger(
+  cmd: { type: string; status: string; expiresAt: Date | null; createdAt: Date },
+  now: Date,
+  windowMs = UNDELIVERED_WINDOW_MS,
+): boolean {
+  if (cmd.type !== "trigger") return false;
+  if (cmd.createdAt.getTime() <= now.getTime() - windowMs) return false;
+  if (cmd.status === "expired") return true;
+  return isExpiredPending(cmd, now);
 }
 
 /** Flip every pending command whose TTL has passed to `expired`. Idempotent;

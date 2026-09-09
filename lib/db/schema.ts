@@ -222,6 +222,14 @@ export const tenantSettings = pgTable("tenant_settings", {
   // markInvoicePaid); nothing decrements it. Quota is slots × included, never
   // a live device count.
   paidDeviceSlots: integer("paid_device_slots").default(0).notNull(),
+  // A renewal PAID BEFORE its anniversary prices the new year at a lower device
+  // count than the org currently holds (a slot went vacant via RMA/removal).
+  // The lower number must not take effect until the anniversary — the customer
+  // paid for the old year's slots through its last day — so it is parked here
+  // and applied by the billing cron once `pendingSlotsAt` has passed
+  // (lib/billing-cron.ts). Both null = nothing pending.
+  pendingDeviceSlots: integer("pending_device_slots"),
+  pendingSlotsAt: timestamp("pending_slots_at"),
   // Triggers included per PAID device per month; pooled org-wide.
   includedTriggersPerDevice: integer("included_triggers_per_device")
     .default(1000)
@@ -395,7 +403,11 @@ export const deviceCommand = pgTable(
   "device_command",
   {
     id: text("id").primaryKey(),
-    deviceId: text("device_id").notNull().references(() => device.id, { onDelete: "cascade" }),
+    // Nullable + SET NULL on purpose: a deleted device's acked triggers must
+    // stay in the org's overage count for the still-open period (billing reads
+    // device_command by organization_id, not by device). Per-device rollups
+    // bucket null as "unknown" (lib/trigger-usage.ts).
+    deviceId: text("device_id").references(() => device.id, { onDelete: "set null" }),
     organizationId: text("organization_id").notNull().references(() => organization.id, { onDelete: "cascade" }),
     type: text("type", { enum: ["reboot", "refresh", "identify", "config-changed", "firmware-update", "trigger", "pin"] }).notNull(),
     // No "delivered" state: it belonged to the retired HTTP command-poll

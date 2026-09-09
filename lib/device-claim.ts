@@ -6,6 +6,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "./db";
 import { device as deviceTable, store as storeTable } from "./db/schema";
 import { generateDeviceKey, id } from "./ids";
+import { isValidPairingCode } from "./provisioning";
 import { provisionDeviceMqtt } from "@/lib/mqtt";
 import { pushEffectivePinSafe } from "@/lib/pin-service";
 // Claim-time billing (free slot vs. proration) lives in lib/invoices.ts so the
@@ -33,6 +34,8 @@ export async function claimDevice(
   pairingCode: string,
   storeId: string,
 ): Promise<ClaimResult> {
+  if (!isValidPairingCode(pairingCode)) throw new Error("Unknown pairing code");
+
   const [store] = await db
     .select({ id: storeTable.id, organizationId: storeTable.organizationId })
     .from(storeTable)

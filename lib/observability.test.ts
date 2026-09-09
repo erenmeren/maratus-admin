@@ -41,6 +41,16 @@ describe("scrubSentryEvent", () => {
     });
   });
 
+  it("redacts the EMQX webhook shared secret header (any case)", () => {
+    const event = scrubSentryEvent({
+      request: { headers: { "X-EMQX-Webhook-Secret": "topsecret", "x-keep": "ok" } },
+    });
+    expect(event.request?.headers).toEqual({
+      "X-EMQX-Webhook-Secret": "[redacted]",
+      "x-keep": "ok",
+    });
+  });
+
   it("leaves urls and transaction names untouched (no capability lives in URLs anymore)", () => {
     const event = scrubSentryEvent({
       request: { url: "https://app.maratus.co/tenant/stores/str_1?x=1" },

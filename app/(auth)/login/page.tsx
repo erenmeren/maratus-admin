@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { MaratusWordmark } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { authClient } from "@/lib/auth-client";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 export default function LoginPage() {
   return (
@@ -42,9 +43,8 @@ function LoginForm() {
 
     // Route to the right panel: platform staff → /admin, everyone else → /tenant.
     const role = (data.user as { role?: string }).role;
-    const redirect = params.get("redirect");
     const dest =
-      role === "platform_admin" ? "/admin" : redirect ?? "/tenant";
+      role === "platform_admin" ? "/admin" : safeRedirectPath(params.get("redirect"), "/tenant");
     router.push(dest);
     router.refresh();
   }

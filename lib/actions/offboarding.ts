@@ -15,6 +15,7 @@ import {
 import { requirePlatformAdmin } from "@/lib/session";
 import { AUDIT, recordAudit } from "@/lib/audit";
 import { getOrgDevicesForOffboard } from "@/lib/data";
+import { fillFreeSlots } from "@/lib/invoices";
 import {
   returnDeviceToStock,
   retireDeviceWithCustomer,
@@ -255,6 +256,19 @@ export async function restoreCustomerAction(
       );
   } catch (err) {
     console.error("[offboarding] un-retiring registry rows on restore failed", err);
+  }
+
+  // Retirement cleared subscriptionPaidAt on every device but left
+  // paidDeviceSlots intact (the customer's entitlement). Put the devices back
+  // into those slots now, oldest claim first — otherwise they stay unpaid and
+  // every trigger is refused after the trial. Fail-open, like the un-retire.
+  try {
+    await fillFreeSlots({
+      organizationId,
+      actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    });
+  } catch (err) {
+    console.error("[offboarding] re-activating devices into paid slots on restore failed", err);
   }
 
   await recordAudit({

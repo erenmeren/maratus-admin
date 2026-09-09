@@ -37,6 +37,7 @@ import {
   overageFor,
   prorationAmountCents,
   prorationMonths as clampProrationMonths,
+  prorationMonthsThrough,
   subscriptionAmountCents,
 } from "./invoicing";
 import { freeSlots, slotsAfterPayment, unpricedSlots } from "./device-slots";
@@ -415,7 +416,24 @@ export async function markInvoicePaid(a: {
     // device's own open proration — but it can't be the one voided: the void
     // is conditioned on status = "open" and this row was just marked "paid"
     // above, so it never matches.
-    await activateDeviceIntoSlot(inv.deviceId, inv.organizationId, now, actor);
+    // The device may have gone to RMA/retired while its proration was open
+    // (DOA replacement). The customer still paid for a slot — keep it — but
+    // never park it on a dead unit: hand it to whoever is waiting instead.
+    const [reg] = await db
+      .select({ status: factoryDevice.status })
+      .from(factoryDevice)
+      .where(eq(factoryDevice.deviceId, inv.deviceId))
+      .limit(1);
+    if (reg && (reg.status === "rma" || reg.status === "retired")) {
+      console.warn("[billing] proration paid for a retired/RMA device; filling the slot elsewhere", {
+        invoiceId: inv.id,
+        deviceId: inv.deviceId,
+        organizationId: inv.organizationId,
+      });
+      await fillFreeSlots({ organizationId: inv.organizationId, now, actor });
+    } else {
+      await activateDeviceIntoSlot(inv.deviceId, inv.organizationId, now, actor);
+    }
     return { ok: true, organizationId: inv.organizationId };
   }
 
@@ -795,20 +813,35 @@ export async function settleClaimBilling(
       return;
     }
 
+    // Renewal for the next year already issued and unpaid? Then this device
+    // is missing from it: bill it through the end of that year in one go.
+    const [openRenewal] = await db
+      .select({ periodEnd: invoice.periodEnd })
+      .from(invoice)
+      .where(
+        and(
+          eq(invoice.organizationId, organizationId),
+          eq(invoice.kind, "subscription"),
+          eq(invoice.status, "open"),
+          eq(invoice.periodStart, settings.renewsAt),
+        ),
+      )
+      .limit(1);
+    const openRenewalPeriodEnd = openRenewal?.periodEnd ?? null;
+
     await issueProrationInvoice({
       organizationId,
       deviceId,
       pricePerDeviceCents: settings.price,
-      // Clamped to at least one month: a device claimed at or after the
-      // renewal instant (routine while a renewal sits unpaid — there is no
-      // cut-off) would otherwise price at zero, produce no invoice at all,
-      // and be claimed, unpaid and invisible.
-      monthsRemaining: prorationMonths(monthsRemainingUntil(settings.renewsAt, now), {
-        deviceId,
-        organizationId,
-      }),
+      // Never below one month: a device claimed at or after the renewal
+      // instant (routine while a renewal sits unpaid — there is no cut-off)
+      // would otherwise price at zero, produce no invoice at all, and be
+      // claimed, unpaid and invisible. And when the next year's renewal is
+      // already issued, this runs through THAT year's end instead, because
+      // the issued invoice was priced before this device existed.
+      monthsRemaining: prorationMonthsThrough({ renewsAt: settings.renewsAt, now, openRenewalPeriodEnd }),
       periodStart: periodStartFor(settings.startedAt, now),
-      periodEnd: periodEndFor(settings.startedAt, now),
+      periodEnd: openRenewalPeriodEnd ?? periodEndFor(settings.startedAt, now),
       issuedAt: now,
     });
   } catch (err) {

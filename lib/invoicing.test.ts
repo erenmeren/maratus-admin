@@ -9,6 +9,7 @@ import {
   overageFor,
   prorationAmountCents,
   prorationMonths,
+  prorationMonthsThrough,
   subscriptionAmountCents,
 } from "./invoicing";
 
@@ -162,5 +163,24 @@ describe("prorationMonths", () => {
     for (const m of [-1, 0, 1, 12, 13]) {
       expect(prorationAmountCents(1500, prorationMonths(m))).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("prorationMonthsThrough", () => {
+  const renewsAt = new Date("2026-10-01T00:00:00Z");
+  it("with no open renewal, bills the months left until renewsAt (min 1)", () => {
+    expect(prorationMonthsThrough({ renewsAt, now: new Date("2026-09-11T00:00:00Z"), openRenewalPeriodEnd: null })).toBe(1);
+    expect(prorationMonthsThrough({ renewsAt, now: new Date("2026-10-05T00:00:00Z"), openRenewalPeriodEnd: null })).toBe(1);
+    expect(prorationMonthsThrough({ renewsAt, now: new Date("2026-04-01T00:00:00Z"), openRenewalPeriodEnd: null })).toBe(6);
+  });
+  it("with an open renewal already issued, covers the next year too", () => {
+    const nextEnd = new Date("2027-10-01T00:00:00Z");
+    // 20 days before the anniversary: 1 (remainder) + 12 (the issued year).
+    expect(prorationMonthsThrough({ renewsAt, now: new Date("2026-09-11T00:00:00Z"), openRenewalPeriodEnd: nextEnd })).toBe(13);
+    // After the anniversary with the renewal still unpaid: what is left of the issued year.
+    expect(prorationMonthsThrough({ renewsAt, now: new Date("2026-11-15T00:00:00Z"), openRenewalPeriodEnd: nextEnd })).toBe(11);
+  });
+  it("prices a 13-month proration without clamping to a year", () => {
+    expect(prorationAmountCents(1500, 13)).toBe(19_500);
   });
 });

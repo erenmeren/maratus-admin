@@ -51,6 +51,26 @@ export function prorationMonths(monthsRemaining: number): number {
   return Math.min(MONTHS_PER_YEAR, Math.max(1, monthsRemaining));
 }
 
+/**
+ * Months a claim-time proration must cover. Normally the rest of the current
+ * subscription year. But once the renewal invoice for the NEXT year has been
+ * issued (30 days ahead, priced at that moment's paid devices), a device
+ * claimed now is missing from it — so its proration must run through the end
+ * of that issued year as well, or it rides the new year for one month's price.
+ * Never below one month (see prorationMonths); may exceed 12.
+ */
+export function prorationMonthsThrough(a: {
+  renewsAt: Date;
+  now: Date;
+  openRenewalPeriodEnd: Date | null;
+}): number {
+  if (a.openRenewalPeriodEnd === null) return prorationMonths(monthsRemainingUntil(a.renewsAt, a.now));
+  if (a.now.getTime() >= a.renewsAt.getTime()) {
+    return Math.max(1, monthsRemainingUntil(a.openRenewalPeriodEnd, a.now));
+  }
+  return Math.max(1, monthsRemainingUntil(a.renewsAt, a.now)) + MONTHS_PER_YEAR;
+}
+
 /** One device for the remaining months of an existing subscription year. */
 export function prorationAmountCents(
   pricePerDeviceCents: number,

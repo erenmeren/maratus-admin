@@ -1,12 +1,18 @@
 // IO that drives the pure alert lifecycle (lib/alerts.ts). Called by the cron
 // endpoint. Never throws on email failure — sendEmail is best-effort.
 
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, ne, isNotNull, max } from "drizzle-orm";
 import { db } from "./db";
-import { alert as alertTable, user as userTable, device as deviceTable, store as storeTable } from "./db/schema";
+import {
+  alert as alertTable,
+  user as userTable,
+  device as deviceTable,
+  store as storeTable,
+  auditLog as auditLogTable,
+} from "./db/schema";
 import { getOrgEmailContext } from "./billing/invoice-emails";
 import { deviceOfflineEmail } from "./devices/device-emails";
-import { shouldMarkOffline } from "./device-status";
+import { shouldMarkOffline, shouldNotifyOffline } from "./device-status";
 import { recordAudit, AUDIT } from "./audit";
 import { computeAlerts } from "./health";
 import { getAlertInputs } from "./data";
@@ -27,7 +33,7 @@ import { id } from "./ids";
  * "offline" (never touches "paused"/"offline"), and audit each flip. Idempotent.
  * Folded into the daily health sweep so no separate cron is needed. */
 export async function reconcileOfflineDevices(now: Date): Promise<number> {
-  const onlineRows = await db
+  const rows = await db
     .select({
       id: deviceTable.id,
       organizationId: deviceTable.organizationId,
@@ -38,17 +44,33 @@ export async function reconcileOfflineDevices(now: Date): Promise<number> {
     })
     .from(deviceTable)
     .leftJoin(storeTable, eq(storeTable.id, deviceTable.storeId))
-    .where(eq(deviceTable.status, "online"));
+    .where(and(ne(deviceTable.status, "paused"), isNotNull(deviceTable.claimedAt)));
 
-  const toFlip = onlineRows.filter((r) => shouldMarkOffline(r, now));
-  if (toFlip.length === 0) return 0;
+  // 1. Stored-status repair (unchanged): only "online" rows that went stale.
+  const toFlip = rows.filter((r) => shouldMarkOffline(r, now));
+  if (toFlip.length > 0) {
+    await db
+      .update(deviceTable)
+      .set({ status: "offline" })
+      .where(inArray(deviceTable.id, toFlip.map((r) => r.id)));
+  }
 
-  await db
-    .update(deviceTable)
-    .set({ status: "offline" })
-    .where(inArray(deviceTable.id, toFlip.map((r) => r.id)));
+  // 2. Notification: every stale device (the presence webhook may already have
+  //    flipped it) that has no went_offline audit row since its lastSeenAt.
+  const seenIds = rows.filter((r) => r.lastSeenAt !== null).map((r) => r.id);
+  const lastNotified = new Map<string, Date>();
+  if (seenIds.length > 0) {
+    const notes = await db
+      .select({ targetId: auditLogTable.targetId, last: max(auditLogTable.createdAt) })
+      .from(auditLogTable)
+      .where(and(eq(auditLogTable.action, AUDIT.deviceWentOffline), inArray(auditLogTable.targetId, seenIds)))
+      .groupBy(auditLogTable.targetId);
+    for (const n of notes) if (n.targetId && n.last) lastNotified.set(n.targetId, n.last);
+  }
+  const toNotify = rows.filter((r) => shouldNotifyOffline(r, lastNotified.get(r.id) ?? null, now));
+  if (toNotify.length === 0) return toFlip.length;
 
-  for (const r of toFlip) {
+  for (const r of toNotify) {
     await recordAudit({
       organizationId: r.organizationId,
       actor: { type: "system" },
@@ -59,8 +81,8 @@ export async function reconcileOfflineDevices(now: Date): Promise<number> {
   }
 
   // Notify each affected org's owner once, listing the devices that dropped.
-  const byOrg = new Map<string, typeof toFlip>();
-  for (const r of toFlip) {
+  const byOrg = new Map<string, typeof toNotify>();
+  for (const r of toNotify) {
     const arr = byOrg.get(r.organizationId) ?? [];
     arr.push(r);
     byOrg.set(r.organizationId, arr);

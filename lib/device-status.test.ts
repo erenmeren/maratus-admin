@@ -5,6 +5,7 @@ import {
   shouldNotifyOffline,
   firmwareUpdateAvailable,
   OFFLINE_MINUTES,
+  OFFLINE_NOTIFY_WINDOW_DAYS,
 } from "./device-status";
 
 const now = new Date("2026-06-28T12:00:00Z");
@@ -60,6 +61,13 @@ describe("shouldNotifyOffline", () => {
   });
   it("notifies again after a reconnect started a new episode", () => {
     expect(shouldNotifyOffline({ status: "offline", lastSeenAt: stale }, new Date("2026-09-09T08:00:00Z"), NOW)).toBe(true);
+  });
+  it("does not notify a device dark longer than the window", () => {
+    const longDark = new Date(NOW.getTime() - (OFFLINE_NOTIFY_WINDOW_DAYS + 1) * 24 * 60 * 60 * 1000);
+    expect(shouldNotifyOffline({ status: "offline", lastSeenAt: longDark }, null, NOW)).toBe(false);
+    // Just inside the window it is still news.
+    const justInside = new Date(NOW.getTime() - (OFFLINE_NOTIFY_WINDOW_DAYS - 1) * 24 * 60 * 60 * 1000);
+    expect(shouldNotifyOffline({ status: "offline", lastSeenAt: justInside }, null, NOW)).toBe(true);
   });
   it("never notifies paused, fresh, or never-seen devices", () => {
     expect(shouldNotifyOffline({ status: "paused", lastSeenAt: stale }, null, NOW)).toBe(false);

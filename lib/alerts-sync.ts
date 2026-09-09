@@ -1,7 +1,7 @@
 // IO that drives the pure alert lifecycle (lib/alerts.ts). Called by the cron
 // endpoint. Never throws on email failure — sendEmail is best-effort.
 
-import { and, eq, inArray, ne, isNotNull, max } from "drizzle-orm";
+import { and, eq, gt, inArray, ne, isNotNull, max } from "drizzle-orm";
 import { db } from "./db";
 import {
   alert as alertTable,
@@ -12,7 +12,7 @@ import {
 } from "./db/schema";
 import { getOrgEmailContext } from "./billing/invoice-emails";
 import { deviceOfflineEmail } from "./devices/device-emails";
-import { shouldMarkOffline, shouldNotifyOffline } from "./device-status";
+import { shouldMarkOffline, shouldNotifyOffline, OFFLINE_NOTIFY_WINDOW_DAYS } from "./device-status";
 import { recordAudit, AUDIT } from "./audit";
 import { computeAlerts } from "./health";
 import { getAlertInputs } from "./data";
@@ -57,17 +57,35 @@ export async function reconcileOfflineDevices(now: Date): Promise<number> {
 
   // 2. Notification: every stale device (the presence webhook may already have
   //    flipped it) that has no went_offline audit row since its lastSeenAt.
-  const seenIds = rows.filter((r) => r.lastSeenAt !== null).map((r) => r.id);
+  //    Both halves are bounded to the last OFFLINE_NOTIFY_WINDOW_DAYS: a device
+  //    dark for longer is not a new outage (without this, the first sweep after
+  //    a deploy would email every long-dead device in the fleet at once), and
+  //    the audit lookup can then be bounded the same way — any audit row that
+  //    could suppress a notification is newer than a lastSeenAt that is itself
+  //    inside the window. The flip step above keeps the unbounded `rows` so
+  //    shouldMarkOffline still sees never-seen "online" devices.
+  const windowMs = OFFLINE_NOTIFY_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+  const windowStart = new Date(now.getTime() - windowMs);
+  const recent = rows.filter((r) => r.lastSeenAt !== null && r.lastSeenAt > windowStart);
+  const seenIds = recent.map((r) => r.id);
   const lastNotified = new Map<string, Date>();
   if (seenIds.length > 0) {
     const notes = await db
       .select({ targetId: auditLogTable.targetId, last: max(auditLogTable.createdAt) })
       .from(auditLogTable)
-      .where(and(eq(auditLogTable.action, AUDIT.deviceWentOffline), inArray(auditLogTable.targetId, seenIds)))
+      .where(
+        and(
+          eq(auditLogTable.action, AUDIT.deviceWentOffline),
+          inArray(auditLogTable.targetId, seenIds),
+          gt(auditLogTable.createdAt, windowStart),
+        ),
+      )
       .groupBy(auditLogTable.targetId);
     for (const n of notes) if (n.targetId && n.last) lastNotified.set(n.targetId, n.last);
   }
-  const toNotify = rows.filter((r) => shouldNotifyOffline(r, lastNotified.get(r.id) ?? null, now));
+  const toNotify = recent.filter((r) =>
+    shouldNotifyOffline(r, lastNotified.get(r.id) ?? null, now, undefined, windowMs),
+  );
   if (toNotify.length === 0) return toFlip.length;
 
   for (const r of toNotify) {

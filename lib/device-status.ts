@@ -2,6 +2,10 @@
 // Pure: derive a device's effective online/offline status from lastSeenAt.
 
 export const OFFLINE_MINUTES = 15;
+/** How long a device may have been dark and still be worth an email. Past this
+ * it is not news — it is the fleet's known-dead tail (and on the first sweep
+ * after a deploy it would be every legacy device at once). */
+export const OFFLINE_NOTIFY_WINDOW_DAYS = 7;
 export type DeviceStatus = "online" | "offline" | "paused";
 
 /** Paused wins; else offline if never/too-long since seen; else online. */
@@ -36,15 +40,19 @@ export function shouldMarkOffline(
  * (not paused, seen at least once, silent past the threshold) and no
  * notification exists for THIS offline episode — i.e. none since lastSeenAt.
  * The presence webhook flips status instantly, so stored status is not a
- * signal here; staleness is. */
+ * signal here; staleness is. Bounded on the far side too: a device dark longer
+ * than `windowMs` is not a new outage. */
 export function shouldNotifyOffline(
   d: { status: string; lastSeenAt: Date | null },
   lastNotifiedAt: Date | null,
   now: Date,
   offlineMinutes = OFFLINE_MINUTES,
+  windowMs = OFFLINE_NOTIFY_WINDOW_DAYS * 24 * 60 * 60 * 1000,
 ): boolean {
   if (d.status === "paused" || !d.lastSeenAt) return false;
-  if (now.getTime() - d.lastSeenAt.getTime() <= offlineMinutes * 60_000) return false;
+  const darkMs = now.getTime() - d.lastSeenAt.getTime();
+  if (darkMs <= offlineMinutes * 60_000) return false;
+  if (darkMs > windowMs) return false;
   return lastNotifiedAt === null || lastNotifiedAt.getTime() <= d.lastSeenAt.getTime();
 }
 

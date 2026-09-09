@@ -20,6 +20,7 @@ import type { DeviceStatus } from "@/lib/types";
 import { isOrgArchived } from "@/lib/archived-guard";
 import { deprovisionDeviceMqtt } from "@/lib/mqtt";
 import { pushEffectivePinSafe } from "@/lib/pin-service";
+import { fillFreeSlots } from "@/lib/invoices";
 
 export interface ActionResult {
   ok: boolean;
@@ -211,7 +212,11 @@ export async function reassignDevice(
 export async function deleteDevice(deviceId: string): Promise<ActionResult> {
   const ctx = await requirePlatformAdmin();
   const [device] = await db
-    .select({ storeId: deviceTable.storeId, organizationId: deviceTable.organizationId })
+    .select({
+      storeId: deviceTable.storeId,
+      organizationId: deviceTable.organizationId,
+      subscriptionPaidAt: deviceTable.subscriptionPaidAt,
+    })
     .from(deviceTable)
     .where(eq(deviceTable.id, deviceId))
     .limit(1);
@@ -235,6 +240,20 @@ export async function deleteDevice(deviceId: string): Promise<ActionResult> {
     await deprovisionDeviceMqtt(deviceId);
   } catch (err) {
     console.error("mqtt deprovision after delete failed", err);
+  }
+
+  // The deleted device no longer counts as paid, so a slot is now free. Give
+  // it to the replacement the customer may already have claimed (and been
+  // prorated for) — the same follow-up the registry RMA path does. Fail-open.
+  if (device.subscriptionPaidAt) {
+    try {
+      await fillFreeSlots({
+        organizationId: device.organizationId,
+        actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+      });
+    } catch (err) {
+      console.error("[billing] filling the slot freed by a device delete failed", err);
+    }
   }
 
   revalidatePath("/admin/devices");
@@ -330,7 +349,7 @@ export async function unassignDevice(deviceId: string): Promise<ActionResult> {
 
   await db
     .update(deviceTable)
-    .set({ storeId: null, status: "offline" })
+    .set({ storeId: null })
     .where(eq(deviceTable.id, deviceId));
 
   await recordAudit({

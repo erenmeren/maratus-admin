@@ -14,6 +14,7 @@ import { requireTenant } from "@/lib/session";
 import { canManageTenant } from "@/lib/roles";
 import { claimDevice } from "@/lib/device-claim";
 import { recordAudit, AUDIT } from "@/lib/audit";
+import { isValidPairingCode } from "@/lib/provisioning";
 
 export interface ClaimDeviceResult {
   ok: boolean;
@@ -36,8 +37,11 @@ export async function claimDeviceAction(
 
   // Normalize the pairing code (uppercase, dash-separated, no stray spaces).
   const pairingCode = pairingCodeRaw.trim().toUpperCase();
-  if (!pairingCode) {
-    return { ok: false, error: "Enter a pairing code." };
+  // A code that cannot have been shown by a device must never reach
+  // claimDevice: its create-row path would mint a phantom "New Printer" that
+  // occupies a paid slot or gets prorated, while the real device keeps polling.
+  if (!isValidPairingCode(pairingCode)) {
+    return { ok: false, error: "Enter the 8-character code shown on the printer (e.g. ABCD-EFGH)." };
   }
 
   // Scope: the target store must belong to the active organization.

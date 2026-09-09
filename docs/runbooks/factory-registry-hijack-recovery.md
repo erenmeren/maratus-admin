@@ -1,6 +1,6 @@
 # Factory Registry Hijack-Recovery Runbook
 
-_Owner: platform team · Last reviewed: 2026-07-10_
+_Owner: platform team · Last reviewed: 2026-09-09_
 
 ## The exposure this covers
 
@@ -16,6 +16,21 @@ between "serial allocated to a customer" and "the real device claims it," a
 bare serial plus a guessed/observed pairing code is enough to mint that org's
 device key instead of the legitimate installer's device.
 
+Two facts the deterrent list below understates, confirmed in the 2026-09-09
+audit:
+
+- **The pairing code is irrelevant on this path.** `autoClaimDevice` only
+  requires a well-formed code that no device row already uses; it is stored,
+  never matched. The per-code rate limit therefore does not slow a hijacker —
+  they pick a fresh code per request. Only the per-IP limit applies.
+- **What the rogue credential can see.** Connected to EMQX as the device, it
+  receives every `config-changed` push for that org: org name, brand tokens,
+  5-minute presigned R2 URLs for the tenant's branding images, the effective
+  pinned URL, and the on-device settings PIN as `sha256(salt + PIN)` over a
+  4–12 digit PIN (`lib/device-settings.ts`) — trivially brute-forced offline.
+  It cannot trigger, cannot read other devices' topics (`${username}` ACL),
+  and cannot reach any tenant data beyond that config payload.
+
 **This is an accepted trade-off, not a bug.** The alternative is dropping
 zero-touch install entirely. The deterrents that keep the window narrow and
 the blast radius small:
@@ -25,8 +40,9 @@ the blast radius small:
   key — a second claim attempt on the same serial is always rejected. The
   window closes the instant *either* party claims first.
 - **Rate limits.** `GET /api/device/claim` is rate-limited per-code (30/min)
-  and per-IP (60/min) — see `app/api/device/claim/route.ts` — so a hijacker
-  can't brute-force the pairing-code space quickly.
+  and per-IP (60/min) — see `app/api/device/claim/route.ts` — the per-IP limit
+  is the one that matters here; see the note above on why the per-code limit
+  does not.
 - **Audit trail.** Every auto-claim writes a `device.auto_claimed` audit event
   (`lib/audit.ts`, `AUDIT.deviceAutoClaimed`) scoped to the claimed org, and
   fires a best-effort platform-admin email (`Device auto-claimed: <serial>`,
@@ -107,9 +123,14 @@ old key, tied to the deleted rogue row, is already gone from step 1).
 
 - Confirm the new `device.auto_claimed` audit event / admin email corresponds
   to the real device (right timestamp, right installer-reported serial).
-- If the org was billed for credits consumed by the rogue device before it was
-  deleted, that's a separate billing-support decision — this runbook only
-  covers registry/device state.
+- Billing side effects of the rogue claim (`settleClaimBilling`,
+  `lib/invoices.ts`): if the org had a free paid slot the rogue device was
+  activated into it — deleting the device frees the slot again and
+  `fillFreeSlots` hands it to the real device on its claim. If there was no
+  free slot a proration invoice was issued for the rogue device; deleting the
+  device voids it automatically (`voidOpenProrationsForDevice`). Confirm on
+  `/admin/customers/<org>` that no open proration remains for a device id
+  that no longer exists.
 - If hijacks recur on the same batch/serial range, treat it as a signal to
   investigate how the pairing code or serial leaked (e.g. box labels visible
   before install, a compromised installer, or a fulfillment-partner leak) —

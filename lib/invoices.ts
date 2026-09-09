@@ -40,7 +40,13 @@ import {
   prorationMonthsThrough,
   subscriptionAmountCents,
 } from "./invoicing";
-import { freeSlots, renewalSlotWrite, slotsAfterPayment, unpricedSlots } from "./device-slots";
+import {
+  effectiveSlots,
+  freeSlots,
+  renewalSlotWrite,
+  slotsAfterPayment,
+  unpricedSlots,
+} from "./device-slots";
 
 /**
  * `prorationMonths` with a log when the clamp fires. A zero-month proration
@@ -407,6 +413,12 @@ export async function markInvoicePaid(a: {
       .update(tenantSettings)
       .set({
         paidDeviceSlots: sql`${tenantSettings.paidDeviceSlots} + 1`,
+        // A parked shrink tracks what is paid for the NEW year too, so this
+        // slot survives the anniversary. Without it the RMA'd-device
+        // sub-branch below (which falls back to fillFreeSlots, now bounded by
+        // the park) would see no vacancy, and applyPendingSlots would erase
+        // the slot the customer just paid for.
+        pendingDeviceSlots: sql`case when ${tenantSettings.pendingDeviceSlots} is null then null else ${tenantSettings.pendingDeviceSlots} + 1 end`,
         updatedAt: now,
       })
       .where(eq(tenantSettings.organizationId, inv.organizationId));
@@ -505,21 +517,37 @@ export async function markInvoicePaid(a: {
     // A slot the floor writes is only truly unpriced if NO paid proration
     // already covers this renewal period — a lead-window device pays a
     // ~13-month proration through the new year's end (settleClaimBilling).
-    const [coveredRow] = await db
-      .select({ covered: sql<number>`count(distinct ${invoice.deviceId})::int` })
-      .from(invoice)
-      .where(
-        and(
-          eq(invoice.organizationId, inv.organizationId),
-          eq(invoice.kind, "proration"),
-          eq(invoice.status, "paid"),
-          gte(invoice.periodEnd, inv.periodEnd),
-        ),
-      );
+    // This does not join factoryDevice, so a paid proration for a device that
+    // has since gone to RMA still counts and can mask a real surplus; that is
+    // acceptable because the number is warning-only and never an entitlement
+    // source. try/catch for the same reason it is only a diagnostic: the
+    // invoice is ALREADY marked paid at this point and the slots are not
+    // written until the upsert below, so nothing in between may throw — that
+    // would leave a paid invoice with no anchor and no entitlement.
+    let covered = 0;
+    try {
+      const [coveredRow] = await db
+        .select({ covered: sql<number>`count(distinct ${invoice.deviceId})::int` })
+        .from(invoice)
+        .where(
+          and(
+            eq(invoice.organizationId, inv.organizationId),
+            eq(invoice.kind, "proration"),
+            eq(invoice.status, "paid"),
+            gte(invoice.periodEnd, inv.periodEnd),
+          ),
+        );
+      covered = Number(coveredRow?.covered ?? 0);
+    } catch (err) {
+      console.error("[billing] covered-proration lookup failed; assuming none", {
+        organizationId: inv.organizationId,
+        invoiceId: inv.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
     const unpriced = Math.max(
       0,
-      unpricedSlots({ invoiceDeviceCount: inv.deviceCount, paidDevices: paidNow }) -
-        Number(coveredRow?.covered ?? 0),
+      unpricedSlots({ invoiceDeviceCount: inv.deviceCount, paidDevices: paidNow }) - covered,
     );
     if (unpriced > 0) {
       console.warn("[billing] renewal wrote more slots than it was priced for", {
@@ -768,13 +796,24 @@ export async function fillFreeSlots(a: {
   const actor: AuditActor = a.actor ?? { type: "system" };
 
   const [settings] = await db
-    .select({ slots: tenantSettings.paidDeviceSlots })
+    .select({
+      slots: tenantSettings.paidDeviceSlots,
+      pending: tenantSettings.pendingDeviceSlots,
+    })
     .from(tenantSettings)
     .where(eq(tenantSettings.organizationId, a.organizationId))
     .limit(1);
 
   const paidDevices = await countPaidDevices(a.organizationId);
-  const free = freeSlots({ paidDeviceSlots: settings?.slots ?? 0, paidDevices });
+  // Bounded by a parked shrink: the old year's extra slots are paid for, but
+  // handing one to a new activation would carry it free into the new year.
+  const free = freeSlots({
+    paidDeviceSlots: effectiveSlots({
+      paidDeviceSlots: settings?.slots ?? 0,
+      pendingDeviceSlots: settings?.pending ?? null,
+    }),
+    paidDevices,
+  });
   if (free <= 0) return [];
 
   const unpaid = await unpaidClaimedDevices(a.organizationId);
@@ -829,6 +868,7 @@ export async function settleClaimBilling(
         renewsAt: tenantSettings.subscriptionRenewsAt,
         price: tenantSettings.pricePerDeviceCents,
         slots: tenantSettings.paidDeviceSlots,
+        pending: tenantSettings.pendingDeviceSlots,
       })
       .from(tenantSettings)
       .where(eq(tenantSettings.organizationId, organizationId))
@@ -838,7 +878,20 @@ export async function settleClaimBilling(
 
     const now = new Date();
     const paidDevices = await countPaidDevices(organizationId);
-    if (freeSlots({ paidDeviceSlots: settings.slots, paidDevices }) > 0) {
+    // effectiveSlots, not the raw column: while a renewal's shrink is parked
+    // the extra old-year slots must not be handed to a new device, which
+    // would then be kept by applyPendingSlots' floor and ride the new year
+    // unpriced. Bounded that way, this device is prorated instead — and
+    // renewsAt is already advanced, so prorationMonthsThrough prices the rest
+    // of the old year plus the whole new one.
+    const free = freeSlots({
+      paidDeviceSlots: effectiveSlots({
+        paidDeviceSlots: settings.slots,
+        pendingDeviceSlots: settings.pending,
+      }),
+      paidDevices,
+    });
+    if (free > 0) {
       // `system`, not a user: nobody clicked anything — the device claimed
       // itself into a slot the org already owns.
       await activateDeviceIntoSlot(deviceId, organizationId, now, { type: "system" });

@@ -58,6 +58,7 @@ import { periodStartFor, periodEndFor } from "@/lib/billing-period";
 import { overageFor } from "@/lib/invoicing";
 import { countPaidDevices, countAckedTriggers, isInvoiceOverdue } from "@/lib/invoices";
 import { freeSlots as computeFreeSlots } from "@/lib/device-slots";
+import { isTenantImageKey } from "./asset-keys";
 import type {
   Device,
   DeviceRow,
@@ -1482,7 +1483,7 @@ export async function getTenantBranding(
   const assetKeys = new Set<string>();
   for (const screen of PRINTER_SCREENS) {
     for (const o of config.screens[screen].objects) {
-      if (o.type === "image" && o.image?.url && !isDirectAssetUrl(o.image.url)) assetKeys.add(o.image.url);
+      if (o.type === "image" && o.image?.url && !isDirectAssetUrl(o.image.url) && isTenantImageKey(organizationId, o.image.url)) assetKeys.add(o.image.url);
     }
   }
   const signed = new Map<string, string>();
@@ -1632,7 +1633,7 @@ export async function getDeviceConfig(
   const assetKeys = new Set<string>();
   for (const screen of PRINTER_SCREENS) {
     for (const o of config.screens[screen].objects) {
-      if (o.type === "image" && o.image?.url && !isDirectAssetUrl(o.image.url)) assetKeys.add(o.image.url);
+      if (o.type === "image" && o.image?.url && !isDirectAssetUrl(o.image.url) && isTenantImageKey(organizationId, o.image.url)) assetKeys.add(o.image.url);
     }
   }
   const signed = new Map<string, string>();

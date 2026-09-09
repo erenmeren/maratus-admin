@@ -19,6 +19,7 @@ import { deleteObject, imageStorageKey, putObject } from "@/lib/storage";
 import { normalizeUploadImage } from "@/lib/image";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { enqueueConfigChangedForOrg, isDirectAssetUrl } from "@/lib/data";
+import { isTenantImageKey } from "@/lib/asset-keys";
 
 export interface SaveBrandingResult {
   ok: boolean;
@@ -105,6 +106,20 @@ export async function saveBranding(
     }
   }
 
+  // Every remaining non-direct image url must be one of THIS org's keys. The
+  // JSON is tenant input; a foreign key here would later be presigned for the
+  // browser and deleted as an "orphan" — i.e. read/delete of any bucket object.
+  if (printerConfig !== undefined) {
+    for (const screen of PRINTER_SCREENS) {
+      for (const o of printerConfig.screens[screen].objects) {
+        const u = o.type === "image" ? o.image?.url : undefined;
+        if (u && !isDirectAssetUrl(u) && !isTenantImageKey(organizationId, u)) {
+          return { ok: false, error: "Invalid image reference." };
+        }
+      }
+    }
+  }
+
   // Derive a v2 printerLayout from the idle screen for rollback safety.
   const printerLayout = printerConfig
     ? {
@@ -133,7 +148,7 @@ export async function saveBranding(
       const prevConfig = normalizePrinterConfig(existing.printerScreens ?? existing.printerLayout);
       for (const screen of PRINTER_SCREENS) {
         for (const o of prevConfig.screens[screen].objects) {
-          if (o.type === "image" && o.image?.url && !isDirectAssetUrl(o.image.url)) {
+          if (o.type === "image" && o.image?.url && !isDirectAssetUrl(o.image.url) && isTenantImageKey(organizationId, o.image.url)) {
             previousImageKeys.add(o.image.url);
           }
         }
@@ -177,7 +192,9 @@ export async function saveBranding(
         }
       }
     }
-    const orphaned = [...previousImageKeys].filter((k) => !newImageKeys.has(k));
+    const orphaned = [...previousImageKeys].filter(
+      (k) => !newImageKeys.has(k) && isTenantImageKey(organizationId, k),
+    );
     await Promise.all(orphaned.map((k) => deleteObject(k)));
   }
 

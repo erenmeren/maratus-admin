@@ -148,8 +148,7 @@ export async function acceptInviteSignup(input: { invitationId: string; name: st
   try {
     await auth.api.signUpEmail({ body: { name: input.name.trim(), email: inv.email, password: input.password }, headers: await headers() });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Sign up failed.";
-    return { ok: false, error: /exist|already|unique/i.test(msg) ? "An account with that email already exists — sign in to accept." : msg };
+    return { ok: false, error: err instanceof Error ? err.message : "Sign up failed." };
   }
 
   const [created] = await db.select({ id: user.id }).from(user).where(eq(user.email, inv.email)).limit(1);

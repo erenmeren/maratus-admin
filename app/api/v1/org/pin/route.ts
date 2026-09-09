@@ -8,12 +8,8 @@
 // against a retried/concurrent request enqueuing duplicate device commands,
 // not against any charge.
 
-import { eq } from "drizzle-orm";
-import { db } from "@/lib/db";
-import { apiKey as apiKeyTable } from "@/lib/db/schema";
-import { guardApiRequest } from "@/lib/api/guard";
+import { guardApiRequest, requireScope } from "@/lib/api/guard";
 import { apiError, apiJson } from "@/lib/api/respond";
-import { hasScope } from "@/lib/api-scopes";
 import { validatePinPutBody } from "@/lib/pin";
 import { applyScopedPinChange } from "@/lib/pin-service";
 import { isOrgArchived } from "@/lib/archived-guard";
@@ -35,23 +31,13 @@ const orgPinBody = (pin: PinState, affectedDevices: number) => ({
   affectedDevices,
 });
 
-async function requirePinScope(keyId: string) {
-  const [key] = await db
-    .select({ scopes: apiKeyTable.scopes })
-    .from(apiKeyTable)
-    .where(eq(apiKeyTable.id, keyId))
-    .limit(1);
-  return hasScope(key?.scopes, "devices:pin");
-}
-
 export async function PUT(req: Request) {
   const guard = await guardApiRequest(req);
   if ("error" in guard) return guard.error;
   const { auth } = guard;
 
-  if (!(await requirePinScope(auth.keyId))) {
-    return apiError("insufficient_scope", "API key lacks the devices:pin scope.", 403);
-  }
+  const denied = await requireScope(auth, "devices:pin");
+  if (denied) return denied;
 
   let raw: unknown;
   try {
@@ -104,9 +90,8 @@ export async function DELETE(req: Request) {
   if ("error" in guard) return guard.error;
   const { auth } = guard;
 
-  if (!(await requirePinScope(auth.keyId))) {
-    return apiError("insufficient_scope", "API key lacks the devices:pin scope.", 403);
-  }
+  const denied = await requireScope(auth, "devices:pin");
+  if (denied) return denied;
 
   // Clearing only removes state, so archived orgs may clear even though other
   // pin mutations are archive-gated.

@@ -10,6 +10,7 @@ import { shouldMarkOffline } from "./device-status";
 import { recordAudit, AUDIT } from "./audit";
 import { computeAlerts } from "./health";
 import { getAlertInputs } from "./data";
+import { expireStaleCommands } from "./command-expiry";
 import {
   diffAlerts,
   alertEmail,
@@ -173,7 +174,15 @@ export async function evaluateAndPersistAlerts(): Promise<{
   stillOpen: number;
   purgedRateLimitRows: number;
 }> {
-  await reconcileOfflineDevices(new Date());
+  const now = new Date();
+  // Record TTL-expired triggers before evaluating, so the stuck-pending alert
+  // reflects reality (fail-open: a failed sweep must not block the evaluation).
+  try {
+    await expireStaleCommands(now);
+  } catch (err) {
+    console.error("[health] expiring stale commands failed", err);
+  }
+  await reconcileOfflineDevices(now);
   const current = computeAlerts(await getAlertInputs());
 
   // Health owns every key the billing sweep does not.

@@ -41,6 +41,7 @@ import {
   type StoreAnalytics,
 } from "./analytics";
 import { computeAlerts, STALE_MINUTES, STUCK_PENDING_MINUTES, INACTIVE_DAYS, type HealthAlert } from "./health";
+import { stuckPendingTriggerWhere } from "./command-expiry";
 import { presignedGetUrl } from "./storage";
 import { env } from "@/lib/env";
 import { resolveBrandTokens } from "./color";
@@ -1190,12 +1191,11 @@ async function getTenantSummaries(opts?: {
   includeArchived?: boolean;
 }): Promise<TenantSummary[]> {
   const bundles = await loadAllOrgs(opts);
-  const stuckCutoff = new Date(Date.now() - STUCK_PENDING_MINUTES * 60_000);
   const [stuckRows, lastRows] = await Promise.all([
     db
       .select({ org: deviceCommand.organizationId, c: count() })
       .from(deviceCommand)
-      .where(and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "pending"), lt(deviceCommand.createdAt, stuckCutoff)))
+      .where(stuckPendingTriggerWhere(new Date(), STUCK_PENDING_MINUTES))
       .groupBy(deviceCommand.organizationId),
     db
       .select({ org: deviceCommand.organizationId, last: max(deviceCommand.createdAt) })
@@ -1338,18 +1338,10 @@ export async function getCustomerDetail(
     else if (d.status === "paused") paused++;
   }
 
-  const stuckCutoff = new Date(now.getTime() - STUCK_PENDING_MINUTES * 60_000);
   const [{ stuck }] = await db
     .select({ stuck: sql<number>`count(*)::int` })
     .from(deviceCommand)
-    .where(
-      and(
-        eq(deviceCommand.organizationId, organizationId),
-        eq(deviceCommand.type, "trigger"),
-        eq(deviceCommand.status, "pending"),
-        lt(deviceCommand.createdAt, stuckCutoff),
-      ),
-    );
+    .where(and(eq(deviceCommand.organizationId, organizationId), stuckPendingTriggerWhere(now, STUCK_PENDING_MINUTES)));
   const [{ last }] = await db
     .select({ last: max(deviceCommand.createdAt) })
     .from(deviceCommand)
@@ -1919,7 +1911,6 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
   const h1 = ms(60 * 60 * 1000);
   const h24 = ms(24 * 60 * 60 * 1000);
   const staleCut = ms(STALE_MINUTES * 60 * 1000);
-  const stuckCut = ms(STUCK_PENDING_MINUTES * 60 * 1000);
   const inactiveCut = ms(INACTIVE_DAYS * 24 * 60 * 60 * 1000);
 
   try {
@@ -1984,7 +1975,7 @@ export async function getPlatformHealth(): Promise<PlatformHealth> {
     const [{ stuckPending }] = await db
       .select({ stuckPending: count() })
       .from(deviceCommand)
-      .where(and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "pending"), lt(deviceCommand.createdAt, stuckCut)));
+      .where(stuckPendingTriggerWhere(now, STUCK_PENDING_MINUTES));
 
     const topRows = await db
       .select({ id: orgTable.id, name: orgTable.name, c: count() })
@@ -2069,7 +2060,6 @@ export async function getAlertInputs(): Promise<{
 }> {
   const now = new Date();
   const staleCut = new Date(now.getTime() - STALE_MINUTES * 60_000);
-  const stuckCut = new Date(now.getTime() - STUCK_PENDING_MINUTES * 60_000);
   const inactiveCut = new Date(now.getTime() - INACTIVE_DAYS * 24 * 60 * 60_000);
 
   const [{ staleCount }] = await db
@@ -2088,7 +2078,7 @@ export async function getAlertInputs(): Promise<{
   const [{ stuckPendingCount }] = await db
     .select({ stuckPendingCount: count() })
     .from(deviceCommand)
-    .where(and(eq(deviceCommand.type, "trigger"), eq(deviceCommand.status, "pending"), lt(deviceCommand.createdAt, stuckCut)));
+    .where(stuckPendingTriggerWhere(now, STUCK_PENDING_MINUTES));
 
   const allOrgs = excludeArchived(
     await db

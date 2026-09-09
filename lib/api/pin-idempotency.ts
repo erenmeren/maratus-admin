@@ -69,9 +69,9 @@ export async function claimPinIdempotency(a: {
     .from(apiIdempotency)
     .where(and(eq(apiIdempotency.key, nsKey), eq(apiIdempotency.organizationId, a.organizationId)))
     .limit(1);
-  // Lost the insert race but the row is already gone (retention sweep, or the
-  // winner released it on a failed charge): treat as in-flight and let the
-  // caller retry rather than guessing an outcome.
+  // Lost the insert race but the row is already gone (the winner released it
+  // after a failed change): treat as in-flight and let the caller retry
+  // rather than guessing an outcome.
   if (!existing) return { owned: false, kind: "in_progress" };
   // Legacy/foreign rows carry no fingerprint — skip the comparison rather than
   // reject a retry that predates this column.
@@ -106,4 +106,33 @@ export async function storePinIdempotentResponse(
     .update(apiIdempotency)
     .set({ responseStatus: status, responseBody: body })
     .where(and(eq(apiIdempotency.key, nsKey), eq(apiIdempotency.organizationId, organizationId)));
+}
+
+/** Drop a claim whose work failed, so the caller's retry with the same key
+ *  runs again instead of hitting 409 forever. Mirrors the trigger route. */
+export async function releasePinIdempotency(nsKey: string, organizationId: string): Promise<void> {
+  await db
+    .delete(apiIdempotency)
+    .where(and(eq(apiIdempotency.key, nsKey), eq(apiIdempotency.organizationId, organizationId)));
+}
+
+/** Run the pin change under an owned claim; on throw, release the claim
+ *  (best-effort) and rethrow so the route still answers 500. */
+export async function withPinClaim<T>(
+  claim: { nsKey: string | null; organizationId: string },
+  work: () => Promise<T>,
+  release: (nsKey: string, organizationId: string) => Promise<void> = releasePinIdempotency,
+): Promise<T> {
+  try {
+    return await work();
+  } catch (err) {
+    if (claim.nsKey) {
+      try {
+        await release(claim.nsKey, claim.organizationId);
+      } catch (releaseErr) {
+        console.error("[pin] releasing idempotency claim failed", releaseErr);
+      }
+    }
+    throw err;
+  }
 }

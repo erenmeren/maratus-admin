@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { freeSlots, slotsAfterPayment, unpricedSlots } from "./device-slots";
+import {
+  applyPendingSlots,
+  freeSlots,
+  renewalSlotWrite,
+  slotsAfterPayment,
+  unpricedSlots,
+} from "./device-slots";
 
 describe("freeSlots", () => {
   it("is the entitlement minus what occupies it", () => {
@@ -130,5 +136,26 @@ describe("slotsAfterPayment", () => {
         paidDevices: 0,
       }),
     ).toBe(0);
+  });
+});
+
+describe("renewalSlotWrite", () => {
+  it("applies a lower count immediately when paid at or after the anniversary", () => {
+    expect(renewalSlotWrite({ currentSlots: 3, newSlots: 2, paidBeforeAnniversary: false })).toEqual({ writeNow: 2, pending: null });
+  });
+  it("parks a lower count when paid early — the old year's slots stay until the anniversary", () => {
+    expect(renewalSlotWrite({ currentSlots: 3, newSlots: 2, paidBeforeAnniversary: true })).toEqual({ writeNow: 3, pending: 2 });
+  });
+  it("never parks a count that is not lower", () => {
+    expect(renewalSlotWrite({ currentSlots: 3, newSlots: 3, paidBeforeAnniversary: true })).toEqual({ writeNow: 3, pending: null });
+    expect(renewalSlotWrite({ currentSlots: 2, newSlots: 3, paidBeforeAnniversary: true })).toEqual({ writeNow: 3, pending: null });
+  });
+});
+
+describe("applyPendingSlots", () => {
+  it("applies the parked count but never below the devices that are paid by then", () => {
+    expect(applyPendingSlots({ pending: 2, paidDevices: 2 })).toBe(2);
+    expect(applyPendingSlots({ pending: 2, paidDevices: 3 })).toBe(3);
+    expect(applyPendingSlots({ pending: 2, paidDevices: 0 })).toBe(2);
   });
 });

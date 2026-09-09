@@ -40,7 +40,7 @@ import {
   prorationMonthsThrough,
   subscriptionAmountCents,
 } from "./invoicing";
-import { freeSlots, slotsAfterPayment, unpricedSlots } from "./device-slots";
+import { freeSlots, renewalSlotWrite, slotsAfterPayment, unpricedSlots } from "./device-slots";
 
 /**
  * `prorationMonths` with a log when the clamp fires. A zero-month proration
@@ -483,30 +483,53 @@ export async function markInvoicePaid(a: {
       paidDevices: paidNow,
     });
 
+    // Paid before the anniversary? Then a LOWER count must wait (see
+    // renewalSlotWrite). `settings.renewsAt` is still the OLD anniversary
+    // here — it is advanced by the upsert below.
+    const currentRenewsAt = settings?.renewsAt ?? null;
+    const paidBeforeAnniversary =
+      !isFirst && currentRenewsAt !== null && now.getTime() < currentRenewsAt.getTime();
+    const slotWrite = renewalSlotWrite({
+      currentSlots: settings?.slots ?? 0,
+      newSlots,
+      paidBeforeAnniversary,
+    });
+
     // The floor above can write more slots than this invoice was priced for.
     // This is EXPECTED whenever a lead-window device already paid a proration
     // running through this renewal period's end — that slot is paid for, just
     // not on this invoice. It is only a real shortfall when no paid proration
     // covers the period (see unpricedSlots for both sequences). Say so, naming
-    // the org, the invoiced count, what was written and the period end, so the
-    // operator can check the org's paid prorations FIRST — billing the
-    // difference off-system without that check double-bills the customer.
-    const unpriced = unpricedSlots({
-      invoiceDeviceCount: inv.deviceCount,
-      paidDevices: paidNow,
-    });
-    if (unpriced > 0) {
-      console.warn(
-        "[billing] renewal wrote more slots than it was priced for — EXPECTED if a lead-window device already paid a proration covering this period; check the org's paid prorations before billing off-system",
-        {
-          organizationId: inv.organizationId,
-          invoiceId: inv.id,
-          invoicedDeviceCount: inv.deviceCount,
-          slotsWritten: newSlots,
-          unpricedSlots: unpriced,
-          renewalPeriodEnd: inv.periodEnd.toISOString(),
-        },
+    // the org, the invoiced count, what was written and the period end.
+    //
+    // A slot the floor writes is only truly unpriced if NO paid proration
+    // already covers this renewal period — a lead-window device pays a
+    // ~13-month proration through the new year's end (settleClaimBilling).
+    const [coveredRow] = await db
+      .select({ covered: sql<number>`count(distinct ${invoice.deviceId})::int` })
+      .from(invoice)
+      .where(
+        and(
+          eq(invoice.organizationId, inv.organizationId),
+          eq(invoice.kind, "proration"),
+          eq(invoice.status, "paid"),
+          gte(invoice.periodEnd, inv.periodEnd),
+        ),
       );
+    const unpriced = Math.max(
+      0,
+      unpricedSlots({ invoiceDeviceCount: inv.deviceCount, paidDevices: paidNow }) -
+        Number(coveredRow?.covered ?? 0),
+    );
+    if (unpriced > 0) {
+      console.warn("[billing] renewal wrote more slots than it was priced for", {
+        organizationId: inv.organizationId,
+        invoiceId: inv.id,
+        invoicedDeviceCount: inv.deviceCount,
+        slotsWritten: slotWrite.writeNow,
+        unpricedSlots: unpriced,
+        renewalPeriodEnd: inv.periodEnd.toISOString(),
+      });
     }
 
     // UPSERT, not UPDATE: an org can exist without a tenantSettings row (it is
@@ -521,14 +544,18 @@ export async function markInvoicePaid(a: {
         organizationId: inv.organizationId,
         subscriptionStartedAt: startedAt,
         subscriptionRenewsAt: renewsAt,
-        paidDeviceSlots: newSlots,
+        paidDeviceSlots: slotWrite.writeNow,
+        pendingDeviceSlots: slotWrite.pending,
+        pendingSlotsAt: slotWrite.pending === null ? null : currentRenewsAt,
       })
       .onConflictDoUpdate({
         target: tenantSettings.organizationId,
         set: {
           subscriptionStartedAt: startedAt,
           subscriptionRenewsAt: renewsAt,
-          paidDeviceSlots: newSlots,
+          paidDeviceSlots: slotWrite.writeNow,
+          pendingDeviceSlots: slotWrite.pending,
+          pendingSlotsAt: slotWrite.pending === null ? null : currentRenewsAt,
           updatedAt: now,
         },
       });
@@ -540,6 +567,9 @@ export async function markInvoicePaid(a: {
     // device has since gone to RMA, free is 1 and the replacement takes it,
     // which is exactly the intended behaviour rather than the accident it used
     // to be.
+    // Bound activation by the PRICED entitlement (`newSlots`), not by the
+    // old-year slots that may stay written until the anniversary — a device
+    // activated into one of those would ride the whole new year for free.
     const free = freeSlots({ paidDeviceSlots: newSlots, paidDevices: paidNow });
 
     const unpaid = await unpaidClaimedDevices(inv.organizationId);

@@ -102,3 +102,20 @@ export function renewalSlotWrite(a: {
 export function applyPendingSlots(a: { pending: number; paidDevices: number }): number {
   return Math.max(a.pending, a.paidDevices);
 }
+
+/**
+ * The entitlement that bounds NEW activations. While a shrink is parked (see
+ * renewalSlotWrite), new activations are bounded by the parked count — the
+ * old-year slots are paid for through the anniversary but must not be handed
+ * out for the new year, or a device would occupy one, be kept by
+ * applyPendingSlots' paid-device floor, and ride a whole year unpriced.
+ * Never above what is actually paid for.
+ */
+export function effectiveSlots(a: {
+  paidDeviceSlots: number;
+  pendingDeviceSlots: number | null;
+}): number {
+  return a.pendingDeviceSlots === null
+    ? a.paidDeviceSlots
+    : Math.min(a.paidDeviceSlots, a.pendingDeviceSlots);
+}

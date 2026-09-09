@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyPendingSlots,
+  effectiveSlots,
   freeSlots,
   renewalSlotWrite,
   slotsAfterPayment,
@@ -157,5 +158,17 @@ describe("applyPendingSlots", () => {
     expect(applyPendingSlots({ pending: 2, paidDevices: 2 })).toBe(2);
     expect(applyPendingSlots({ pending: 2, paidDevices: 3 })).toBe(3);
     expect(applyPendingSlots({ pending: 2, paidDevices: 0 })).toBe(2);
+  });
+});
+
+describe("effectiveSlots", () => {
+  it("is the paid count when nothing is parked", () => {
+    expect(effectiveSlots({ paidDeviceSlots: 3, pendingDeviceSlots: null })).toBe(3);
+  });
+  it("is the parked count while a shrink waits for the anniversary", () => {
+    expect(effectiveSlots({ paidDeviceSlots: 3, pendingDeviceSlots: 2 })).toBe(2);
+  });
+  it("never exceeds what is actually paid for", () => {
+    expect(effectiveSlots({ paidDeviceSlots: 2, pendingDeviceSlots: 5 })).toBe(2);
   });
 });

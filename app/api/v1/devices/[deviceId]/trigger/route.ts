@@ -1,9 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { device as deviceTable, deviceCommand, apiKey as apiKeyTable, apiIdempotency } from "@/lib/db/schema";
-import { guardApiRequest } from "@/lib/api/guard";
+import { device as deviceTable, deviceCommand, apiIdempotency } from "@/lib/db/schema";
+import { guardApiRequest, requireScope } from "@/lib/api/guard";
 import { apiError, apiJson } from "@/lib/api/respond";
-import { hasScope } from "@/lib/api-scopes";
 import { validateTriggerBody } from "@/lib/trigger-actions";
 import { checkSubscriptionGate } from "@/lib/subscription-gate";
 import { effectiveDeviceStatus } from "@/lib/device-status";
@@ -19,10 +18,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ deviceI
   const { auth } = guard;
 
   // scope
-  const [key] = await db.select({ scopes: apiKeyTable.scopes }).from(apiKeyTable).where(eq(apiKeyTable.id, auth.keyId)).limit(1);
-  if (!hasScope(key?.scopes, "devices:trigger")) {
-    return apiError("insufficient_scope", "API key lacks the devices:trigger scope.", 403);
-  }
+  const denied = await requireScope(auth, "devices:trigger");
+  if (denied) return denied;
 
   // idempotency key required
   const idemKey = req.headers.get("idempotency-key")?.trim();

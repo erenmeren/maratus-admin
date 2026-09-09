@@ -10,10 +10,9 @@
 
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { apiKey as apiKeyTable, store as storeTable } from "@/lib/db/schema";
-import { guardApiRequest } from "@/lib/api/guard";
+import { store as storeTable } from "@/lib/db/schema";
+import { guardApiRequest, requireScope } from "@/lib/api/guard";
 import { apiError, apiJson } from "@/lib/api/respond";
-import { hasScope } from "@/lib/api-scopes";
 import { validatePinPutBody, type PinMode } from "@/lib/pin";
 import { applyScopedPinChange } from "@/lib/pin-service";
 import { isOrgArchived } from "@/lib/archived-guard";
@@ -37,15 +36,6 @@ const storePinBody = (
   affectedDevices: number,
 ) => ({ storeId, pinMode, pin, affectedDevices });
 
-async function requirePinScope(keyId: string) {
-  const [key] = await db
-    .select({ scopes: apiKeyTable.scopes })
-    .from(apiKeyTable)
-    .where(eq(apiKeyTable.id, keyId))
-    .limit(1);
-  return hasScope(key?.scopes, "devices:pin");
-}
-
 async function loadOwnedStore(storeId: string, organizationId: string) {
   const [s] = await db.select().from(storeTable).where(eq(storeTable.id, storeId)).limit(1);
   return s && s.organizationId === organizationId ? s : null;
@@ -56,9 +46,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ storeId:
   if ("error" in guard) return guard.error;
   const { auth } = guard;
 
-  if (!(await requirePinScope(auth.keyId))) {
-    return apiError("insufficient_scope", "API key lacks the devices:pin scope.", 403);
-  }
+  const denied = await requireScope(auth, "devices:pin");
+  if (denied) return denied;
 
   let raw: unknown;
   try {
@@ -145,9 +134,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ store
   if ("error" in guard) return guard.error;
   const { auth } = guard;
 
-  if (!(await requirePinScope(auth.keyId))) {
-    return apiError("insufficient_scope", "API key lacks the devices:pin scope.", 403);
-  }
+  const denied = await requireScope(auth, "devices:pin");
+  if (denied) return denied;
 
   const { storeId } = await params;
   const s = await loadOwnedStore(storeId, auth.organizationId);

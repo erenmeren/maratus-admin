@@ -130,7 +130,7 @@ export async function withPinClaim<T>(
       try {
         await release(claim.nsKey, claim.organizationId);
       } catch (releaseErr) {
-        console.error("[pin] releasing idempotency claim failed", releaseErr);
+        console.error("[pin] releasing idempotency claim failed", { nsKey: claim.nsKey, organizationId: claim.organizationId, err: releaseErr });
       }
     }
     throw err;

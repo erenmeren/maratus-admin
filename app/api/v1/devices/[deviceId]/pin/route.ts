@@ -13,10 +13,9 @@
 
 import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
-import { device as deviceTable, store as storeTable, tenantSettings, apiKey as apiKeyTable } from "@/lib/db/schema";
-import { guardApiRequest } from "@/lib/api/guard";
+import { device as deviceTable, store as storeTable, tenantSettings } from "@/lib/db/schema";
+import { guardApiRequest, requireScope } from "@/lib/api/guard";
 import { apiError, apiJson } from "@/lib/api/respond";
-import { hasScope } from "@/lib/api-scopes";
 import { validatePinPutBody, type PinMode } from "@/lib/pin";
 import { applyScopedPinChange } from "@/lib/pin-service";
 import { resolveEffectivePin } from "@/lib/pin-resolve";
@@ -38,15 +37,6 @@ const deviceBody = (
   effectiveUrl: string | null,
   affectedDevices: number,
 ) => ({ deviceId, pinMode, pin, effectiveUrl, affectedDevices });
-
-async function requirePinScope(keyId: string) {
-  const [key] = await db
-    .select({ scopes: apiKeyTable.scopes })
-    .from(apiKeyTable)
-    .where(eq(apiKeyTable.id, keyId))
-    .limit(1);
-  return hasScope(key?.scopes, "devices:pin");
-}
 
 async function loadOwnedDevice(deviceId: string, organizationId: string) {
   const [dev] = await db.select().from(deviceTable).where(eq(deviceTable.id, deviceId)).limit(1);
@@ -81,9 +71,8 @@ export async function PUT(req: Request, { params }: { params: Promise<{ deviceId
   if ("error" in guard) return guard.error;
   const { auth } = guard;
 
-  if (!(await requirePinScope(auth.keyId))) {
-    return apiError("insufficient_scope", "API key lacks the devices:pin scope.", 403);
-  }
+  const denied = await requireScope(auth, "devices:pin");
+  if (denied) return denied;
 
   let raw: unknown;
   try {
@@ -176,9 +165,8 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ devic
   if ("error" in guard) return guard.error;
   const { auth } = guard;
 
-  if (!(await requirePinScope(auth.keyId))) {
-    return apiError("insufficient_scope", "API key lacks the devices:pin scope.", 403);
-  }
+  const denied = await requireScope(auth, "devices:pin");
+  if (denied) return denied;
 
   const { deviceId } = await params;
   const dev = await loadOwnedDevice(deviceId, auth.organizationId);

@@ -469,12 +469,15 @@ export async function markInvoicePaid(a: {
     // on a day boundary rather than at the second the admin clicked.
     const startedAt = settings?.startedAt ?? startOfUtcDay(now);
     // A non-first invoice with a null renewsAt should be unreachable, but this
-    // is the most important write in the product: fall back to a fresh year
-    // rather than casting the null away and throwing mid-settlement, with the
-    // invoice already marked paid.
+    // is the most important write in the product: fail forward to the next
+    // anniversary after today rather than casting the null away and throwing
+    // mid-settlement, with the invoice already marked paid. `now`, not
+    // `renewalDueAt(startedAt)`, is the right fallback anchor — an old
+    // `startedAt` would otherwise step from a `renewalDueAt` that is itself
+    // already in the past.
     const renewsAt = isFirst
       ? renewalDueAt(startedAt)
-      : nextRenewalAt(startedAt, settings.renewsAt ?? renewalDueAt(startedAt));
+      : nextRenewalAt(startedAt, settings.renewsAt ?? now);
     const pricePerDeviceCents = settings?.price ?? DEFAULT_PRICE_PER_DEVICE_CENTS;
 
     // Read once and reused below in both slotsAfterPayment (the max-floor
@@ -962,24 +965,26 @@ export async function settleClaimBilling(
     // already passed with no renewal issued — the device is then billed a
     // whole month for a year that is over. Legitimate (an unpaid renewal is
     // never cut off) but worth seeing.
-    if (openRenewalPeriodEnd === null && now.getTime() >= settings.renewsAt.getTime()) {
-      console.warn("[billing] device claimed after the anniversary with no renewal issued; proration clamped to one month", {
+    const claimDay = startOfUtcDay(now);
+    // Label horizon = what the months were priced to: the open renewal's
+    // period end if one exists, else the org's current anniversary. Either
+    // one can already be behind us — an anniversary with no renewal issued,
+    // or a renewal invoice left unpaid for over a year — in which case the
+    // charge is the one-month clamp, so the label must point forward from the
+    // claim day instead of at a horizon already behind us, which would render
+    // as a backwards range in the invoice table.
+    const horizon = openRenewalPeriodEnd ?? settings.renewsAt;
+    const prorationEnd =
+      horizon.getTime() > now.getTime() ? horizon : addMonthsAnchored(claimDay, 1);
+
+    if (horizon.getTime() <= now.getTime()) {
+      console.warn("[billing] proration horizon already in the past; label clamped to one month", {
         deviceId,
         organizationId,
         renewsAt: settings.renewsAt.toISOString(),
+        horizon: horizon.toISOString(),
       });
     }
-
-    const claimDay = startOfUtcDay(now);
-    // Label horizon = what the months were priced to. Past the anniversary with
-    // no renewal issued, the charge is the one-month clamp, so the label is one
-    // month forward from the claim day — never the anniversary already behind
-    // us, which would render as a backwards range in the invoice table.
-    const prorationEnd =
-      openRenewalPeriodEnd ??
-      (now.getTime() >= settings.renewsAt.getTime()
-        ? addMonthsAnchored(claimDay, 1)
-        : settings.renewsAt);
 
     await issueProrationInvoice({
       organizationId,
@@ -1007,11 +1012,14 @@ export async function settleClaimBilling(
  * One proration invoice per still-unpaid claimed device that does not already
  * have one, for the rest of the org's subscription year.
  *
- * The existing-proration check is load-bearing, not just an optimisation: the
- * (deviceId, periodStart) unique index only dedupes WITHIN a period, so a
- * device claimed in the renewal lead window and already prorated would be
- * prorated a second time if the renewal is paid after the next anniversary.
- * Void invoices don't count — voiding is how an operator re-issues one.
+ * The existing-proration check (`alreadyProrated`, from `proratedDeviceIds`)
+ * is the actual guard here, not just an optimisation: `periodStart` is now the
+ * payment day, not a per-device claim day, so the (deviceId, periodStart)
+ * unique index only dedupes duplicate issuance WITHIN a single day — it does
+ * nothing to stop a device claimed in the renewal lead window and already
+ * prorated from being prorated a second time if the renewal is paid after the
+ * next anniversary. Void invoices don't count — voiding is how an operator
+ * re-issues one.
  */
 async function issueProrationsForUnpaidDevices(a: {
   organizationId: string;
@@ -1024,7 +1032,7 @@ async function issueProrationsForUnpaidDevices(a: {
 
   const alreadyProrated = await proratedDeviceIds(a.organizationId);
 
-  const claimDay = startOfUtcDay(a.now);
+  const chargeStart = startOfUtcDay(a.now);
   // Same rule as settleClaimBilling. `a.renewsAt` is the just-advanced
   // anniversary, so it is normally in the future — but a renewal invoice paid
   // more than twelve months after its own anniversary (nothing cuts one off)
@@ -1032,7 +1040,7 @@ async function issueProrationsForUnpaidDevices(a: {
   // clamps to one, and the label must point forward with the charge.
   const prorationEnd =
     a.now.getTime() >= a.renewsAt.getTime()
-      ? addMonthsAnchored(claimDay, 1)
+      ? addMonthsAnchored(chargeStart, 1)
       : a.renewsAt;
 
   for (const d of stillUnpaid) {
@@ -1045,7 +1053,7 @@ async function issueProrationsForUnpaidDevices(a: {
         monthsRemainingUntil(a.renewsAt, a.now),
         { deviceId: d.id, organizationId: a.organizationId },
       ),
-      periodStart: claimDay,
+      periodStart: chargeStart,
       periodEnd: prorationEnd,
       issuedAt: a.now,
     });

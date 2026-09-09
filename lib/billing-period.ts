@@ -63,3 +63,17 @@ export function startOfUtcDay(d: Date): Date {
 export function renewalDueAt(anchor: Date): Date {
   return addMonthsAnchored(anchor, MONTHS_PER_YEAR);
 }
+
+/**
+ * The anniversary after `currentRenewsAt`, computed from the ANCHOR rather than
+ * by adding 12 months to the current date: a Feb-29 anchor renews on Feb-28 in
+ * common years, and adding 12 months to Feb-28 would keep it there forever,
+ * while periodStartFor(anchor, …) lands on Feb-29 again in the next leap year.
+ * Deriving from the anchor keeps the renewal date on the same grid as every
+ * period boundary. Rounds the elapsed cycles so a renewsAt that sits a day off
+ * the grid (clamped) still maps to the right cycle.
+ */
+export function nextRenewalAt(startedAt: Date, currentRenewsAt: Date): Date {
+  const cycles = Math.round(periodIndexFor(startedAt, currentRenewsAt) / MONTHS_PER_YEAR);
+  return addMonthsAnchored(startedAt, MONTHS_PER_YEAR * (cycles + 1));
+}

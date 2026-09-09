@@ -16,7 +16,7 @@ import { db } from "./db";
 import { invoice, organization, tenantSettings } from "./db/schema";
 import {
   addMonthsAnchored,
-  MONTHS_PER_YEAR,
+  nextRenewalAt,
   periodIndexFor,
 } from "./billing-period";
 import { FAIR_USE_TRIGGERS_PER_DEVICE_MONTH } from "./invoicing";
@@ -230,7 +230,10 @@ export async function runBillingCron(now: Date = new Date()): Promise<{
             deviceCount: paidDevices,
             pricePerDeviceCents: org.price,
             periodStart: org.renewsAt,
-            periodEnd: addMonthsAnchored(org.renewsAt, MONTHS_PER_YEAR),
+            // Anchor-derived, so this matches to the day what markInvoicePaid
+            // will write as the next renewsAt — adding 12 months to a clamped
+            // Feb-28 renewal would drift off the period grid.
+            periodEnd: nextRenewalAt(anchor, org.renewsAt),
             issuedAt: now,
           });
           if (issued) renewalsIssued += 1;

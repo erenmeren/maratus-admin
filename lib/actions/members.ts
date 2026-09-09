@@ -3,7 +3,7 @@
 
 import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { member, invitation, user } from "@/lib/db/schema";
@@ -134,6 +134,16 @@ export async function acceptInviteSignup(input: { invitationId: string; name: st
   if (!inv || inv.status !== "pending" || inv.expiresAt.getTime() < Date.now()) return { ok: false, error: "Invitation is no longer valid." };
   if (input.name.trim().length === 0) return { ok: false, error: "Your name is required." };
   if (input.password.length < 8) return { ok: false, error: "Password must be at least 8 characters." };
+
+  // signUpEmail does not throw for an existing email while
+  // requireEmailVerification is on (it returns a synthetic user), so check
+  // first — otherwise we would mark someone else's account verified below.
+  const [existing] = await db
+    .select({ id: user.id })
+    .from(user)
+    .where(sql`lower(${user.email}) = ${inv.email.toLowerCase()}`)
+    .limit(1);
+  if (existing) return { ok: false, error: "An account with that email already exists — sign in to accept." };
 
   try {
     await auth.api.signUpEmail({ body: { name: input.name.trim(), email: inv.email, password: input.password }, headers: await headers() });

@@ -13,6 +13,7 @@ import { recordAudit, AUDIT } from "@/lib/audit";
 import { isOrgArchived } from "@/lib/archived-guard";
 import { getEnv } from "@/lib/env";
 import { sendEmail } from "@/lib/email";
+import { escapeHtml } from "@/lib/billing/invoice-emails";
 
 export interface CreateCustomerResult {
   ok: boolean;
@@ -178,9 +179,9 @@ export async function inviteOwnerAction(
   const url = `${getEnv().BETTER_AUTH_URL}/signup?invite=${invId}`;
   const emailed = await sendEmail(
     email,
-    `You're invited to own ${org.name} on Maratus`,
+    `You're invited to own ${org.name.replace(/[\r\n]/g, " ")} on Maratus`,
     `<p>The Maratus team invited you to own ` +
-      `<b>${org.name}</b> on Maratus.</p>` +
+      `<b>${escapeHtml(org.name)}</b> on Maratus.</p>` +
       `<p><a href="${url}">Accept the invitation</a></p>`,
   );
 

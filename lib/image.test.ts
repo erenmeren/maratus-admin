@@ -65,4 +65,11 @@ describe("normalizeUploadImage", () => {
   it("throws on undecodable input", async () => {
     await expect(normalizeUploadImage(Buffer.from("not an image at all"))).rejects.toThrow();
   });
+
+  it("rejects formats the printer never needs (AVIF/HEIF go through libheif)", async () => {
+    const avif = await sharp({
+      create: { width: 8, height: 8, channels: 3, background: { r: 1, g: 2, b: 3 } },
+    }).avif().toBuffer();
+    await expect(normalizeUploadImage(avif)).rejects.toThrow(/unsupported image format/i);
+  });
 });

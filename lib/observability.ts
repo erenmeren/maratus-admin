@@ -10,7 +10,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 
-const SENSITIVE_HEADERS = new Set(["authorization", "cookie"]);
+const SENSITIVE_HEADERS = new Set(["authorization", "cookie", "x-emqx-webhook-secret"]);
 
 interface ScrubbableEvent {
   request?: {

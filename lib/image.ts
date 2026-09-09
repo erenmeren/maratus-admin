@@ -13,6 +13,8 @@ export const MAX_IMAGE_DIM = 512;
  *  the header before allocating the bitmap. */
 const MAX_INPUT_PIXELS = 100 * 1024 * 1024;
 
+const ALLOWED_FORMATS = new Set(["png", "jpeg", "webp", "svg", "gif"]);
+
 /**
  * Decode any supported image (PNG/JPEG/WebP/SVG), fit it within
  * MAX_IMAGE_DIM x MAX_IMAGE_DIM preserving aspect ratio, never upscale, and
@@ -22,6 +24,14 @@ const MAX_INPUT_PIXELS = 100 * 1024 * 1024;
 export async function normalizeUploadImage(bytes: Buffer): Promise<Buffer> {
   const probe = sharp(bytes, { limitInputPixels: MAX_INPUT_PIXELS });
   const meta = await probe.metadata();
+
+  // Only what the console has ever accepted. Everything else (AVIF/HEIF/TIFF/
+  // …) is refused before any decoder beyond the header probe runs — those
+  // native decoders have a history of memory-safety advisories and the printer
+  // only ever consumes PNG anyway.
+  if (!meta.format || !ALLOWED_FORMATS.has(meta.format)) {
+    throw new Error(`Unsupported image format: ${meta.format ?? "unknown"}`);
+  }
 
   // SVG is vector: resizing after a default-density rasterization blurs. Render
   // it at a density that targets ~MAX_IMAGE_DIM on the long side up front.

@@ -20,7 +20,7 @@ import type { DeviceStatus } from "@/lib/types";
 import { isOrgArchived } from "@/lib/archived-guard";
 import { deprovisionDeviceMqtt } from "@/lib/mqtt";
 import { pushEffectivePinSafe } from "@/lib/pin-service";
-import { fillFreeSlots } from "@/lib/invoices";
+import { fillFreeSlots, voidOpenProrationsForDevice } from "@/lib/invoices";
 
 export interface ActionResult {
   ok: boolean;
@@ -223,6 +223,20 @@ export async function deleteDevice(deviceId: string): Promise<ActionResult> {
   if (!device) return { ok: false, error: "Device not found." };
   if (await isOrgArchived(device.organizationId)) {
     return { ok: false, error: "Customer is archived." };
+  }
+
+  // An open proration for a device that is about to be deleted would outlive
+  // it as an orphan (invoice.deviceId is SET NULL) that the customer is still
+  // asked to pay. Void it first — best-effort; the delete is what was asked.
+  try {
+    await voidOpenProrationsForDevice({
+      deviceId,
+      organizationId: device.organizationId,
+      actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+      reason: "device_deleted",
+    });
+  } catch (err) {
+    console.error("[billing] voiding prorations before device delete failed", err);
   }
 
   await db.delete(deviceTable).where(eq(deviceTable.id, deviceId));

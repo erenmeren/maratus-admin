@@ -15,17 +15,26 @@ export function freeSlots(a: { paidDeviceSlots: number; paidDevices: number }): 
  * priced for — the size of the `max(…, paidDevices)` floor in
  * `slotsAfterPayment` when it actually fires.
  *
- * Normally zero. It is non-zero on a reachable, blameless sequence: an org
- * drops from 2 devices to 1, the cron prices the renewal at 1, a device then
- * claims into the still-vacant slot during the lead window (correctly free
- * for the remainder of the OLD year), and the renewal is paid — so the floor
- * writes 2 slots against an invoice for 1 and the customer runs two devices
- * for a year having paid for one.
+ * Normally zero, and a non-zero result is NOT by itself money owed. Two
+ * different sequences produce it:
  *
- * The floor stays: the alternative is confiscating quota the customer paid
- * for, which is worse, and the leak self-corrects at the following renewal
- * (bounded at one device-year). This function exists so the operator can SEE
- * it — nothing surfaced it before.
+ * 1. EXPECTED — the lead-window proration. A device claimed in the renewal
+ *    lead window is prorated through the END of the upcoming period (a ~13
+ *    month charge), so when that proration is paid and the renewal is paid
+ *    after it, the floor writes a slot the renewal invoice was not priced for
+ *    — but the customer already paid for it, on the proration. Billing the
+ *    difference off-system here would DOUBLE-BILL.
+ * 2. Genuinely unpriced — an org drops from 2 devices to 1, the cron prices
+ *    the renewal at 1, and a device claims into the still-vacant slot for
+ *    free (correct for the remainder of the OLD year) with no proration
+ *    covering the new period.
+ *
+ * The floor stays either way: the alternative is confiscating quota the
+ * customer paid for, which is worse, and case 2 self-corrects at the
+ * following renewal (bounded at one device-year). This function exists so the
+ * operator can SEE the surplus — but before billing anything off-system they
+ * must check the org's PAID prorations and whether any of them covers the
+ * renewal period (compare a proration's periodEnd with the renewal's).
  */
 export function unpricedSlots(a: {
   invoiceDeviceCount: number | null;

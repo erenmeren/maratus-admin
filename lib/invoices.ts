@@ -483,24 +483,30 @@ export async function markInvoicePaid(a: {
       paidDevices: paidNow,
     });
 
-    // The floor above can write more slots than this invoice was priced for —
-    // see unpricedSlots for the sequence, which is reachable without malice.
-    // The arithmetic is deliberate (confiscating paid-for quota would be
-    // worse) and the loss is bounded at one device-year, but nothing surfaced
-    // it. Say so, naming the org, the invoiced count and what was written, so
-    // the operator can decide whether to bill the difference off-system.
+    // The floor above can write more slots than this invoice was priced for.
+    // This is EXPECTED whenever a lead-window device already paid a proration
+    // running through this renewal period's end — that slot is paid for, just
+    // not on this invoice. It is only a real shortfall when no paid proration
+    // covers the period (see unpricedSlots for both sequences). Say so, naming
+    // the org, the invoiced count, what was written and the period end, so the
+    // operator can check the org's paid prorations FIRST — billing the
+    // difference off-system without that check double-bills the customer.
     const unpriced = unpricedSlots({
       invoiceDeviceCount: inv.deviceCount,
       paidDevices: paidNow,
     });
     if (unpriced > 0) {
-      console.warn("[billing] renewal wrote more slots than it was priced for", {
-        organizationId: inv.organizationId,
-        invoiceId: inv.id,
-        invoicedDeviceCount: inv.deviceCount,
-        slotsWritten: newSlots,
-        unpricedSlots: unpriced,
-      });
+      console.warn(
+        "[billing] renewal wrote more slots than it was priced for — EXPECTED if a lead-window device already paid a proration covering this period; check the org's paid prorations before billing off-system",
+        {
+          organizationId: inv.organizationId,
+          invoiceId: inv.id,
+          invoicedDeviceCount: inv.deviceCount,
+          slotsWritten: newSlots,
+          unpricedSlots: unpriced,
+          renewalPeriodEnd: inv.periodEnd.toISOString(),
+        },
+      );
     }
 
     // UPSERT, not UPDATE: an org can exist without a tenantSettings row (it is

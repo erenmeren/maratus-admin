@@ -25,6 +25,7 @@ import {
   claimPinIdempotency,
   pinIdempotencyResponse,
   storePinIdempotentResponse,
+  withPinClaim,
 } from "@/lib/api/pin-idempotency";
 
 export const runtime = "nodejs";
@@ -114,15 +115,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ deviceId
     if (!claim.owned) return pinIdempotencyResponse(claim);
     const nsKey = claim.nsKey;
 
-    const res = await applyScopedPinChange({
-      organizationId: auth.organizationId,
-      change: { scope: "device", deviceId, mode: v.mode, url: null },
-      actor: { type: "system" },
-      via: "api",
+    const modeBody = await withPinClaim({ nsKey, organizationId: auth.organizationId }, async () => {
+      const res = await applyScopedPinChange({
+        organizationId: auth.organizationId,
+        change: { scope: "device", deviceId, mode: v.mode, url: null },
+        actor: { type: "system" },
+        via: "api",
+      });
+      const effectiveUrl = await resolveDeviceEffectiveUrl(auth.organizationId, dev.storeId, { pinMode: v.mode, pinnedUrl: null });
+      const body = deviceBody(deviceId, v.mode, null, effectiveUrl, res.affectedDevices);
+      if (nsKey) await storePinIdempotentResponse(nsKey, auth.organizationId, body);
+      return body;
     });
-    const effectiveUrl = await resolveDeviceEffectiveUrl(auth.organizationId, dev.storeId, { pinMode: v.mode, pinnedUrl: null });
-    const modeBody = deviceBody(deviceId, v.mode, null, effectiveUrl, res.affectedDevices);
-    if (nsKey) await storePinIdempotentResponse(nsKey, auth.organizationId, modeBody);
     return apiJson(modeBody, 200);
   }
 
@@ -146,21 +150,24 @@ export async function PUT(req: Request, { params }: { params: Promise<{ deviceId
   if (!claim.owned) return pinIdempotencyResponse(claim);
   const nsKey = claim.nsKey;
 
-  const res = await applyScopedPinChange({
-    organizationId: auth.organizationId,
-    change: { scope: "device", deviceId, mode: "custom", url: v.url },
-    actor: { type: "system" },
-    via: "api",
-  });
+  const body = await withPinClaim({ nsKey, organizationId: auth.organizationId }, async () => {
+    const res = await applyScopedPinChange({
+      organizationId: auth.organizationId,
+      change: { scope: "device", deviceId, mode: "custom", url: v.url },
+      actor: { type: "system" },
+      via: "api",
+    });
 
-  const body = deviceBody(
-    deviceId,
-    "custom",
-    { url: v.url, pinnedAt: (res.pinnedAt ?? new Date()).toISOString() },
-    v.url,
-    res.affectedDevices,
-  );
-  if (nsKey) await storePinIdempotentResponse(nsKey, auth.organizationId, body);
+    const body = deviceBody(
+      deviceId,
+      "custom",
+      { url: v.url, pinnedAt: (res.pinnedAt ?? new Date()).toISOString() },
+      v.url,
+      res.affectedDevices,
+    );
+    if (nsKey) await storePinIdempotentResponse(nsKey, auth.organizationId, body);
+    return body;
+  });
   return apiJson(body, 200);
 }
 

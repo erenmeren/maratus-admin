@@ -21,6 +21,7 @@ import {
   claimPinIdempotency,
   pinIdempotencyResponse,
   storePinIdempotentResponse,
+  withPinClaim,
 } from "@/lib/api/pin-idempotency";
 
 export const runtime = "nodejs";
@@ -78,20 +79,23 @@ export async function PUT(req: Request) {
   if (!claim.owned) return pinIdempotencyResponse(claim);
   const nsKey = claim.nsKey;
 
-  const res = await applyScopedPinChange({
-    organizationId: auth.organizationId,
-    change: { scope: "org", url: v.url },
-    actor: { type: "system" },
-    via: "api",
-  });
+  const body = await withPinClaim({ nsKey, organizationId: auth.organizationId }, async () => {
+    const res = await applyScopedPinChange({
+      organizationId: auth.organizationId,
+      change: { scope: "org", url: v.url },
+      actor: { type: "system" },
+      via: "api",
+    });
 
-  // res.pinnedAt: fresh timestamp on a real change, the stored original on a
-  // same-URL no-op — never fabricate one the DB doesn't have.
-  const body = orgPinBody(
-    { url: v.url, pinnedAt: res.pinnedAt ? res.pinnedAt.toISOString() : null },
-    res.affectedDevices,
-  );
-  if (nsKey) await storePinIdempotentResponse(nsKey, auth.organizationId, body);
+    // res.pinnedAt: fresh timestamp on a real change, the stored original on a
+    // same-URL no-op — never fabricate one the DB doesn't have.
+    const body = orgPinBody(
+      { url: v.url, pinnedAt: res.pinnedAt ? res.pinnedAt.toISOString() : null },
+      res.affectedDevices,
+    );
+    if (nsKey) await storePinIdempotentResponse(nsKey, auth.organizationId, body);
+    return body;
+  });
   return apiJson(body, 200);
 }
 

@@ -704,12 +704,36 @@ async function activateDeviceIntoSlot(
   // overwriting whatever a future writer put there would destroy it. The
   // "why" lives on the audit row instead, matching voidInvoiceAction's
   // operator-initiated void — this is the same event, just system-triggered.
+  await voidOpenProrationsForDevice({
+    deviceId,
+    organizationId,
+    now,
+    actor,
+    reason: "device_activated_into_free_slot",
+  });
+}
+
+/**
+ * Void every OPEN proration invoice this device still carries. Two reasons
+ * a device stops owing its proration: it landed in a slot the org already
+ * paid for (activation), or it is being deleted / returned to stock and the
+ * invoice would otherwise outlive it as an orphan the customer is still
+ * asked to pay. Audited per invoice, same event as an operator void.
+ */
+export async function voidOpenProrationsForDevice(a: {
+  deviceId: string;
+  organizationId: string;
+  now?: Date;
+  actor: AuditActor;
+  reason: string;
+}): Promise<string[]> {
   const voided = await db
     .update(invoice)
     .set({ status: "void" })
     .where(
       and(
-        eq(invoice.deviceId, deviceId),
+        eq(invoice.deviceId, a.deviceId),
+        eq(invoice.organizationId, a.organizationId),
         eq(invoice.kind, "proration"),
         eq(invoice.status, "open"),
       ),
@@ -717,24 +741,21 @@ async function activateDeviceIntoSlot(
     .returning({ id: invoice.id });
 
   for (const v of voided) {
-    console.warn("[billing] voided a proration superseded by a free slot", {
-      deviceId,
-      organizationId,
+    console.warn("[billing] voided an open proration", {
+      reason: a.reason,
+      deviceId: a.deviceId,
+      organizationId: a.organizationId,
       invoiceId: v.id,
     });
-    // Best-effort, like every other recordAudit call — the void itself
-    // already happened and must not be undone by an audit-log hiccup. The
-    // actor is whoever caused the slot to open up: the admin who marked the
-    // freeing invoice paid, or `system` when the trigger was an inventory
-    // status change or a claim landing in an already-vacant slot.
     await recordAudit({
-      organizationId,
-      actor,
+      organizationId: a.organizationId,
+      actor: a.actor,
       action: AUDIT.invoiceVoided,
       target: { type: "invoice", id: v.id },
-      metadata: { reason: "device_activated_into_free_slot", deviceId },
+      metadata: { reason: a.reason, deviceId: a.deviceId },
     });
   }
+  return voided.map((v) => v.id);
 }
 
 /**

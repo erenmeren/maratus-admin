@@ -15,7 +15,7 @@ import { chunk } from "./chunk";
 import { generateDeviceKey, id } from "./ids";
 import { deprovisionDeviceMqtt, provisionDeviceMqtt } from "@/lib/mqtt";
 import { pushEffectivePinSafe } from "@/lib/pin-service";
-import { fillFreeSlots, settleClaimBilling } from "@/lib/invoices";
+import { fillFreeSlots, settleClaimBilling, voidOpenProrationsForDevice } from "@/lib/invoices";
 import type { RegistryAllocationSnapshot, RegistryStatus } from "./provisioning";
 import type { RegistryCsvRow } from "./factory-registry-csv";
 import { clampPage, foldDeallocatedByOrg } from "./factory-registry-fold";
@@ -532,6 +532,27 @@ export async function autoClaimDevice(
 export async function returnDeviceToStock(
   deviceId: string,
 ): Promise<{ ok: boolean; changed: boolean; serial: string | null; deviceName: string | null }> {
+  // Void the device's open proration BEFORE the delete below sets the
+  // invoice's deviceId to null and orphans it. Outside the transaction on
+  // purpose: neon-http `db` and the pool-backed `tx` are different clients.
+  const [pre] = await db
+    .select({ organizationId: deviceTable.organizationId })
+    .from(deviceTable)
+    .where(eq(deviceTable.id, deviceId))
+    .limit(1);
+  if (pre) {
+    try {
+      await voidOpenProrationsForDevice({
+        deviceId,
+        organizationId: pre.organizationId,
+        actor: { type: "system" },
+        reason: "device_returned_to_stock",
+      });
+    } catch (err) {
+      console.error("[billing] voiding prorations before return-to-stock failed", err);
+    }
+  }
+
   const result = await dbTx.transaction(async (tx) => {
     const [dev] = await tx
       .select({ id: deviceTable.id, name: deviceTable.name, serial: deviceTable.serial })

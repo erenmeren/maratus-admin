@@ -1275,14 +1275,8 @@ export async function getAdminOverview(): Promise<AdminOverview> {
   const summaries = bundles.map((b) => summarize(b));
   const monthly = sumSeries(bundles.map((b) => monthlySeries(b)));
 
-  let activeDevices = 0;
-  let totalDevices = 0;
-  for (const b of bundles) {
-    for (const d of b.devices) {
-      totalDevices++;
-      if (d.status === "online") activeDevices++;
-    }
-  }
+  const totalDevices = summaries.reduce((a, s) => a + s.deviceCount, 0);
+  const activeDevices = summaries.reduce((a, s) => a + s.onlineCount, 0);
 
   return {
     activationsThisMonth: summaries.reduce((a, s) => a + s.activationsThisMonth, 0),

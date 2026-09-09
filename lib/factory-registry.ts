@@ -598,7 +598,13 @@ export async function retireDeviceWithCustomer(
 ): Promise<{ ok: boolean; changed: boolean; serial: string | null; deviceName: string | null }> {
   return dbTx.transaction(async (tx) => {
     const [dev] = await tx
-      .select({ id: deviceTable.id, name: deviceTable.name, serial: deviceTable.serial, status: deviceTable.status })
+      .select({
+        id: deviceTable.id,
+        name: deviceTable.name,
+        serial: deviceTable.serial,
+        status: deviceTable.status,
+        subscriptionPaidAt: deviceTable.subscriptionPaidAt,
+      })
       .from(deviceTable)
       .where(eq(deviceTable.id, deviceId))
       .for("update");
@@ -616,7 +622,14 @@ export async function retireDeviceWithCustomer(
         .where(eq(factoryDevice.deviceId, deviceId));
       registryRetired = reg?.status === "retired";
     }
-    if (dev.status === "paused" && registryRetired) {
+    // Already done? With a registry row, its status says so. Without one (a
+    // pre-registry claim, or a serial conflict) the only durable trace of a
+    // prior run is the released slot: paused AND unpaid. A device the tenant
+    // merely paused is paused AND still paid — that one still needs retiring.
+    const alreadyRetired = dev.serial
+      ? dev.status === "paused" && registryRetired
+      : dev.status === "paused" && dev.subscriptionPaidAt === null;
+    if (alreadyRetired) {
       return { ok: true, changed: false, serial: dev.serial, deviceName: dev.name };
     }
 

@@ -728,7 +728,6 @@ async function activateDeviceIntoSlot(
   await voidOpenProrationsForDevice({
     deviceId,
     organizationId,
-    now,
     actor,
     reason: "device_activated_into_free_slot",
   });
@@ -744,7 +743,6 @@ async function activateDeviceIntoSlot(
 export async function voidOpenProrationsForDevice(a: {
   deviceId: string;
   organizationId: string;
-  now?: Date;
   actor: AuditActor;
   reason: string;
 }): Promise<string[]> {

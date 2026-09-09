@@ -42,7 +42,7 @@ import {
 } from "@/lib/data";
 import { countPaidDevices, listInvoices } from "@/lib/invoices";
 import { DEFAULT_PRICE_PER_DEVICE_CENTS } from "@/lib/invoicing";
-import { freeSlots as computeFreeSlots } from "@/lib/device-slots";
+import { freeSlots as computeFreeSlots, effectiveSlots } from "@/lib/device-slots";
 import { SubscriptionCard } from "@/components/billing/subscription-card";
 import { InvoiceTable } from "@/components/billing/invoice-table";
 import { formatNumber, timeAgo } from "@/lib/format";
@@ -80,6 +80,7 @@ export default async function CustomerDetailPage({
         renewsAt: tenantSettings.subscriptionRenewsAt,
         pricePerDeviceCents: tenantSettings.pricePerDeviceCents,
         paidDeviceSlots: tenantSettings.paidDeviceSlots,
+        pendingDeviceSlots: tenantSettings.pendingDeviceSlots,
       })
       .from(tenantSettings)
       .where(eq(tenantSettings.organizationId, tenantId))
@@ -219,7 +220,10 @@ export default async function CustomerDetailPage({
         paidDeviceCount={paidDeviceCount}
         paidDeviceSlots={subscriptionSettings?.paidDeviceSlots ?? 0}
         freeSlots={computeFreeSlots({
-          paidDeviceSlots: subscriptionSettings?.paidDeviceSlots ?? 0,
+          paidDeviceSlots: effectiveSlots({
+            paidDeviceSlots: subscriptionSettings?.paidDeviceSlots ?? 0,
+            pendingDeviceSlots: subscriptionSettings?.pendingDeviceSlots ?? null,
+          }),
           paidDevices: paidDeviceCount,
         })}
         invoices={invoices}

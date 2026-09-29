@@ -125,6 +125,11 @@ export const member = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     role: text("role").default("member").notNull(),
     createdAt: timestamp("created_at").notNull(),
+    // Copied from invitation.inviterId when the invite is accepted — the
+    // invitation row alone can't answer "who added this member" once it's
+    // accepted. A platform-admin inviter is what lets the admin console
+    // remove this member; customer-invited members stay the tenant's to manage.
+    invitedById: text("invited_by_id").references(() => user.id, { onDelete: "set null" }),
   },
   (t) => [
     index("member_organization_id_idx").on(t.organizationId),

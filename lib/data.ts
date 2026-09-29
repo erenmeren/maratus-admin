@@ -11,6 +11,7 @@
 //   • activationsToday / activationsThisMonth are derived from acked device-trigger commands
 
 import { and, asc, count, desc, eq, gte, isNotNull, isNull, lt, max, ne, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "./db";
 import { excludeArchived } from "@/lib/archived";
 import { id as genId } from "@/lib/ids";
@@ -1872,6 +1873,90 @@ export async function getOrgInvitations(organizationId: string) {
   }));
 }
 
+
+export interface CustomerTeamMember {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  joinedAt: string;
+  /** Inviter's display name; null when unknown (pre-dates tracking or inviter deleted). */
+  invitedBy: string | null;
+  /** A platform admin sent the invite — the admin console may remove this member. */
+  invitedByPlatform: boolean;
+}
+
+export interface CustomerTeamInvitation {
+  id: string;
+  email: string;
+  role: string;
+  sentAt: string;
+  expiresAt: string;
+  expired: boolean;
+  invitedBy: string;
+  invitedByPlatform: boolean;
+}
+
+/** Members + pending invitations of one customer, with who invited each —
+ *  the admin customer page's Team card. */
+export async function getCustomerTeam(
+  organizationId: string,
+): Promise<{ members: CustomerTeamMember[]; invitations: CustomerTeamInvitation[] }> {
+  const inviter = alias(userTable, "inviter");
+  const [memberRows, inviteRows] = await Promise.all([
+    db
+      .select({
+        id: memberTable.id,
+        role: memberTable.role,
+        joinedAt: memberTable.createdAt,
+        name: userTable.name,
+        email: userTable.email,
+        inviterName: inviter.name,
+        inviterRole: inviter.role,
+      })
+      .from(memberTable)
+      .innerJoin(userTable, eq(memberTable.userId, userTable.id))
+      .leftJoin(inviter, eq(memberTable.invitedById, inviter.id))
+      .where(eq(memberTable.organizationId, organizationId))
+      .orderBy(asc(memberTable.createdAt)),
+    db
+      .select({
+        id: invitationTable.id,
+        email: invitationTable.email,
+        role: invitationTable.role,
+        sentAt: invitationTable.createdAt,
+        expiresAt: invitationTable.expiresAt,
+        inviterName: inviter.name,
+        inviterRole: inviter.role,
+      })
+      .from(invitationTable)
+      .innerJoin(inviter, eq(invitationTable.inviterId, inviter.id))
+      .where(and(eq(invitationTable.organizationId, organizationId), eq(invitationTable.status, "pending")))
+      .orderBy(desc(invitationTable.createdAt)),
+  ]);
+  const now = Date.now();
+  return {
+    members: memberRows.map((r) => ({
+      id: r.id,
+      name: r.name,
+      email: r.email,
+      role: r.role,
+      joinedAt: r.joinedAt.toISOString(),
+      invitedBy: r.inviterName,
+      invitedByPlatform: r.inviterRole === "platform_admin",
+    })),
+    invitations: inviteRows.map((r) => ({
+      id: r.id,
+      email: r.email,
+      role: r.role ?? "member",
+      sentAt: r.sentAt.toISOString(),
+      expiresAt: r.expiresAt.toISOString(),
+      expired: r.expiresAt.getTime() < now,
+      invitedBy: r.inviterName,
+      invitedByPlatform: r.inviterRole === "platform_admin",
+    })),
+  };
+}
 
 export interface PlatformHealth {
   fleet: {

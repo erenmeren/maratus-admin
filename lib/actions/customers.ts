@@ -4,7 +4,8 @@
 
 import { revalidatePath } from "next/cache";
 import { randomBytes } from "node:crypto";
-import { eq, and } from "drizzle-orm";
+import { eq, and, ne, count, gt, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
 import { organization, tenantSettings, member, user, invitation } from "@/lib/db/schema";
 import { requirePlatformAdmin } from "@/lib/session";
@@ -14,6 +15,7 @@ import { isOrgArchived } from "@/lib/archived-guard";
 import { getEnv } from "@/lib/env";
 import { sendEmail } from "@/lib/email";
 import { escapeHtml } from "@/lib/billing/invoice-emails";
+import { platformCanManage, shouldDeleteOrphanedUser } from "@/lib/members";
 
 export interface CreateCustomerResult {
   ok: boolean;
@@ -157,6 +159,22 @@ export async function inviteOwnerAction(
     return { ok: false, error: "That email is already a member." };
   }
 
+  const [openInvite] = await db
+    .select({ id: invitation.id })
+    .from(invitation)
+    .where(
+      and(
+        eq(invitation.organizationId, orgId),
+        sql`lower(${invitation.email}) = ${email}`,
+        eq(invitation.status, "pending"),
+        gt(invitation.expiresAt, new Date()),
+      ),
+    )
+    .limit(1);
+  if (openInvite) {
+    return { ok: false, error: "That email already has a pending invitation — cancel it first to send a new one." };
+  }
+
   const [org] = await db
     .select({ name: organization.name })
     .from(organization)
@@ -194,4 +212,94 @@ export async function inviteOwnerAction(
 
   revalidatePath(`/admin/customers/${orgId}`);
   return { ok: true, url, emailed };
+}
+
+type TeamResult = { ok: true; accountDeleted?: boolean } | { ok: false; error: string };
+
+/**
+ * Remove a member the platform admin invited. Customer-invited members are the
+ * tenant's to manage and are refused here. If the person no longer belongs to
+ * any org afterwards, their account is deleted too (sessions cascade), so the
+ * email can be invited again from a clean slate.
+ */
+export async function removeCustomerMemberAction(
+  organizationId: string,
+  memberId: string,
+): Promise<TeamResult> {
+  const ctx = await requirePlatformAdmin();
+  if (await isOrgArchived(organizationId)) return { ok: false, error: "Customer is archived." };
+
+  const inviter = alias(user, "inviter");
+  const [m] = await db
+    .select({
+      userId: member.userId,
+      role: member.role,
+      email: user.email,
+      userRole: user.role,
+      inviterRole: inviter.role,
+    })
+    .from(member)
+    .innerJoin(user, eq(user.id, member.userId))
+    .leftJoin(inviter, eq(inviter.id, member.invitedById))
+    .where(and(eq(member.id, memberId), eq(member.organizationId, organizationId)))
+    .limit(1);
+  if (!m) return { ok: false, error: "Member not found." };
+  if (!platformCanManage(m.inviterRole)) {
+    return { ok: false, error: "This person was added by the customer — only they can remove them." };
+  }
+
+  const [{ n: otherMemberships }] = await db
+    .select({ n: count() })
+    .from(member)
+    .where(and(eq(member.userId, m.userId), ne(member.organizationId, organizationId)));
+  const accountDeleted = shouldDeleteOrphanedUser(m.userRole, otherMemberships);
+
+  if (accountDeleted) {
+    await db.delete(user).where(eq(user.id, m.userId));
+  } else {
+    await db.delete(member).where(eq(member.id, memberId));
+  }
+
+  await recordAudit({
+    organizationId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    action: AUDIT.memberRemoved,
+    target: { type: "member", id: memberId },
+    metadata: { userId: m.userId, email: m.email, role: m.role, by: "platform_admin", accountDeleted },
+  });
+
+  revalidatePath(`/admin/customers/${organizationId}`);
+  return { ok: true, accountDeleted };
+}
+
+/** Cancel a pending invitation the platform admin sent. Customer-sent invites are refused. */
+export async function cancelCustomerInvitationAction(
+  organizationId: string,
+  invitationId: string,
+): Promise<TeamResult> {
+  const ctx = await requirePlatformAdmin();
+
+  const inviter = alias(user, "inviter");
+  const [inv] = await db
+    .select({ email: invitation.email, status: invitation.status, inviterRole: inviter.role })
+    .from(invitation)
+    .innerJoin(inviter, eq(inviter.id, invitation.inviterId))
+    .where(and(eq(invitation.id, invitationId), eq(invitation.organizationId, organizationId)))
+    .limit(1);
+  if (!inv || inv.status !== "pending") return { ok: false, error: "Invitation not found." };
+  if (!platformCanManage(inv.inviterRole)) {
+    return { ok: false, error: "This invitation was sent by the customer — only they can cancel it." };
+  }
+
+  await db.update(invitation).set({ status: "canceled" }).where(eq(invitation.id, invitationId));
+  await recordAudit({
+    organizationId,
+    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+    action: AUDIT.invitationCanceled,
+    target: { type: "invitation", id: invitationId },
+    metadata: { email: inv.email, by: "platform_admin" },
+  });
+
+  revalidatePath(`/admin/customers/${organizationId}`);
+  return { ok: true };
 }

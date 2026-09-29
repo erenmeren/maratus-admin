@@ -64,21 +64,6 @@ export function NewCustomerDialog() {
               <Label htmlFor="name">Company name</Label>
               <Input id="name" name="name" placeholder="e.g. Roastwell Coffee" required />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="contact">Contact name</Label>
-                <Input id="contact" name="contact" placeholder="Jane Doe" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Contact email</Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="jane@store.com"
-                />
-              </div>
-            </div>
           </div>
 
           <DialogFooter>

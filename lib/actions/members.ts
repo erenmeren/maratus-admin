@@ -121,7 +121,7 @@ export async function acceptInvitationAction(invitationId: string): Promise<Resu
 
   await db
     .insert(member)
-    .values({ id: genId("mem"), organizationId: inv.organizationId, userId: session.user.id, role: inv.role ?? "member", createdAt: new Date() })
+    .values({ id: genId("mem"), organizationId: inv.organizationId, userId: session.user.id, role: inv.role ?? "member", createdAt: new Date(), invitedById: inv.inviterId })
     .onConflictDoNothing();
   await db.update(invitation).set({ status: "accepted" }).where(eq(invitation.id, invitationId));
   await recordAudit({ organizationId: inv.organizationId, actor: { type: "user", id: session.user.id, label: session.user.email }, action: AUDIT.memberAdded, target: { type: "member", id: session.user.id } });
@@ -165,7 +165,7 @@ export async function acceptInviteSignup(input: { invitationId: string; name: st
   }
   await db
     .insert(member)
-    .values({ id: genId("mem"), organizationId: inv.organizationId, userId: created.id, role: inv.role ?? "member", createdAt: new Date() })
+    .values({ id: genId("mem"), organizationId: inv.organizationId, userId: created.id, role: inv.role ?? "member", createdAt: new Date(), invitedById: inv.inviterId })
     .onConflictDoNothing();
   await db.update(invitation).set({ status: "accepted" }).where(eq(invitation.id, input.invitationId));
   await recordAudit({ organizationId: inv.organizationId, actor: { type: "user", id: created.id, label: inv.email }, action: AUDIT.memberAdded, target: { type: "member", id: created.id } });

@@ -16,6 +16,7 @@ import { OffboardWizard } from "@/components/customers/offboard-wizard";
 import { RestoreCustomerButton } from "@/components/customers/restore-customer-button";
 import { AdminStoresCard } from "@/components/customers/admin-stores-card";
 import { InviteOwnerDialog } from "@/components/customers/invite-owner-dialog";
+import { CustomerTeamCard } from "@/components/customers/customer-team-card";
 import { RenameCustomerDialog } from "@/components/customers/rename-customer-dialog";
 import {
   Card,
@@ -39,6 +40,7 @@ import {
   getOrgDevicesForOffboard,
   getArmedAllocationCountByStore,
   getDeviceUsageThisMonth,
+  getCustomerTeam,
 } from "@/lib/data";
 import { countPaidDevices, listInvoices } from "@/lib/invoices";
 import { DEFAULT_PRICE_PER_DEVICE_CENTS } from "@/lib/invoicing";
@@ -71,6 +73,7 @@ export default async function CustomerDetailPage({
     subscriptionSettings,
     paidDeviceCount,
     invoices,
+    team,
   ] = await Promise.all([
     getArmedAllocationCountByStore(tenantId),
     getDeviceUsageThisMonth(tenantId),
@@ -88,6 +91,7 @@ export default async function CustomerDetailPage({
       .then((rows) => rows[0]),
     countPaidDevices(tenantId),
     listInvoices(tenantId),
+    getCustomerTeam(tenantId),
   ]);
 
   const { tenant, summary, devices, health } = detail;
@@ -208,6 +212,13 @@ export default async function CustomerDetailPage({
           deviceCount: s.devices.filter((d) => d.claimed).length,
           armedCount: armedByStore[s.id] ?? 0,
         }))}
+      />
+
+      <CustomerTeamCard
+        organizationId={tenant.id}
+        members={team.members}
+        invitations={team.invitations}
+        readOnly={isArchived}
       />
 
       <SubscriptionCard

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { canManageMembers, inviteRoleIsValid } from "./members";
+import { canManageMembers, inviteRoleIsValid, platformCanManage, shouldDeleteOrphanedUser } from "./members";
 
 describe("canManageMembers", () => {
   it("allows owner and admin", () => {
@@ -21,5 +21,28 @@ describe("inviteRoleIsValid", () => {
   it("rejects owner and anything else", () => {
     expect(inviteRoleIsValid("owner")).toBe(false);
     expect(inviteRoleIsValid("")).toBe(false);
+  });
+});
+
+describe("platformCanManage", () => {
+  it("allows only what a platform admin invited", () => {
+    expect(platformCanManage("platform_admin")).toBe(true);
+  });
+  it("denies customer-invited and unknown provenance", () => {
+    expect(platformCanManage("user")).toBe(false);
+    expect(platformCanManage(null)).toBe(false);
+    expect(platformCanManage(undefined)).toBe(false);
+  });
+});
+
+describe("shouldDeleteOrphanedUser", () => {
+  it("deletes a plain user left with no memberships", () => {
+    expect(shouldDeleteOrphanedUser("user", 0)).toBe(true);
+  });
+  it("keeps users still in another org", () => {
+    expect(shouldDeleteOrphanedUser("user", 1)).toBe(false);
+  });
+  it("never deletes a platform admin", () => {
+    expect(shouldDeleteOrphanedUser("platform_admin", 0)).toBe(false);
   });
 });

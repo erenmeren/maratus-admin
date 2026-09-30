@@ -12,3 +12,5 @@ export function personalizeSpec(ids: { deviceId?: string; storeId?: string }): u
   if (ids.storeId) text = text.replaceAll(EXAMPLE_STORE_ID, ids.storeId);
   return JSON.parse(text);
 }
+
+export { EXAMPLE_IDEMPOTENCY_KEY, freshIdempotencyKey } from "./docs-try-it";

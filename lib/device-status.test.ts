@@ -25,6 +25,12 @@ describe("effectiveDeviceStatus", () => {
     expect(effectiveDeviceStatus("online", minsAgo(OFFLINE_MINUTES - 1), now)).toBe("online");
     expect(effectiveDeviceStatus("online", minsAgo(OFFLINE_MINUTES + 1), now)).toBe("offline");
   });
+  it("a stored offline wins even when lastSeen is recent (presence disconnect)", () => {
+    // EMQX's disconnect webhook writes status=offline instantly; the device's
+    // last heartbeat can still be minutes fresh. Trusting lastSeen alone let a
+    // trigger through to a disconnected device (lost QR, misleading 202).
+    expect(effectiveDeviceStatus("offline", minsAgo(1), now)).toBe("offline");
+  });
   it("online exactly at threshold (strictly greater is offline)", () => {
     expect(effectiveDeviceStatus("online", minsAgo(OFFLINE_MINUTES), now)).toBe("online");
   });

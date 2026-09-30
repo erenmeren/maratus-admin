@@ -42,7 +42,16 @@ const SCALAR_CSS = `
 .scalar-app table code { white-space: nowrap; }
 `;
 
-export function DocsReference({ ctx, loginHref }: { ctx: Ctx; loginHref: string }) {
+export function DocsReference({
+  ctx,
+  loginHref,
+  spec,
+}: {
+  ctx: Ctx;
+  loginHref: string;
+  /** Personalized spec for a signed-in visitor; null → fetch the public one. */
+  spec: unknown;
+}) {
   const { resolvedTheme } = useTheme();
   const [pg, setPg] = React.useState<Playground | null>(null);
   const [busy, setBusy] = React.useState(false);
@@ -65,7 +74,7 @@ export function DocsReference({ ctx, loginHref }: { ctx: Ctx; loginHref: string 
 
   const configuration = React.useMemo(
     () => ({
-      url: "/api/v1/openapi.json",
+      ...(spec ? { content: spec as Record<string, unknown> } : { url: "/api/v1/openapi.json" }),
       theme: "none" as const,
       customCss: SCALAR_CSS,
       withDefaultFonts: false,
@@ -85,7 +94,7 @@ export function DocsReference({ ctx, loginHref }: { ctx: Ctx; loginHref: string 
         ? { preferredSecurityScheme: "bearerAuth", securitySchemes: { bearerAuth: { token: live.key } } }
         : undefined,
     }),
-    [resolvedTheme, live],
+    [resolvedTheme, live, spec],
   );
 
   return (
@@ -217,8 +226,10 @@ function useNow(intervalMs: number | null): number {
   return now;
 }
 
+// Clamped to the 60-minute TTL: a client clock a few seconds behind the
+// server would otherwise read "61 min" right after minting.
 function minutesLeft(expiresAt: string, now: number): number {
-  return Math.max(1, Math.ceil((new Date(expiresAt).getTime() - now) / 60_000));
+  return Math.min(60, Math.max(1, Math.ceil((new Date(expiresAt).getTime() - now) / 60_000)));
 }
 
 function reasonText(reason: string): string {

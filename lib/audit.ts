@@ -41,6 +41,7 @@ export const AUDIT = {
   storeDeleted: "store.deleted",
   apiKeyCreated: "api_key.created",
   apiKeyRevoked: "api_key.revoked",
+  apiKeyPlaygroundIssued: "api_key.playground_issued",
   brandingUpdated: "branding.updated",
   deviceSettingsUpdated: "device_settings.updated",
   memberInvited: "member.invited",

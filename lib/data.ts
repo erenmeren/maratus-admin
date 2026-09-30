@@ -2285,7 +2285,8 @@ export async function getApiKeys(organizationId: string): Promise<ApiKeyRow[]> {
       revokedAt: apiKeyTable.revokedAt,
     })
     .from(apiKeyTable)
-    .where(eq(apiKeyTable.organizationId, organizationId))
+    // Ephemeral docs-playground keys (non-null expiresAt) are not user-managed.
+    .where(and(eq(apiKeyTable.organizationId, organizationId), isNull(apiKeyTable.expiresAt)))
     .orderBy(desc(apiKeyTable.createdAt));
   return rows.map((r) => ({
     id: r.id,

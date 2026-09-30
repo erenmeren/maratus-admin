@@ -9,6 +9,7 @@ import { DeviceMoveControl } from "@/components/device-move-control";
 import { DevicePinControl } from "@/components/device-pin-control";
 import { Card, CardContent, CardHeader, CardTitle,  } from "@/components/ui/card";
 import { CommandBar } from "@/components/devices/command-bar";
+import { CopyButton } from "@/components/copy-button";
 import {
   getDevice,
   getDeviceCommands,
@@ -77,8 +78,8 @@ export default async function DeviceDetailPage({
     .limit(1);
   const updateAvailable = !!latestFw && latestFw.version !== device.firmwareVersion;
 
-  const specs: { icon: typeof Cpu; label: string; value: string; mono?: boolean }[] = [
-    { icon: HardDrive, label: "Device ID", value: device.id, mono: true },
+  const specs: { icon: typeof Cpu; label: string; value: string; mono?: boolean; copy?: boolean }[] = [
+    { icon: HardDrive, label: "Device ID", value: device.id, mono: true, copy: true },
     { icon: Globe, label: "IP address", value: device.ipAddress, mono: true },
     {
       icon: device.connectionType === "wifi" ? Wifi : Cable,
@@ -135,13 +136,16 @@ export default async function DeviceDetailPage({
                   </span>
                   <div className="min-w-0">
                     <p className="text-xs text-muted-foreground">{s.label}</p>
-                    <p
-                      className={
-                        s.mono ? "truncate font-mono text-sm" : "text-sm font-medium"
-                      }
-                    >
-                      {s.value}
-                    </p>
+                    <div className="flex items-center gap-1">
+                      <p
+                        className={
+                          s.mono ? "truncate font-mono text-sm" : "text-sm font-medium"
+                        }
+                      >
+                        {s.value}
+                      </p>
+                      {s.copy && <CopyButton value={s.value} label={`Copy ${s.label}`} />}
+                    </div>
                   </div>
                 </div>
               ))}

@@ -330,6 +330,13 @@
       "when": 1790683256502,
       "tag": "0046_daily_ogun",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1790779920468,
+      "tag": "0047_gray_power_pack",
+      "breakpoints": true
     }
   ]
 }

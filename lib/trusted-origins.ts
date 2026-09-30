@@ -16,6 +16,8 @@ export function computeTrustedOrigins(
     // Custom-domain aliases of the prod deployment (Cloudflare DNS → Vercel).
     "https://api.maratus.co",
     "https://console.maratus.co",
+    // Public API docs; signing in there enables the "Try it" console.
+    "https://docs.maratus.co",
     "https://api.maratus.dev",
     // `next dev` falls back to another port when 3000 is taken, which would
     // otherwise be rejected.

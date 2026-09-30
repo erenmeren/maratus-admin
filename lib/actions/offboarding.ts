@@ -166,7 +166,15 @@ export async function offboardCustomerAction(
     db
       .select({ total: count() })
       .from(apiKeyTable)
-      .where(and(eq(apiKeyTable.organizationId, organizationId), isNotNull(apiKeyTable.revokedAt)))
+      // Ephemeral docs-playground keys (non-null expiresAt) are excluded — they
+      // are not user-managed keys and would inflate the "revoked keys" count.
+      .where(
+        and(
+          eq(apiKeyTable.organizationId, organizationId),
+          isNotNull(apiKeyTable.revokedAt),
+          isNull(apiKeyTable.expiresAt),
+        ),
+      )
       .then(([row]) => row?.total ?? 0),
   ]);
   const summary: OffboardSummary = {

@@ -484,6 +484,10 @@ export const apiKey = pgTable(
     createdAt: timestamp("created_at").$defaultFn(() => new Date()).notNull(),
     revokedAt: timestamp("revoked_at"),
     scopes: text("scopes").array().notNull().default(sql`'{}'::text[]`),
+    // Non-null marks an ephemeral docs-playground key (lib/playground-key.ts):
+    // minted on demand for the signed-in docs "Try it" console, rejected by
+    // authenticateApiKey once past, and hidden from the tenant API-keys list.
+    expiresAt: timestamp("expires_at"),
   },
   (t) => [
     uniqueIndex("api_key_hash_idx").on(t.keyHash),

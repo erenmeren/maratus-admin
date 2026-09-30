@@ -1,7 +1,9 @@
 import { PageHeader } from "@/components/page-header";
 import { ApiKeyCreateDialog } from "@/components/api-key-create-dialog";
 import { ApiKeyRowActions } from "@/components/api-key-row-actions";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowUpRight, BookOpen } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
@@ -20,7 +22,7 @@ export default async function ApiKeysPage() {
     <>
       <PageHeader
         title="API keys"
-        description="Read-only keys for the Maratus public API."
+        description="Keys for the Maratus public API. Each key can read usage, trigger devices or manage pinned QR codes, depending on the scopes you grant it."
       >
         {canManage && <ApiKeyCreateDialog />}
       </PageHeader>
@@ -29,14 +31,28 @@ export default async function ApiKeysPage() {
         <CardHeader>
           <CardTitle>Using the API</CardTitle>
           <CardDescription>
-            Base URL <code className="font-mono">/api/v1</code> · authenticate with{" "}
-            <code className="font-mono">Authorization: Bearer &lt;key&gt;</code>. Endpoints:{" "}
-            <code className="font-mono">GET /usage</code>, and{" "}
-            <code className="font-mono">POST /api/v1/devices/&#123;deviceId&#125;/trigger</code>{" "}
-            (fires a device action, e.g. show a QR for a URL you host). Full schema:{" "}
-            <a className="underline" href="/api/v1/openapi.json">/api/v1/openapi.json</a>.
+            Guides, endpoint reference and a live request console are in the API documentation.
           </CardDescription>
+          <CardAction>
+            <Button asChild>
+              <a href="https://docs.maratus.co" target="_blank" rel="noopener noreferrer">
+                <BookOpen className="size-4" />
+                API documentation
+                <ArrowUpRight className="size-4" />
+              </a>
+            </Button>
+          </CardAction>
         </CardHeader>
+        <CardContent className="grid gap-3 text-sm sm:grid-cols-2">
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Base URL</p>
+            <code className="block truncate font-mono">https://api.maratus.co/v1</code>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs text-muted-foreground">Authentication</p>
+            <code className="block truncate font-mono">Authorization: Bearer &lt;key&gt;</code>
+          </div>
+        </CardContent>
       </Card>
 
       <Card className="overflow-hidden py-0">

@@ -1,138 +1,69 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Maratus Public API",
+    "title": "Maratus API",
     "version": "1.0.0",
-    "description": "Tenant-scoped API for device activation and usage. Authenticate with an API key created in the Maratus dashboard (Authorization: Bearer <key>). Each key carries scopes: `devices:trigger` to activate a device, `devices:pin` to manage pinned QR codes, `usage:read` to read usage."
+    "description": "Maratus is a **trigger-to-screen** platform. Your system sends a URL; a Maratus device on the counter shows it as a QR code; your customer scans it with their phone and lands on your content — a receipt, a loyalty sign-up, a payment page, a survey. Maratus never hosts that content: you host it and pass the link.\n\n> **Requests act on real devices.** There is no sandbox. A successful trigger shows a QR code on a physical screen in your store, and pin changes update what idle screens display. Test against a device you control.\n\n## Authentication\n\nEvery request needs an API key, sent as a bearer token:\n\n```http\nAuthorization: Bearer dk_live_...\n```\n\nCreate keys in the console at [console.maratus.co](https://console.maratus.co) → **API** → **Create API key** (organization owners and admins only). The full key is shown **once**, at creation — store it in a secrets manager. You can revoke a key at any time; revoked keys stop working immediately.\n\nEach key carries one or more **scopes**. A request with a valid key that lacks the endpoint's scope fails with `403 insufficient_scope`.\n\n| Scope | Grants |\n|---|---|\n| `usage:read` | `GET /usage` |\n| `devices:trigger` | `POST /devices/{deviceId}/trigger` |\n| `devices:pin` | The pin endpoints: `/devices/{deviceId}/pin`, `/stores/{storeId}/pin`, `/org/pin` |\n\nGrant each integration only the scopes it needs.\n\n## Finding IDs\n\n- **Device ID** (`dev_...`): open the device in the console (**Stores** → store → device). It is listed under *Device details* with a copy button.\n- **Store ID** (`str_...`): open the store in the console (**Stores** → store). It is listed under *Store details*.\n\n## Quickstart\n\nShow a QR code on a device:\n\n```bash\ncurl -X POST https://api.maratus.co/v1/devices/dev_V1StGXR8_Z5jdHi6B-myT/trigger \\\n  -H \"Authorization: Bearer $MARATUS_API_KEY\" \\\n  -H \"Content-Type: application/json\" \\\n  -H \"Idempotency-Key: $(uuidgen)\" \\\n  -d '{\"action\": \"show_qr\", \"payload\": {\"url\": \"https://example.com/receipt/8812\"}}'\n```\n\nA `202 Accepted` response means the command was accepted and pushed to the device:\n\n```json\n{ \"id\": \"cmd_4Qp0dN7hZk2bWm9xYc1aE\", \"status\": \"queued\" }\n```\n\n## Idempotency\n\n`POST /devices/{deviceId}/trigger` **requires** an `Idempotency-Key` header. Use a fresh unique value (a UUID works well) for each logical trigger, and reuse the same value when retrying that trigger. Once a trigger has been accepted, any later request with the same key returns the original `202` response and does **not** show the QR again — even if the body differs. Keys are scoped to your organization. Failed attempts (`4xx`, `500`, `503`) do not consume the key, so retrying with the same key is safe.\n\nOn the pin endpoints the header is **optional** (`PUT` only). Pin updates are naturally idempotent; the key only protects against a retried or concurrent request fanning out duplicate device updates. Reusing a key with a different body returns `422 invalid_request`; reusing it while the first request is still running returns `409 conflict`.\n\n## Rate limits\n\nEach API key may make **120 requests per minute** (fixed one-minute window). Beyond that the API answers `429 rate_limited` with a `Retry-After` header giving the number of seconds to wait.\n\n## Errors\n\nErrors use a single JSON envelope:\n\n```json\n{ \"error\": { \"code\": \"device_offline\", \"message\": \"Device is offline or paused.\" } }\n```\n\nBranch on `code`; `message` is human-readable and may change.\n\n| Code | HTTP | Meaning | Retry? |\n|---|---|---|---|\n| `missing_idempotency_key` | 400 | Trigger sent without an `Idempotency-Key` header. | No — add the header. |\n| `unauthorized` | 401 | Missing, malformed, unknown or revoked API key. | No — fix the key. |\n| `insufficient_scope` | 403 | The key lacks the scope this endpoint needs. | No — use a key with the scope. |\n| `device_not_subscribed` | 403 | The device has no paid subscription and has used its trial triggers. | No — contact Maratus to activate it. |\n| `org_archived` | 403 | Your organization is archived; pin changes that would display a QR are blocked. | No — contact Maratus. |\n| `device_not_found` | 404 | No device with this ID in your organization. | No — check the ID. |\n| `store_not_found` | 404 | No store with this ID in your organization. | No — check the ID. |\n| `device_offline` | 409 | The device is paused, or has not checked in for 15 minutes. | Yes, once the device is back online. |\n| `conflict` | 409 | Another request with the same `Idempotency-Key` is still in progress. | Yes — after a short delay, with the same key. |\n| `invalid_request` | 422 | Malformed JSON, a body that fails validation, or an `Idempotency-Key` reused with a different pin body. | No — fix the request. |\n| `rate_limited` | 429 | Over 120 requests/minute for this key. | Yes — after `Retry-After` seconds. |\n| `internal_error` | 500 | The command could not be recorded. | Yes — with the same `Idempotency-Key`. |\n| `transport_unavailable` | 503 | The device messaging service did not accept the command. Nothing was shown. | Yes — with the same `Idempotency-Key`. |\n| `transport_unconfigured` | 503 | Device messaging is not configured on this deployment. | No — contact Maratus. |\n\nAn unexpected server fault can also produce a `500` whose body is not this envelope; treat it like `internal_error`.\n\n## Billing\n\n- Every **paid device slot** includes **1,000 triggers per month**, pooled across your organization. Triggers beyond the pool are billed after the fact as overage on your next invoice — overage never blocks a request.\n- Only triggers the device acknowledges (the QR was actually shown) count.\n- **Pin changes are free** and never count toward your quota.\n- A device without a paid subscription gets **50 lifetime trial triggers**. After that, triggers to it fail with `403 device_not_subscribed` until its subscription is paid.\n",
+    "contact": {
+      "name": "Maratus",
+      "url": "https://maratus.co"
+    }
   },
-  "servers": [{ "url": "/api/v1" }],
-  "security": [{ "bearerAuth": [] }],
-  "paths": {
-    "/devices/{deviceId}/pin": {
-      "put": {
-        "summary": "Set the device's pinned QR or switch its pin mode",
-        "description": "Send `{url}` to pin a custom URL the device displays as a persistent QR while idle (free; re-sending the identical URL is a no-op), or `{mode: \"none\" | \"inherit\"}` to switch the device's pin mode (also free — `inherit` follows the store/tenant pin, `none` suppresses any pin). Responses include `pinMode`, the resolved `effectiveUrl` (device > store > tenant precedence), and `affectedDevices`. An optional Idempotency-Key header guards retried URL changes.",
-        "parameters": [
-          {
-            "name": "deviceId",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string" }
-          },
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": false,
-            "description": "Optional key guarding a retried or concurrent URL change (ignored on free mode changes). Keys are scoped to this endpoint; reusing a key replays the prior response for the same URL-change request.",
-            "schema": { "type": "string" }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "description": "Send either `url` or `mode`, not both.",
-                "oneOf": [
-                  {
-                    "required": ["url"],
-                    "properties": {
-                      "url": { "type": "string", "format": "uri", "maxLength": 2048 }
-                    }
-                  },
-                  {
-                    "required": ["mode"],
-                    "properties": {
-                      "mode": { "type": "string", "enum": ["none", "inherit"] }
-                    }
-                  }
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": { "description": "Pin state after the call: `{deviceId, pinMode, pin, effectiveUrl, affectedDevices}`." },
-          "403": { "description": "Missing devices:pin scope, or organization archived (URL changes only)." },
-          "404": { "description": "Device not found." },
-          "422": { "description": "Invalid body, URL, or mode." }
-        }
-      },
-      "delete": {
-        "summary": "Reset the device's pin to inherit",
-        "description": "Free. Resets the device to `inherit` mode — the device falls back to the store/tenant pin, if any (it is NOT guaranteed blank; use PUT `{mode: \"none\"}` to suppress all pins). Idempotent.",
-        "parameters": [
-          {
-            "name": "deviceId",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string" }
-          }
-        ],
-        "responses": {
-          "200": { "description": "Pin reset: `{deviceId, pinMode: \"inherit\", pin: null, effectiveUrl, affectedDevices}`." },
-          "403": { "description": "Missing devices:pin scope." },
-          "404": { "description": "Device not found." }
-        }
-      }
+  "servers": [
+    {
+      "url": "https://api.maratus.co/v1",
+      "description": "Production"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Triggers",
+      "description": "Show a QR code on a device, on demand. Each accepted trigger counts toward your monthly trigger quota once the device acknowledges it."
     },
+    {
+      "name": "Pins",
+      "description": "A **pinned QR** is a persistent QR code an idle device shows between triggers — a menu, a feedback form, your website. Pins resolve per device with the precedence **device > store > organization**: a device in `custom` mode shows its own URL; in `inherit` mode it follows its store, which in turn is `custom`, `inherit` (follow the organization pin) or `none`. A level in `none` mode shows no pinned QR. Pin changes are free, take effect immediately on online devices, and are applied to offline devices when they reconnect. Every pin response includes `affectedDevices`: how many devices' displayed QR changed as a result (0 for a no-op)."
+    },
+    {
+      "name": "Usage",
+      "description": "Read your organization's trigger volume."
+    }
+  ],
+  "paths": {
     "/devices/{deviceId}/trigger": {
       "post": {
+        "operationId": "triggerDevice",
+        "tags": [
+          "Triggers"
+        ],
         "summary": "Trigger a device",
-        "description": "Activates a device to show a QR code of a caller-supplied URL. Requires the `devices:trigger` scope and a unique `Idempotency-Key` header. The device must be subscribed or still within its trial (else 403 `device_not_subscribed`); billing is post-paid overage, so there is no per-call charge here. Returns 202 with a queued command the device will poll for. Retrying with the same Idempotency-Key replays the original response.",
+        "description": "Shows a QR code for the given URL on the device. Requires the `devices:trigger` scope and an `Idempotency-Key` header.\n\nDelivery is **push**: the command is published to the device over its live connection before this call returns. `202 Accepted` means the command was accepted and handed to the device; the device typically renders the QR within a few seconds. The command expires 60 seconds after it is accepted. A trigger that could not be delivered is never shown late — you get `503 transport_unavailable` instead and can retry.\n\nThe device must be online (not paused, and seen in the last 15 minutes) and either subscribed or within its 50-trigger trial.\n\nPossible errors: `400 missing_idempotency_key`, `401 unauthorized`, `403 insufficient_scope`, `403 device_not_subscribed`, `404 device_not_found`, `409 device_offline`, `409 conflict`, `422 invalid_request`, `429 rate_limited`, `500 internal_error`, `503 transport_unavailable` (retry), `503 transport_unconfigured` (do not retry).",
         "parameters": [
           {
             "name": "deviceId",
             "in": "path",
             "required": true,
-            "description": "The device to activate. Must belong to the authenticated tenant.",
-            "schema": { "type": "string" }
+            "description": "The device ID (`dev_...`), shown on the device page in the console. Must belong to your organization.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "dev_V1StGXR8_Z5jdHi6B-myT"
           },
           {
             "name": "Idempotency-Key",
             "in": "header",
             "required": true,
-            "description": "Unique key per logical request. Replaying the same key returns the original response.",
-            "schema": { "type": "string" }
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": { "$ref": "#/components/schemas/TriggerRequest" }
-            }
-          }
-        },
-        "responses": {
-          "202": {
-            "description": "Command queued; the device will poll and render it.",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TriggerAccepted" } } }
-          },
-          "400": { "$ref": "#/components/responses/Error" },
-          "401": { "$ref": "#/components/responses/Error" },
-          "403": { "$ref": "#/components/responses/Error" },
-          "404": { "$ref": "#/components/responses/Error" },
-          "409": { "$ref": "#/components/responses/Error" },
-          "422": { "$ref": "#/components/responses/Error" },
-          "429": { "$ref": "#/components/responses/Error" },
-          "500": { "$ref": "#/components/responses/Error" },
-          "503": { "$ref": "#/components/responses/Error" }
-        }
-      }
-    },
-    "/org/pin": {
-      "put": {
-        "summary": "Set or replace the tenant-wide pinned QR",
-        "description": "Pins a URL that every device resolving to the tenant level (device and store both in `inherit` mode) displays as a persistent QR. Free; re-sending the identical URL is a no-op. The org level has no modes — send `{url}` only. An optional Idempotency-Key header guards retried changes.",
-        "parameters": [
-          {
-            "name": "Idempotency-Key",
-            "in": "header",
-            "required": false,
-            "description": "Optional key guarding a retried or concurrent URL change. Keys are scoped to this endpoint; reusing a key replays the prior response for the same URL-change request.",
-            "schema": { "type": "string" }
+            "description": "Unique value per logical trigger (e.g. a UUID); reuse it when retrying. Once a trigger is accepted, the same key returns the original `202` response without showing the QR again, regardless of the body. Scoped to your organization.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "example": "0b6f3c2a-8d4e-4f1a-9e7b-1c2d3e4f5a6b"
           }
         ],
         "requestBody": {
@@ -140,47 +71,705 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "required": ["url"],
-                "properties": {
-                  "url": { "type": "string", "format": "uri", "maxLength": 2048 }
+                "$ref": "#/components/schemas/TriggerRequest"
+              },
+              "examples": {
+                "show_qr": {
+                  "summary": "Show a QR code",
+                  "value": {
+                    "action": "show_qr",
+                    "payload": {
+                      "url": "https://example.com/receipt/8812"
+                    }
+                  }
                 }
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "Pin state after the call: `{pin: {url, pinnedAt}, affectedDevices}`." },
-          "403": { "description": "Missing devices:pin scope, or organization archived." },
-          "422": { "description": "Invalid body or URL (`mode` is not supported at this scope)." }
-        }
-      },
-      "delete": {
-        "summary": "Clear the tenant-wide pinned QR",
-        "description": "Free. Devices and stores in `inherit` mode fall back to no pin. Idempotent — deleting a non-existent pin succeeds.",
-        "responses": {
-          "200": { "description": "Pin cleared: `{pin: null, affectedDevices}`." },
-          "403": { "description": "Missing devices:pin scope." }
+          "202": {
+            "description": "Accepted and published to the device. Also returned, unchanged, when replaying an `Idempotency-Key` that was already accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerAccepted"
+                },
+                "example": {
+                  "id": "cmd_4Qp0dN7hZk2bWm9xYc1aE",
+                  "status": "queued"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`missing_idempotency_key` — the `Idempotency-Key` header is missing or empty.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "missing_idempotency_key": {
+                    "summary": "missing_idempotency_key",
+                    "value": {
+                      "error": {
+                        "code": "missing_idempotency_key",
+                        "message": "Idempotency-Key header is required."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "`insufficient_scope` — the key lacks `devices:trigger`; or `device_not_subscribed` — the device has no paid subscription and has used its 50 trial triggers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "insufficient_scope": {
+                    "summary": "insufficient_scope",
+                    "value": {
+                      "error": {
+                        "code": "insufficient_scope",
+                        "message": "API key lacks the devices:trigger scope."
+                      }
+                    }
+                  },
+                  "device_not_subscribed": {
+                    "summary": "device_not_subscribed",
+                    "value": {
+                      "error": {
+                        "code": "device_not_subscribed",
+                        "message": "This device has no active subscription. Contact Maratus to activate it."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`device_not_found` — no device with this ID in your organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "device_not_found": {
+                    "summary": "device_not_found",
+                    "value": {
+                      "error": {
+                        "code": "device_not_found",
+                        "message": "Device not found."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`device_offline` — the device is paused or has not checked in for 15 minutes; or `conflict` — a request with the same `Idempotency-Key` is in flight (retry shortly with the same key).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "device_offline": {
+                    "summary": "device_offline",
+                    "value": {
+                      "error": {
+                        "code": "device_offline",
+                        "message": "Device is offline or paused."
+                      }
+                    }
+                  },
+                  "conflict": {
+                    "summary": "conflict",
+                    "value": {
+                      "error": {
+                        "code": "conflict",
+                        "message": "Concurrent request in progress."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request` — malformed JSON, unknown `action`, or `payload.url` is not an http(s) URL of at most 2048 characters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "invalid_request": {
+                    "summary": "invalid_request",
+                    "value": {
+                      "error": {
+                        "code": "invalid_request",
+                        "message": "payload.url must be an http(s) URL ≤ 2048 chars."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "description": "`internal_error` — the command could not be recorded. Nothing was sent; retry with the same `Idempotency-Key`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "internal_error": {
+                    "summary": "internal_error",
+                    "value": {
+                      "error": {
+                        "code": "internal_error",
+                        "message": "Could not enqueue the command."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`transport_unavailable` — the device messaging service did not accept the command; nothing was shown and the key was released, so retry with the same `Idempotency-Key`. `transport_unconfigured` — device messaging is not configured on this deployment; retrying will not help.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "transport_unavailable": {
+                    "summary": "transport_unavailable",
+                    "value": {
+                      "error": {
+                        "code": "transport_unavailable",
+                        "message": "Could not reach the device transport. Retry."
+                      }
+                    }
+                  },
+                  "transport_unconfigured": {
+                    "summary": "transport_unconfigured",
+                    "value": {
+                      "error": {
+                        "code": "transport_unconfigured",
+                        "message": "The device transport is not configured on this deployment. Retrying will not help."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     },
-    "/stores/{storeId}/pin": {
+    "/devices/{deviceId}/pin": {
       "put": {
-        "summary": "Set the store's pinned QR or switch its pin mode",
-        "description": "Send `{url}` to pin a custom URL for the store's inheriting devices (free; re-sending the identical URL is a no-op), or `{mode: \"none\" | \"inherit\"}` to switch the store's pin mode (also free — `inherit` follows the tenant pin, `none` suppresses any pin for this store's inheriting devices). An optional Idempotency-Key header guards retried URL changes.",
+        "operationId": "setDevicePin",
+        "tags": [
+          "Pins"
+        ],
+        "summary": "Set a device's pin",
+        "description": "Send `{\"url\": ...}` to pin a URL on this device (mode becomes `custom`), or `{\"mode\": \"inherit\" | \"none\"}` to follow the store/organization pin or show no pinned QR. Re-sending the device's current URL is a no-op (`affectedDevices: 0`). Requires the `devices:pin` scope. Free.\n\nArchived organizations can only switch to `none`; setting a URL or `inherit` returns `403 org_archived`.",
         "parameters": [
           {
-            "name": "storeId",
+            "name": "deviceId",
             "in": "path",
             "required": true,
-            "schema": { "type": "string" }
+            "description": "The device ID (`dev_...`), shown on the device page in the console. Must belong to your organization.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "dev_V1StGXR8_Z5jdHi6B-myT"
           },
           {
             "name": "Idempotency-Key",
             "in": "header",
             "required": false,
-            "description": "Optional key guarding a retried or concurrent URL change (ignored on free mode changes). Keys are scoped to this endpoint; reusing a key replays the prior response for the same URL-change request.",
-            "schema": { "type": "string" }
+            "description": "Optional. Guards a retried or concurrent request against fanning out duplicate device updates. A completed request's response is replayed for the same key and body; the same key with a different body returns `422 invalid_request`; while the first request is still running, `409 conflict`. Keys are scoped per endpoint type (device, store, org pins).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "5d8f2c1e-3b7a-4e0f-9c6d-2a1b3c4d5e6f"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "description": "Send either `url` or `mode`, not both.",
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "title": "Set a URL",
+                    "required": [
+                      "url"
+                    ],
+                    "properties": {
+                      "url": {
+                        "$ref": "#/components/schemas/PinUrlValue"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "title": "Switch mode",
+                    "required": [
+                      "mode"
+                    ],
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": [
+                          "none",
+                          "inherit"
+                        ],
+                        "description": "`inherit` follows the next level up; `none` shows no pinned QR. (`custom` is set by sending `url`.)"
+                      }
+                    }
+                  }
+                ]
+              },
+              "examples": {
+                "url": {
+                  "summary": "Pin a URL",
+                  "value": {
+                    "url": "https://example.com/menu"
+                  }
+                },
+                "inherit": {
+                  "summary": "Follow the level above",
+                  "value": {
+                    "mode": "inherit"
+                  }
+                },
+                "none": {
+                  "summary": "Show no pinned QR",
+                  "value": {
+                    "mode": "none"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The device's pin state after the change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevicePinState"
+                },
+                "examples": {
+                  "custom": {
+                    "summary": "URL pinned",
+                    "value": {
+                      "deviceId": "dev_V1StGXR8_Z5jdHi6B-myT",
+                      "pinMode": "custom",
+                      "pin": {
+                        "url": "https://example.com/menu",
+                        "pinnedAt": "2026-09-30T12:00:00.000Z"
+                      },
+                      "effectiveUrl": "https://example.com/menu",
+                      "affectedDevices": 1
+                    }
+                  },
+                  "inherit": {
+                    "summary": "Following the store pin",
+                    "value": {
+                      "deviceId": "dev_V1StGXR8_Z5jdHi6B-myT",
+                      "pinMode": "inherit",
+                      "pin": null,
+                      "effectiveUrl": "https://example.com/store-menu",
+                      "affectedDevices": 1
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/PinForbidden"
+          },
+          "404": {
+            "description": "`device_not_found` — no device with this ID in your organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "device_not_found": {
+                    "summary": "device_not_found",
+                    "value": {
+                      "error": {
+                        "code": "device_not_found",
+                        "message": "Device not found."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/IdempotencyInProgress"
+          },
+          "422": {
+            "$ref": "#/components/responses/PinInvalid"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "resetDevicePin",
+        "tags": [
+          "Pins"
+        ],
+        "summary": "Reset a device's pin to inherit",
+        "description": "Clears the device's own pin and sets it to `inherit`, so it follows its store/organization pin — it is **not** guaranteed to go blank (use `PUT {\"mode\": \"none\"}` for that). Same as `PUT {\"mode\": \"inherit\"}`. Idempotent. Requires the `devices:pin` scope. Free. Returns `403 org_archived` for archived organizations.",
+        "parameters": [
+          {
+            "name": "deviceId",
+            "in": "path",
+            "required": true,
+            "description": "The device ID (`dev_...`), shown on the device page in the console. Must belong to your organization.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "dev_V1StGXR8_Z5jdHi6B-myT"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The device's pin state after the reset (`pinMode` is always `inherit`, `pin` is always `null`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DevicePinState"
+                },
+                "example": {
+                  "deviceId": "dev_V1StGXR8_Z5jdHi6B-myT",
+                  "pinMode": "inherit",
+                  "pin": null,
+                  "effectiveUrl": null,
+                  "affectedDevices": 1
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/PinForbidden"
+          },
+          "404": {
+            "description": "`device_not_found` — no device with this ID in your organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "device_not_found": {
+                    "summary": "device_not_found",
+                    "value": {
+                      "error": {
+                        "code": "device_not_found",
+                        "message": "Device not found."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/stores/{storeId}/pin": {
+      "put": {
+        "operationId": "setStorePin",
+        "tags": [
+          "Pins"
+        ],
+        "summary": "Set a store's pin",
+        "description": "Send `{\"url\": ...}` to pin a URL for the store (mode becomes `custom`), or `{\"mode\": \"inherit\" | \"none\"}` to follow the organization pin or show no pinned QR. Applies to the store's devices that are in `inherit` mode; devices with their own `custom` or `none` pin are unaffected. Re-sending the current state is a no-op (`affectedDevices: 0`). Requires the `devices:pin` scope. Free.\n\nArchived organizations can only switch to `none`; setting a URL or `inherit` returns `403 org_archived`.",
+        "parameters": [
+          {
+            "name": "storeId",
+            "in": "path",
+            "required": true,
+            "description": "The store ID (`str_...`), shown on the store page in the console. Must belong to your organization.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "str_9fKq2LmXa0PzR4tYb7NcE"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Optional. Guards a retried or concurrent request against fanning out duplicate device updates. A completed request's response is replayed for the same key and body; the same key with a different body returns `422 invalid_request`; while the first request is still running, `409 conflict`. Keys are scoped per endpoint type (device, store, org pins).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "5d8f2c1e-3b7a-4e0f-9c6d-2a1b3c4d5e6f"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "description": "Send either `url` or `mode`, not both.",
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "title": "Set a URL",
+                    "required": [
+                      "url"
+                    ],
+                    "properties": {
+                      "url": {
+                        "$ref": "#/components/schemas/PinUrlValue"
+                      }
+                    }
+                  },
+                  {
+                    "type": "object",
+                    "title": "Switch mode",
+                    "required": [
+                      "mode"
+                    ],
+                    "properties": {
+                      "mode": {
+                        "type": "string",
+                        "enum": [
+                          "none",
+                          "inherit"
+                        ],
+                        "description": "`inherit` follows the next level up; `none` shows no pinned QR. (`custom` is set by sending `url`.)"
+                      }
+                    }
+                  }
+                ]
+              },
+              "examples": {
+                "url": {
+                  "summary": "Pin a URL",
+                  "value": {
+                    "url": "https://example.com/store-menu"
+                  }
+                },
+                "inherit": {
+                  "summary": "Follow the level above",
+                  "value": {
+                    "mode": "inherit"
+                  }
+                },
+                "none": {
+                  "summary": "Show no pinned QR",
+                  "value": {
+                    "mode": "none"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The store's pin state after the change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorePinState"
+                },
+                "examples": {
+                  "custom": {
+                    "summary": "URL pinned",
+                    "value": {
+                      "storeId": "str_9fKq2LmXa0PzR4tYb7NcE",
+                      "pinMode": "custom",
+                      "pin": {
+                        "url": "https://example.com/store-menu",
+                        "pinnedAt": "2026-09-30T12:00:00.000Z"
+                      },
+                      "affectedDevices": 3
+                    }
+                  },
+                  "none": {
+                    "summary": "No pinned QR",
+                    "value": {
+                      "storeId": "str_9fKq2LmXa0PzR4tYb7NcE",
+                      "pinMode": "none",
+                      "pin": null,
+                      "affectedDevices": 3
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/PinForbidden"
+          },
+          "404": {
+            "description": "`store_not_found` — no store with this ID in your organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "store_not_found": {
+                    "summary": "store_not_found",
+                    "value": {
+                      "error": {
+                        "code": "store_not_found",
+                        "message": "Store not found."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/IdempotencyInProgress"
+          },
+          "422": {
+            "$ref": "#/components/responses/PinInvalid"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "resetStorePin",
+        "tags": [
+          "Pins"
+        ],
+        "summary": "Reset a store's pin to inherit",
+        "description": "Clears the store's own pin and sets it to `inherit`, so its inheriting devices follow the organization pin, if any. Same as `PUT {\"mode\": \"inherit\"}`. Idempotent. Requires the `devices:pin` scope. Free. Returns `403 org_archived` for archived organizations.",
+        "parameters": [
+          {
+            "name": "storeId",
+            "in": "path",
+            "required": true,
+            "description": "The store ID (`str_...`), shown on the store page in the console. Must belong to your organization.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "str_9fKq2LmXa0PzR4tYb7NcE"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The store's pin state after the reset (`pinMode` is always `inherit`, `pin` is always `null`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorePinState"
+                },
+                "example": {
+                  "storeId": "str_9fKq2LmXa0PzR4tYb7NcE",
+                  "pinMode": "inherit",
+                  "pin": null,
+                  "affectedDevices": 0
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/PinForbidden"
+          },
+          "404": {
+            "description": "`store_not_found` — no store with this ID in your organization.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "store_not_found": {
+                    "summary": "store_not_found",
+                    "value": {
+                      "error": {
+                        "code": "store_not_found",
+                        "message": "Store not found."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
+        }
+      }
+    },
+    "/org/pin": {
+      "put": {
+        "operationId": "setOrgPin",
+        "tags": [
+          "Pins"
+        ],
+        "summary": "Set the organization pin",
+        "description": "Pins a URL for the whole organization. It is shown by every device that resolves to the organization level (device and store both in `inherit` mode). The organization level has no modes — send `{\"url\": ...}` only; `mode` returns `422 invalid_request`. Re-sending the current URL is a no-op (`affectedDevices: 0`). Requires the `devices:pin` scope. Free. Returns `403 org_archived` for archived organizations.",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "description": "Optional. Guards a retried or concurrent request against fanning out duplicate device updates. A completed request's response is replayed for the same key and body; the same key with a different body returns `422 invalid_request`; while the first request is still running, `409 conflict`. Keys are scoped per endpoint type (device, store, org pins).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "5d8f2c1e-3b7a-4e0f-9c6d-2a1b3c4d5e6f"
           }
         ],
         "requestBody": {
@@ -189,78 +778,337 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "description": "Send either `url` or `mode`, not both.",
-                "oneOf": [
-                  {
-                    "required": ["url"],
-                    "properties": {
-                      "url": { "type": "string", "format": "uri", "maxLength": 2048 }
-                    }
-                  },
-                  {
-                    "required": ["mode"],
-                    "properties": {
-                      "mode": { "type": "string", "enum": ["none", "inherit"] }
-                    }
+                "required": [
+                  "url"
+                ],
+                "properties": {
+                  "url": {
+                    "$ref": "#/components/schemas/PinUrlValue"
                   }
-                ]
+                }
+              },
+              "example": {
+                "url": "https://example.com/welcome"
               }
             }
           }
         },
         "responses": {
-          "200": { "description": "Pin state after the call: `{storeId, pinMode, pin, affectedDevices}`." },
-          "403": { "description": "Missing devices:pin scope, or organization archived (URL changes only)." },
-          "404": { "description": "Store not found." },
-          "422": { "description": "Invalid body, URL, or mode." }
+          "200": {
+            "description": "The organization pin after the change.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgPinState"
+                },
+                "example": {
+                  "pin": {
+                    "url": "https://example.com/welcome",
+                    "pinnedAt": "2026-09-30T12:00:00.000Z"
+                  },
+                  "affectedDevices": 6
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/PinForbidden"
+          },
+          "409": {
+            "$ref": "#/components/responses/IdempotencyInProgress"
+          },
+          "422": {
+            "$ref": "#/components/responses/PinInvalid"
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       },
       "delete": {
-        "summary": "Reset the store's pin to inherit",
-        "description": "Free. Resets the store to `inherit` mode — its inheriting devices fall back to the tenant pin, if any. Idempotent.",
-        "parameters": [
-          {
-            "name": "storeId",
-            "in": "path",
-            "required": true,
-            "schema": { "type": "string" }
-          }
+        "operationId": "clearOrgPin",
+        "tags": [
+          "Pins"
         ],
+        "summary": "Clear the organization pin",
+        "description": "Removes the organization pin. Devices that resolved to it show no pinned QR. Idempotent — clearing when no pin is set succeeds with `affectedDevices: 0`. Allowed for archived organizations. Requires the `devices:pin` scope. Free.",
         "responses": {
-          "200": { "description": "Pin reset: `{storeId, pinMode: \"inherit\", pin: null, affectedDevices}`." },
-          "403": { "description": "Missing devices:pin scope." },
-          "404": { "description": "Store not found." }
+          "200": {
+            "description": "The organization pin after clearing (`pin` is always `null`).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrgPinState"
+                },
+                "example": {
+                  "pin": null,
+                  "affectedDevices": 6
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "`insufficient_scope` — the key lacks `devices:pin`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "insufficient_scope": {
+                    "summary": "insufficient_scope",
+                    "value": {
+                      "error": {
+                        "code": "insufficient_scope",
+                        "message": "API key lacks the devices:pin scope."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       }
     },
     "/usage": {
       "get": {
-        "summary": "Usage totals",
-        "description": "Activation usage for the authenticated tenant, current calendar month. Requires the `usage:read` scope.",
+        "operationId": "getUsage",
+        "tags": [
+          "Usage"
+        ],
+        "summary": "Get this month's trigger count",
+        "description": "Returns how many triggers your organization's devices acknowledged (the QR was shown) for commands created since the start of the current **UTC calendar month**. Pin changes are not counted. Requires the `usage:read` scope.\n\nThis is an operational counter. Billing periods are anniversary-based (they start on your subscription date, not the 1st of the month), so this number is not the figure on your invoice.",
         "responses": {
-          "200": { "description": "Usage for the org", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Usage" } } } },
-          "401": { "$ref": "#/components/responses/Error" },
-          "403": { "$ref": "#/components/responses/Error" },
-          "429": { "$ref": "#/components/responses/Error" }
+          "200": {
+            "description": "Trigger usage for the current UTC calendar month.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usage"
+                },
+                "example": {
+                  "activations_this_month": 1284,
+                  "period": {
+                    "start": "2026-09-01T00:00:00.000Z",
+                    "end": "2026-10-01T00:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "`insufficient_scope` — the key lacks `usage:read`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "insufficient_scope": {
+                    "summary": "insufficient_scope",
+                    "value": {
+                      "error": {
+                        "code": "insufficient_scope",
+                        "message": "API key lacks the usage:read scope."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          }
         }
       }
     }
   },
   "components": {
-    "securitySchemes": { "bearerAuth": { "type": "http", "scheme": "bearer" } },
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer"
+      }
+    },
     "responses": {
-      "Error": { "description": "Error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+      "Unauthorized": {
+        "description": "`unauthorized` — the `Authorization` header is missing or malformed, or the key is unknown or revoked.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "unauthorized": {
+                "summary": "unauthorized",
+                "value": {
+                  "error": {
+                    "code": "unauthorized",
+                    "message": "Missing or invalid API key."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "RateLimited": {
+        "description": "`rate_limited` — more than 120 requests in the current minute for this key. Wait `Retry-After` seconds.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "rate_limited": {
+                "summary": "rate_limited",
+                "value": {
+                  "error": {
+                    "code": "rate_limited",
+                    "message": "Too many requests."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "headers": {
+          "Retry-After": {
+            "description": "Seconds to wait before retrying.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        }
+      },
+      "PinForbidden": {
+        "description": "`insufficient_scope` — the key lacks `devices:pin`; or `org_archived` — your organization is archived and this change would display a QR.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "insufficient_scope": {
+                "summary": "insufficient_scope",
+                "value": {
+                  "error": {
+                    "code": "insufficient_scope",
+                    "message": "API key lacks the devices:pin scope."
+                  }
+                }
+              },
+              "org_archived": {
+                "summary": "org_archived",
+                "value": {
+                  "error": {
+                    "code": "org_archived",
+                    "message": "Organization is archived."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "PinInvalid": {
+        "description": "`invalid_request` — malformed JSON, both `url` and `mode` sent, an invalid `mode`, a `url` that is not an absolute http(s) URL of at most 2048 characters, or an `Idempotency-Key` already used with a different body.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "invalid_request": {
+                "summary": "invalid_request",
+                "value": {
+                  "error": {
+                    "code": "invalid_request",
+                    "message": "`url` must use http or https."
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "IdempotencyInProgress": {
+        "description": "`conflict` — a request with the same `Idempotency-Key` is still in progress. Retry shortly with the same key.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Error"
+            },
+            "examples": {
+              "conflict": {
+                "summary": "conflict",
+                "value": {
+                  "error": {
+                    "code": "conflict",
+                    "message": "A request with this Idempotency-Key is still in progress."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     },
     "schemas": {
       "Error": {
         "type": "object",
-        "properties": { "error": { "type": "object", "properties": { "code": { "type": "string" }, "message": { "type": "string" } }, "required": ["code", "message"] } },
-        "required": ["error"]
+        "description": "Error envelope returned by every failing request.",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "description": "Stable, machine-readable error code — branch on this. See the Errors table in the introduction for every code.",
+                "examples": [
+                  "device_offline"
+                ]
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable explanation. May change; do not parse."
+              }
+            },
+            "required": [
+              "code",
+              "message"
+            ]
+          }
+        },
+        "required": [
+          "error"
+        ]
       },
       "TriggerRequest": {
         "type": "object",
         "properties": {
-          "action": { "type": "string", "enum": ["show_qr"], "description": "The action to perform. Only `show_qr` is supported." },
+          "action": {
+            "type": "string",
+            "enum": [
+              "show_qr"
+            ],
+            "description": "The action to perform. Only `show_qr` is supported."
+          },
           "payload": {
             "type": "object",
             "properties": {
@@ -268,28 +1116,218 @@
                 "type": "string",
                 "format": "uri",
                 "maxLength": 2048,
-                "description": "http(s) URL the device renders as a QR code. The caller hosts this content."
+                "description": "Absolute `http` or `https` URL (at most 2048 characters) that the device shows as a QR code. You host this content.",
+                "examples": [
+                  "https://example.com/receipt/8812"
+                ]
               }
             },
-            "required": ["url"]
+            "required": [
+              "url"
+            ]
           }
         },
-        "required": ["action", "payload"]
+        "required": [
+          "action",
+          "payload"
+        ]
       },
       "TriggerAccepted": {
         "type": "object",
         "properties": {
-          "id": { "type": "string", "description": "The queued command id." },
-          "status": { "type": "string", "enum": ["queued"] }
+          "id": {
+            "type": "string",
+            "description": "ID of the device command created for this trigger (`cmd_...`).",
+            "examples": [
+              "cmd_4Qp0dN7hZk2bWm9xYc1aE"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued"
+            ],
+            "description": "Always `queued`: accepted and published to the device."
+          }
         },
-        "required": ["id", "status"]
+        "required": [
+          "id",
+          "status"
+        ]
+      },
+      "PinUrlValue": {
+        "type": "string",
+        "format": "uri",
+        "maxLength": 2048,
+        "description": "Absolute `http` or `https` URL (at most 2048 characters) to show as the pinned QR code."
+      },
+      "PinUrl": {
+        "type": "object",
+        "description": "A pinned URL and when it was set.",
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "description": "The pinned URL."
+          },
+          "pinnedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When this URL was pinned (ISO 8601, UTC). Re-sending the same URL keeps the original timestamp. Always set for device pins; may be `null` for store and organization pins in rare legacy cases."
+          }
+        },
+        "required": [
+          "url",
+          "pinnedAt"
+        ]
+      },
+      "PinMode": {
+        "type": "string",
+        "enum": [
+          "custom",
+          "inherit",
+          "none"
+        ],
+        "description": "`custom` — shows its own pinned URL. `inherit` — follows the level above (device → store → organization). `none` — shows no pinned QR."
+      },
+      "DevicePinState": {
+        "type": "object",
+        "properties": {
+          "deviceId": {
+            "type": "string",
+            "description": "The device ID."
+          },
+          "pinMode": {
+            "$ref": "#/components/schemas/PinMode"
+          },
+          "pin": {
+            "description": "The device's own pinned URL. Set only when `pinMode` is `custom`; otherwise `null`.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PinUrl"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "effectiveUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri",
+            "description": "The URL the device now shows while idle, after resolving device > store > organization. `null` when no pinned QR applies."
+          },
+          "affectedDevices": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "How many devices' displayed QR changed (0 or 1 here; 0 for a no-op)."
+          }
+        },
+        "required": [
+          "deviceId",
+          "pinMode",
+          "pin",
+          "effectiveUrl",
+          "affectedDevices"
+        ]
+      },
+      "StorePinState": {
+        "type": "object",
+        "properties": {
+          "storeId": {
+            "type": "string",
+            "description": "The store ID."
+          },
+          "pinMode": {
+            "$ref": "#/components/schemas/PinMode"
+          },
+          "pin": {
+            "description": "The store's own pinned URL. Set only when `pinMode` is `custom`; otherwise `null`.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PinUrl"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "affectedDevices": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "How many of the store's devices had their displayed QR changed (0 for a no-op)."
+          }
+        },
+        "required": [
+          "storeId",
+          "pinMode",
+          "pin",
+          "affectedDevices"
+        ]
+      },
+      "OrgPinState": {
+        "type": "object",
+        "properties": {
+          "pin": {
+            "description": "The organization pin, or `null` after clearing.",
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PinUrl"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "affectedDevices": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "How many devices had their displayed QR changed (0 for a no-op)."
+          }
+        },
+        "required": [
+          "pin",
+          "affectedDevices"
+        ]
       },
       "Usage": {
         "type": "object",
         "properties": {
-          "activations_this_month": { "type": "integer" },
-          "period": { "type": "object", "properties": { "start": { "type": "string" }, "end": { "type": "string" } } }
-        }
+          "activations_this_month": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Acknowledged triggers for commands created in `period`. Not an invoice figure — billing periods are anniversary-based."
+          },
+          "period": {
+            "type": "object",
+            "description": "The current UTC calendar month.",
+            "properties": {
+              "start": {
+                "type": "string",
+                "format": "date-time",
+                "description": "First instant of the month (inclusive), ISO 8601 UTC."
+              },
+              "end": {
+                "type": "string",
+                "format": "date-time",
+                "description": "First instant of the next month (exclusive), ISO 8601 UTC."
+              }
+            },
+            "required": [
+              "start",
+              "end"
+            ]
+          }
+        },
+        "required": [
+          "activations_this_month",
+          "period"
+        ]
       }
     }
   }

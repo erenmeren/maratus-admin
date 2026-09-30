@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Cpu, MapPin, FileText, Router, TrendingUp } from "lucide-react";
+import { Clock, Cpu, MapPin, FileText, Hash, Router, TrendingUp } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { PageSection } from "@/components/page-section";
 import { KpiCard } from "@/components/kpi-card";
@@ -15,6 +15,7 @@ import { StoreEditButton } from "@/components/store-edit-button";
 import { StoreDeleteButton } from "@/components/store-delete-button";
 import { getArmedAllocationCountByStore } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
+import { CopyButton } from "@/components/copy-button";
 
 export default async function StoreDetailPage({
   params,
@@ -95,6 +96,35 @@ export default async function StoreDetailPage({
           icon={TrendingUp}
         />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Store details</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
+          <div className="flex items-center gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+              <Hash className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">Store ID</p>
+              <div className="flex items-center gap-1">
+                <p className="truncate font-mono text-sm">{store.id}</p>
+                <CopyButton value={store.id} label="Copy Store ID" />
+              </div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground">
+              <Clock className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs text-muted-foreground">Timezone</p>
+              <p className="truncate text-sm font-medium">{store.timezone}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

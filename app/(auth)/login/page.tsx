@@ -12,6 +12,7 @@ import { MaratusWordmark } from "@/components/brand";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { authClient } from "@/lib/auth-client";
 import { safeRedirectPath } from "@/lib/safe-redirect";
+import { isDocsHost } from "@/lib/docs-host";
 
 export default function LoginPage() {
   return (
@@ -42,9 +43,17 @@ function LoginForm() {
     }
 
     // Route to the right panel: platform staff → /admin, everyone else → /tenant.
+    // Exception: a sign-in started from the API docs returns there for anyone
+    // (on docs.maratus.co the docs live at "/", locally at /docs).
     const role = (data.user as { role?: string }).role;
-    const dest =
-      role === "platform_admin" ? "/admin" : safeRedirectPath(params.get("redirect"), "/tenant");
+    const redirect = safeRedirectPath(params.get("redirect"), "");
+    const dest = isDocsHost(window.location.host)
+      ? "/"
+      : redirect.startsWith("/docs")
+        ? redirect
+        : role === "platform_admin"
+          ? "/admin"
+          : redirect || "/tenant";
     router.push(dest);
     router.refresh();
   }

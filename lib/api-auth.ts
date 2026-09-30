@@ -4,6 +4,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { apiKey as apiKeyTable } from "@/lib/db/schema";
 import { hashApiKey } from "@/lib/ids";
+import { apiKeyNotExpiredSql } from "@/lib/playground-key";
 
 export interface ApiKeyAuth {
   organizationId: string;
@@ -11,7 +12,7 @@ export interface ApiKeyAuth {
   keyHash: string;
 }
 
-/** Resolve a non-revoked API key from the Bearer header, or null. Best-effort
+/** Resolve a non-revoked, non-expired API key from the Bearer header, or null. Best-effort
  *  bumps last_used_at (non-blocking). */
 export async function authenticateApiKey(req: Request): Promise<ApiKeyAuth | null> {
   const header = req.headers.get("authorization") ?? "";
@@ -22,7 +23,7 @@ export async function authenticateApiKey(req: Request): Promise<ApiKeyAuth | nul
   const [row] = await db
     .select({ id: apiKeyTable.id, organizationId: apiKeyTable.organizationId })
     .from(apiKeyTable)
-    .where(and(eq(apiKeyTable.keyHash, keyHash), isNull(apiKeyTable.revokedAt)))
+    .where(and(eq(apiKeyTable.keyHash, keyHash), isNull(apiKeyTable.revokedAt), apiKeyNotExpiredSql()))
     .limit(1);
   if (!row) return null;
 

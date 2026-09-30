@@ -42,6 +42,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "store.deleted": "Store deleted",
   "api_key.created": "API key created",
   "api_key.revoked": "API key revoked",
+  "api_key.playground_issued": "Docs playground key issued",
   "branding.updated": "Branding updated",
   "device_settings.updated": "Device settings updated",
   "member.invited": "Member invited",

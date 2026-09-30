@@ -10,6 +10,7 @@ describe("computeTrustedOrigins", () => {
     // fails browser logins with INVALID_ORIGIN even though bare curl passes.
     expect(prod).toContain("https://api.maratus.co");
     expect(prod).toContain("https://console.maratus.co");
+    expect(prod).toContain("https://docs.maratus.co");
     expect(prod).toContain("https://api.maratus.dev");
     expect(prod).toContain("https://*.vercel.app");
   });

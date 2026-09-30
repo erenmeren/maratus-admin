@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { issuePlaygroundKey } from "@/lib/actions/playground";
+import { freshIdempotencyKey } from "@/lib/docs-try-it";
 import type { getPlaygroundContext } from "@/lib/actions/playground";
 
 type Ctx = Awaited<ReturnType<typeof getPlaygroundContext>>;
@@ -90,6 +91,9 @@ export function DocsReference({
       persistAuth: false,
       // No sign-in (or an expired playground key) → read-only reference.
       hideTestRequestButton: !live,
+      // Fresh Idempotency-Key per Send, or every trigger replays the first one.
+      onRequestBuilt: ({ request }: { request: Request }) =>
+        freshIdempotencyKey(request.headers, () => crypto.randomUUID()),
       authentication: live
         ? { preferredSecurityScheme: "bearerAuth", securitySchemes: { bearerAuth: { token: live.key } } }
         : undefined,

@@ -8,7 +8,14 @@ export const OFFLINE_MINUTES = 15;
 export const OFFLINE_NOTIFY_WINDOW_DAYS = 7;
 export type DeviceStatus = "online" | "offline" | "paused";
 
-/** Paused wins; else offline if never/too-long since seen; else online. */
+/** Paused wins; a stored "offline" wins next; else offline if never/too-long
+ * since seen; else online.
+ *
+ * The stored "offline" is trusted because the EMQX presence webhook writes it
+ * the instant the device disconnects, while its last heartbeat (~5 min cadence)
+ * can still look fresh — lastSeen alone let triggers through to a device that
+ * was already gone. It can't strand a live device: every heartbeat writes
+ * status back to "online", so a missed connect event heals within one beat. */
 export function effectiveDeviceStatus(
   storedStatus: string,
   lastSeenAt: Date | null,
@@ -16,6 +23,7 @@ export function effectiveDeviceStatus(
   offlineMinutes = OFFLINE_MINUTES,
 ): DeviceStatus {
   if (storedStatus === "paused") return "paused";
+  if (storedStatus === "offline") return "offline";
   if (!lastSeenAt) return "offline";
   return now.getTime() - lastSeenAt.getTime() > offlineMinutes * 60_000
     ? "offline"

@@ -17,7 +17,12 @@ import { sendEmail } from "./email";
 import { checkSignUpGate } from "./signup-gate";
 import { computeTrustedOrigins } from "./trusted-origins";
 import { decideHttpSignUp, pinAuthCallbacks } from "./auth-hooks";
-import { escapeHtml } from "./billing/invoice-emails";
+import {
+  expiresInLabel,
+  memberInviteEmail,
+  resetPasswordEmail,
+  verifyEmailEmail,
+} from "./auth-emails";
 
 const env = getEnv();
 
@@ -48,25 +53,23 @@ export const auth = betterAuth({
     // `url` already points at /api/auth/reset-password/{token}?callbackURL=…,
     // which validates the token and then bounces to our /reset-password page.
     sendResetPassword: async ({ user, url }) => {
-      await sendEmail(
-        user.email,
-        "Reset your Maratus password",
-        `<p>We got a request to reset the password on your Maratus account.</p>` +
-          `<p><a href="${url}">Choose a new password</a></p>` +
-          `<p>This link expires in 1 hour. If you didn't ask for it, you can ignore this email.</p>`,
-      );
+      const mail = resetPasswordEmail({ url, expiresIn: expiresInLabel(3600 * 1000) });
+      await sendEmail(user.email, mail.subject, mail.html);
     },
   },
   emailVerification: {
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
+    // Seconds; pinned (it's also Better Auth's default) so the "expires in"
+    // line in the email can't drift from the real token lifetime.
+    expiresIn: 3600,
     sendVerificationEmail: async ({ user, url }) => {
-      await sendEmail(
-        user.email,
-        "Verify your Maratus account",
-        `<p>Welcome to Maratus. Confirm your email to finish setting up your account:</p>` +
-          `<p><a href="${url}">Verify my email</a></p>`,
-      );
+      const mail = verifyEmailEmail({
+        url,
+        email: user.email,
+        expiresIn: expiresInLabel(3600 * 1000),
+      });
+      await sendEmail(user.email, mail.subject, mail.html);
     },
   },
   user: {
@@ -125,16 +128,17 @@ export const auth = betterAuth({
       disableOrganizationDeletion: true,
       async sendInvitationEmail(data) {
         const url = `${env.BETTER_AUTH_URL}/signup?invite=${data.id}`;
-        // Inviter name and org name are user-controlled → escape (an org admin
-        // could otherwise put arbitrary HTML into a mail from noreply@maratus.co).
-        const inviter = escapeHtml(data.inviter.user.name);
-        const orgName = escapeHtml(data.organization.name);
-        await sendEmail(
-          data.email,
-          `You're invited to ${data.organization.name.replace(/[\r\n]/g, " ")} on Maratus`,
-          `<p>${inviter} invited you to join <b>${orgName}</b> on Maratus.</p>` +
-            `<p><a href="${url}">Accept the invitation</a></p>`,
-        );
+        // Inviter name and org name are user-controlled — memberInviteEmail
+        // escapes them (an org admin could otherwise put arbitrary HTML into a
+        // mail from noreply@maratus.co).
+        const mail = memberInviteEmail({
+          url,
+          inviterName: data.inviter.user.name,
+          orgName: data.organization.name,
+          role: data.role,
+          expiresIn: expiresInLabel(data.invitation.expiresAt.getTime() - Date.now()),
+        });
+        await sendEmail(data.email, mail.subject, mail.html);
       },
     }),
     // Must be last: forwards Set-Cookie headers in Next.js server actions.

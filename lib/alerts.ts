@@ -3,6 +3,16 @@
 // (computeAlerts). This file only decides what changed and what to say.
 
 import type { HealthAlert } from "./health";
+import {
+  emailAccent,
+  emailButton,
+  emailDetails,
+  emailEyebrow,
+  emailHeading,
+  emailLayout,
+  emailText,
+  escapeHtml,
+} from "./billing/invoice-emails";
 
 /** The minimal shape of an open alert row, keyed for reconciliation. */
 export interface OpenAlert {
@@ -42,25 +52,25 @@ export function diffAlerts(current: HealthAlert[], open: OpenAlert[]): AlertDiff
   };
 }
 
-/** Escape user-controlled text (alert messages include tenant names) for HTML. */
-function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
-
 /** Digest email for newly-opened alerts. null when there are none. */
 export function alertEmail(
   newAlerts: HealthAlert[],
 ): { subject: string; html: string } | null {
   if (newAlerts.length === 0) return null;
   const subject = `⚠ Maratus: ${newAlerts.length} new health alert${newAlerts.length > 1 ? "s" : ""}`;
-  const items = newAlerts
-    .map((a) => `<li><strong>${a.severity.toUpperCase()}</strong>: ${escapeHtml(a.message)}</li>`)
-    .join("");
-  const html = `<p>New platform health alerts:</p><ul>${items}</ul>`;
+  const n = newAlerts.length;
+  const body =
+    emailEyebrow("Platform health") +
+    emailHeading(`${n} new ${emailAccent(n > 1 ? "alerts." : "alert.")}`) +
+    emailText("These health checks just tripped across the fleet:") +
+    // Messages include tenant names (user-controlled) → escaped.
+    emailDetails(
+      newAlerts.map((a) => ({ label: a.severity.toUpperCase(), value: escapeHtml(a.message) })),
+    ) +
+    emailButton("https://console.maratus.co/admin", "Open the console");
+  const html = emailLayout(body, {
+    title: subject,
+    preheader: newAlerts.map((a) => escapeHtml(a.message)).join(" · "),
+  });
   return { subject, html };
 }

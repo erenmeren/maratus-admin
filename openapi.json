@@ -1099,15 +1099,25 @@
           "error"
         ]
       },
+      "TriggerAction": {
+        "type": "string",
+        "title": "TriggerAction",
+        "enum": [
+          "show_qr"
+        ],
+        "description": "What the device does when triggered. Each action defines the `payload` it expects.\n\n| Value | Effect | Payload |\n|---|---|---|\n| `show_qr` | Shows `payload.url` as a QR code, then returns to the idle screen after the organization's QR timeout. | `{ \"url\": \"https://…\" }` |\n\nNew actions may be added over time; treat unknown values in responses as opaque.",
+        "x-enumDescriptions": {
+          "show_qr": "Show payload.url as a QR code until the QR timeout elapses."
+        },
+        "examples": [
+          "show_qr"
+        ]
+      },
       "TriggerRequest": {
         "type": "object",
         "properties": {
           "action": {
-            "type": "string",
-            "enum": [
-              "show_qr"
-            ],
-            "description": "The action to perform. Only `show_qr` is supported."
+            "$ref": "#/components/schemas/TriggerAction"
           },
           "payload": {
             "type": "object",

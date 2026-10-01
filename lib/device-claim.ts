@@ -7,7 +7,7 @@ import { db } from "./db";
 import { device as deviceTable, store as storeTable } from "./db/schema";
 import { generateDeviceKey, id } from "./ids";
 import { isValidPairingCode } from "./provisioning";
-import { isUniqueViolation, parseRegisterNumber, registerKey } from "./register-number";
+import { isUniqueViolation, parseRegisterNumber, registerKey, uniqueViolationConstraint } from "./register-number";
 import { nextDeviceName } from "./device-name-db";
 import { provisionDeviceMqtt } from "@/lib/mqtt";
 import { pushEffectivePinSafe } from "@/lib/pin-service";
@@ -15,6 +15,8 @@ import { pushEffectivePinSafe } from "@/lib/pin-service";
 // pairing-code claim below and the zero-touch auto-claim in
 // lib/factory-registry.ts settle identically. It is fail-open internally.
 import { settleClaimBilling } from "@/lib/invoices";
+
+const REGISTER_CONSTRAINT = "device_org_register_number_idx";
 
 export interface ClaimResult {
   deviceId: string;
@@ -104,7 +106,9 @@ export async function claimDevice(
       .where(and(eq(deviceTable.id, existing.id), isNull(deviceTable.claimedAt)))
       .returning({ id: deviceTable.id });
     } catch (err) {
-      if (isUniqueViolation(err)) throw new Error("Register number already in use");
+      if (uniqueViolationConstraint(err) === REGISTER_CONSTRAINT) {
+        throw new Error("Register number already in use");
+      }
       throw err;
     }
     if (bound.length === 0) throw new Error("Device already claimed");
@@ -149,17 +153,13 @@ export async function claimDevice(
   } catch (err) {
     // unique(pairingCode) violation (Postgres 23505) → two devices generated the
     // same code. Re-throw anything else so genuine faults aren't mislabelled.
-    if (isUniqueViolation(err)) {
-      // The register-number pre-check above ran first, so a violation here is
-      // most likely the pairing code; a racing register-number insert is
-      // distinguished by the constraint/message when readable.
-      const text = String((err as { message?: unknown })?.message ?? "") +
-        String((err as { cause?: { message?: unknown } })?.cause?.message ?? "");
-      if (registerNumber && text.includes("register_number")) {
-        throw new Error("Register number already in use");
-      }
-      throw new Error("Pairing code already in use");
+    const constraint = uniqueViolationConstraint(err);
+    if (constraint === REGISTER_CONSTRAINT) {
+      throw new Error("Register number already in use");
     }
+    // unique(pairingCode) violation (23505), or a 23505 whose constraint name
+    // could not be read → keep the pairing-code behaviour.
+    if (isUniqueViolation(err)) throw new Error("Pairing code already in use");
     throw err;
   }
   // Provision the device's MQTT credential (device key = MQTT password).

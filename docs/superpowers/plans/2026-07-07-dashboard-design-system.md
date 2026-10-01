@@ -15,7 +15,7 @@
 - **Canonical type styles (do not deviate):** page title h1 = `font-display text-2xl font-bold tracking-tight`; section title h2 = `text-lg font-medium tracking-tight`; description/meta = `text-sm text-muted-foreground`.
 - **Spacing rhythm:** page container padding + `space-y-6` between top-level blocks are owned by `AppShell` — pages MUST return a fragment and never re-pad. Section heading→body = `space-y-3`. Metric grids = `grid gap-4`. Major column splits = `grid gap-6`.
 - **No unit tests for these presentational primitives** (per spec). Verification is `npm run build` (typecheck) + visual render with the seed logins.
-- **Seed logins:** platform admin `admin@ditto.app` / `123456`; tenant owner `dana@roastwell.co` / `123456`. Dev server: `npm run dev` → http://localhost:3000.
+- **Seed logins:** platform admin `admin@maratus.app` / `123456`; tenant owner `dana@roastwell.co` / `123456`. Dev server: `npm run dev` → http://localhost:3000.
 - Follow AGENTS.md: this is a modified Next.js — check `node_modules/next/dist/docs/` before using unfamiliar APIs.
 
 ---
@@ -208,7 +208,7 @@ Expected: build succeeds. No caller passes a now-removed prop; every existing us
 
 - [ ] **Step 3: Visual smoke — an unchanged PageHeader page must look identical**
 
-Run `npm run dev`, log in as `admin@ditto.app` / `123456`, open http://localhost:3000/admin (the Overview page — an unchanged caller). Confirm the title still reads as `font-display` bold 2xl and the layout is unchanged. (Use the browse skill or Playwright MCP for a screenshot if available.)
+Run `npm run dev`, log in as `admin@maratus.app` / `123456`, open http://localhost:3000/admin (the Overview page — an unchanged caller). Confirm the title still reads as `font-display` bold 2xl and the layout is unchanged. (Use the browse skill or Playwright MCP for a screenshot if available.)
 
 - [ ] **Step 4: Commit**
 
@@ -300,7 +300,7 @@ Expected: build succeeds. Watch for an unbalanced-tag error (a leftover `</div>`
 
 - [ ] **Step 7: Visual verification**
 
-Run `npm run dev`. As `dana@roastwell.co` open `/tenant/activity`, `/tenant/members`, `/tenant/billing`; as `admin@ditto.app` open `/admin/health`, `/admin/firmware`. Confirm on each: the left/top margin matches a known-good page (e.g. `/tenant/branding`), the title is `font-display` bold 2xl, and section headings are uniform. Compare margins side by side with `/admin` overview.
+Run `npm run dev`. As `dana@roastwell.co` open `/tenant/activity`, `/tenant/members`, `/tenant/billing`; as `admin@maratus.app` open `/admin/health`, `/admin/firmware`. Confirm on each: the left/top margin matches a known-good page (e.g. `/tenant/branding`), the title is `font-display` bold 2xl, and section headings are uniform. Compare margins side by side with `/admin` overview.
 
 - [ ] **Step 8: Commit**
 
@@ -424,7 +424,7 @@ Expected: build succeeds. Resolve any unused-import lint errors surfaced by the 
 
 - [ ] **Step 7: Visual verification**
 
-Run `npm run dev`. As `admin@ditto.app`, open a customer detail (`/admin/customers/…` via the Customers list) and a device detail (`/admin/devices/…` via Device Fleet). As `dana@roastwell.co`, open a store detail (`/tenant/stores/…`). Confirm each: back-link renders above the title, title is `font-display` bold 2xl, status badge sits inline next to the title, address/contact render as the muted description, and section headings are the uniform `text-lg font-medium`. Confirm the customer header is no longer boxed in a Card.
+Run `npm run dev`. As `admin@maratus.app`, open a customer detail (`/admin/customers/…` via the Customers list) and a device detail (`/admin/devices/…` via Device Fleet). As `dana@roastwell.co`, open a store detail (`/tenant/stores/…`). Confirm each: back-link renders above the title, title is `font-display` bold 2xl, status badge sits inline next to the title, address/contact render as the muted description, and section headings are the uniform `text-lg font-medium`. Confirm the customer header is no longer boxed in a Card.
 
 - [ ] **Step 8: Commit**
 
@@ -472,7 +472,7 @@ Expected: build succeeds.
 - [ ] **Step 4: Full-app visual pass (both realms, both themes)**
 
 Run `npm run dev`. Walk every dashboard page in both realms and confirm uniform left/top margin, h1 size/weight, and section-heading style, with no double-padding and no regression:
-- Admin (`admin@ditto.app`): `/admin`, `/admin/customers`, a customer detail, `/admin/devices`, a device detail, `/admin/firmware`, `/admin/health`, `/admin/billing`.
+- Admin (`admin@maratus.app`): `/admin`, `/admin/customers`, a customer detail, `/admin/devices`, a device detail, `/admin/firmware`, `/admin/health`, `/admin/billing`.
 - Tenant (`dana@roastwell.co`): `/tenant`, `/tenant/stores`, a store detail, `/tenant/branding`, `/tenant/members`, `/tenant/api`, `/tenant/reports`, `/tenant/analytics`, `/tenant/device-settings`, `/tenant/activity`, `/tenant/billing`.
 Spot-check `/admin/health` and a store detail in both light and dark mode (theme toggle in the top bar).
 

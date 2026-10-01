@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax.
 
-**Goal:** Produce a comprehensive Turkish (tr) PDF user manual for the Ditto Admin **Tenant Admin (kiracı yöneticisi)** console, written so a person with zero prior knowledge can operate every screen.
+**Goal:** Produce a comprehensive Turkish (tr) PDF user manual for the Maratus Admin **Tenant Admin (kiracı yöneticisi)** console, written so a person with zero prior knowledge can operate every screen.
 
 **Architecture:** Author one Turkish Markdown file (`docs/manuals/tr/kiraci-kilavuzu.md`), built chapter-group by chapter-group with an accuracy check after each, then render to PDF via `make-pdf`. Mirrors the completed Super Admin manual.
 
@@ -28,18 +28,18 @@ No test framework — each task's verification is a proofreading checklist again
 
 ---
 
-### Task 1: Scaffold + Giriş, Ditto Nedir? (kiracı), Başlarken
+### Task 1: Scaffold + Giriş, Maratus Nedir? (kiracı), Başlarken
 
 **Files:** Create `docs/manuals/tr/kiraci-kilavuzu.md`.
 
 **Interfaces:** Produces `# Kiracı Yöneticisi Kullanım Kılavuzu` (H1, cover title) + chapters 1–3.
 
 **SOURCE FACTS:**
-- **Ditto (kiracı bakışı):** yazıcılar kâğıt yerine müşterinin taradığı QR gösterir. Kiracı = organizasyon (bir mağaza zinciri). Cihaz = yazıcı. Tetikleme→QR: bir çağrı (API) bir URL ile tetikler → 1 kredi rezerve → cihaz QR gösterir → ack → başarı krediyi düşer. Ön ödemeli kredi: her tetikleme 1 kredi.
+- **Maratus (kiracı bakışı):** yazıcılar kâğıt yerine müşterinin taradığı QR gösterir. Kiracı = organizasyon (bir mağaza zinciri). Cihaz = yazıcı. Tetikleme→QR: bir çağrı (API) bir URL ile tetikler → 1 kredi rezerve → cihaz QR gösterir → ack → başarı krediyi düşer. Ön ödemeli kredi: her tetikleme 1 kredi.
 - **Roller:** owner|admin yönetir; member salt-okunur. Davet yalnızca Admin/Member verir; owner korunur.
 - **Giriş/erişim:** `/tenant` `requireTenant()` ile korunur. Giriş yoksa `/login`. Giriş sonrası kiracı kullanıcı `/tenant`'a iner (platform_admin `/admin`'e). Aktif organizasyon yoksa `/login` (platform_admin ise `/admin`).
 - **Kenar çubuğu — grup etiketi "Workspace", sıra:** Dashboard, Stores, Branding, Device Settings, Members, Reports, Analytics, Billing, API, Activity. Üst bar: "Workspace / {ekran}" + tema değiştirici + hesap menüsü.
-- **Çalışma alanı değiştirici (workspace switcher):** başlıkta aktif organizasyon adı + "Tenant Workspace". Açılır menüde kullanıcının organizasyonları (ad + rol), aktif olanda onay; başka birini seçince `setActive()` + `/tenant`. platform_admin ayrıca "Ditto HQ / Super Admin → /admin" görür.
+- **Çalışma alanı değiştirici (workspace switcher):** başlıkta aktif organizasyon adı + "Tenant Workspace". Açılır menüde kullanıcının organizasyonları (ad + rol), aktif olanda onay; başka birini seçince `setActive()` + `/tenant`. platform_admin ayrıca "Maratus HQ / Super Admin → /admin" görür.
 - **Hesap menüsü:** avatar/ad/rol; **Profile** ve **Settings işlevsizdir** (tıklama yok); **Sign out** yalnızca `/login`'e yönlendirir (gerçek çıkış çağırmaz). ThemeToggle var.
 
 - [ ] **Step 1: Create file with H1 + "1. Giriş & Bu Kılavuz Hakkında"**
@@ -48,15 +48,15 @@ Start the file:
 ```markdown
 # Kiracı Yöneticisi Kullanım Kılavuzu
 
-*Ditto Admin — Kiracı (Mağaza Zinciri) Yöneticisi Rehberi*
+*Maratus Admin — Kiracı (Mağaza Zinciri) Yöneticisi Rehberi*
 
 ## 1. Giriş & Bu Kılavuz Hakkında
 ```
 2–3 paragraf: kim için (kiracı owner/admin/member), UI İngilizce olduğu için "Türkçe (İngilizce)" kuralı ve nasıl okunacağı.
 
-- [ ] **Step 2: Write "## 2. Ditto Nedir? (Kiracı Bakışıyla)"**
+- [ ] **Step 2: Write "## 2. Maratus Nedir? (Kiracı Bakışıyla)"**
 
-Cover all conceptual SOURCE FACTS (Ditto, kiracı/mağaza/cihaz, tetikleme→QR, kredi, roller). Explain the *why* (kâğıtsız, kredi-ölçümlü).
+Cover all conceptual SOURCE FACTS (Maratus, kiracı/mağaza/cihaz, tetikleme→QR, kredi, roller). Explain the *why* (kâğıtsız, kredi-ölçümlü).
 
 - [ ] **Step 3: Write "## 3. Başlarken (Giriş ve Gezinme)"**
 
@@ -122,7 +122,7 @@ git commit -m "docs(manual): TR tenant manual — Dashboard + Stores"
 
 **SOURCE FACTS — DeviceCard:** cihaz detayına link; ad, cihaz id (mono), durum noktası + durum. 2 istatistik: bugün / bu ay. Alt: bağlantı (Wi-Fi/Ethernet), "Seen {timeAgo}". **"Active"/"Paused"/"Unreachable" anahtarı** → `setDeviceActive` (offline'da devre dışı). Başarı "{name} resumed/paused". Hata geri alır + "Couldn't update device."
 
-**SOURCE FACTS — Claim device dialog:** tetikleyici **"Claim printer"**. "Claim a printer" / "Enter the pairing code shown on the printer screen to bind it to this store." Alan **Pairing code** (zorunlu, otomatik BÜYÜK, "XXXX-XXXX", yardım "Find it under Settings → Pairing on the device."). Submit "Claim printer" ("Claiming…"). Başarı: "{deviceName} claimed" + "It will activate automatically within a few seconds…" + katlanır **"Manual setup (advanced)"** → tek seferlik **Device key** (mono, kopyala) + uyarı "This key is shown once and can't be retrieved later — Ditto only keeps a hashed copy." **Done**. Hatalar: "No device found with that pairing code." / "That device has already been claimed." / "That device belongs to another account." / "Enter a pairing code." / yetki "You don't have permission to claim devices."
+**SOURCE FACTS — Claim device dialog:** tetikleyici **"Claim printer"**. "Claim a printer" / "Enter the pairing code shown on the printer screen to bind it to this store." Alan **Pairing code** (zorunlu, otomatik BÜYÜK, "XXXX-XXXX", yardım "Find it under Settings → Pairing on the device."). Submit "Claim printer" ("Claiming…"). Başarı: "{deviceName} claimed" + "It will activate automatically within a few seconds…" + katlanır **"Manual setup (advanced)"** → tek seferlik **Device key** (mono, kopyala) + uyarı "This key is shown once and can't be retrieved later — Maratus only keeps a hashed copy." **Done**. Hatalar: "No device found with that pairing code." / "That device has already been claimed." / "That device belongs to another account." / "Enter a pairing code." / yetki "You don't have permission to claim devices."
 
 **SOURCE FACTS — Device detail (`/tenant/stores/[storeId]/[deviceId]`):**
 - Geri linki = mağaza adı; 404 if not in org. Başlık = cihaz adı, "Printer in {store}".
@@ -229,7 +229,7 @@ git commit -m "docs(manual): TR tenant manual — Members, Reports, Analytics"
 - **"Credit usage this month":** "Available {n}" (+ "· Held {n}" varsa). Boş: "No credit usage this month." Tablo **Device | Credits | Triggers** ("Unattributed" bilinmeyen) + **Total** satırı. Fatura/abonelik/ödeme-yöntemi YOK (yalnızca ön ödemeli kredi).
 
 **SOURCE FACTS — API (`/tenant/api`):**
-- Başlık "API keys", "Read-only keys for the Ditto public API." — **UYUMSUZLUK NOTU:** "Read-only" der ama `devices:trigger` kapsamı cihaz tetikler ve **kredi harcar**; belirt.
+- Başlık "API keys", "Read-only keys for the Maratus public API." — **UYUMSUZLUK NOTU:** "Read-only" der ama `devices:trigger` kapsamı cihaz tetikler ve **kredi harcar**; belirt.
 - Header (owner/admin): **"Create API key"**.
 - Kart **"Using the API"**: temel URL `/api/v1`, `Authorization: Bearer <key>`, `GET /usage`, `POST /api/v1/devices/{deviceId}/trigger`, `/api/v1/openapi.json` linki.
 - Tablo: **Name | Key** (önek + "…") **| Last used** (tarih/"Never") **| Created** | (işlemler, yönetici). Boş: "No API keys yet."
@@ -291,7 +291,7 @@ git commit -m "docs(manual): TR tenant manual — badges, glossary, FAQ"
 - [ ] **Step 1: Render** via make-pdf:
 ```bash
 P="$HOME/.claude/skills/gstack/make-pdf/dist/pdf"
-"$P" generate --cover --toc --title "Kiracı Yöneticisi Kullanım Kılavuzu" --author "Ditto" --date "Temmuz 2026" \
+"$P" generate --cover --toc --title "Kiracı Yöneticisi Kullanım Kılavuzu" --author "Maratus" --date "Temmuz 2026" \
   docs/manuals/tr/kiraci-kilavuzu.md docs/manuals/tr/kiraci-kilavuzu.pdf
 ```
 

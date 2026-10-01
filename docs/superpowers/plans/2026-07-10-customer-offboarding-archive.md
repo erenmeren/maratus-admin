@@ -23,7 +23,7 @@
 - New audit constants + labels (completeness guard test enforces pairs): `org.archived`, `org.restored`, `device.returned_to_stock`, `device.left_with_customer`.
 - Drizzle migration hazard: after `db:generate`, strip the SQL to only this feature's 2 columns. Do NOT run `db:migrate` against prod in a task (deploy-time step).
 - Money is integer cents; credits are frozen as-is (no refund flow).
-- Test: `npm test` (vitest). Seed admin: `admin@ditto.app` / `123456`; org "Roastwell Coffee" (`dana@roastwell.co` / `123456`).
+- Test: `npm test` (vitest). Seed admin: `admin@maratus.app` / `123456`; org "Roastwell Coffee" (`dana@roastwell.co` / `123456`).
 - Commit per task on `main`.
 
 ---
@@ -612,7 +612,7 @@ export default async function ArchivedNoticePage() {
       <h1 className="font-display text-2xl font-bold">Account archived</h1>
       <p className="text-sm text-muted-foreground">
         This organization has been archived and is no longer active. If you think
-        this is a mistake, contact your Ditto account manager.
+        this is a mistake, contact your Maratus account manager.
       </p>
     </div>
   );
@@ -686,7 +686,7 @@ Run: `npm run build && npm test && npm run lint` — Expected: green (lint basel
 
 - [ ] **Step 2: Live offboard → restore round-trip (dev DB)**
 
-`npm run db:migrate` against the dev DB (applies 0031). Then via tsx scripts (import `@/lib/db/load-env` first; `NODE_PATH=/Users/eren/Projects/ditto-admin/node_modules` if resolution fails) and/or the dev server + curl:
+`npm run db:migrate` against the dev DB (applies 0031). Then via tsx scripts (import `@/lib/db/load-env` first; `NODE_PATH=/Users/eren/Projects/maratus-admin/node_modules` if resolution fails) and/or the dev server + curl:
 1. Pick Roastwell Coffee; snapshot its devices, an allocated factory serial (allocate one if none), an active API key, a pending invitation.
 2. Call `offboardCustomerAction(orgId, choices, "QA test")` with a mix of return/leave dispositions. Assert: returned devices' rows gone + their registry rows `manufactured`; left devices `paused` + registry `retired`; swept allocation → `manufactured`; API keys `revokedAt` set; invitation `canceled`; `tenantSettings.archivedAt` set; an `org.archived` audit row with the summary metadata.
 3. Assert exclusion: `getTenantSummaries()` no longer lists Roastwell; `getTenantSummaries({ includeArchived: true })` does.

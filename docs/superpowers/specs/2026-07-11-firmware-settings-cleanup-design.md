@@ -1,7 +1,7 @@
 # Firmware Settings Screen Cleanup — Design
 
 **Date:** 2026-07-11
-**Repo:** `ditto-firmware` (all changes; this spec lives in ditto-admin as the cross-cutting record)
+**Repo:** `maratus-firmware` (all changes; this spec lives in maratus-admin as the cross-cutting record)
 **Scope:** Six targeted fixes to the on-device Settings screens. No general redesign — layout, palette, and interaction patterns stay as they are.
 
 ## Background

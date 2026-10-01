@@ -1,14 +1,14 @@
-# Ditto — Dijital Belge Pilot Programı Teklifi
+# Maratus — Dijital Belge Pilot Programı Teklifi
 
-*Hazırlayan: Ditto · Tarih: 12 Temmuz 2026 · Gizli — yalnızca alıcı kurum içindir*
+*Hazırlayan: Maratus · Tarih: 12 Temmuz 2026 · Gizli — yalnızca alıcı kurum içindir*
 
 ---
 
-## Ditto nedir?
+## Maratus nedir?
 
-Ditto, kasadaki kâğıt fişi/belgeyi **QR kodlu dijital belgeye** çeviren bir
+Maratus, kasadaki kâğıt fişi/belgeyi **QR kodlu dijital belgeye** çeviren bir
 donanım + bulut platformudur. Kasaya yerleştirilen 4″ dokunmatik ekranlı
-Ditto yazıcısı, satış anında müşteriye bir QR kodu gösterir; müşteri telefonuyla
+Maratus yazıcısı, satış anında müşteriye bir QR kodu gösterir; müşteri telefonuyla
 okutup belgesine anında erişir. Kâğıt, rulo, yazıcı bakımı ve termal atık
 tamamen ortadan kalkar.
 
@@ -27,9 +27,9 @@ Günde 5.000 işlem yapan bir şube, yalnızca termal kâğıda ayda yaklaşık
 yıllık **milyonlarca dolarlık** operasyonel giderdir — üstüne yazıcı arızaları,
 rulo lojistiği ve sürdürülebilirlik raporlarındaki kâğıt ayak izi eklenir.
 
-Ditto ile aynı ağ:
+Maratus ile aynı ağ:
 
-| | Kâğıt fiş | Ditto |
+| | Kâğıt fiş | Maratus |
 |---|---|---|
 | İşlem başı maliyet | ~$0,002–0,004 | plana dahil |
 | Rulo lojistiği / yazıcı bakımı | sürekli | yok |

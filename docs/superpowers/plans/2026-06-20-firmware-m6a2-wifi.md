@@ -6,7 +6,7 @@
 
 **Architecture:** `net` is split into `net_init` / `net_connect` / `net_scan` (auto-connect on STA_START gated behind an intent flag). A blocking `wifi_setup_run()` orchestrator drives a passive, bespoke `ui_wifi` LVGL screen (list + textarea + keyboard) via setter/consume-flag handoff (mirrors `ui_consume_tap`); network calls run off the UI thread. Pure scan-list/credential logic is host-tested in `wifi_util`.
 
-**Tech Stack:** ESP-IDF 5.5 (C), esp_wifi (transparent esp_wifi_remote/C6), LVGL v9 (lv_list/lv_textarea/lv_keyboard/lv_spinner; GT911 touch), NVS. Host tests: `make -C tools/cfg-harness test`. Build: `. ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`. Flash: `idf.py -p /dev/cu.usbmodem5A671704091 flash`. Repo: `/Users/eren/Projects/ditto-firmware`. Branch off `main`: `feat/m6a2-wifi`.
+**Tech Stack:** ESP-IDF 5.5 (C), esp_wifi (transparent esp_wifi_remote/C6), LVGL v9 (lv_list/lv_textarea/lv_keyboard/lv_spinner; GT911 touch), NVS. Host tests: `make -C tools/cfg-harness test`. Build: `. ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`. Flash: `idf.py -p /dev/cu.usbmodem5A671704091 flash`. Repo: `/Users/eren/Projects/maratus-firmware`. Branch off `main`: `feat/m6a2-wifi`.
 
 Spec: `docs/superpowers/specs/2026-06-20-firmware-m6a2-wifi-provisioning-design.md`. Builds on M6a (provisioning, shipped). Wi-Fi setup is **first-boot only** (shown only when no creds resolve).
 
@@ -14,7 +14,7 @@ Spec: `docs/superpowers/specs/2026-06-20-firmware-m6a2-wifi-provisioning-design.
 
 ### Task 0: Branch
 
-- [ ] From `/Users/eren/Projects/ditto-firmware` on `main` (clean): `git checkout -b feat/m6a2-wifi`.
+- [ ] From `/Users/eren/Projects/maratus-firmware` on `main` (clean): `git checkout -b feat/m6a2-wifi`.
 
 ---
 
@@ -264,7 +264,7 @@ const char *appcfg_wifi_ssid(void);      // NVS → Kconfig fallback
 const char *appcfg_wifi_password(void);  // NVS → Kconfig fallback
 ```
 
-- [ ] **Step 2: Implement** in `appcfg.c` (reuse the existing static `nvs_read`/`nvs_write` + `DITTO_NS`; add static buffers):
+- [ ] **Step 2: Implement** in `appcfg.c` (reuse the existing static `nvs_read`/`nvs_write` + `MARATUS_NS`; add static buffers):
 ```c
 static char s_wifi_ssid[33];
 static char s_wifi_pass[64];

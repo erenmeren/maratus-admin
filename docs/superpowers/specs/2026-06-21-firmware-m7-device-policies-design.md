@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-21
 **Status:** Approved (design)
-**Repo:** implementation in `ditto-firmware` (ESP-IDF 5.5 C + LVGL v9, ESP32-P4 Waveshare board); spec lives in ditto-admin as the cross-cutting record.
+**Repo:** implementation in `maratus-firmware` (ESP-IDF 5.5 C + LVGL v9, ESP32-P4 Waveshare board); spec lives in maratus-admin as the cross-cutting record.
 **Depends on:** the cloud Device Settings feature (shipped 2026-06-21) — `/api/device/config` already delivers everything this milestone consumes. No cloud changes.
 
 ## Overview

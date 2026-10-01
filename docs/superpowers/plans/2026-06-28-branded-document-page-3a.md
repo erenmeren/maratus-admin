@@ -6,11 +6,11 @@
 
 **Architecture:** Two optional `tenantSettings` support columns; a pure `supportLinks` helper; the public document lookup extended to load branding + support + store address (logo presigned); the public page re-rendered with tenant branding; and a small dedicated support-contact settings form.
 
-**Tech Stack:** Next.js 16 RSC public route, Drizzle/Neon, Cloudflare R2 presign (`presignedGetUrl`), Vitest (pure helper). Reuses `isValidHex` (`lib/color.ts`), the `DittoWordmark` (`components/brand`), and the branding page.
+**Tech Stack:** Next.js 16 RSC public route, Drizzle/Neon, Cloudflare R2 presign (`presignedGetUrl`), Vitest (pure helper). Reuses `isValidHex` (`lib/color.ts`), the `MaratusWordmark` (`components/brand`), and the branding page.
 
 ## Global Constraints
 
-- **Logo leads; Ditto → "Powered by Ditto" footer.** Tenant logo (presigned) in the header when set, else org-name wordmark.
+- **Logo leads; Maratus → "Powered by Maratus" footer.** Tenant logo (presigned) in the header when set, else org-name wordmark.
 - **Brand color is an accent only** (check icon + Download button), applied as an inline style from the hex; clamp to `#10A765` when the stored value fails `isValidHex` (guards inline-style injection).
 - **Support fields optional**; the support block is hidden when both are blank. `supportLinks` is the single source of truth for what renders, and the same validators gate the settings form.
 - **No owner-email exposure** on the public page.
@@ -324,7 +324,7 @@ git commit -m "feat(branding): load brand color, logo, address + support on the 
 - Modify: `app/(public)/d/[token]/page.tsx`
 
 **Interfaces:**
-- Consumes: the extended `PublicDocument` (Task 3); `supportLinks` (Task 2); `isValidHex` (`lib/color.ts`); `DittoWordmark` (`components/brand`).
+- Consumes: the extended `PublicDocument` (Task 3); `supportLinks` (Task 2); `isValidHex` (`lib/color.ts`); `MaratusWordmark` (`components/brand`).
 
 - [ ] **Step 1: Rewrite the page to use branding**
 
@@ -333,7 +333,7 @@ Replace `app/(public)/d/[token]/page.tsx` with:
 ```tsx
 import Link from "next/link";
 import { Check, Download, Leaf, FileText, SearchX, Mail, ExternalLink } from "lucide-react";
-import { DittoWordmark } from "@/components/brand";
+import { MaratusWordmark } from "@/components/brand";
 import { getDocumentByToken, type PublicDocument } from "@/lib/documents";
 import { supportLinks } from "@/lib/branding/support";
 import { isValidHex } from "@/lib/color";
@@ -456,7 +456,7 @@ function Shell({ children, brand }: { children: React.ReactNode; brand?: Pick<Pu
         <div className="flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
           <Leaf className="size-3.5 text-primary" />
           <span className="inline-flex items-center gap-1">A paperless document, powered by</span>
-          <DittoWordmark subtle />
+          <MaratusWordmark subtle />
         </div>
       </div>
     </div>
@@ -476,7 +476,7 @@ function DocumentNotFound() {
           document.
         </p>
         <Link href="/" className="text-sm font-medium text-primary hover:underline">
-          Go to Ditto
+          Go to Maratus
         </Link>
       </div>
     </Shell>
@@ -484,12 +484,12 @@ function DocumentNotFound() {
 }
 ```
 
-(Notes: the not-found state calls `<Shell>` with no `brand`, so it shows just the Ditto footer — unchanged behavior. The pending state now passes `brand` so it carries the tenant logo. The `DittoWordmark` moved into the footer.)
+(Notes: the not-found state calls `<Shell>` with no `brand`, so it shows just the Maratus footer — unchanged behavior. The pending state now passes `brand` so it carries the tenant logo. The `MaratusWordmark` moved into the footer.)
 
 - [ ] **Step 2: Typecheck + build**
 
 Run: `npx tsc --noEmit && npm run build`
-Expected: no type errors; build OK; the `/d/[token]` route compiles. (If `DittoWordmark` doesn't accept the `subtle` prop in a footer context, keep it as-is — it was already used with `subtle`.)
+Expected: no type errors; build OK; the `/d/[token]` route compiles. (If `MaratusWordmark` doesn't accept the `subtle` prop in a footer context, keep it as-is — it was already used with `subtle`.)
 
 - [ ] **Step 3: Commit**
 
@@ -679,7 +679,7 @@ git commit -m "feat(branding): tenant support-contact settings form (3A)"
 ## Deferred acceptance (manual / prod — user)
 
 - `npm run db:migrate` to add the two columns to prod Neon (additive/safe).
-- On `/tenant/branding`: set a support email + return URL → save; scan/open a `ready` `/d/{token}` for that org → branded page with the tenant logo, accent-colored check + Download button, "Issued by … · store · address", and the support block; clear the fields → block hidden; an org with no branding → graceful default (Ditto wordmark only, green accent).
+- On `/tenant/branding`: set a support email + return URL → save; scan/open a `ready` `/d/{token}` for that org → branded page with the tenant logo, accent-colored check + Download button, "Issued by … · store · address", and the support block; clear the fields → block hidden; an org with no branding → graceful default (Maratus wordmark only, green accent).
 
 ---
 
@@ -689,7 +689,7 @@ git commit -m "feat(branding): tenant support-contact settings form (3A)"
 - Two optional `tenantSettings` support columns + migration (churn-stripped) (spec §A) → Task 1. ✅
 - Pure `supportLinks`/validators (spec §B) → Task 2. ✅
 - Branding/support/address on the public lookup, logo presigned (spec §C) → Task 3. ✅
-- Branded page: logo, brand-color accent, provenance + address, support block, Ditto footer (spec §D) → Task 4. ✅
+- Branded page: logo, brand-color accent, provenance + address, support block, Maratus footer (spec §D) → Task 4. ✅
 - Tenant support-contact settings form + action (spec §E) → Task 5. ✅
 - Brand-color clamp via `isValidHex`, graceful logo/null fallbacks, no owner-email exposure (spec error-handling/decisions) → Tasks 3 & 4. ✅
 - Testing: pure unit tests (Task 2) + deferred manual checks (spec §Testing). ✅

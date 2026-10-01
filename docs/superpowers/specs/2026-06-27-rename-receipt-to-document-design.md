@@ -1,7 +1,7 @@
 # Rename "Receipt" → "Document" (Cloud, Spec 1) — Design
 
 **Date:** 2026-06-27
-**Repo:** `ditto-admin` (cloud). Firmware is **Spec 2** (follow-up).
+**Repo:** `maratus-admin` (cloud). Firmware is **Spec 2** (follow-up).
 **Status:** Approved design, pre-implementation
 
 ## Problem
@@ -72,5 +72,5 @@ Mechanical rename of identifiers + file/dir names:
 
 ## Out of scope (→ Spec 2, firmware)
 
-- `ditto-firmware`: rename receipt→document in `render_job`, `cloud_post_receipt`, dev-state/comments, any on-screen strings; HIL. (The device renders whatever the cloud sends; the cloud's `/d/{token}` URL change is forward-compatible — the device just prints the returned url into a QR.)
+- `maratus-firmware`: rename receipt→document in `render_job`, `cloud_post_receipt`, dev-state/comments, any on-screen strings; HIL. (The device renders whatever the cloud sends; the cloud's `/d/{token}` URL change is forward-compatible — the device just prints the returned url into a QR.)
 - Reconfiguring the Stripe dashboard meter `event_name` (user ops step).

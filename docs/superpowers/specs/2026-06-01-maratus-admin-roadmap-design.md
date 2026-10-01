@@ -1,4 +1,4 @@
-# Ditto Admin — Product Roadmap
+# Maratus Admin — Product Roadmap
 
 _Last updated: 2026-08-03_
 
@@ -47,7 +47,7 @@ markers below:
 
 ## Context
 
-Ditto is a multi-tenant, digital-document SaaS. Printers replace paper documents
+Maratus is a multi-tenant, digital-document SaaS. Printers replace paper documents
 with a QR code customers scan to download a private digital document. The admin
 console is **feature-complete** today: Better Auth (org = tenant) with self-serve
 signup, FK-scoped multi-tenancy, device provisioning + pairing → ingest →
@@ -188,7 +188,7 @@ model) and **monthly invoices** (generation → collection → dunning → recei
 - Mobile apps (web-first; documents are already mobile-web by nature)
 - Non-Stripe payment processors
 
-(The printer firmware lives in its own repo, **ditto-firmware**, with its own
+(The printer firmware lives in its own repo, **maratus-firmware**, with its own
 milestone roadmap — it is no longer "out of scope" for the product but is tracked
 separately.)
 

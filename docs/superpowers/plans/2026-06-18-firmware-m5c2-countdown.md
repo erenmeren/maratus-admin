@@ -6,19 +6,19 @@
 
 **Architecture:** Admin adds a `qrTimeoutSeconds` shared field (default 60, clamp 15–180) to the printer config + an editor control + live preview value. The device parses it, renders a ticking "Code expires M:SS" + progress bar via a 1 Hz LVGL timer, sets an expired flag at zero, and the poll task consumes that flag (checked on a 500 ms slice while in `DEV_QR`) to return to idle.
 
-**Tech Stack:** ditto-admin (TypeScript, vitest, React editor/preview) · ditto-firmware (ESP-IDF 5.5, LVGL v9, C; host tests via `tools/cfg-harness`).
+**Tech Stack:** maratus-admin (TypeScript, vitest, React editor/preview) · maratus-firmware (ESP-IDF 5.5, LVGL v9, C; host tests via `tools/cfg-harness`).
 
-**Repos:** Tasks 1–2 in `/Users/eren/Projects/ditto-admin` (branch `feat/m5c2-countdown`). Tasks 3–7 in `/Users/eren/Projects/ditto-firmware` (create branch `feat/m5c2-countdown`).
+**Repos:** Tasks 1–2 in `/Users/eren/Projects/maratus-admin` (branch `feat/m5c2-countdown`). Tasks 3–7 in `/Users/eren/Projects/maratus-firmware` (create branch `feat/m5c2-countdown`).
 
 **Spec:** `docs/superpowers/specs/2026-06-18-firmware-m5c2-countdown-design.md`
 
-**Firmware build:** single combined command (shell state doesn't persist between Bash calls): `cd /Users/eren/Projects/ditto-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`. Host tests: `cd tools/cfg-harness && make test` (gcc, no ESP-IDF). Flash + on-screen checks (Task 7) are done by the user.
+**Firmware build:** single combined command (shell state doesn't persist between Bash calls): `cd /Users/eren/Projects/maratus-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`. Host tests: `cd tools/cfg-harness && make test` (gcc, no ESP-IDF). Flash + on-screen checks (Task 7) are done by the user.
 
 ---
 
 ### Task 1: Admin — `qrTimeoutSeconds` config field (TDD)
 
-**Files (ditto-admin):**
+**Files (maratus-admin):**
 - Modify: `lib/printer-layout.ts` (PrinterConfig interface; `seededAll()` and `migrateV2ToConfig` defaults; `normalizePrinterConfig` clamp)
 - Test: `lib/printer-layout.test.ts`
 
@@ -96,7 +96,7 @@ git commit -m "feat: add qrTimeoutSeconds (15-180, default 60) to printer config
 
 ### Task 2: Admin — editor control + live preview value
 
-**Files (ditto-admin):**
+**Files (maratus-admin):**
 - Modify: `components/device-preview/printer-editor/use-printer-editor.ts` (`setShared` type, 2 spots)
 - Modify: `components/device-preview/printer-editor/printer-controls.tsx` (add control)
 - Modify: `components/device-preview/printer-preview.tsx` (`CountdownObject` + dispatch)
@@ -176,12 +176,12 @@ git commit -m "feat: receipt-timeout editor control + live countdown preview val
 
 ### Task 3: Firmware — `format_mmss` pure helper (host TDD)
 
-**Files (ditto-firmware):**
+**Files (maratus-firmware):**
 - Modify: `components/devcfg/clock_format.c`, `components/devcfg/include/clock_format.h`, `tools/cfg-harness/test_cfg.c`
 
 Create the firmware branch first:
 ```bash
-cd /Users/eren/Projects/ditto-firmware && git checkout main && git checkout -b feat/m5c2-countdown
+cd /Users/eren/Projects/maratus-firmware && git checkout main && git checkout -b feat/m5c2-countdown
 ```
 
 - [ ] **Step 1: Declare in `components/devcfg/include/clock_format.h`** (add below `format_clock`):
@@ -208,7 +208,7 @@ static void test_mmss(void) {
 
 - [ ] **Step 3: Run host tests, confirm FAIL**
 
-Run: `cd /Users/eren/Projects/ditto-firmware/tools/cfg-harness && make test`
+Run: `cd /Users/eren/Projects/maratus-firmware/tools/cfg-harness && make test`
 Expected: FAIL — `format_mmss` undefined.
 
 - [ ] **Step 4: Implement in `components/devcfg/clock_format.c`** (append):
@@ -223,13 +223,13 @@ void format_mmss(int seconds, char *out, int outlen) {
 
 - [ ] **Step 5: Run host tests, confirm PASS**
 
-Run: `cd /Users/eren/Projects/ditto-firmware/tools/cfg-harness && make test`
+Run: `cd /Users/eren/Projects/maratus-firmware/tools/cfg-harness && make test`
 Expected: PASS — includes `test_mmss OK` and `ALL TESTS PASSED`.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 git add components/devcfg/clock_format.c components/devcfg/include/clock_format.h tools/cfg-harness/test_cfg.c
 git commit -m "feat(firmware): format_mmss helper + host test"
 ```
@@ -238,7 +238,7 @@ git commit -m "feat(firmware): format_mmss helper + host test"
 
 ### Task 4: Firmware — parse `qrTimeoutSeconds` (host TDD)
 
-**Files (ditto-firmware):**
+**Files (maratus-firmware):**
 - Modify: `components/devcfg/include/device_config.h`, `components/devcfg/cfg_parse.c`, `tools/cfg-harness/test_cfg.c`
 
 - [ ] **Step 1: Add the field** to `device_config_t` in `components/devcfg/include/device_config.h`, next to `int wifi_level;`:
@@ -256,7 +256,7 @@ git commit -m "feat(firmware): format_mmss helper + host test"
 
 - [ ] **Step 3: Run host tests, confirm FAIL**
 
-Run: `cd /Users/eren/Projects/ditto-firmware/tools/cfg-harness && make test`
+Run: `cd /Users/eren/Projects/maratus-firmware/tools/cfg-harness && make test`
 Expected: FAIL — `qr_timeout_seconds` is always 0 / field unset.
 
 - [ ] **Step 4: Implement the parse** in `components/devcfg/cfg_parse.c`, right after the existing `wifi_level` parse block (which reads `config`'s `"wifiLevel"` and clamps 0..4):
@@ -270,7 +270,7 @@ Expected: FAIL — `qr_timeout_seconds` is always 0 / field unset.
 
 - [ ] **Step 5: Run host tests, confirm PASS**
 
-Run: `cd /Users/eren/Projects/ditto-firmware/tools/cfg-harness && make test`
+Run: `cd /Users/eren/Projects/maratus-firmware/tools/cfg-harness && make test`
 Expected: PASS — `test_qr_timeout OK` + `ALL TESTS PASSED`.
 
 - [ ] **Step 6: Commit**
@@ -284,7 +284,7 @@ git commit -m "feat(firmware): parse qrTimeoutSeconds (clamp 15..180, default 60
 
 ### Task 5: Firmware — live countdown widget in `ui.c`
 
-**Files (ditto-firmware):**
+**Files (maratus-firmware):**
 - Modify: `components/ui/ui.c`, `components/ui/include/ui.h`
 
 Context: `ui.c` uses a per-render registry of statics cleared under `lvgl_port_lock(0)` at the top of `ui_render_state` (see the clock: `s_clock_lbl`/`s_clock_timer` nulled there, rebuilt by `build_screen`). `geom_box(o)`, `font_cache_get`, `lv_align_of`, `s_cfg->brand_fg`/`brand_accent` are available. `format_mmss` is in `clock_format.h` (already included by Task 5's edits if not, add it).
@@ -408,7 +408,7 @@ Make sure `#include "clock_format.h"` is present near the top of `ui.c` (added i
 
 - [ ] **Step 7: Build**
 
-Run: `cd /Users/eren/Projects/ditto-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
+Run: `cd /Users/eren/Projects/maratus-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
 Expected: build SUCCEEDS. (If `lv_bar_*` symbols are missing, ensure `CONFIG_LV_USE_BAR=y` in `sdkconfig` — it's on by default; set it if needed.)
 
 - [ ] **Step 8: Commit**
@@ -422,7 +422,7 @@ git commit -m "feat(firmware): live countdown widget (Code expires M:SS + bar) +
 
 ### Task 6: Firmware — arm countdown on QR + auto-return to idle
 
-**Files (ditto-firmware):**
+**Files (maratus-firmware):**
 - Modify: `main/app_state.c`
 
 Context: `poll_task` (in `app_state.c`) reaches `DEV_QR` in two places — `run_test_ingest` (around `ui_set_qr_url(url); ui_render_state(DEV_QR);`) and the config/command flow. `s_cfg_live`/`s_cfg_buf[s_cfg_live]` is the live `device_config_t`. The success path ends with `vTaskDelay(pdMS_TO_TICKS(POLL_IDLE_MS));` (POLL_IDLE_MS = 12000).
@@ -466,12 +466,12 @@ static void idle_wait_or_qr_expiry(int total_ms) {
 
 - [ ] **Step 4: Build**
 
-Run: `cd /Users/eren/Projects/ditto-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
+Run: `cd /Users/eren/Projects/maratus-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
 Expected: build SUCCEEDS.
 
 - [ ] **Step 5: Full host-test regression**
 
-Run: `cd /Users/eren/Projects/ditto-firmware/tools/cfg-harness && make test`
+Run: `cd /Users/eren/Projects/maratus-firmware/tools/cfg-harness && make test`
 Expected: PASS — `test_mmss OK`, `test_qr_timeout OK`, plus all prior tests and `ALL TESTS PASSED`.
 
 - [ ] **Step 6: Commit**

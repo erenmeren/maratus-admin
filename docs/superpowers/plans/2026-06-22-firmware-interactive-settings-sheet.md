@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Repo: **ditto-firmware**. Work on branch **`feat/swipe-up-settings`** (already holds the swipe-detect work + `gesture.c`). Do NOT commit on `main`.
+- Repo: **maratus-firmware**. Work on branch **`feat/swipe-up-settings`** (already holds the swipe-detect work + `gesture.c`). Do NOT commit on `main`.
 - Build: `. ~/.espressif/v5.5/esp-idf/export.sh && idf.py build` (ESP-IDF **5.5**, not 6.x).
 - Host tests: `cd tools/cfg-harness && make test` → must end `ALL TESTS PASSED`.
 - Pure gesture logic lives in `components/devcfg/gesture.{c,h}` with **no LVGL / no float** deps (host-testable), mirroring `sleep_policy.c`.
@@ -211,7 +211,7 @@ Add `#include "gesture.h"` (already present) and `#include "ui.h"` self-include 
 #define SHEET_FLICK_PX_S    1200    // upward flick (px/s) that opens regardless
 #define SHEET_ANIM_MS       220     // snap glide duration
 
-extern const uint32_t DITTO_GREEN;  // defined in ui.c; or hardcode 0x1F8A4C
+extern const uint32_t MARATUS_GREEN;  // defined in ui.c; or hardcode 0x1F8A4C
 
 static lv_obj_t      *s_sheet;          // full-screen container, NULL when absent
 static bool           s_dragging;       // crossed the slop this gesture
@@ -334,7 +334,7 @@ const device_config_t *ui_current_cfg(void) { return s_cfg; }
 // ui.h
 const device_config_t *ui_current_cfg(void);
 ```
-If `DITTO_GREEN` is `#define`d (not a variable) in `ui.c`, drop the `extern` and hardcode the fallback as shown.
+If `MARATUS_GREEN` is `#define`d (not a variable) in `ui.c`, drop the `extern` and hardcode the fallback as shown.
 
 - [ ] **Step 4: Add `ui_sheet.c` to the build**
 
@@ -579,9 +579,9 @@ Flash and verify the full experience: drag tracks the finger; snap-open reveals 
 
 ### Task 5: Merge + document
 
-- [ ] **Step 1:** With HIL verified, update `BUILD.md` in ditto-firmware with an "Interactive Settings sheet" entry (date, what shipped, the tuned constants), per the HW-verified convention.
+- [ ] **Step 1:** With HIL verified, update `BUILD.md` in maratus-firmware with an "Interactive Settings sheet" entry (date, what shipped, the tuned constants), per the HW-verified convention.
 - [ ] **Step 2:** Merge `feat/swipe-up-settings` → `main` (`git checkout main && git merge --no-ff`), delete the branch, push.
-- [ ] **Step 3:** Update the ditto-admin spec/plan status to "shipped + HW-verified".
+- [ ] **Step 3:** Update the maratus-admin spec/plan status to "shipped + HW-verified".
 
 ## Self-Review
 

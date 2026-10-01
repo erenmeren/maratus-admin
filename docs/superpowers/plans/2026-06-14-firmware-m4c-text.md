@@ -25,7 +25,7 @@
 
 Append inside the menu in `main/Kconfig.projbuild` (before `endmenu`):
 ```
-    config DITTO_ROLL_WIDTH
+    config MARATUS_ROLL_WIDTH
         int "Receipt roll width in dots"
         default 576
         help
@@ -46,7 +46,7 @@ int appcfg_roll_width(void) { return CONFIG_DITTO_ROLL_WIDTH; }
 - [ ] **Step 3: Build**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 idf.py build
 ```
 Expected: clean build (getter unused until Task 3 wires it).
@@ -70,7 +70,7 @@ git commit -m "feat(firmware): per-device roll width config"
 - [ ] **Step 1: Fetch the public-domain font**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 mkdir -p components/font8x8/include
 curl -fsSL https://raw.githubusercontent.com/dhepper/font8x8/master/font8x8_basic.h \
   -o components/font8x8/include/font8x8_basic.h
@@ -606,7 +606,7 @@ push([0x1b, 0x45, 0x01], "TOTAL  7.75\n", [0x1b, 0x45, 0x00]);
 push([0x1b, 0x61, 0x01]);                 // center
 push("\n", "Scan for your e-receipt\n");
 // a QR too:
-const url = Buffer.from("https://ditto.app/r/text-demo", "latin1");
+const url = Buffer.from("https://maratus.app/r/text-demo", "latin1");
 const sl = url.length + 3;
 push([0x1d, 0x28, 0x6b, 0x03, 0x00, 49, 67, 6]);                 // size 6
 push([0x1d, 0x28, 0x6b, 0x03, 0x00, 49, 69, 49]);                // ecc M
@@ -624,7 +624,7 @@ console.log(`wrote fixtures/text-receipt.escpos (${job.length} bytes)`);
 - [ ] **Step 2: Generate + send (after flashing M4c firmware)**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware && idf.py build && idf.py -p <PORT> flash monitor
+cd /Users/eren/Projects/maratus-firmware && idf.py build && idf.py -p <PORT> flash monitor
 # another shell:
 cd tools/escpos-harness && node make-text-fixture.js && node send.js <device-ip> fixtures/text-receipt.escpos
 ```
@@ -634,7 +634,7 @@ cd tools/escpos-harness && node make-text-fixture.js && node send.js <device-ip>
 Expected:
 - Serial: `parsed N ops` (text runs + line breaks + a QR), `rendered <W>xH -> PNG …`, `receipt ready: …`.
 - Screen: `Processing…` → QR.
-- **Scan** → the public receipt shows a real text receipt: centered double-size "ROASTWELL", bold "Coffee Bar", left-aligned item lines, right-aligned bold "TOTAL 7.75", and a centered QR at the bottom. The in-receipt QR scans to `https://ditto.app/r/text-demo`.
+- **Scan** → the public receipt shows a real text receipt: centered double-size "ROASTWELL", bold "Coffee Bar", left-aligned item lines, right-aligned bold "TOTAL 7.75", and a centered QR at the bottom. The in-receipt QR scans to `https://maratus.app/r/text-demo`.
 - Admin lists the receipt.
 
 - [ ] **Step 4: Commit**

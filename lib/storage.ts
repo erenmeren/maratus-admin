@@ -98,5 +98,5 @@ export function imageStorageKey(
 
 /** R2 key for a published firmware binary. */
 export function firmwareStorageKey(version: string): string {
-  return `firmware/${version}/ditto-firmware.bin`;
+  return `firmware/${version}/maratus-firmware.bin`;
 }

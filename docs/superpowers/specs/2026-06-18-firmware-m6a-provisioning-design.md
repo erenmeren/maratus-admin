@@ -2,8 +2,8 @@
 
 **Date:** 2026-06-18
 **Status:** Approved (design); implementation plan to follow.
-**Repos:** ditto-admin (cloud) + ditto-firmware (device). Continues the M6 section of
-`2026-06-14-ditto-firmware-design.md`.
+**Repos:** maratus-admin (cloud) + maratus-firmware (device). Continues the M6 section of
+`2026-06-14-maratus-firmware-design.md`.
 
 ## Goal
 
@@ -48,7 +48,7 @@ This slice is **claim-flow only**. Wi-Fi credentials still come from `sdkconfig`
   6. re-init cloud auth → DEV_IDLE (active)
 ```
 
-## Cloud (ditto-admin)
+## Cloud (maratus-admin)
 
 ### Data model
 - Add nullable column **`device.pendingDeviceKey: text`** — the raw device key, held
@@ -96,7 +96,7 @@ key yet), gated by the high-entropy-enough code, **rate-limited**.
 - The admin "Add device" (`provisionDevice`) path is unchanged and still works
   (create-or-bind binds the pre-seeded row).
 
-## Firmware (ditto-firmware)
+## Firmware (maratus-firmware)
 
 ### Boot decision
 On boot, read the device key from **NVS** (namespace `ditto`, key `device_key`):
@@ -122,7 +122,7 @@ On boot, read the device key from **NVS** (namespace `ditto`, key `device_key`):
 - **`OBJ_PAIRING_CODE`**: render the device's code prominently (large, centered),
   driven by a new `ui_set_pairing_code(code)` setter (mirrors `ui_set_qr_url`). Match
   the branding-preview `PairingCodeObject` (label + large mono code).
-- **`OBJ_STEPS`**: render the numbered provisioning steps (e.g. "1. Open your Ditto
+- **`OBJ_STEPS`**: render the numbered provisioning steps (e.g. "1. Open your Maratus
   dashboard  2. Add a printer  3. Enter this code"). Match the preview `StepsObject`.
 - The setup screen's seeded layout already positions logo/title/sub/steps/pairingCode/
   QR. The QR optionally encodes a claim deep-link (`{BASE}/…?code=`) — minor, may be

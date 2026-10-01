@@ -96,7 +96,7 @@ export function alertEmail(newAlerts: HealthAlert[]): { subject: string; html: s
 - `diffAlerts`: `toOpen` = current keys not in `open`; `toResolve` = open keys not in
   current; `stillOpen` = intersection (carry the current message so a changed count
   updates). Keyed by `key`.
-- `alertEmail`: `null` if empty; else subject like `"⚠ Ditto: N new health alert(s)"`
+- `alertEmail`: `null` if empty; else subject like `"⚠ Maratus: N new health alert(s)"`
   and an HTML list of `severity` + `message`.
 
 ---

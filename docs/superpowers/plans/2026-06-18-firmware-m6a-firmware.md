@@ -2,11 +2,11 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** An unprovisioned ditto-firmware device (no key in NVS) boots into a setup screen showing a device-generated pairing code, polls the cloud's `GET /api/device/claim`, stores the returned key in NVS, and activates — no hand-pasted keys.
+**Goal:** An unprovisioned maratus-firmware device (no key in NVS) boots into a setup screen showing a device-generated pairing code, polls the cloud's `GET /api/device/claim`, stores the returned key in NVS, and activates — no hand-pasted keys.
 
 **Architecture:** A new pure `provisioning` module (devcfg) generates the pairing code and a built-in default setup screen (an unclaimed device can't fetch config — no key — so the setup UI must be firmware-built-in). `appcfg_device_key()` reads NVS first, falling back to Kconfig. On boot, if no key, the app enters `DEV_SETUP`, renders the built-in setup screen, and runs a claim-poll loop (`cloud_claim_poll`, unauthenticated GET) until it gets the key → NVS → reboot into normal mode. Two new LVGL widgets (`OBJ_PAIRING_CODE`, `OBJ_STEPS`) render the code + steps.
 
-**Tech Stack:** ESP-IDF 5.5 (C), LVGL v9, esp_http_client + cJSON, NVS. Host tests via `tools/cfg-harness` (`make -C tools/cfg-harness test`). Build: `. ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`. Flash: `idf.py -p /dev/cu.usbmodem5A671704091 flash`. Repo: `/Users/eren/Projects/ditto-firmware`.
+**Tech Stack:** ESP-IDF 5.5 (C), LVGL v9, esp_http_client + cJSON, NVS. Host tests via `tools/cfg-harness` (`make -C tools/cfg-harness test`). Build: `. ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`. Flash: `idf.py -p /dev/cu.usbmodem5A671704091 flash`. Repo: `/Users/eren/Projects/maratus-firmware`.
 
 This is **Plan 2 of 2** for M6a; it consumes the cloud endpoint from Plan 1 (`GET /api/device/claim?code=` → `{status:"pending"}` or `{status:"claimed", deviceKey}`). Spec: `docs/superpowers/specs/2026-06-18-firmware-m6a-provisioning-design.md`. Work on a new branch `feat/m6a-provisioning` off firmware `main`.
 
@@ -16,7 +16,7 @@ This is **Plan 2 of 2** for M6a; it consumes the cloud endpoint from Plan 1 (`GE
 
 ### Task 0: Branch
 
-- [ ] **Step 1:** From `/Users/eren/Projects/ditto-firmware` on `main` (clean): `git checkout -b feat/m6a-provisioning`.
+- [ ] **Step 1:** From `/Users/eren/Projects/maratus-firmware` on `main` (clean): `git checkout -b feat/m6a-provisioning`.
 
 ---
 
@@ -186,7 +186,7 @@ In `provisioning.c` (read `components/devcfg/include/device_config.h` first to u
 ```c
 void provisioning_default_setup_config(device_config_t *cfg) {
     memset(cfg, 0, sizeof(*cfg));
-    cfg->brand_bg = 0x0B5D3B;     // Ditto green fallback
+    cfg->brand_bg = 0x0B5D3B;     // Maratus green fallback
     cfg->brand_fg = 0xFFFFFF;
     cfg->brand_accent = 0x10A765;
     cfg_screen_t *s = &cfg->screens[SCREEN_SETUP];
@@ -236,7 +236,7 @@ const char *appcfg_pairing_code(void);            // cached code (generates+pers
 
 - [ ] **Step 2: Implement in `appcfg.c`**
 
-Read the current `appcfg.c` first. Add (using `nvs.h`, the `"ditto"` namespace, and static buffers so the returned `const char *` stays valid):
+Read the current `appcfg.c` first. Add (using `nvs.h`, the `"maratus"` namespace, and static buffers so the returned `const char *` stays valid):
 ```c
 #include <string.h>
 #include <stdbool.h>
@@ -244,13 +244,13 @@ Read the current `appcfg.c` first. Add (using `nvs.h`, the `"ditto"` namespace, 
 #include "esp_random.h"
 #include "provisioning.h"
 
-#define DITTO_NS "ditto"
+#define MARATUS_NS "maratus"
 static char s_dev_key[80];
 static char s_pair[16];
 
 static bool nvs_read(const char *key, char *out, size_t cap) {
     nvs_handle_t h; out[0] = '\0';
-    if (nvs_open(DITTO_NS, NVS_READONLY, &h) != ESP_OK) return false;
+    if (nvs_open(MARATUS_NS, NVS_READONLY, &h) != ESP_OK) return false;
     size_t len = cap;
     esp_err_t e = nvs_get_str(h, key, out, &len);
     nvs_close(h);
@@ -258,7 +258,7 @@ static bool nvs_read(const char *key, char *out, size_t cap) {
 }
 static void nvs_write(const char *key, const char *val) {
     nvs_handle_t h;
-    if (nvs_open(DITTO_NS, NVS_READWRITE, &h) != ESP_OK) return;
+    if (nvs_open(MARATUS_NS, NVS_READWRITE, &h) != ESP_OK) return;
     nvs_set_str(h, key, val); nvs_commit(h); nvs_close(h);
 }
 static uint8_t rand_byte(void) { return (uint8_t)esp_random(); }
@@ -379,7 +379,7 @@ static void render_pairing_code(lv_obj_t *scr, const cfg_object_t *o, uint32_t f
 }
 
 static const char *const SETUP_STEPS[] = {
-    "1.  Open your Ditto dashboard",
+    "1.  Open your Maratus dashboard",
     "2.  Add a printer to a store",
     "3.  Enter the code below",
 };
@@ -471,7 +471,7 @@ git commit -m "feat(firmware): boot into provisioning mode + claim-poll task whe
 - [ ] **Step 2: Build** — `. ~/.espressif/v5.5/esp-idf/export.sh && idf.py build` → clean.
 - [ ] **Step 3: Erase NVS + flash** — to force provisioning mode on a previously-keyed device:
   `idf.py -p /dev/cu.usbmodem5A671704091 erase-flash` then `idf.py -p /dev/cu.usbmodem5A671704091 flash`.
-  (Erase wipes the stored key + code so the device boots unprovisioned. The cloud (Plan 1) must be running/deployed and reachable; set `DITTO_API_BASE_URL` to it.)
+  (Erase wipes the stored key + code so the device boots unprovisioned. The cloud (Plan 1) must be running/deployed and reachable; set `MARATUS_API_BASE_URL` to it.)
 - [ ] **Step 4: HIL checklist (needs user + board + the Plan-1 cloud reachable):**
   - Device boots to the **setup screen**: title, numbered steps, and a `XXXX-XXXX` pairing code.
   - In the dashboard (Plan 1 cloud), claim a store with that code.

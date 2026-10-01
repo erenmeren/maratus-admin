@@ -1322,7 +1322,7 @@ export default async function ApiKeysPage() {
     <>
       <PageHeader
         title="API keys"
-        description="Read-only keys for the Ditto public API."
+        description="Read-only keys for the Maratus public API."
       >
         {canManage && <ApiKeyCreateDialog />}
       </PageHeader>
@@ -1447,9 +1447,9 @@ Expected: FAIL — `openapi.json` not found.
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Ditto Public API",
+    "title": "Maratus Public API",
     "version": "1.0.0",
-    "description": "Read-only, tenant-scoped access to receipts and usage. Authenticate with an API key created in the Ditto dashboard (Authorization: Bearer <key>)."
+    "description": "Read-only, tenant-scoped access to receipts and usage. Authenticate with an API key created in the Maratus dashboard (Authorization: Bearer <key>)."
   },
   "servers": [{ "url": "/api/v1" }],
   "security": [{ "bearerAuth": [] }],

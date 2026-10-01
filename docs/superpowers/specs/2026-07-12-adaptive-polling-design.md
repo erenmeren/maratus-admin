@@ -1,14 +1,14 @@
 # Adaptive Device Polling — Design (Proposed)
 
 **Date:** 2026-07-12
-**Status:** Proposed — implementation lives mostly in ditto-firmware; run a
+**Status:** Proposed — implementation lives mostly in maratus-firmware; run a
 firmware-session brainstorm before planning. This document pins the cloud
 contract and the honest cost math so that session starts from facts.
 
 ## Problem
 
 Every device polls `GET /api/device/commands` every 12 s while idle
-(`ditto-firmware/main/app_state.c` → `POLL_IDLE_MS 12000`), 24/7 —
+(`maratus-firmware/main/app_state.c` → `POLL_IDLE_MS 12000`), 24/7 —
 ~7,200 invocations/device/day regardless of activity. Infra cost scales with
 fleet size (see the dual-track pricing spec): at 2,000 devices that is
 ~14.4 M invocations/day (~167 req/s sustained) on Vercel + always-hot Neon.

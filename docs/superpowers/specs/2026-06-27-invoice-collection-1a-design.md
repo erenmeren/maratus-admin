@@ -1,7 +1,7 @@
 # Phase 1A — Invoice Collection (local invoices → Stripe) — Design
 
 **Date:** 2026-06-27
-**Repo:** `ditto-admin`
+**Repo:** `maratus-admin`
 **Status:** Approved design, pre-implementation
 **Phase:** 1 ("close the billing loop"), sub-project **1A**. Follow-ups: **1B** dunning & enforcement, **1C** transition emails.
 

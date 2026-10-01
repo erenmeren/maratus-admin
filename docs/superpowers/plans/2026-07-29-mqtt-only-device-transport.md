@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- **Two repos.** Cloud tasks run in `/home/meren/projects/ditto-admin`. Firmware tasks run in `/home/meren/projects/ditto-firmware` (ESP-IDF export first: `. $HOME/.espressif/v5.5/esp-idf/export.sh`).
+- **Two repos.** Cloud tasks run in `/home/meren/projects/maratus-admin`. Firmware tasks run in `/home/meren/projects/maratus-firmware` (ESP-IDF export first: `. $HOME/.espressif/v5.5/esp-idf/export.sh`).
 - **Phase order is load-bearing.** Phase C must not start until Phase B2 confirms the device converged. Running C early cuts the device's config *and* OTA paths at once, leaving USB recovery as the only way back.
 - **`.env.local` points at PROD Neon** (org "Starbucks"). Never run destructive scripts against it casually; the seeded `dana@roastwell.co` login does not exist there.
 - **Device identity in every webhook comes from the authenticated MQTT `username`**, never `clientid` (client-supplied, spoofable). Prefer the `x-device-id` header, fall back to a `clientid` body field — mirror `app/api/mqtt/heartbeat/route.ts:43-54` exactly.
@@ -1155,7 +1155,7 @@ Run: `npm run db:migrate`
 
 Run: `vercel --prod --yes`
 
-If the project link is missing: `vercel link --yes --scope eren-altans-projects --project ditto-admin` first.
+If the project link is missing: `vercel link --yes --scope eren-altans-projects --project maratus-admin` first.
 
 - [ ] **Step 4: Do Task A9's two operator steps, in this order**
 
@@ -1177,7 +1177,7 @@ Report the deployment URL and the four channel states. **Do not start Phase C.**
 
 ---
 
-# PHASE B — Firmware (repo: `/home/meren/projects/ditto-firmware`)
+# PHASE B — Firmware (repo: `/home/meren/projects/maratus-firmware`)
 
 Export the toolchain first in every shell: `. $HOME/.espressif/v5.5/esp-idf/export.sh`
 
@@ -1343,7 +1343,7 @@ as \"ask again over cfg/get\" rather than as a broken config."
 
 **Files:**
 - Modify: `components/mqtt_ditto/mqtt_client.c`
-- Modify: `components/mqtt_ditto/include/mqtt_client_ditto.h`
+- Modify: `components/mqtt_ditto/include/mqtt_client_maratus.h`
 
 **Interfaces:**
 - Produces:
@@ -1492,7 +1492,7 @@ rejected: it lives in internal DRAM, which is the tight resource here."
 ### Task B3: Ask for config at boot over MQTT
 
 **Files:**
-- Modify: `components/mqtt_ditto/mqtt_client.c`, `components/mqtt_ditto/include/mqtt_client_ditto.h`, `components/mqtt_ditto/mqtt_topics.h`
+- Modify: `components/mqtt_ditto/mqtt_client.c`, `components/mqtt_ditto/include/mqtt_client_maratus.h`, `components/mqtt_ditto/mqtt_topics.h`
 - Modify: `main/app_state.c`
 
 **Interfaces:**
@@ -1878,7 +1878,7 @@ vercel --prod --yes
 - Modify: `components/appcfg/appcfg.c`, `components/appcfg/include/appcfg.h`
 - Modify: `main/Kconfig.projbuild` (broker host/port defaults)
 - Modify: `components/cloud/cloud.c`, `components/cloud/include/cloud.h` (the identity fetch)
-- Modify: `components/mqtt_ditto/mqtt_client.c`, `components/mqtt_ditto/include/mqtt_client_ditto.h`
+- Modify: `components/mqtt_ditto/mqtt_client.c`, `components/mqtt_ditto/include/mqtt_client_maratus.h`
 - Modify: `main/app_state.c`
 
 **Interfaces:**
@@ -1890,7 +1890,7 @@ vercel --prod --yes
 
 - [ ] **Step 1: Add the appcfg accessors**
 
-Follow the existing device-key pattern in `components/appcfg/appcfg.c` exactly — same NVS namespace, same NVS-then-Kconfig fallback order, same no-op-on-empty behavior in the setters. Add `DITTO_MQTT_HOST` and `DITTO_MQTT_PORT` to `main/Kconfig.projbuild` beside the existing `DITTO_*` entries, defaulting to the production broker (`e11a0b73.ala.eu-central-1.emqxsl.com`, `8883`) so a device with empty NVS still has somewhere to go.
+Follow the existing device-key pattern in `components/appcfg/appcfg.c` exactly — same NVS namespace, same NVS-then-Kconfig fallback order, same no-op-on-empty behavior in the setters. Add `MARATUS_MQTT_HOST` and `MARATUS_MQTT_PORT` to `main/Kconfig.projbuild` beside the existing `MARATUS_*` entries, defaulting to the production broker (`e11a0b73.ala.eu-central-1.emqxsl.com`, `8883`) so a device with empty NVS still has somewhere to go.
 
 - [ ] **Step 2: Add the identity fetch**
 
@@ -2384,7 +2384,7 @@ identity either way."
 
 ### Task D2: The device re-fetches identity when it cannot connect (firmware)
 
-**Repo:** `/home/meren/projects/ditto-firmware`
+**Repo:** `/home/meren/projects/maratus-firmware`
 
 **Files:**
 - Modify: `main/app_state.c`

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Rename every "receipt" → "document" across the `ditto-admin` cloud — UI, code, DB, public API, webhooks, the QR route, and the Stripe meter — with no back-compat, ending with a green build/tests and zero "receipt" remaining.
+**Goal:** Rename every "receipt" → "document" across the `maratus-admin` cloud — UI, code, DB, public API, webhooks, the QR route, and the Stripe meter — with no back-compat, ending with a green build/tests and zero "receipt" remaining.
 
 **Architecture:** An atomic rename. Because renaming the schema export + identifiers breaks all consumers until every file is updated, the rename is done in ONE pass (Task 1: scripted bulk replace + targeted manual fixups + file/dir moves + hand-written migration), then applied to prod + deployed (Task 2). A rename cannot be split into independently-building slices.
 
@@ -31,7 +31,7 @@
 - [ ] **Step 1: `git mv` the receipt-named paths**
 
 ```bash
-cd /Users/eren/Projects/ditto-admin
+cd /Users/eren/Projects/maratus-admin
 git mv lib/receipts.ts lib/documents.ts
 git mv lib/receipts-search.ts lib/documents-search.ts
 git mv lib/receipts-search.test.ts lib/documents-search.test.ts

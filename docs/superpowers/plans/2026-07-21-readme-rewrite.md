@@ -10,8 +10,8 @@
 
 ## Global Constraints
 
-- Working directory is the **main-branch worktree**: `/private/tmp/claude-501/-Users-eren-Projects-ditto-admin/51bec67c-8ce9-4c2b-bab3-498999c62807/scratchpad/readme-main` — run every command there. Do NOT touch `/Users/eren/Projects/ditto-admin` (another session is active there on `feat/pinned-qr`).
-- The product name stays **Ditto** everywhere (rename decision deferred; see `docs/naming-candidates.md`).
+- Working directory is the **main-branch worktree**: `/private/tmp/claude-501/-Users-eren-Projects-maratus-admin/51bec67c-8ce9-4c2b-bab3-498999c62807/scratchpad/readme-main` — run every command there. Do NOT touch `/Users/eren/Projects/maratus-admin` (another session is active there on `feat/pinned-qr`).
+- The product name stays **Maratus** everywhere (rename decision deferred; see `docs/naming-candidates.md`).
 - README must contain **zero** code blocks, env-var names, or npm commands.
 - Every section of the old README must exist in `docs/DEVELOPMENT.md` (no content loss).
 - Language: English.
@@ -35,14 +35,14 @@ Create `docs/DEVELOPMENT.md` whose content is, in order:
 1. This exact header block:
 
 ```markdown
-# Ditto — Development Guide
+# Maratus — Development Guide
 
-> Looking for what Ditto *is*? See the product overview in the
+> Looking for what Maratus *is*? See the product overview in the
 > [README](../README.md). This guide covers setup, architecture, and
 > internals for developers.
 
-Multi-tenant admin console for **Ditto**, a digital-document SaaS. Stores install
-printer devices that replace paper documents with a QR code customers scan. Ditto
+Multi-tenant admin console for **Maratus**, a digital-document SaaS. Stores install
+printer devices that replace paper documents with a QR code customers scan. Maratus
 no longer ingests or hosts document content — a caller triggers a device over the
 API and passes a URL to content it hosts itself; the device renders that URL as a
 QR. This repo is the admin console plus the device-facing trigger/command API —
@@ -88,9 +88,9 @@ git commit -m "docs: add DEVELOPMENT.md carrying all technical content from READ
 - [ ] **Step 1: Replace README.md with exactly this content**
 
 ```markdown
-# Ditto
+# Maratus
 
-**Ditto turns paper documents into scannable QR codes at the point of sale.**
+**Maratus turns paper documents into scannable QR codes at the point of sale.**
 
 ## The problem
 
@@ -99,27 +99,27 @@ return forms, instructions. Customers lose them, staff reprint them, and the
 paper itself is pure waste. The information was digital all along; printing it
 was only ever a delivery problem.
 
-## What Ditto does
+## What Maratus does
 
-Ditto replaces that piece of paper with a small touch-screen device that sits
+Maratus replaces that piece of paper with a small touch-screen device that sits
 on the counter. At the moment a store would have printed something, the device
 shows a QR code instead. The customer points their phone camera at it and the
 digital version opens instantly — nothing to install, nothing to type.
 
-The content itself always stays with the business: Ditto never stores or even
+The content itself always stays with the business: Maratus never stores or even
 sees what's behind the link. It simply tells the right device, at the right
 moment, to display it. For businesses this means no customer data ever has to
 leave their own systems.
 
 ## How it works
 
-1. **Unbox.** A Ditto device arrives already registered to your store — each
+1. **Unbox.** A Maratus device arrives already registered to your store — each
    unit is tracked from the factory.
 2. **Connect.** The installer joins it to the store Wi-Fi on the device's own
    screen. It recognizes itself and is ready — no codes to type, no accounts
    to create at the counter.
 3. **Trigger.** When your point-of-sale or back-office system has something
-   for the customer, it tells Ditto "show this link" — one simple request.
+   for the customer, it tells Maratus "show this link" — one simple request.
 4. **Scan.** The QR code appears on the screen, the customer scans it, and the
    device returns to its branded idle screen.
 
@@ -129,13 +129,13 @@ leave their own systems.
 in each store, how the device screens look (logo, colors, layout), their team
 members, and their credit balance.
 
-**The Ditto operations team** has its own panel to look after customers, the
+**The Maratus operations team** has its own panel to look after customers, the
 device fleet across all of them, the manufacturing inventory, and the software
 that ships to devices.
 
 ## Pricing
 
-Ditto uses prepaid credits. Each QR code successfully shown to a customer
+Maratus uses prepaid credits. Each QR code successfully shown to a customer
 costs one credit; if a display fails, nothing is charged. Store chains top up
 their balance directly in the panel, and every new customer starts with a
 credit grant to try the service.

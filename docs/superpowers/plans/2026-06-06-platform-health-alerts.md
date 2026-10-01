@@ -200,7 +200,7 @@ export function alertEmail(
   newAlerts: HealthAlert[],
 ): { subject: string; html: string } | null {
   if (newAlerts.length === 0) return null;
-  const subject = `⚠ Ditto: ${newAlerts.length} new health alert${newAlerts.length > 1 ? "s" : ""}`;
+  const subject = `⚠ Maratus: ${newAlerts.length} new health alert${newAlerts.length > 1 ? "s" : ""}`;
   const items = newAlerts
     .map((a) => `<li><strong>${a.severity.toUpperCase()}</strong>: ${a.message}</li>`)
     .join("");

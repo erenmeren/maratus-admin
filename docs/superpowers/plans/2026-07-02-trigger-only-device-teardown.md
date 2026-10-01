@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Reduce the Ditto cloud to a single device-activation path (the existing credit-metered `trigger` API, **contract unchanged**), deleting the entire document / print / R2-ingest subsystem, all Phase 3A–3C features, and the (document-only) webhook subsystem.
+**Goal:** Reduce the Maratus cloud to a single device-activation path (the existing credit-metered `trigger` API, **contract unchanged**), deleting the entire document / print / R2-ingest subsystem, all Phase 3A–3C features, and the (document-only) webhook subsystem.
 
 **Architecture:** The `trigger` endpoint and its request body stay exactly as shipped — everything that creates, stores, serves, or notifies about documents is removed around it. The `document` and `usageEvent` tables are **kept vestigial** so the billing/usage code (explicitly left alone) keeps compiling and simply meters $0.
 
@@ -438,5 +438,5 @@ git commit -m "docs: describe trigger-only device flow; remove ingest/document r
 
 - **Metric repoint plan** — repoint dashboard/analytics/report/health count-and-series queries (`lib/data.ts`, `lib/types.ts`, `components/charts.tsx`, ~12 pages) from the vestigial `document` table to trigger counts (credit ledger `kind=settle`/`action=show_qr`; `deviceCommand` `type=trigger`). Until then, those surfaces show 0.
 - **Billing pass** — retire the per-print metered-invoice model (`billing-engine.ts`, `invoice`, dunning cron, Phase 1C emails) and the vestigial `document`/`usageEvent` tables once credits are the sole model.
-- **Firmware repo (`ditto-firmware`)** — strip the now-dead receipt-render/upload/print pipeline.
+- **Firmware repo (`maratus-firmware`)** — strip the now-dead receipt-render/upload/print pipeline.
 - **Apply migration** — run `npm run db:migrate` against Neon as part of deploy.

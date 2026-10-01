@@ -119,9 +119,9 @@ git commit -m "feat: add pure member-management helpers"
         const url = `${env.BETTER_AUTH_URL}/signup?invite=${data.id}`;
         await sendEmail(
           data.email,
-          `You're invited to ${data.organization.name} on Ditto`,
+          `You're invited to ${data.organization.name} on Maratus`,
           `<p>${data.inviter.user.name} invited you to join ` +
-            `<b>${data.organization.name}</b> on Ditto.</p>` +
+            `<b>${data.organization.name}</b> on Maratus.</p>` +
             `<p><a href="${url}">Accept the invitation</a></p>`,
         );
       },

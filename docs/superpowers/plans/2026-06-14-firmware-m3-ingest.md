@@ -4,13 +4,13 @@
 
 **Goal:** Prove the full receipt lifecycle on real hardware minus ESC/POS — a tap on the idle screen uploads a bundled test PNG to `POST /api/ingest`, and the device renders the returned receipt URL as a QR code the customer scans to view the receipt.
 
-**Architecture:** Builds on the M2 `ditto-firmware` skeleton (`net`/`cloud`/`ui`/`appcfg` + `main` state machine). Adds a `cloud_post_receipt()` multipart upload, a bundled PNG asset embedded in flash, a QR + processing screen in `ui`, and a tap-to-trigger path through the existing poll/state task. No ESC/POS yet — the image is a fixed test asset (real rendering is M4).
+**Architecture:** Builds on the M2 `maratus-firmware` skeleton (`net`/`cloud`/`ui`/`appcfg` + `main` state machine). Adds a `cloud_post_receipt()` multipart upload, a bundled PNG asset embedded in flash, a QR + processing screen in `ui`, and a tap-to-trigger path through the existing poll/state task. No ESC/POS yet — the image is a fixed test asset (real rendering is M4).
 
 **Tech Stack:** ESP-IDF v5.4+, LVGL v9 (`lv_qrcode`), `esp_http_client` (manual multipart/form-data), cJSON, PSRAM (`heap_caps_malloc`). Targets the shipped M1 `/api/ingest` contract.
 
-**Testing model:** Hardware-in-the-loop, same as M2 — each task's verify step is build → flash → observe (serial / screen / phone scan / admin). Prereqs: M2 verified (device online), the BSP wired in `main/idf_component.yml`, and `DITTO_API_BASE_URL` + `DITTO_DEVICE_KEY` set.
+**Testing model:** Hardware-in-the-loop, same as M2 — each task's verify step is build → flash → observe (serial / screen / phone scan / admin). Prereqs: M2 verified (device online), the BSP wired in `main/idf_component.yml`, and `MARATUS_API_BASE_URL` + `MARATUS_DEVICE_KEY` set.
 
-**Contract reference (`ditto-admin`):** `POST /api/ingest`, `Authorization: Bearer <deviceKey>`, `multipart/form-data` with field **`file`** (the image; `Content-Type: image/png`) and optional field **`metadata`** (a JSON string). Success → **201** `{ "token": "...", "url": "{BASE}/r/{token}" }`. Image must be non-empty, ≤ 5 MB, `image/*`.
+**Contract reference (`maratus-admin`):** `POST /api/ingest`, `Authorization: Bearer <deviceKey>`, `multipart/form-data` with field **`file`** (the image; `Content-Type: image/png`) and optional field **`metadata`** (a JSON string). Success → **201** `{ "token": "...", "url": "{BASE}/r/{token}" }`. Image must be non-empty, ≤ 5 MB, `image/*`.
 
 ---
 
@@ -58,7 +58,7 @@ Add these screen builders (above `ui_init`):
 static lv_obj_t *make_processing_screen(void)
 {
     lv_obj_t *scr = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(scr, lv_color_hex(DITTO_GREEN), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(scr, lv_color_hex(MARATUS_GREEN), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, LV_PART_MAIN);
 
     lv_obj_t *label = lv_label_create(scr);
@@ -155,7 +155,7 @@ To verify the QR screen in isolation before the upload path exists, temporarily 
 - [ ] **Step 5: Build + flash + verify QR renders**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 idf.py build && idf.py -p <PORT> flash monitor
 ```
 Expected (on-device): white screen, "Scan for your receipt", a QR code. Scan it → phone opens `https://example.com/r/test`.
@@ -188,10 +188,10 @@ git commit -m "feat(firmware): processing + QR screens, tap trigger"
 Place any small valid PNG at `components/assets/test_receipt.png` (its content is arbitrary for M3 — it just has to be a real image the cloud will store and show). Generate one if you don't have one handy:
 ```bash
 # ImageMagick:
-magick -size 384x220 xc:white -gravity center -pointsize 28 -annotate 0 "DITTO TEST\nM3 receipt" \
-  /Users/eren/Projects/ditto-firmware/components/assets/test_receipt.png
+magick -size 384x220 xc:white -gravity center -pointsize 28 -annotate 0 "MARATUS TEST\nM3 receipt" \
+  /Users/eren/Projects/maratus-firmware/components/assets/test_receipt.png
 # or Python/Pillow:
-python3 -c "from PIL import Image,ImageDraw; im=Image.new('RGB',(384,220),'white'); ImageDraw.Draw(im).text((20,90),'DITTO TEST  M3 receipt',fill='black'); im.save('/Users/eren/Projects/ditto-firmware/components/assets/test_receipt.png')"
+python3 -c "from PIL import Image,ImageDraw; im=Image.new('RGB',(384,220),'white'); ImageDraw.Draw(im).text((20,90),'MARATUS TEST  M3 receipt',fill='black'); im.save('/Users/eren/Projects/maratus-firmware/components/assets/test_receipt.png')"
 ```
 Confirm it's a real PNG: `file components/assets/test_receipt.png` → `PNG image data`.
 
@@ -283,7 +283,7 @@ int cloud_post_receipt(const uint8_t *png, size_t png_len, char *url_out, int ur
     if (url_out && url_cap > 0) url_out[0] = '\0';
     if (!png || png_len == 0) return -1;
 
-    const char *boundary = "----dittoBoundaryM3xKt7Qw";
+    const char *boundary = "----maratusBoundaryM3xKt7Qw";
 
     char meta[96];
     snprintf(meta, sizeof(meta), "{\"firmwareVersion\":\"%s\"}", appcfg_fw_version());
@@ -463,6 +463,6 @@ git commit -m "feat(firmware): tap-to-ingest flow (PNG upload -> QR screen)"
 
 **Placeholder scan:** No `TODO`/`TBD` in shipped code. The only intentional temporary is the Task 1 Step 4 on-boot QR smoke line, explicitly removed in Step 6. The binary `test_receipt.png` is author-supplied (Task 2 Step 1) with two concrete generation commands — not a placeholder. BSP/lock specifics are unchanged from M2 (already reconciled).
 
-**Type/interface consistency:** `ui_show_qr(const char*)` / `ui_consume_tap(void)` (Task 1) are called verbatim in Task 4. `assets_test_png(size_t*)` (Task 2) matches its Task 4 call. `cloud_post_receipt(const uint8_t*, size_t, char*, int)` (Task 3) matches the Task 4 call site. `UI_SCREEN_PROCESSING` (existing enum, M2) is now handled in `ui_show`. The multipart field name `file` + optional `metadata` and the `201 {token,url}` parse match the verified `ditto-admin` `/api/ingest` contract.
+**Type/interface consistency:** `ui_show_qr(const char*)` / `ui_consume_tap(void)` (Task 1) are called verbatim in Task 4. `assets_test_png(size_t*)` (Task 2) matches its Task 4 call. `cloud_post_receipt(const uint8_t*, size_t, char*, int)` (Task 3) matches the Task 4 call site. `UI_SCREEN_PROCESSING` (existing enum, M2) is now handled in `ui_show`. The multipart field name `file` + optional `metadata` and the `201 {token,url}` parse match the verified `maratus-admin` `/api/ingest` contract.
 
 **Integration note (not a placeholder):** `cloud_post_receipt` reuses the `on_evt`/`resp_t` statics already defined in `cloud.c` (M2). If a future refactor moves them, this function must move with them or they must be exposed — they are file-local by design today.

@@ -1314,7 +1314,7 @@ Immediately after the `device_offline` check and **before** the `mqttEnabled()` 
   if (!gate.ok) {
     return apiError(
       "device_not_subscribed",
-      "This device has no active subscription. Contact Ditto to activate it.",
+      "This device has no active subscription. Contact Maratus to activate it.",
       403,
     );
   }
@@ -1799,7 +1799,7 @@ Add both to `app/(admin)/admin/customers/[tenantId]/page.tsx`. Remove the credit
 
 - [ ] **Step 5: Verify in the browser**
 
-Run: `npm run dev`, sign in as `admin@ditto.app` / `123456`, open a customer, and confirm: the subscription card renders, "Start subscription" creates an open invoice, "Mark paid" moves it to paid and marks devices paid.
+Run: `npm run dev`, sign in as `admin@maratus.app` / `123456`, open a customer, and confirm: the subscription card renders, "Start subscription" creates an open invoice, "Mark paid" moves it to paid and marks devices paid.
 
 - [ ] **Step 6: Typecheck, lint, commit**
 

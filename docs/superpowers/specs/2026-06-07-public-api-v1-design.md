@@ -19,7 +19,7 @@ SHA-256 hash lookup), `lib/rate-limit.ts`, `lib/storage.ts` presigned URLs, the 
 ## Motivation
 
 The admin console is feature-complete; opening a programmatic read path lets tenants integrate
-Ditto receipt data into their own systems without screen-scraping. Read-only export is the most
+Maratus receipt data into their own systems without screen-scraping. Read-only export is the most
 common and lowest-risk first API surface, and it reuses the existing read-only data layer almost
 directly.
 
@@ -166,7 +166,7 @@ view-models (which emit display labels like "Jun 1" and dollar revenue). It reus
 - **Source artifact:** a committed `openapi.json` (repo root) — an OpenAPI **3.1** document, the
   single source of truth, hand-authored. JSON (not YAML) so it imports directly and is served with
   zero new dependencies (the codebase avoids extra bundled packages — see CLAUDE.md). It covers:
-  - `info` (title "Ditto Public API", version `1.0.0`), `servers` (`{BETTER_AUTH_URL}/api/v1`).
+  - `info` (title "Maratus Public API", version `1.0.0`), `servers` (`{BETTER_AUTH_URL}/api/v1`).
   - `securitySchemes`: `bearerAuth` (HTTP bearer) applied globally.
   - All three paths with parameters, and reusable `components.schemas`: `Receipt`, `ReceiptDetail`,
     `Usage`, `ReceiptList` (data + `next_cursor`), and `Error` (`{ error: { code, message } }`).

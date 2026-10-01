@@ -1,8 +1,8 @@
-# Ditto Firmware Architecture — Design Spec (M2–M6)
+# Maratus Firmware Architecture — Design Spec (M2–M6)
 
 **Date:** 2026-06-14
 **Status:** Approved for planning
-**Repo:** new **`ditto-firmware`** (this spec lives in `ditto-admin` as the cross-cutting record).
+**Repo:** new **`maratus-firmware`** (this spec lives in `maratus-admin` as the cross-cutting record).
 **Predecessor:** `docs/superpowers/specs/2026-06-14-device-architecture-design.md` (M1, the
 cloud↔device contract — shipped). This spec details the firmware that targets that contract.
 
@@ -12,7 +12,7 @@ cloud↔device contract — shipped). This spec details the firmware that target
 
 Firmware for the Waveshare **ESP32-P4-WIFI6-Touch-LCD-4B** that turns the board into a
 digital-receipt printer: it receives an Epson **ESC/POS** print job over Wi-Fi (TCP:9100),
-renders it to a **PNG** image, uploads the image to Ditto Cloud (the M1 `/api/ingest`
+renders it to a **PNG** image, uploads the image to Maratus Cloud (the M1 `/api/ingest`
 contract), and shows the customer a **QR code** linking to the digital receipt. It also
 renders branded on-screen UI from the merchant's `PrinterConfig`, self-provisions via the
 touchscreen, and self-updates via OTA.
@@ -62,7 +62,7 @@ ESP-IDF component-per-responsibility. Adopt Waveshare's board demo as the BSP ba
 (panel + touch init), then restructure:
 
 ```
-ditto-firmware/
+maratus-firmware/
   components/
     net/        Wi-Fi (C6 via esp-hosted), connectivity mgmt, SNTP time sync
     escpos/     TCP:9100 listener + Epson parser → draw-ops   (modular, fixture-tested)
@@ -169,7 +169,7 @@ UI screen per state maps 1:1 to `PRINTER_SCREENS`. `processing`/`uploading` shar
 2. **Pairing code.** Device generates a high-entropy pairing code (stored in NVS) and
    displays it on screen. The code is an unguessable capability (treated like a receipt
    token).
-3. **Admin claims.** Merchant enters the displayed code in the Ditto dashboard and picks a
+3. **Admin claims.** Merchant enters the displayed code in the Maratus dashboard and picks a
    store. The cloud **creates-or-binds** a device record keyed by that code, binds it to the
    store, and mints the device key. *(This adjusts M1's `claimDevice`, which today expects a
    pre-existing row — it becomes create-or-bind by the device-supplied code.)*
@@ -203,7 +203,7 @@ physical proximity — acceptable for MVP scale.
 - **`tools/escpos-harness/`** — a **Node** TCP client that streams fixture byte-streams
   (captured real jobs + synthetic Epson jobs) to the device's `:9100`. Fixtures are the
   deterministic regression suite for parser + renderer. Node matches the team stack
-  (`ditto-admin` is TS) and can reuse encoding helpers.
+  (`maratus-admin` is TS) and can reuse encoding helpers.
 - **On-device validation per milestone** is the source of truth (hardware-in-the-loop). The
   `escpos`/`render`/state-machine seams are kept pure so behavior is reviewable in isolation
   and reproducible from fixtures.
@@ -229,7 +229,7 @@ physical proximity — acceptable for MVP scale.
 
 ---
 
-## 11. Cloud-side additions required (land in `ditto-admin`, folded into the M6 plan)
+## 11. Cloud-side additions required (land in `maratus-admin`, folded into the M6 plan)
 
 1. **`GET /api/device/claim?code=<code>`** — unauthenticated, code-gated; returns
    `{status:"pending"}` or `{deviceKey}` exactly once after claim. Rate-limited; pending

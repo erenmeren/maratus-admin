@@ -6,9 +6,9 @@
 
 **Architecture:** Admin converts the stored IANA timezone to a POSIX TZ string in the device-config payload. The device adds an SNTP/time module, sets `TZ` from the payload, and renders three native LVGL widgets (replacing placeholders) updated in place via a per-screen registry + a 1 Hz clock timer + an RSSI-driven wifi setter. The state→screen mapping already exists (M5a `screen_for_state`) — unchanged.
 
-**Tech Stack:** ditto-admin (TypeScript, vitest) · ditto-firmware (ESP-IDF 5.5, LVGL v9, C; host tests via `tools/cfg-harness` gcc Makefile).
+**Tech Stack:** maratus-admin (TypeScript, vitest) · maratus-firmware (ESP-IDF 5.5, LVGL v9, C; host tests via `tools/cfg-harness` gcc Makefile).
 
-**Repos:** Tasks 1–2 in `/Users/eren/Projects/ditto-admin` (branch `feat/m5c1-live-widgets`). Tasks 3–7 in `/Users/eren/Projects/ditto-firmware` (create branch `feat/m5c1-live-widgets`).
+**Repos:** Tasks 1–2 in `/Users/eren/Projects/maratus-admin` (branch `feat/m5c1-live-widgets`). Tasks 3–7 in `/Users/eren/Projects/maratus-firmware` (create branch `feat/m5c1-live-widgets`).
 
 **Spec:** `docs/superpowers/specs/2026-06-17-firmware-m5c1-live-widgets-design.md`
 
@@ -18,7 +18,7 @@
 
 ### Task 1: Admin — IANA→POSIX timezone map (TDD)
 
-**Files (ditto-admin):**
+**Files (maratus-admin):**
 - Create: `lib/posix-tz.ts`
 - Test: `lib/posix-tz.test.ts`
 
@@ -113,7 +113,7 @@ git commit -m "feat: IANA->POSIX timezone map for device config"
 
 ### Task 2: Admin — send POSIX TZ in the device config payload
 
-**Files (ditto-admin):**
+**Files (maratus-admin):**
 - Modify: `lib/data.ts` (the `getDeviceConfig` function, near `const config = normalizePrinterConfig(...)` and the `return { ... payload: { ... config } }`)
 
 - [ ] **Step 1: Add the import**
@@ -153,13 +153,13 @@ git commit -m "feat: device config payload sends POSIX TZ for the clock"
 
 ### Task 3: Firmware — `format_clock` pure helper (TDD, host-tested)
 
-**Files (ditto-firmware):**
+**Files (maratus-firmware):**
 - Create: `components/devcfg/clock_format.c`, `components/devcfg/include/clock_format.h`
 - Modify: `tools/cfg-harness/Makefile` (add the new source), `tools/cfg-harness/test_cfg.c` (add `test_clock`)
 
 First create the firmware branch:
 ```bash
-cd /Users/eren/Projects/ditto-firmware && git checkout main && git checkout -b feat/m5c1-live-widgets
+cd /Users/eren/Projects/maratus-firmware && git checkout main && git checkout -b feat/m5c1-live-widgets
 ```
 
 - [ ] **Step 1: Write the header**
@@ -216,7 +216,7 @@ Add the new source to `tools/cfg-harness/Makefile`: append `clock_format.c` to t
 
 - [ ] **Step 3: Run the host test to verify it fails**
 
-Run: `cd /Users/eren/Projects/ditto-firmware/tools/cfg-harness && make test`
+Run: `cd /Users/eren/Projects/maratus-firmware/tools/cfg-harness && make test`
 Expected: FAIL to compile/link — `format_clock` / `clock_format.h` not found (or undefined reference).
 
 - [ ] **Step 4: Implement `components/devcfg/clock_format.c`**
@@ -257,13 +257,13 @@ void format_clock(const struct tm *tm, bool h24, bool date, bool weekday,
 
 - [ ] **Step 5: Run the host test to verify it passes**
 
-Run: `cd /Users/eren/Projects/ditto-firmware/tools/cfg-harness && make test`
+Run: `cd /Users/eren/Projects/maratus-firmware/tools/cfg-harness && make test`
 Expected: PASS — output includes `test_clock OK` and `ALL TESTS PASSED`.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 git add components/devcfg/clock_format.c components/devcfg/include/clock_format.h tools/cfg-harness/Makefile tools/cfg-harness/test_cfg.c
 git commit -m "feat(firmware): pure format_clock helper + host test"
 ```
@@ -272,7 +272,7 @@ git commit -m "feat(firmware): pure format_clock helper + host test"
 
 ### Task 4: Firmware — `time_sync` component (SNTP + TZ)
 
-**Files (ditto-firmware):**
+**Files (maratus-firmware):**
 - Create: `components/time_sync/time_sync.c`, `components/time_sync/include/time_sync.h`, `components/time_sync/CMakeLists.txt`
 
 - [ ] **Step 1: Create the header**
@@ -346,7 +346,7 @@ idf_component_register(SRCS "time_sync.c"
 
 - [ ] **Step 4: Build to verify it compiles**
 
-Run: `cd /Users/eren/Projects/ditto-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
+Run: `cd /Users/eren/Projects/maratus-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
 Expected: build succeeds (the new component compiles; it isn't called yet).
 
 - [ ] **Step 5: Commit**
@@ -360,7 +360,7 @@ git commit -m "feat(firmware): time_sync component (SNTP + POSIX TZ)"
 
 ### Task 5: Firmware — live clock/wifi/spinner widgets in `ui.c`
 
-**Files (ditto-firmware):**
+**Files (maratus-firmware):**
 - Modify: `components/ui/ui.c` (widget statics, `ui_render_state` cleanup, `build_screen` switch, new render fns, `ui_set_wifi_level`), `components/ui/include/ui.h` (declare `ui_set_wifi_level`), `components/ui/CMakeLists.txt` (add `time_sync` + `devcfg` to REQUIRES if not already present)
 
 - [ ] **Step 1: Declare the setter in `ui.h`**
@@ -513,7 +513,7 @@ In `components/ui/CMakeLists.txt`, confirm `REQUIRES` includes `devcfg` (for `cl
 
 - [ ] **Step 8: Build**
 
-Run: `cd /Users/eren/Projects/ditto-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
+Run: `cd /Users/eren/Projects/maratus-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
 Expected: build succeeds.
 
 - [ ] **Step 9: Commit**
@@ -527,7 +527,7 @@ git commit -m "feat(firmware): live clock/wifi/spinner widgets + ui_set_wifi_lev
 
 ### Task 6: Firmware — wire SNTP start, TZ apply, and RSSI poll
 
-**Files (ditto-firmware):**
+**Files (maratus-firmware):**
 - Modify: `main/app_state.c` (poll task), `main/CMakeLists.txt` (REQUIRES `time_sync` if main lists component deps explicitly)
 
 - [ ] **Step 1: Add includes + RSSI bucket helper**
@@ -576,12 +576,12 @@ If `main/CMakeLists.txt` lists `REQUIRES`/`PRIV_REQUIRES`, add `time_sync` and e
 
 - [ ] **Step 5: Build**
 
-Run: `cd /Users/eren/Projects/ditto-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
+Run: `cd /Users/eren/Projects/maratus-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
 Expected: build succeeds.
 
 - [ ] **Step 6: Run the full host test suite (regression)**
 
-Run: `cd /Users/eren/Projects/ditto-firmware/tools/cfg-harness && make test`
+Run: `cd /Users/eren/Projects/maratus-firmware/tools/cfg-harness && make test`
 Expected: PASS — `test_clock OK` plus the existing `test_parse/test_geom/test_zsort/test_map/test_asset_key/test_asset_evict` and `ALL TESTS PASSED`.
 
 - [ ] **Step 7: Commit**

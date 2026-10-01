@@ -1,4 +1,4 @@
-# Ditto Device Architecture — Design Spec
+# Maratus Device Architecture — Design Spec
 
 **Date:** 2026-06-14
 **Status:** Approved for planning
@@ -10,10 +10,10 @@ contract lands.
 
 ## 1. Summary
 
-Ditto's hardware is a Waveshare **ESP32-P4-WIFI6-Touch-LCD-4B** (720×720 1:1 4" touch LCD;
+Maratus's hardware is a Waveshare **ESP32-P4-WIFI6-Touch-LCD-4B** (720×720 1:1 4" touch LCD;
 ESP32-P4 RISC-V compute + an ESP32-C6 co-processor for the Wi-Fi 6 radio). The device
 replaces a paper receipt printer: it accepts a print job, renders it, uploads the rendered
-image to Ditto Cloud, and shows the customer a QR code that links to the digital receipt.
+image to Maratus Cloud, and shows the customer a QR code that links to the digital receipt.
 
 This spec defines the **end-to-end architecture** for getting the primary product working
 and specifies the **cloud-side contract (M1)** that the firmware will build against.
@@ -28,7 +28,7 @@ and specifies the **cloud-side contract (M1)** that the firmware will build agai
 | Cloud responsibility | Store image, manage transaction + QR | Cloud treats the receipt image as opaque bytes. |
 | Firmware stack | **ESP-IDF (C) + LVGL** | Only stack with solid ESP32-P4 + C6-radio (esp-hosted) support; Waveshare ships an ESP-IDF BSP + LVGL. |
 | Transaction model | **One model, two sources** (`device`, `cloud`) | Both ingestion paths converge on the existing `receipt` row. |
-| Repos | Cloud in `ditto-admin`; firmware in new **`ditto-firmware`** | Separate lifecycles; this spec is the cross-cutting contract and lives in `ditto-admin`. |
+| Repos | Cloud in `maratus-admin`; firmware in new **`maratus-firmware`** | Separate lifecycles; this spec is the cross-cutting contract and lives in `maratus-admin`. |
 | Cloud-ingested path | **Deferred** (stub only) | Secondary integration for future POS partners; simple polling later, no push now. |
 
 ---
@@ -67,7 +67,7 @@ heartbeat; acks via `POST /api/device/commands/ack`.
 
 ## 4. Milestone M1 — Cloud↔device contract (this spec, full detail)
 
-All M1 work lands in `ditto-admin`. M1 is fully testable with `curl` and the existing test
+All M1 work lands in `maratus-admin`. M1 is fully testable with `curl` and the existing test
 suite — **no hardware required.**
 
 ### 4.1 Unify the transaction model
@@ -139,7 +139,7 @@ Fills the current gap — there is no way for a device to fetch its display layo
 
 ## 5. Firmware architecture outline (M2–M6, own spec later)
 
-New repo **`ditto-firmware`**, ESP-IDF + LVGL. Modules, each independently testable:
+New repo **`maratus-firmware`**, ESP-IDF + LVGL. Modules, each independently testable:
 
 - **`net/`** — Wi-Fi via the C6 radio (esp-hosted), connectivity management, SNTP time sync.
 - **`escpos/`** — TCP:9100 listener + ESC/POS parser → internal drawing commands. *The

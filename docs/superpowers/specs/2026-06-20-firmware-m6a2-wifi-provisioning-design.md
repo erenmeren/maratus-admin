@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-20
 **Status:** Approved (design); implementation plan to follow.
-**Repo:** ditto-firmware (device only — no cloud changes). Continues
+**Repo:** maratus-firmware (device only — no cloud changes). Continues
 `2026-06-18-firmware-m6a-provisioning-design.md` (M6a claim flow shipped 2026-06-20).
 
 ## Goal
@@ -84,7 +84,7 @@ Rejected alternative: driving `net_scan`/`net_connect` from LVGL event callbacks
     with resolved creds) for the normal path, or app_main orchestrates init+connect.
 - **`appcfg`**: `appcfg_wifi_ssid()` / `appcfg_wifi_password()` (NVS key `wifi_ssid` /
   `wifi_pass`, Kconfig fallback), `appcfg_store_wifi_creds(ssid, pass)`,
-  `appcfg_has_wifi_creds()`. Same `"ditto"` NVS namespace + helpers as the device key.
+  `appcfg_has_wifi_creds()`. Same `"maratus"` NVS namespace + helpers as the device key.
 - **`ui_wifi`** (new file in the `ui` component): the interactive screen + setters/consumers
   above. Uses the embedded fonts + brand defaults already available.
 - **pure `wifi_util`** (`components/devcfg`, host-tested): `wifi_util_dedupe_sort(aps, n)` —

@@ -16,7 +16,7 @@
 
 *Tarih: 2026-07-21 · Durum: ~~karar verilmedi~~ → **karar verildi 2026-08-24: Maratus** (yukarıya bak). Aşağısı araştırma arşividir.*
 
-Bağlam: Ürün pivotu sonrası "Ditto" adı gözden geçiriliyor. Yeni öz: cihaz yalnızca
+Bağlam: Ürün pivotu sonrası "Maratus" adı gözden geçiriliyor. Yeni öz: cihaz yalnızca
 tetiklenme ile çalışır; tetikleyen, QR üzerinden karşıdakine **istediği her içeriği**
 gösterebilir (doküman zorunluluğu yok). İsteklerim: mitoloji bağı + startup havası.
 

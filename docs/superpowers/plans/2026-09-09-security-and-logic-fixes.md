@@ -258,7 +258,7 @@ git commit -m "fix(auth): pin reset/verify callbacks, lock HTTP sign-up, disable
 - Produces: `isTenantImageKey(organizationId: string, key: string): boolean` in `lib/asset-keys.ts`.
 - Consumes: `imageStorageKey` shape `branding/${organizationId}/images/${assetId}` (`lib/storage.ts:96-101`), `isDirectAssetUrl` (`lib/data.ts:1423`).
 
-Background: `sanitizeImage` (`lib/printer-layout.ts:429-433`) keeps any string as `image.url`; `saveBranding` persists non-`pending:` URLs verbatim, later presigns them for the browser and deletes "orphaned" previous keys with `deleteObject(k)` — no prefix check. A tenant owner can therefore presign-download and then delete any bucket object (e.g. `firmware/0.19.1/ditto-firmware.bin`). Do not import `lib/storage.ts` into the new helper (it builds an S3 client at module load).
+Background: `sanitizeImage` (`lib/printer-layout.ts:429-433`) keeps any string as `image.url`; `saveBranding` persists non-`pending:` URLs verbatim, later presigns them for the browser and deletes "orphaned" previous keys with `deleteObject(k)` — no prefix check. A tenant owner can therefore presign-download and then delete any bucket object (e.g. `firmware/0.19.1/maratus-firmware.bin`). Do not import `lib/storage.ts` into the new helper (it builds an S3 client at module load).
 
 - [ ] **Step 1: Write the failing test**
 
@@ -276,7 +276,7 @@ describe("isTenantImageKey", () => {
     expect(isTenantImageKey(org, "branding/org_zzz/images/image_x1")).toBe(false);
   });
   it("rejects firmware and other bucket paths", () => {
-    expect(isTenantImageKey(org, "firmware/0.19.1/ditto-firmware.bin")).toBe(false);
+    expect(isTenantImageKey(org, "firmware/0.19.1/maratus-firmware.bin")).toBe(false);
     expect(isTenantImageKey(org, "logos/org_abc/l1")).toBe(false);
   });
   it("rejects traversal, empty segments and a bare prefix", () => {

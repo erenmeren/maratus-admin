@@ -17,7 +17,7 @@
 - Device-facing flows must never block on Stripe: all subscription-sync calls are try/caught and logged (fail-open), matching the payment-enforcement precedent.
 - Spec constants: fair-use = 300,000 triggers/device/month; default included quota (Track C) = 2,000 triggers/device/month; plan default = `credits`.
 - Legacy behavior is the default: an org with `billingPlan = 'credits'` must behave byte-for-byte as today (402 on insufficient credits, hold/settle/release unchanged).
-- Adaptive polling (12s open-hours / 60s closed) is **firmware work in the ditto-firmware repo — out of scope for this plan**; plan it separately.
+- Adaptive polling (12s open-hours / 60s closed) is **firmware work in the maratus-firmware repo — out of scope for this plan**; plan it separately.
 - Out of scope, per spec: Stripe webhook handling of subscription lifecycle (payment failure → suspension), TRY invoicing, reseller pricing.
 
 ---
@@ -1170,6 +1170,6 @@ git commit -m "feat(billing): per-device monthly usage visibility on tenant bill
 ## Deploy checklist (explicit user-approved steps — NOT part of task execution)
 
 1. Apply migration 0032 to Neon (`npm run db:migrate`) — **user approval required; .env.local is PROD**.
-2. Create the two per-device monthly recurring prices in Stripe (test mode first): "Ditto Flat Fleet" and "Ditto Base"; set `STRIPE_FLAT_PRICE_ID` / `STRIPE_BASE_PRICE_ID` in Vercel env (all environments) and `.env.local`.
+2. Create the two per-device monthly recurring prices in Stripe (test mode first): "Maratus Flat Fleet" and "Maratus Base"; set `STRIPE_FLAT_PRICE_ID` / `STRIPE_BASE_PRICE_ID` in Vercel env (all environments) and `.env.local`.
 3. Smoke: seed org stays on `credits` (unchanged behavior); flip a test org to `base_usage` with quota 2, fire 3 triggers → 2 `included` + 1 credit hold; flip to `flat` → all `included`, no credit movement; check Stripe test-mode subscription quantity follows a claim.
 4. Deploy to production; verify `/api/cron/health` response includes the `subs` sync summary.

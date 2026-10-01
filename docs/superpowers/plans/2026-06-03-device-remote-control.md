@@ -621,7 +621,7 @@ export function CommandBar({ deviceId }: { deviceId: string }) {
 - [ ] **Step 3: Protocol doc** `docs/device-protocol.md`:
 
 ```markdown
-# Ditto Device Protocol
+# Maratus Device Protocol
 
 All device endpoints authenticate with the device key:
 `Authorization: Bearer <deviceKey>` (issued once at claim). Optional header

@@ -2,17 +2,17 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Bring the ESP32-P4 firmware from "display-only on ESP-IDF 5.4.4" to "full cloud printer" — migrate to ESP-IDF 5.5, enable the ESP32-C6 Wi-Fi over **SDIO** (esp_hosted), re-verify the display still renders, then re-enable networking and prove the device associates to Wi-Fi and reaches Ditto Cloud (online, config, ingest).
+**Goal:** Bring the ESP32-P4 firmware from "display-only on ESP-IDF 5.4.4" to "full cloud printer" — migrate to ESP-IDF 5.5, enable the ESP32-C6 Wi-Fi over **SDIO** (esp_hosted), re-verify the display still renders, then re-enable networking and prove the device associates to Wi-Fi and reaches Maratus Cloud (online, config, ingest).
 
 **Architecture:** Staged, hardware-in-the-loop migration. Each stage builds → flashes → verifies on the physical board, with an explicit success gate and rollback point. The display subsystem is re-validated on 5.5 **before** networking is touched, so a regression is attributed to the right cause. Wi-Fi uses esp_hosted's SDIO transport to the on-board C6; the root cause of the 5.4.4 failure (esp_wifi_remote's slave-select Kconfig not sourced → co-proc target defaulted to ESP32-H2 → SPI → crash) is resolved by 5.5, where `SLAVE_IDF_TARGET_ESP32C6` is selected (the Waveshare `brookesia` demo proves display+Wi-Fi on 5.5, same board).
 
-**Tech Stack:** ESP-IDF **5.5**, Waveshare `esp32_p4_wifi6_touch_lcd_4b` BSP (ST7703 MIPI-DSI panel), `esp_wifi_remote` + `esp_hosted` (C6 over SDIO), LVGL v9 + `esp_lvgl_port`, the M1 cloud contract (`/api/device/*`). Repo: `~/Projects/ditto-firmware`.
+**Tech Stack:** ESP-IDF **5.5**, Waveshare `esp32_p4_wifi6_touch_lcd_4b` BSP (ST7703 MIPI-DSI panel), `esp_wifi_remote` + `esp_hosted` (C6 over SDIO), LVGL v9 + `esp_lvgl_port`, the M1 cloud contract (`/api/device/*`). Repo: `~/Projects/maratus-firmware`.
 
 **Testing model (read this — same as prior firmware milestones):** Hardware-in-the-loop. There are no host unit tests; each stage's gate is **build → flash → observe on-device**. Two device-handling facts learned in M2–M5 bring-up that this plan depends on:
 - **Flashing:** use the **USB-to-UART** Type-C port. `idf.py -p <port> flash` works (auto-reset). If a flash ever fails to connect, enter download mode manually: unplug → hold `BOOT` → replug → release after ~2s; the port **re-enumerates** to a new `/dev/cu.usbmodem*` name (rediscover with `ls`).
 - **Reading logs:** `idf.py monitor` drives this board's DTR/RTS and traps it in download mode — **do not use it**. Read the UART0 console passively instead (script in the Appendix), holding DTR/RTS low for normal boot.
 
-**Starting point:** `main` of `ditto-firmware` builds + flashes on IDF 5.4.4 and boots to the "Ditto Ready" idle screen; networking is `#if 0` in `main/app_main.c`; touch is skipped via `tools/patch-deps.sh`. That commit is the rollback anchor.
+**Starting point:** `main` of `maratus-firmware` builds + flashes on IDF 5.4.4 and boots to the "Maratus Ready" idle screen; networking is `#if 0` in `main/app_main.c`; touch is skipped via `tools/patch-deps.sh`. That commit is the rollback anchor.
 
 ---
 
@@ -36,7 +36,7 @@ Check these before/while building Stage 2; each has a likely fix:
 - [x] **Step 1: Confirm the working baseline** — clean tree on `main` at `767597a` (display-only).
 
 ```bash
-cd ~/Projects/ditto-firmware
+cd ~/Projects/maratus-firmware
 git status --short            # expect clean
 git log --oneline -1          # expect the display-only commit (767597a-ish)
 ```
@@ -96,7 +96,7 @@ This re-validates the display BEFORE networking is reintroduced. Networking stay
 - [x] **Step 1: Clean everything (force fresh dependency resolution for 5.5)** — done on IDF v5.5.4.
 
 ```bash
-cd ~/Projects/ditto-firmware
+cd ~/Projects/maratus-firmware
 source ~/esp/esp-idf-v5.5/export.sh
 rm -rf build managed_components dependencies.lock sdkconfig
 idf.py set-target esp32p4
@@ -126,14 +126,14 @@ idf.py build 2>&1 | grep -E "Project build complete|error:|FAILED"
 ```
 Expected: `Project build complete.`
 
-- [x] **Step 5: Flash + verify the display still renders on 5.5** — confirmed on hardware: green "Ditto / Ready" idle screen renders, identical to 5.4.4.
+- [x] **Step 5: Flash + verify the display still renders on 5.5** — confirmed on hardware: green "Maratus / Ready" idle screen renders, identical to 5.4.4.
 
 ```bash
 ls /dev/cu.usbmodem*                       # note the port
 idf.py -p <PORT> flash
 ```
 Then read the boot log passively (Appendix script) and **look at the LCD**.
-Expected: serial shows `Ditto firmware boot`, `touch disabled`, `Idle screen shown`, `display bring-up mode`; **LCD shows the green "Ditto / Ready" idle screen**; exactly **1** boot banner (no reboot loop / WDT / abort).
+Expected: serial shows `Maratus firmware boot`, `touch disabled`, `Idle screen shown`, `display bring-up mode`; **LCD shows the green "Maratus / Ready" idle screen**; exactly **1** boot banner (no reboot loop / WDT / abort).
 
 **Success criteria:** display-only firmware builds + boots + renders the idle screen on IDF 5.5, identical to the 5.4.4 behavior.
 **Rollback:** if display regresses on 5.5 and can't be fixed quickly, `git checkout main` + reflash on 5.4.4 (display-only stays shippable). Record the 5.5 display break before reverting.
@@ -222,7 +222,7 @@ In `main/app_main.c`, remove the `#if 0` / `#endif` around the networking block 
 - [x] **Step 2: Set real Wi-Fi credentials** — set directly in gitignored `sdkconfig` (menuconfig is interactive; the build picks them up). Tested on two 2.4GHz APs.
 
 ```bash
-idf.py menuconfig    # Ditto firmware (dev) -> DITTO_WIFI_SSID + DITTO_WIFI_PASSWORD
+idf.py menuconfig    # Maratus firmware (dev) -> MARATUS_WIFI_SSID + MARATUS_WIFI_PASSWORD
 ```
 (Use a 2.4GHz-capable network the C6 can join.)
 
@@ -233,20 +233,20 @@ idf.py build && ./tools/patch-deps.sh && idf.py build
 ls /dev/cu.usbmodem* ; idf.py -p <PORT> flash
 ```
 
-- [x] **Step 4: Verify SDIO init + association (passive serial read)** — ✅ all expected markers seen: `Identified slave [esp32c6]`, `Card init success`, `net: got IP`, `ditto: Wi-Fi connected=1`, sustained cloud polls (404 on placeholder URL = Task 6). See the stability note below — getting here required two additional fixes beyond the plan.
+- [x] **Step 4: Verify SDIO init + association (passive serial read)** — ✅ all expected markers seen: `Identified slave [esp32c6]`, `Card init success`, `net: got IP`, `maratus: Wi-Fi connected=1`, sustained cloud polls (404 on placeholder URL = Task 6). See the stability note below — getting here required two additional fixes beyond the plan.
 
 Read the boot log (Appendix). Expected, in order:
-- `Ditto firmware boot`, `Idle screen shown` (display still up — dot grey initially).
+- `Maratus firmware boot`, `Idle screen shown` (display still up — dot grey initially).
 - esp_hosted SDIO bring-up logs (NO `spi_drv.c` / `mempool create failed` assert, NO reboot loop).
 - `net: connecting to SSID '<your ssid>'` then `net: got IP`.
-- `ditto: Wi-Fi connected=1`.
+- `maratus: Wi-Fi connected=1`.
 - The idle-screen status dot turns **green** (`ui_set_online(true)` once the poll succeeds).
 
 **Success criteria:** device brings up the C6 over SDIO without crashing and obtains an IP (`got IP`, `connected=1`); 1 boot banner, no WDT/abort. ✅ **MET** (stable, 0 reboots over 30s+ with sustained polling).
 **Rollback:** if SDIO init crashes or never associates, re-wrap networking in `#if 0`, rebuild/flash → back to the working display-only build on 5.5. Capture the failing serial log first (SDIO timeout vs association failure vs auth failure) — that pinpoints pins/firmware vs credentials.
 
 > **⚠️ Two fixes beyond the plan were required to reach a STABLE link (see commits + `firmware-m-wifi-idf55-status` memory):**
-> 1. **C6 slave firmware was stale.** The board shipped the C6 with esp_hosted slave fw v0.0.6 (reports `0.0.0`) vs host 2.12.9. Updated it to 2.12.9 via host-driven **LittleFS slave-OTA over SDIO** (built `~/Projects/ditto-c6-slave`, pushed with `~/Projects/ditto-c6-ota`). Necessary, but did NOT fix stability on its own.
+> 1. **C6 slave firmware was stale.** The board shipped the C6 with esp_hosted slave fw v0.0.6 (reports `0.0.0`) vs host 2.12.9. Updated it to 2.12.9 via host-driven **LittleFS slave-OTA over SDIO** (built `~/Projects/maratus-c6-slave`, pushed with `~/Projects/maratus-c6-ota`). Necessary, but did NOT fix stability on its own.
 > 2. **SDIO mempool placement.** The real instability (`H_SDIO_DRV: Failed to send data: 258` → `Unrecoverable host sdio state` → restart loop, only under active RF) was the transport mempool living in **PSRAM** (`MEMPOOL_PREFER_SPIRAM`, added in Task 3 to dodge a boot OOM). PSRAM-DMA is unreliable for SDIO under RF; **internal DMA RAM is stable** (proven vs the brookesia demo). Fix: drop `MEMPOOL_PREFER_SPIRAM` + shrink `ESP_HOSTED_SDIO_TX/RX_Q_SIZE` to 6 so the ~26KB pool fits in internal RAM. The earlier 20MHz SDIO clock drop was a red herring (reverted to 40MHz).
 
 - [x] **Step 5: Commit** — committed on `m-wifi-idf55`: networking re-enable + disconnect-reason logging, then the SDIO stability fix.
@@ -261,16 +261,16 @@ git commit -m "feat(firmware): re-enable networking — C6 SDIO Wi-Fi associatio
 ### Task 6: Cloud connectivity validation (online + config + ingest)
 
 **Files:**
-- Modify: (via `idf.py menuconfig`) `DITTO_API_BASE_URL`, `DITTO_DEVICE_KEY`
+- Modify: (via `idf.py menuconfig`) `MARATUS_API_BASE_URL`, `MARATUS_DEVICE_KEY`
 
-- [x] **Step 1: Obtain a device key from ditto-admin** — provisioned via admin "Add device" (pairing code) + tenant "Claim printer" (raw key `dvk_…`, shown once). Prod URL `https://ditto-admin-brown.vercel.app`.
+- [x] **Step 1: Obtain a device key from maratus-admin** — provisioned via admin "Add device" (pairing code) + tenant "Claim printer" (raw key `dvk_…`, shown once). Prod URL `https://ditto-admin-brown.vercel.app`.
 
-In `ditto-admin`: `npm run db:seed`, then claim a device in the admin UI (the raw 40-char key shows once) — or insert a `device` row with `device_key_hash` = SHA-256 of a chosen key. Note the org's base URL (the production Vercel URL).
+In `maratus-admin`: `npm run db:seed`, then claim a device in the admin UI (the raw 40-char key shows once) — or insert a `device` row with `device_key_hash` = SHA-256 of a chosen key. Note the org's base URL (the production Vercel URL).
 
-- [x] **Step 2: Configure cloud endpoint + key** — set `DITTO_API_BASE_URL` + `DITTO_DEVICE_KEY` in gitignored `sdkconfig`, rebuilt + flashed.
+- [x] **Step 2: Configure cloud endpoint + key** — set `MARATUS_API_BASE_URL` + `MARATUS_DEVICE_KEY` in gitignored `sdkconfig`, rebuilt + flashed.
 
 ```bash
-idf.py menuconfig    # Ditto firmware (dev) -> DITTO_API_BASE_URL (prod URL) + DITTO_DEVICE_KEY (raw key)
+idf.py menuconfig    # Maratus firmware (dev) -> MARATUS_API_BASE_URL (prod URL) + MARATUS_DEVICE_KEY (raw key)
 idf.py build && idf.py -p <PORT> flash
 ```
 
@@ -279,7 +279,7 @@ idf.py build && idf.py -p <PORT> flash
 Expected (serial):
 - `cloud: GET /commands -> 200, body: {"commands":[...]}`.
 - `cloud: config updated (N texts)` (the `GET /api/device/config` fetch) — and the **idle screen repaints** with the org's branding.
-Expected (admin UI): the device shows **online** with `firmwareVersion` from `DITTO_FW_VERSION`.
+Expected (admin UI): the device shows **online** with `firmwareVersion` from `MARATUS_FW_VERSION`.
 
 - [x] **Step 4: Verify command + receipt round-trips** — ✅ both. `identify` → admin shows **acked**. Receipt ingest end-to-end: streamed `text-receipt.escpos` to `:9100` → `parsed 24 ops` → `rendered 576x438 -> PNG 252809 bytes` → `POST /ingest -> 201` (token+URL) → public receipt page resolves HTTP 200 with the Roastwell receipt + presigned R2 image.
 
@@ -344,6 +344,6 @@ Run: `python tools/read-console.py 12` (reads ~12s). To capture a fresh boot, ta
 
 **Placeholder scan:** No `TODO`/`TBD`. The genuinely-can't-predict parts (exact 5.4→5.5 vendored API breaks) are framed as "build → observe the compile error → patch via patch-deps.sh (mirroring existing entries)" with the concrete fix pattern, not a vague placeholder — this is honest about a migration's nature. Credentials (SSID/key/URL) are user-supplied by design, with exact menuconfig paths.
 
-**Consistency:** Symbols match the codebase — `net_start`/`net_is_connected`, `app_state_run`/`app_state_request_config`, `cloud_set_config_changed_cb`, `escpos_server_start(render_job_handle)`, `render_job_handle`, `DITTO_WIFI_SSID/PASSWORD/API_BASE_URL/DEVICE_KEY/FW_VERSION`, `tools/patch-deps.sh`, `tools/escpos-harness/` all exist as referenced. The sdkconfig keys (`SLAVE_IDF_TARGET_ESP32C6`, `ESP_HOSTED_CP_TARGET_ESP32C6`, `ESP_HOSTED_SDIO_HOST_INTERFACE`) match the esp_hosted Kconfig observed during investigation. The `#if 0` networking block matches the current `app_main.c`.
+**Consistency:** Symbols match the codebase — `net_start`/`net_is_connected`, `app_state_run`/`app_state_request_config`, `cloud_set_config_changed_cb`, `escpos_server_start(render_job_handle)`, `render_job_handle`, `MARATUS_WIFI_SSID/PASSWORD/API_BASE_URL/DEVICE_KEY/FW_VERSION`, `tools/patch-deps.sh`, `tools/escpos-harness/` all exist as referenced. The sdkconfig keys (`SLAVE_IDF_TARGET_ESP32C6`, `ESP_HOSTED_CP_TARGET_ESP32C6`, `ESP_HOSTED_SDIO_HOST_INTERFACE`) match the esp_hosted Kconfig observed during investigation. The `#if 0` networking block matches the current `app_main.c`.
 
 **Risk notes:** (a) IDF 5.5 may surface a few vendored `esp_lcd` API deltas at Stage 3 (display) — re-verified before networking precisely to localize them. (b) If `SLAVE_IDF_TARGET_ESP32C6` still doesn't select on 5.5, Task 4 Step 3 has the menuconfig fallback + diagnosis. (c) C6 assumed pre-flashed with esp_hosted slave firmware (brookesia relies on it); if SDIO inits but never associates, that assumption is the suspect.

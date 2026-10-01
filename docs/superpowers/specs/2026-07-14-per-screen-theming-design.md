@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-14
 **Status:** Approved (brainstormed with owner; approach 1 of 3 selected)
-**Scope:** Cloud only (admin studio + preview + device contract). Firmware rendering of per-screen colors is a separate ditto-firmware milestone.
+**Scope:** Cloud only (admin studio + preview + device contract). Firmware rendering of per-screen colors is a separate maratus-firmware milestone.
 
 ## Problem
 
@@ -18,7 +18,7 @@ impossible.
 |---|---|
 | Override granularity | Full palette per screen (all 4 tokens: accent, bg, fg, muted) |
 | Mode model | Global palette is the default; each screen may opt into an explicit override ("use custom colors for this screen"); turning the override off reverts the screen to global |
-| Firmware rollout | Cloud ships first with a forward-compatible payload; old firmware ignores the new field and keeps rendering the global palette; a later ditto-firmware milestone consumes it |
+| Firmware rollout | Cloud ships first with a forward-compatible payload; old firmware ignores the new field and keeps rendering the global palette; a later maratus-firmware milestone consumes it |
 | UI placement | Theme tab, below the (renamed) global colors section, scoped to the active screen selected via the filmstrip |
 | Data location | Inside the `printerScreens` jsonb, on each screen entry (`screens[s].colors`) — no DB migration |
 

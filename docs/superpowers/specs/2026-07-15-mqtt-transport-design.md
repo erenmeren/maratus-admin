@@ -3,7 +3,7 @@
 **Date:** 2026-07-15
 **Status:** Approved (brainstorm complete)
 **Scope:** Full cloud implementation + the MQTT contract the firmware must
-implement. Firmware implementation is planned separately in a ditto-firmware
+implement. Firmware implementation is planned separately in a maratus-firmware
 session with this document as input.
 **Supersedes:** the "MQTT/push explicitly rejected" constraint in
 `2026-07-12-adaptive-polling-design.md`. That spec's night-window mechanism is
@@ -179,7 +179,7 @@ Data Integration webhooks, TLS listener) is documented as a runbook in
 1. Ship cloud changes — no-op without env, zero behavior change.
 2. Create the EMQX account, configure auth + webhooks (runbook), add prod
    env vars; validate end-to-end with the desk test device (b580).
-3. ditto-firmware session: esp-mqtt milestone using this contract; HIL; then
+3. maratus-firmware session: esp-mqtt milestone using this contract; HIL; then
    OTA to the fleet.
 4. Old firmware is never affected.
 
@@ -196,7 +196,7 @@ Data Integration webhooks, TLS listener) is documented as a runbook in
 ## Out of scope
 
 - Firmware implementation details (esp-mqtt task architecture) — separate
-  ditto-firmware plan.
+  maratus-firmware plan.
 - Retiring the HTTP polling endpoints (kept indefinitely as fallback).
 - Admin UI "transport" indicator (nice-to-have; revisit after rollout).
 - Org-visible latency SLAs or per-tenant broker isolation.

@@ -1,7 +1,7 @@
 # Phase 2C — Audit-Log UI Polish — Design
 
 **Date:** 2026-06-28
-**Repo:** `ditto-admin`
+**Repo:** `maratus-admin`
 **Status:** Approved design, pre-implementation
 **Phase:** 2 ("feature expansion"), sub-project **2C** (last). Builds on 2A/2B (both merged). **Completes Phase 2.**
 

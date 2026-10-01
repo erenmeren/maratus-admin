@@ -9,7 +9,7 @@
 **Tech Stack:** ESP32-P4, ESP-IDF 5.5, LVGL 9.3, C11. Pure logic host-tested via `tools/cfg-harness` (`make test`); UI verified on hardware.
 
 ## Global Constraints
-- Repo **ditto-firmware**, branch **`feat/swipe-up-settings`**. Never commit on `main`.
+- Repo **maratus-firmware**, branch **`feat/swipe-up-settings`**. Never commit on `main`.
 - Build: `. ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`; if kconfig complains, `export ESP_IDF_VERSION=5.5` (NEVER 5.5.4 — breaks Wi-Fi transport, see BUILD.md). Do NOT modify sdkconfig/Kconfig.
 - Host tests: `cd tools/cfg-harness && make test` → `ALL TESTS PASSED`.
 - Pure override logic lives in `components/devcfg/overrides.{c,h}` with NO esp/NVS/LVGL deps (host-testable), mirroring `sleep_policy.c`.

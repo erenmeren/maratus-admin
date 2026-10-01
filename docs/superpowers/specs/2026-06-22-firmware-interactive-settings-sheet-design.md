@@ -1,7 +1,7 @@
 # Firmware: Interactive Settings Sheet (finger-tracking swipe-up)
 
 **Date:** 2026-06-22
-**Repo:** ditto-firmware (ESP32-P4, LVGL 9.3, ESP-IDF 5.5)
+**Repo:** maratus-firmware (ESP32-P4, LVGL 9.3, ESP-IDF 5.5)
 **Status:** Design — approved, pending spec review → implementation plan
 **Supersedes:** the swipe-up entry shipped on `feat/swipe-up-settings` (detect-on-release, instant screen swap). That branch's pure `gesture_is_swipe_up()` + host test are reused; its instant-jump presentation is replaced by this interactive sheet.
 
@@ -86,4 +86,4 @@ Boundaries: pure gesture math (host-testable) is isolated from LVGL; the sheet c
 
 ## Rollout
 
-Branch `feat/swipe-up-settings` (already holds the swipe-detect work) extends into the interactive sheet, or a fresh `feat/settings-sheet` branched from it. Subagent-driven implementation, pure logic host-tested first, then flash + tune + HIL-verify, then merge to ditto-firmware `main` with a BUILD.md entry (HW-verified convention, per M7).
+Branch `feat/swipe-up-settings` (already holds the swipe-detect work) extends into the interactive sheet, or a fresh `feat/settings-sheet` branched from it. Subagent-driven implementation, pure logic host-tested first, then flash + tune + HIL-verify, then merge to maratus-firmware `main` with a BUILD.md entry (HW-verified convention, per M7).

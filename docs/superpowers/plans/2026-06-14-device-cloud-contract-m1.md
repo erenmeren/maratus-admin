@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the cloud-side contract the Ditto firmware will target — unified transaction model (two sources), receipt metadata on ingest, a device config-delivery endpoint with ETag caching, and a `config-changed` command that nudges devices when branding changes.
+**Goal:** Build the cloud-side contract the Maratus firmware will target — unified transaction model (two sources), receipt metadata on ingest, a device config-delivery endpoint with ETag caching, and a `config-changed` command that nudges devices when branding changes.
 
-**Architecture:** All work lands in `ditto-admin`. Pure, testable logic goes in `lib/*.ts` with vitest unit tests (the established pattern — route handlers stay thin and uncovered). The existing `receipt` row *is* the transaction; we add a `source` discriminator and nullable `deviceId` so a future cloud-ingested path converges on the same model. Device display config (the existing v3 `PrinterConfig` in `tenant_settings`) is served over a new authenticated GET endpoint with a stable ETag so devices cache it and re-pull only on change.
+**Architecture:** All work lands in `maratus-admin`. Pure, testable logic goes in `lib/*.ts` with vitest unit tests (the established pattern — route handlers stay thin and uncovered). The existing `receipt` row *is* the transaction; we add a `source` discriminator and nullable `deviceId` so a future cloud-ingested path converges on the same model. Device display config (the existing v3 `PrinterConfig` in `tenant_settings`) is served over a new authenticated GET endpoint with a stable ETag so devices cache it and re-pull only on change.
 
 **Tech Stack:** Next.js 16 App Router (route handlers), Drizzle ORM over Neon, vitest, Node `crypto` for the config hash. Spec: `docs/superpowers/specs/2026-06-14-device-architecture-design.md`.
 

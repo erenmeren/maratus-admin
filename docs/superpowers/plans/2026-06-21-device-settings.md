@@ -1004,7 +1004,7 @@ In `npm run db:studio` → `device_command`, confirm one `config-changed` row pe
 - Nav under Branding → Task 5. ✓
 - ETag versioning of new fields → Task 3. ✓
 - Validation ranges → Task 1 (single source of clamping, reused by action + data layer). ✓
-- Firmware (separate ditto-firmware milestone) → out of scope here; contract delivered via Task 4 payload. ✓
+- Firmware (separate maratus-firmware milestone) → out of scope here; contract delivered via Task 4 payload. ✓
 
 **Placeholder scan:** No TBD/TODO; every code step is complete. The only deliberate "known error" is Task 5 Step 5 (form not yet built), resolved in Task 6 and committed together.
 

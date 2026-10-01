@@ -180,7 +180,7 @@ After the closing `</Card>` of the "Top customers" card (the `</Table>` is at li
 
 - [ ] **Step 3: Build + live check**
 
-Run: `npm run build` (clean). Manual: sign in as platform admin (`admin@ditto.app` / `123456`), open `/admin` — the "Credits by company" table renders (a row per org with settle spend this month, or the empty state). If prod has the earlier HIL settles, Roastwell appears.
+Run: `npm run build` (clean). Manual: sign in as platform admin (`admin@maratus.app` / `123456`), open `/admin` — the "Credits by company" table renders (a row per org with settle spend this month, or the empty state). If prod has the earlier HIL settles, Roastwell appears.
 
 - [ ] **Step 4: Commit**
 ```bash

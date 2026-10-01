@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-10
 **Status:** Approved
-**Scope:** ditto-admin only (no firmware change)
+**Scope:** maratus-admin only (no firmware change)
 
 ## Problem
 
@@ -17,7 +17,7 @@ real inventory tracked in the factory registry.
 Decisions agreed during brainstorming:
 
 - **Device fate is decided per device at offboarding** (mixed rental/purchase
-  reality): returned to Ditto stock, or left with the customer.
+  reality): returned to Maratus stock, or left with the customer.
 - **Access closes, data stays.** Members lose access to the org; user/member
   rows, credit ledger, and audit log are retained. PII anonymization is a
   separate future feature if a KVKK/GDPR erasure request ever arrives (YAGNI).

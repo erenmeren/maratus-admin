@@ -60,7 +60,7 @@ In `lib/storage.ts`, add next to the other `*StorageKey` helpers:
 ```ts
 /** R2 key for a published firmware binary. */
 export function firmwareStorageKey(version: string): string {
-  return `firmware/${version}/ditto-firmware.bin`;
+  return `firmware/${version}/maratus-firmware.bin`;
 }
 ```
 
@@ -88,7 +88,7 @@ describe("latestFirmwareManifest", () => {
 
 describe("firmwareStorageKey", () => {
   it("namespaces by version", () => {
-    expect(firmwareStorageKey("0.3.0")).toBe("firmware/0.3.0/ditto-firmware.bin");
+    expect(firmwareStorageKey("0.3.0")).toBe("firmware/0.3.0/maratus-firmware.bin");
   });
 });
 ```
@@ -463,7 +463,7 @@ Expected: `204` (no release yet). Without the header → `401`.
 
 - [ ] **Step 4: Publish + manifest check**
 
-In the dashboard as the platform admin (`admin@ditto.app`), open `/admin/firmware`, publish a small dummy `.bin` with version `0.3.0-test`. Then:
+In the dashboard as the platform admin (`admin@maratus.app`), open `/admin/firmware`, publish a small dummy `.bin` with version `0.3.0-test`. Then:
 `curl -s -H "Authorization: Bearer <devkey>" "http://localhost:3000/api/device/firmware"`
 Expected: `{"version":"0.3.0-test","url":"https://...r2...","sha256":"...","size":...}`. Confirm the R2 object exists (db:studio shows the `firmware_release` row). Re-publishing `0.3.0-test` → rejected ("already published").
 

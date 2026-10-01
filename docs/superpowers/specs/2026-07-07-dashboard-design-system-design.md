@@ -190,7 +190,7 @@ Pure presentational refactor — verification is build + visual, no unit tests
 1. `npm run build` — typecheck passes (catches prop mismatches from the widened
    `PageHeader` signature).
 2. Browse every changed dashboard page in both realms (`/admin`, `/tenant`) using
-   the seed login (`admin@ditto.app` / `dana@roastwell.co`, both `123456`),
+   the seed login (`admin@maratus.app` / `dana@roastwell.co`, both `123456`),
    before/after screenshots. Confirm: identical left/top margin on every page,
    uniform h1 size + weight, uniform section `<h2>`, no double-padding, no
    regression on detail-page headers.

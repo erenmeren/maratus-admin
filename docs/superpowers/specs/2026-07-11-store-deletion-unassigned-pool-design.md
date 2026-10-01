@@ -1,7 +1,7 @@
 # Store Deletion & Unassigned Device Pool — Design
 
 **Date:** 2026-07-11
-**Repo:** ditto-admin (no firmware changes)
+**Repo:** maratus-admin (no firmware changes)
 **Requested by:** customer stores can close; tenants need to delete a store, with its devices dropping into an inventory-style unassigned pool for later reassignment.
 
 ## Background
@@ -43,7 +43,7 @@ No dedicated confirmation token: the operation is moderate-risk (devices remain 
 ### 4. Tenant UI
 
 - **`/tenant/stores`:** below the store grid, an "Unassigned devices" `PageSection` rendered only when the pool is non-empty. Each row: device name, serial (if any), status dot — plus a store `Select` and an "Assign" button wired to `assignDeviceToStore`. No device-detail navigation from the pool in v1 (detail pages live under `/tenant/stores/[storeId]/[deviceId]`; a device becomes navigable again once assigned).
-- **`/tenant/stores/[storeId]`:** a "Delete store" affordance (danger-styled, near the existing edit UI). Confirm dialog states the consequences concretely: "N devices will move to Unassigned" and — when `disarmedAllocationCount > 0` — "M devices prepared for zero-touch setup will need to be re-armed by Ditto". On success, redirect to `/tenant/stores`.
+- **`/tenant/stores/[storeId]`:** a "Delete store" affordance (danger-styled, near the existing edit UI). Confirm dialog states the consequences concretely: "N devices will move to Unassigned" and — when `disarmedAllocationCount > 0` — "M devices prepared for zero-touch setup will need to be re-armed by Maratus". On success, redirect to `/tenant/stores`.
 
 ### 5. Admin UI
 

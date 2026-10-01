@@ -6,7 +6,7 @@
 
 ## Problem / Motivation
 
-Ditto today has **two** ways a device produces a customer-facing QR:
+Maratus today has **two** ways a device produces a customer-facing QR:
 
 1. **Legacy print/ingest flow** — the device renders a document (ESC/POS-style image),
    `POST /api/ingest` uploads it to R2, a `document` row + token is created, and the
@@ -20,7 +20,7 @@ Ditto today has **two** ways a device produces a customer-facing QR:
 We are dropping flow (1) entirely. **The cloud's only job becomes: receive a
 trigger request and have the device display a QR from the caller's URL.**
 Customers who want a document host it themselves and pass us its URL. No
-document is created, stored, or served by Ditto.
+document is created, stored, or served by Maratus.
 
 ## Goals
 
@@ -41,7 +41,7 @@ document is created, stored, or served by Ditto.
   **in place, untouched**, per explicit decision. With no documents created it
   meters $0 until a later, dedicated billing pass. Consequently the `document`
   table itself is **kept (vestigial)** so billing keeps compiling.
-- **Firmware repo (`ditto-firmware`).** Its receipt-render/upload/print pipeline
+- **Firmware repo (`maratus-firmware`).** Its receipt-render/upload/print pipeline
   becomes dead code but is out of scope for this repo's spec; strip it there
   separately.
 
@@ -148,7 +148,7 @@ stores; audit log; auth / orgs; health + usage crons.
 ## Data Flow (after)
 
 ```
-External system                Ditto cloud                     Device
+External system                Maratus cloud                     Device
 ---------------                -----------                     ------
 POST /api/v1/devices/{deviceId}/trigger
   { action:"show_qr",

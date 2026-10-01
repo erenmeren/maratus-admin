@@ -166,7 +166,7 @@ existing `Card`/`KpiCard` (no new heavy components).
   at threshold vs over; fresh → false. `computeAlerts` — no alerts when all clear;
   warning when stale/stuck > 0; one info per inactive tenant; combined.
 - **tsc + build** gate the query/page integration.
-- **Manual:** open `/admin/health` as `admin@ditto.app`; age a seeded device's
+- **Manual:** open `/admin/health` as `admin@maratus.app`; age a seeded device's
   `lastSeenAt` (db studio) → it appears in the stale list + a warning alert shows.
 
 ## File structure

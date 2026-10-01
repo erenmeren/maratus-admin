@@ -1,7 +1,7 @@
 # Phase 1B — Dunning & Enforcement — Design
 
 **Date:** 2026-06-28
-**Repo:** `ditto-admin`
+**Repo:** `maratus-admin`
 **Status:** Approved design, pre-implementation
 **Phase:** 1 ("close the billing loop"), sub-project **1B**. Builds on **1A** (invoice collection, merged). Sibling: **1C** transition emails.
 

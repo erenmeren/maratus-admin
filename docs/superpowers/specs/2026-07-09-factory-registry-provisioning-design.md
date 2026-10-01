@@ -2,22 +2,22 @@
 
 **Date:** 2026-07-09
 **Status:** Approved
-**Scope:** ditto-admin (cloud) + ditto-firmware (one-line contract addition)
+**Scope:** maratus-admin (cloud) + maratus-firmware (one-line contract addition)
 
 ## Problem
 
-Ditto will manufacture ~10,000 printer devices. Today a device only exists in the
+Maratus will manufacture ~10,000 printer devices. Today a device only exists in the
 cloud once a customer claims it (M6a device-first flow), which leaves no way to
 track manufactured-but-unsold stock, production batches, RMAs, or grey/clone
 units — and no zero-touch onboarding for pre-assigned installs. Fulfillment will
 be mixed: some devices are self-claimed by customers, others are allocated to a
-known customer and installed by Ditto or a partner.
+known customer and installed by Maratus or a partner.
 
 Constraints agreed during brainstorming:
 
 - **Mixed fulfillment** — both self-service claim and pre-allocated install must work.
 - **Manufacturing process undecided** — the design must work whether a contract
-  manufacturer flashes a common image or Ditto runs its own provisioning station.
+  manufacturer flashes a common image or Maratus runs its own provisioning station.
 - **Pragmatic security** — software device identity stays (key minted at claim,
   SHA-256 hash stored); no secure boot / flash encryption / per-device factory
   secrets in this iteration.

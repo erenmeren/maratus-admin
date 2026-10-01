@@ -4,7 +4,7 @@ _Date: 2026-06-05_
 
 ## Context
 
-Tenants (store chains on Ditto) can see org-wide reports (`/tenant/reports`:
+Tenants (store chains on Maratus) can see org-wide reports (`/tenant/reports`:
 monthly receipts, a basic "by store this month" bar, by-device, eco) and a
 current-snapshot store page (`/tenant/stores/[storeId]`: KPIs + device cards).
 What's missing: **per-store trends over time**, **period-over-period change**,

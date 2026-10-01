@@ -89,7 +89,7 @@ export const QR_SHAPE_GEOMETRY: Record<QrShape, QrShapeGeometry> = {
 // function — no hard-coded `rx`/`rounded-lg` anywhere.
 
 /**
- * FIRMWARE PARITY: mirrored in ditto-firmware qr_style.c — keep in sync.
+ * FIRMWARE PARITY: mirrored in maratus-firmware qr_style.c — keep in sync.
  *
  * Background-plate corner radius, in px, for a box of pixel dimension `dim`:
  * 0 at slider value 0 (square), scaling linearly to 30% of `dim` at 100
@@ -130,7 +130,7 @@ export interface QrShadowParams {
 }
 
 /**
- * FIRMWARE PARITY: mirrored in ditto-firmware qr_style.c — keep in sync.
+ * FIRMWARE PARITY: mirrored in maratus-firmware qr_style.c — keep in sync.
  *
  * Canonical shadow/glow numbers for the QR background plate, as a function
  * of the plate's OWN pixel dimension `dim` — every number below is

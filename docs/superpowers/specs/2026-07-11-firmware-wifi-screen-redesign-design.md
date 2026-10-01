@@ -1,7 +1,7 @@
 # Firmware Wi-Fi Setup Screen Redesign — Design
 
 **Date:** 2026-07-11
-**Repo:** ditto-firmware (firmware-only; no cloud changes)
+**Repo:** maratus-firmware (firmware-only; no cloud changes)
 **Status:** Approved
 
 ## Problem
@@ -17,7 +17,7 @@ UX defects reported from real use:
    The only cue is the textarea placeholder switching to "Password".
 3. **Off-brand styling.** The screen uses LVGL's default theme (Montserrat font,
    blue buttons) while the rest of the device UI uses the brand font via
-   `font_cache` on the Ditto-green background.
+   `font_cache` on the Maratus-green background.
 
 The on-screen keyboard is explicitly fine and must not change (size, position,
 behavior, or styling).
@@ -130,9 +130,9 @@ to network logic (`net_scan`, `net_connect`, `appcfg_store_wifi_creds`,
   (`font_cache_init` runs during UI init, which precedes `wifi_setup_run` —
   the splash is already up when Wi-Fi setup starts.)
 - List rows restyled to the brand language: slightly translucent white row
-  background on the Ditto-green screen, white text, rounded corners (~12px),
+  background on the Maratus-green screen, white text, rounded corners (~12px),
   taller rows.
-- Connect button: white background, Ditto-green text — clear contrast on the
+- Connect button: white background, Maratus-green text — clear contrast on the
   green screen (replaces the default LVGL blue).
 - Keyboard: no styling changes whatsoever.
 
@@ -151,7 +151,7 @@ Existing validation and copy are kept, surfaced on the status line:
   list; wrong password shows the error and stays recoverable; open-network
   direct connect; manual-entry two-step (`Next` → `Connect`); Rescan; and a
   successful connect persisting creds → device proceeds to claim flow.
-- HIL note: Kconfig `DITTO_WIFI_SSID/PASSWORD` must be `changeme` and
+- HIL note: Kconfig `MARATUS_WIFI_SSID/PASSWORD` must be `changeme` and
   `idf.py erase-flash` forces first boot (per M6a-2 notes).
 
 ## Scope guard

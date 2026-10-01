@@ -361,7 +361,7 @@ In `app/(tenant)/tenant/billing/page.tsx`:
 ```tsx
       <PageSection title="Credits">
         <p className="text-sm text-muted-foreground">
-          Credits are added to your account by the Ditto team. Contact us to top
+          Credits are added to your account by the Maratus team. Contact us to top
           up your balance — current balance and this month&apos;s usage are shown
           below.
         </p>
@@ -551,7 +551,7 @@ Also update the test-suite count sentence in the Testing section if the suite/te
 
 - [ ] **Step 2: Tenant manual (kiraci-kilavuzu.md)**
 
-- §11 (line ~990 onward): rewrite the section to describe the new page — header "Billing / Manage your prepaid credit balance.", a **Credits** section stating credits are added by the Ditto team ("Kredileri Ditto ekibi tanımlar; bakiye eklemek için bizimle iletişime geçin" tone, quoting the English UI copy `Credits are added to your account by the Ditto team.`), then the existing "Credit usage this month" and "Device usage this month" descriptions (these are unchanged in the UI — keep their text). Delete entirely: the "kredi satın alma bölümü hiç görünmeyebilir" callout, every "Buy {n} credits" / Stripe / kredi paketi passage, and any role note that says owners/admins can purchase (roles no longer differ on this page).
+- §11 (line ~990 onward): rewrite the section to describe the new page — header "Billing / Manage your prepaid credit balance.", a **Credits** section stating credits are added by the Maratus team ("Kredileri Maratus ekibi tanımlar; bakiye eklemek için bizimle iletişime geçin" tone, quoting the English UI copy `Credits are added to your account by the Maratus team.`), then the existing "Credit usage this month" and "Device usage this month" descriptions (these are unchanged in the UI — keep their text). Delete entirely: the "kredi satın alma bölümü hiç görünmeyebilir" callout, every "Buy {n} credits" / Stripe / kredi paketi passage, and any role note that says owners/admins can purchase (roles no longer differ on this page).
 - §2.5: the prepaid-credit explanation stays, but if it mentions in-app purchase, reword to manual top-up by the operator.
 - Sweep: `grep -in "stripe\|satın al" docs/manuals/tr/kiraci-kilavuzu.md` → no Stripe/purchase-flow references remain (mentions of the operator selling credits offline are fine).
 

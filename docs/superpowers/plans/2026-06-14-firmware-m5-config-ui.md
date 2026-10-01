@@ -8,7 +8,7 @@
 
 **Tech Stack:** ESP-IDF, cJSON, NVS, LVGL v9, the M1 `GET /api/device/config` contract (returns `{version, brandBg/Fg/Muted/Color, logoUrl, config:{screens:{idle:{objects}}}}`; `version` is the ETag hex). Reuses M2 poll/commands.
 
-**Config object model (from `ditto-admin/lib/printer-layout.ts`):** each `PrinterObject` = `{id, type, x, y, w, h, visible, z, text?, fontSize?, align?}` where `x/y/w/h` are fractions 0..1 on a **720px reference** and `fontSize` is px on that reference (device LCD is 720×720, so 1:1).
+**Config object model (from `maratus-admin/lib/printer-layout.ts`):** each `PrinterObject` = `{id, type, x, y, w, h, visible, z, text?, fontSize?, align?}` where `x/y/w/h` are fractions 0..1 on a **720px reference** and `fontSize` is px on that reference (device LCD is 720×720, so 1:1).
 
 **Scope (M5):** fetch + cache (ETag/NVS) + `config-changed` re-pull; idle screen = brand **background** color + **text** objects (position, font size→nearest bundled font, alignment, brand foreground color). **Deferred to M5b:** logo/uploaded-icon images (need HTTP image fetch + PNG decode), live **clock** (SNTP + IANA→POSIX timezone), wifi/qr/spinner/countdown/pairingCode/steps widgets, and the non-idle screens (processing/qr/sent/error/paused/setup stay as their current M3/M4 renders).
 
@@ -29,7 +29,7 @@
 #include <stdint.h>
 
 #define CFG_MAX_TEXTS 32
-#define CFG_TEXT_LEN  80   // matches MAX_TEXT_LEN in ditto-admin printer-layout
+#define CFG_TEXT_LEN  80   // matches MAX_TEXT_LEN in maratus-admin printer-layout
 
 typedef struct {
     bool  visible;
@@ -59,7 +59,7 @@ idf_component_register(INCLUDE_DIRS "include")
 - [ ] **Step 3: Build + commit**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware && idf.py build
+cd /Users/eren/Projects/maratus-firmware && idf.py build
 git add components/devcfg
 git commit -m "feat(firmware): shared device-config struct (devcfg)"
 ```
@@ -324,7 +324,7 @@ void ui_render_idle(const device_config_t *cfg)
     lv_obj_set_size(s_status_dot, 20, 20);
     lv_obj_set_style_radius(s_status_dot, LV_RADIUS_CIRCLE, LV_PART_MAIN);
     lv_obj_set_style_border_width(s_status_dot, 0, LV_PART_MAIN);
-    lv_obj_set_style_bg_color(s_status_dot, lv_color_hex(DITTO_ONLINE), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(s_status_dot, lv_color_hex(MARATUS_ONLINE), LV_PART_MAIN);
     lv_obj_align(s_status_dot, LV_ALIGN_TOP_RIGHT, -16, 16);
 
     lv_obj_t *old = s_idle_screen;
@@ -335,7 +335,7 @@ void ui_render_idle(const device_config_t *cfg)
     lvgl_port_unlock();
 }
 ```
-(`s_idle_screen` and `s_status_dot` are the existing file statics; `DITTO_ONLINE` is the existing brand-green define.)
+(`s_idle_screen` and `s_status_dot` are the existing file statics; `MARATUS_ONLINE` is the existing brand-green define.)
 
 - [ ] **Step 3: CMake REQUIRES**
 
@@ -486,7 +486,7 @@ git commit -m "feat(firmware): load/fetch config + config-changed re-pull"
 
 - [ ] **Step 1: Set branding in the admin**
 
-In the Ditto admin console, open the branding/printer editor for the device's org. Set a distinctive **brand color** and add/edit a **text** object on the idle screen (e.g. store name "ROASTWELL", a tagline) with a clear position + font size. Save (this enqueues `config-changed` to the org's devices — M1 behavior).
+In the Maratus admin console, open the branding/printer editor for the device's org. Set a distinctive **brand color** and add/edit a **text** object on the idle screen (e.g. store name "ROASTWELL", a tagline) with a clear position + font size. Save (this enqueues `config-changed` to the org's devices — M1 behavior).
 
 - [ ] **Step 2: Observe the device**
 
@@ -516,7 +516,7 @@ Send a receipt (`node send.js <device-ip> fixtures/text-receipt.escpos`) → sti
 
 **Placeholder scan:** No `TODO`/`TBD`. Task 5 Step 3's callback indirection is fully specified (no "wire it up later"). All parse/fetch/render/NVS code is complete.
 
-**Type/interface consistency:** `device_config_t`/`cfg_text_t` (Task 1) are produced by `cfg_parse_json`/`cloud_get_config`/`cloud_config_load_cached` (Task 2) and consumed by `ui_render_idle` (Task 4). The JSON field names (`version`, `brandBg`, `brandFg`, `config.screens.idle.objects[]` with `type`/`visible`/`text`/`x`/`y`/`fontSize`/`align`) match `DeviceConfigPayload` + `PrinterObject` in `ditto-admin`. ETag round-trip: `cfg->etag` ← payload `version`; sent back quoted as `If-None-Match: "<etag>"`, which `getDeviceConfig`'s `etagMatches` strips + compares — consistent with the M1 contract. `app_state_request_config` (declared Task 5 Step 2, `state.h`) is the `config-changed` callback (wired Task 5 Step 3). `font_for` maps `fontSize` to the fonts enabled in Task 3.
+**Type/interface consistency:** `device_config_t`/`cfg_text_t` (Task 1) are produced by `cfg_parse_json`/`cloud_get_config`/`cloud_config_load_cached` (Task 2) and consumed by `ui_render_idle` (Task 4). The JSON field names (`version`, `brandBg`, `brandFg`, `config.screens.idle.objects[]` with `type`/`visible`/`text`/`x`/`y`/`fontSize`/`align`) match `DeviceConfigPayload` + `PrinterObject` in `maratus-admin`. ETag round-trip: `cfg->etag` ← payload `version`; sent back quoted as `If-None-Match: "<etag>"`, which `getDeviceConfig`'s `etagMatches` strips + compares — consistent with the M1 contract. `app_state_request_config` (declared Task 5 Step 2, `state.h`) is the `config-changed` callback (wired Task 5 Step 3). `font_for` maps `fontSize` to the fonts enabled in Task 3.
 
 **Risk notes (not placeholders):**
 - Text objects are positioned top-left at `x*720,y*720`; `align`/`w` (text box width) are parsed but center/right alignment within a box is approximate in M5 (labels auto-size). Fine for store-name/tagline; full box alignment is M5b polish.

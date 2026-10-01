@@ -4,21 +4,21 @@
 
 **Goal:** Fix six user-reported problems on the on-device Settings screens: overlapping top-right info text, vestigial "Print listener" About row, sleep chips that don't highlight when tapped, a crash-reboot when exiting Wi-Fi setup via ✕, an unwanted ✕ icon on the Close button, and an unwanted › chevron on the Restart row.
 
-**Architecture:** All changes live in the **ditto-firmware** repo (`/Users/eren/Projects/ditto-firmware`): the passive Settings UI (`components/ui/ui_settings.c`), the Wi-Fi setup UI (`components/ui/ui_wifi.c`), the shared header (`components/ui/include/ui.h`), and the orchestrator (`main/app_state.c`). Tasks 1–4 are deterministic edits; Task 5 is an on-hardware crash investigation (systematic-debugging) with a pre-analyzed prime suspect and a complete candidate fix.
+**Architecture:** All changes live in the **maratus-firmware** repo (`/Users/eren/Projects/maratus-firmware`): the passive Settings UI (`components/ui/ui_settings.c`), the Wi-Fi setup UI (`components/ui/ui_wifi.c`), the shared header (`components/ui/include/ui.h`), and the orchestrator (`main/app_state.c`). Tasks 1–4 are deterministic edits; Task 5 is an on-hardware crash investigation (systematic-debugging) with a pre-analyzed prime suspect and a complete candidate fix.
 
 **Tech Stack:** ESP-IDF 5.5 (C), LVGL v9 via `esp_lvgl_port`, target `esp32p4`.
 
-**Spec:** `docs/superpowers/specs/2026-07-11-firmware-settings-cleanup-design.md` (ditto-admin).
+**Spec:** `docs/superpowers/specs/2026-07-11-firmware-settings-cleanup-design.md` (maratus-admin).
 
 ## Global Constraints
 
-- Work in `/Users/eren/Projects/ditto-firmware` on branch `feat/settings-cleanup` (created in Task 1 off `main`). The ditto-admin repo is NOT touched by any task.
+- Work in `/Users/eren/Projects/maratus-firmware` on branch `feat/settings-cleanup` (created in Task 1 off `main`). The maratus-admin repo is NOT touched by any task.
 - Build env: `. ~/.espressif/v5.5/esp-idf/export.sh` — ESP-IDF **5.5**, never 5.4/6.x (see `BUILD.md`; wrong version breaks the Waveshare board stack).
 - Build command (from repo root): `idf.py build`. Every task must end with a clean build.
 - There is no host test harness for LVGL UI code — verification is clean build per task + the HIL pass in Task 6. Do not invent a UI test framework.
 - UI code style: passive callbacks (flags only), every public `ui_*` function takes `lvgl_port_lock(0)`/`lvgl_port_unlock()` internally. Match surrounding comment density.
 - No layout/spacing/typography changes beyond the six spec items. Leave the About "Online" row label and the Restart "Reboots in ~30s" subtitle as they are.
-- Line numbers below refer to ditto-firmware `main` as of 2026-07-11 (post-`a419ffa`). Verify with the exact code strings given (use exact-string edits, not line offsets).
+- Line numbers below refer to maratus-firmware `main` as of 2026-07-11 (post-`a419ffa`). Verify with the exact code strings given (use exact-string edits, not line offsets).
 
 ---
 
@@ -36,7 +36,7 @@
 - [ ] **Step 1: Create the branch**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 git checkout main && git pull && git checkout -b feat/settings-cleanup
 ```
 
@@ -181,7 +181,7 @@ In the `UI_SET_WIFI` case, delete the two refresh lines (near lines 320–321):
 - [ ] **Step 5: Build**
 
 ```bash
-. ~/.espressif/v5.5/esp-idf/export.sh && cd /Users/eren/Projects/ditto-firmware && idf.py build
+. ~/.espressif/v5.5/esp-idf/export.sh && cd /Users/eren/Projects/maratus-firmware && idf.py build
 ```
 
 Expected: `Project build complete.` No warnings about unused `info`/`build_settings_info` (they're gone, not orphaned).
@@ -283,7 +283,7 @@ to:
 - [ ] **Step 3: Build**
 
 ```bash
-. ~/.espressif/v5.5/esp-idf/export.sh && cd /Users/eren/Projects/ditto-firmware && idf.py build
+. ~/.espressif/v5.5/esp-idf/export.sh && cd /Users/eren/Projects/maratus-firmware && idf.py build
 ```
 
 Expected: `Project build complete.`
@@ -330,7 +330,7 @@ with:
 - [ ] **Step 2: Build**
 
 ```bash
-. ~/.espressif/v5.5/esp-idf/export.sh && cd /Users/eren/Projects/ditto-firmware && idf.py build
+. ~/.espressif/v5.5/esp-idf/export.sh && cd /Users/eren/Projects/maratus-firmware && idf.py build
 ```
 
 Expected: `Project build complete.`
@@ -442,7 +442,7 @@ with:
 - [ ] **Step 3: Build**
 
 ```bash
-. ~/.espressif/v5.5/esp-idf/export.sh && cd /Users/eren/Projects/ditto-firmware && idf.py build
+. ~/.espressif/v5.5/esp-idf/export.sh && cd /Users/eren/Projects/maratus-firmware && idf.py build
 ```
 
 Expected: `Project build complete.`
@@ -474,7 +474,7 @@ git commit -m "fix(settings): plain Close label, chevron only on navigation rows
 - [ ] **Step 1: Flash the current branch and set up serial capture**
 
 ```bash
-. ~/.espressif/v5.5/esp-idf/export.sh && cd /Users/eren/Projects/ditto-firmware
+. ~/.espressif/v5.5/esp-idf/export.sh && cd /Users/eren/Projects/maratus-firmware
 ls /dev/cu.usbmodem*          # identify the USB-to-UART port
 idf.py -p /dev/cu.usbmodemXXXX flash
 ```
@@ -613,7 +613,7 @@ git commit -m "fix(settings): stop panic-reboot when exiting Wi-Fi setup via the
 - [ ] **Step 1: Confirm the flashed build is the branch tip**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware && git log --oneline -6 && git status -sb
+cd /Users/eren/Projects/maratus-firmware && git log --oneline -6 && git status -sb
 ```
 
 Expected: the 5 commits from Tasks 1–5 on `feat/settings-cleanup`, clean tree. If Task 5 re-flashed before Task 5's commit only, re-run `idf.py build && idf.py -p <port> flash` so the device runs the tip.
@@ -637,4 +637,4 @@ Note pass/fail per item in the task report. Any failure → fix under the corres
 
 ## Post-plan note for the executor
 
-After all tasks pass, use **superpowers:finishing-a-development-branch** to merge `feat/settings-cleanup` into ditto-firmware `main` and push. Subagent git hazard: subagents share the working directory — verify `git -C /Users/eren/Projects/ditto-firmware branch --show-current` prints `feat/settings-cleanup` before and after every subagent run.
+After all tasks pass, use **superpowers:finishing-a-development-branch** to merge `feat/settings-cleanup` into maratus-firmware `main` and push. Subagent git hazard: subagents share the working directory — verify `git -C /Users/eren/Projects/maratus-firmware branch --show-current` prints `feat/settings-cleanup` before and after every subagent run.

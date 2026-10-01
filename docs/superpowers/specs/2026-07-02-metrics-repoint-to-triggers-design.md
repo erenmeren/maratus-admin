@@ -6,7 +6,7 @@
 
 ## Problem
 
-After the trigger-only pivot, Ditto no longer creates `document` rows. Every dashboard,
+After the trigger-only pivot, Maratus no longer creates `document` rows. Every dashboard,
 analytics view, and health rollup still reads the `document` table, so they display a
 **frozen, stale count** (33 seed-era rows on prod) that never moves — not zero, but a
 number that is now a lie. Meanwhile the real activity — devices being triggered to show a

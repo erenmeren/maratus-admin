@@ -1,19 +1,19 @@
 # Phase 1C — Invoice Transition Emails — Design
 
 **Date:** 2026-06-28
-**Repo:** `ditto-admin`
+**Repo:** `maratus-admin`
 **Status:** Approved design, pre-implementation
 **Phase:** 1 ("close the billing loop"), sub-project **1C** (final). Builds on **1A** (invoice collection) + **1B** (dunning & enforcement), both merged.
 
 ## Problem
 
-The billing loop now generates, sends, collects, and enforces invoices — but the tenant gets no branded notification from Ditto when money events happen. 1C adds transactional emails for the four invoice transitions, reusing the existing Resend send path and the pure-builder pattern from `lib/alerts.ts`.
+The billing loop now generates, sends, collects, and enforces invoices — but the tenant gets no branded notification from Maratus when money events happen. 1C adds transactional emails for the four invoice transitions, reusing the existing Resend send path and the pure-builder pattern from `lib/alerts.ts`.
 
 ## Decisions (locked via brainstorming)
 
 1. **Four emails:** invoice sent, payment failed, paid receipt, overdue reminder.
 2. **Invoice-sent fires only on the `send_invoice` (pay-link) path** — the only case with a real "please pay" call-to-action. For `charge_automatically` there is nothing to pay, so the paid/failed email covers it. **Known overlap (accepted):** on `send_invoice`, Stripe also emails its own hosted invoice, so the tenant receives two; the user may disable Stripe's hosted-invoice email in the dashboard to avoid the double — no code change.
-3. **Shared branded wrapper:** a small `emailLayout()` (Ditto wordmark header + muted footer) reused by all four, rather than the bare `<p>` style of the existing internal alert/verification emails.
+3. **Shared branded wrapper:** a small `emailLayout()` (Maratus wordmark header + muted footer) reused by all four, rather than the bare `<p>` style of the existing internal alert/verification emails.
 4. **Recipient:** the org **owner** (member `role="owner"`, falling back to any member), resolved by a new `getOrgOwnerEmail(orgId)`. Skip the send when null.
 5. **Security:** org name (user-controlled) is **HTML-escaped** in every builder.
 6. **Never block / never throw:** `sendEmail` already no-ops without `RESEND_API_KEY` and returns `false` on failure (never throws). Webhook-triggered emails run in `after()` so Stripe still gets a fast 200.
@@ -41,7 +41,7 @@ export function paidReceiptEmail(d: InvoiceEmailData): { subject: string; html: 
 export function overdueReminderEmail(d: InvoiceEmailData): { subject: string; html: string };
 ```
 
-- Subjects (indicative): `"Your Ditto invoice for June 2026"`, `"Payment failed for your Ditto invoice"`, `"Payment received — June 2026"`, `"Your Ditto invoice is overdue"`.
+- Subjects (indicative): `"Your Maratus invoice for June 2026"`, `"Payment failed for your Maratus invoice"`, `"Payment received — June 2026"`, `"Your Maratus invoice is overdue"`.
 - Each body shows the period + amount (`$X.XX`) and, where a pay link exists, a "Pay invoice" / "Update payment" button linking to `hostedInvoiceUrl` (fallback to `${BETTER_AUTH_URL}/tenant/billing` when null). `orgName` is escaped via `escapeHtml`.
 - `paidReceiptEmail` has no pay link (it's a confirmation).
 - Pure → unit-tested like `alertEmail` in `lib/alerts.test.ts`.

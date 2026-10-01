@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-17
 **Status:** Approved (design)
-**Repos:** ditto-firmware (device) + ditto-admin (config payload)
+**Repos:** maratus-firmware (device) + maratus-admin (config payload)
 **Parent spec:** `2026-06-15-device-config-driven-ui-design.md` (M5a/b/c), branch `docs/m5-config-driven-ui-spec`
 
 ## Problem
@@ -57,7 +57,7 @@ renders live widgets inside these already-correct screens.
 
 ## Components
 
-### 1. Admin — IANA→POSIX timezone (`ditto-admin`)
+### 1. Admin — IANA→POSIX timezone (`maratus-admin`)
 
 - New `lib/posix-tz.ts`: `IANA_TO_POSIX: Record<string,string>` covering every
   zone in `lib/timezones.ts`, plus `ianaToPosix(iana: string): string` returning
@@ -71,7 +71,7 @@ renders live widgets inside these already-correct screens.
   non-empty POSIX string; unknown → `"UTC0"`; a spot-check of a DST zone
   (`America/New_York`) and a non-DST zone (`Asia/Kolkata`, `UTC`).
 
-### 2. Firmware — `time_sync` (new, small) (`ditto-firmware`)
+### 2. Firmware — `time_sync` (new, small) (`maratus-firmware`)
 
 - `time_sync_start()`: start `esp_netif_sntp` (pool.ntp.org) once Wi-Fi is up
   (called from the existing post-connect path).

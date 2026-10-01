@@ -1092,7 +1092,7 @@ With no EMQX env vars set, confirm: `/api/device/config` omits `mqtt`; a trigger
 
 - [ ] **Step 4: Update project memory**
 
-Add a memory entry noting: MQTT transport cloud side implemented (spec + plan dated 2026-07-15), gated on EMQX env, HTTP polling retained as fallback, DB unchanged; remaining = EMQX account setup (runbook) + ditto-firmware esp-mqtt milestone + HIL latency/fallback drill. Cross-link `[[credits-device-trigger]]` and `[[trigger-only-device-teardown]]`.
+Add a memory entry noting: MQTT transport cloud side implemented (spec + plan dated 2026-07-15), gated on EMQX env, HTTP polling retained as fallback, DB unchanged; remaining = EMQX account setup (runbook) + maratus-firmware esp-mqtt milestone + HIL latency/fallback drill. Cross-link `[[credits-device-trigger]]` and `[[trigger-only-device-teardown]]`.
 
 ---
 

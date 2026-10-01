@@ -328,7 +328,7 @@ export default async function Home() {
           Paper receipts, gone.
         </h1>
         <p className="max-w-md text-lg text-muted-foreground">
-          Ditto turns every checkout into a QR code your customers scan for an
+          Maratus turns every checkout into a QR code your customers scan for an
           instant digital receipt. Manage your stores, devices, and billing from
           one console.
         </p>
@@ -399,7 +399,7 @@ export async function sendEmail(to: string, subject: string, html: string) {
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: "Ditto <noreply@ditto.app>", to, subject, html }),
+    body: JSON.stringify({ from: "Maratus <noreply@maratus.app>", to, subject, html }),
   });
   if (!res.ok) throw new Error(`Resend failed: ${res.status} ${await res.text()}`);
 }
@@ -417,8 +417,8 @@ export async function sendEmail(to: string, subject: string, html: string) {
     sendVerificationEmail: async ({ user, url }) => {
       await sendEmail(
         user.email,
-        "Verify your Ditto account",
-        `<p>Welcome to Ditto. Confirm your email:</p><p><a href="${url}">Verify</a></p>`,
+        "Verify your Maratus account",
+        `<p>Welcome to Maratus. Confirm your email:</p><p><a href="${url}">Verify</a></p>`,
       );
     },
   },

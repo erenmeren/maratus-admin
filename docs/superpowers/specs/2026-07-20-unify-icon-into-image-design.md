@@ -1,7 +1,7 @@
 # Unify "icon" into "image" + device widget parity + boot-fix extraction (design)
 
 Date: 2026-07-20
-Repos: **ditto-admin** (cloud) + **ditto-firmware**. Supersedes the preset-icon
+Repos: **maratus-admin** (cloud) + **maratus-firmware**. Supersedes the preset-icon
 approach in `2026-07-20-firmware-m5b-preset-icons-and-boot-fixes-design.md` (the
 preset-icon half of that is dropped; its two boot-bar fixes are salvaged here).
 
@@ -47,7 +47,7 @@ The two boot fixes are independent of the icon work (they touch `main/app_state.
   unreachable → splash falls to offline idle within ~26 s; swipe during splash is a
   no-op). `feat/m5b-preset-icons` is left abandoned (not merged, not deleted yet).
 
-## Part 1 — Cloud: remove the `icon` object type (ditto-admin)
+## Part 1 — Cloud: remove the `icon` object type (maratus-admin)
 
 `icon` collapses into `image`. Files/areas (verify against current code):
 
@@ -80,7 +80,7 @@ The two boot fixes are independent of the icon work (they touch `main/app_state.
   tooling (`tools/gen-icons` from the abandoned branch) retargeted to emit PNGs — or
   a small standalone script; either way the output is committed static files.
 - Place them at `public/defaults/check.png` and `public/defaults/wifi-off.png` in
-  ditto-admin.
+  maratus-admin.
 - Seed layout (`lib/printer-layout.ts` seed for Sent/Error) references them as
   `image` objects with an absolute URL built from the app base
   (`BETTER_AUTH_URL` + `/defaults/check.png`). The data layer passes this URL

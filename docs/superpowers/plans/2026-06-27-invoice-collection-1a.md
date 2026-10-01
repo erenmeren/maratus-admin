@@ -530,7 +530,7 @@ Expected: no type errors; build succeeds.
 
 - [ ] **Step 4: Live smoke test (Stripe test mode, dev server on :3001)**
 
-Start the dev server (`npm run dev`) and, signed in as the platform admin (`admin@ditto.app`):
+Start the dev server (`npm run dev`) and, signed in as the platform admin (`admin@maratus.app`):
 
 1. On `/admin/billing`, generate invoices. Pick a draft with a non-zero amount for an org **without** a saved card → "Mark as sent". Expect success toast; the row becomes `sent`. In Stripe test dashboard the invoice exists with a hosted URL; status `open`; collection `send_invoice`.
 2. Open `/tenant/billing` for that org (or check the row): the invoice shows a **"Pay"** link → opens Stripe's hosted page. Pay with `4242 4242 4242 4242`. The `invoice.paid` webhook flips the local row → `paid` (re-check `/admin/billing`).

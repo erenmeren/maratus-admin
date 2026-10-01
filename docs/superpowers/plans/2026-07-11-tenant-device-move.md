@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Repo `/Users/eren/Projects/ditto-admin`, branch `feat/tenant-device-move` off `main` (created in Task 1).
+- Repo `/Users/eren/Projects/maratus-admin`, branch `feat/tenant-device-move` off `main` (created in Task 1).
 - ⚠️ `.env.local` = PRODUCTION Neon: `db:seed`/`db:push`/`db:generate` FORBIDDEN.
 - Gates per task: `npx tsc --noEmit && npm test`; `npm run build` once before finishing.
 - Consumes existing interfaces exactly: `assignDeviceToStore(deviceId: string, storeId: string): Promise<ActionResult>` (`lib/actions/devices.ts`), `getTenantStores(organizationId: string): Promise<StoreSummary[]>` (`lib/data.ts`).
@@ -33,7 +33,7 @@
 - [ ] **Step 1: Branch**
 
 ```bash
-cd /Users/eren/Projects/ditto-admin
+cd /Users/eren/Projects/maratus-admin
 git checkout main && git pull && git checkout -b feat/tenant-device-move
 ```
 

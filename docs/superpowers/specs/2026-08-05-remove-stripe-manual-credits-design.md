@@ -105,7 +105,7 @@ history, admin views), `"adjust"` renders as "Adjustment".
 
 `/tenant/billing` keeps the balance card and ledger history. The buy-credits
 section is removed and replaced with a short muted note: credits are managed by
-Ditto — contact us to top up (English UI copy, final wording at implementation).
+Maratus — contact us to top up (English UI copy, final wording at implementation).
 
 ## 5. Docs & ops follow-ups
 

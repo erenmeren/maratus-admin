@@ -6,28 +6,28 @@
 
 **Architecture:** `image` is a new first-class layout-object type that reuses the proven `icon`-upload pipeline (pending-upload markers, R2 storage, presign walk, orphan cleanup, the firmware's `render_image()`), minus icon chrome (preset/tint/circle). The dedicated logo uploader and the top-level `logoUrl` are removed; the on-screen `logo` widget is repurposed to render the brand **wordmark text** (sent as a new top-level `wordmark` payload field = the organization name). Existing uploaded logos are migrated into `image` objects by a one-time script.
 
-**Tech Stack:** Next.js 16 / React 19 / TypeScript (ditto-admin), Drizzle + Neon, Cloudflare R2, Vitest. ESP-IDF / LVGL 9.3 / cJSON (ditto-firmware), C host test harness (`tools/cfg-harness`).
+**Tech Stack:** Next.js 16 / React 19 / TypeScript (maratus-admin), Drizzle + Neon, Cloudflare R2, Vitest. ESP-IDF / LVGL 9.3 / cJSON (maratus-firmware), C host test harness (`tools/cfg-harness`).
 
 ## Global Constraints
 
-- **Repos:** ditto-admin = `/Users/eren/Projects/ditto-admin`; ditto-firmware = `/Users/eren/Projects/ditto-firmware`. They are separate git repos — commit in each independently.
+- **Repos:** maratus-admin = `/Users/eren/Projects/maratus-admin`; maratus-firmware = `/Users/eren/Projects/maratus-firmware`. They are separate git repos — commit in each independently.
 - **Money/units:** N/A here.
 - **Image normalization:** all uploads pass through `normalizeUploadImage` (`lib/image.ts`) → 512px-max PNG. Keep the **512px** cap (do not raise it).
 - **Upload limit:** ≤ **2 MB**, `image/*` only (matches `MAX_LOGO_BYTES`).
 - **`signedUrl` is never persisted** — `normalizePrinterConfig` must strip it; only the R2 `url` key is stored.
 - **Object cap:** `MAX_CUSTOM = 20` per screen, shared across `text` + `icon` + `image`.
 - **ETag stability:** presigned URLs rotate every request and must NOT enter `computeConfigVersion`; only stored keys / scalar inputs do.
-- **ditto-admin tests:** `npm run test` (vitest). **Type check / build:** `npm run build`.
-- **ditto-firmware host tests:** `cd tools/cfg-harness && make test`.
+- **maratus-admin tests:** `npm run test` (vitest). **Type check / build:** `npm run build`.
+- **maratus-firmware host tests:** `cd tools/cfg-harness && make test`.
 - **Commit message footer (both repos):**
   `Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>`
-- Work happens on branch `feat/branding-image-object` (ditto-admin, already created) and a matching `feat/branding-image-object` branch in ditto-firmware (create in Task 8).
+- Work happens on branch `feat/branding-image-object` (maratus-admin, already created) and a matching `feat/branding-image-object` branch in maratus-firmware (create in Task 8).
 
 ---
 
 ## File Structure
 
-**ditto-admin**
+**maratus-admin**
 - `lib/printer-layout.ts` — add `image` type, `PrinterImage`, `createImageObject`, `sanitizeImage`; include `image` in addable/cap logic. (Task 1)
 - `lib/printer-layout.test.ts` — image sanitize/normalize tests. (Task 1)
 - `lib/storage.ts` — `imageStorageKey`. (Task 2)
@@ -41,7 +41,7 @@
 - `components/device-preview/printer-preview.tsx` — `ImageObject` renderer; `LogoObject` → wordmark text. (Task 6)
 - `lib/db/migrate-logo-to-image.ts` — one-time migration. (Task 7)
 
-**ditto-firmware**
+**maratus-firmware**
 - `components/devcfg/include/device_config.h` — `OBJ_IMAGE`, `image_url`, `wordmark`. (Task 8)
 - `components/devcfg/cfg_parse.c` — `"image"`→`OBJ_IMAGE`, parse `image.signedUrl`, parse top-level `wordmark`. (Task 8)
 - `tools/cfg-harness/test_cfg.c` + `fixtures/sample-config.json` — image + wordmark parse test. (Task 8)
@@ -50,7 +50,7 @@
 
 ---
 
-## Task 1: `image` object type + sanitize (ditto-admin, pure logic)
+## Task 1: `image` object type + sanitize (maratus-admin, pure logic)
 
 **Files:**
 - Modify: `lib/printer-layout.ts`
@@ -200,7 +200,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 2: `imageStorageKey` (ditto-admin)
+## Task 2: `imageStorageKey` (maratus-admin)
 
 **Files:**
 - Modify: `lib/storage.ts:105-111` (alongside `iconStorageKey`)
@@ -237,7 +237,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 3: Server action — image uploads + cleanup, drop logo (ditto-admin)
+## Task 3: Server action — image uploads + cleanup, drop logo (maratus-admin)
 
 **Files:**
 - Modify: `app/(tenant)/tenant/branding/actions.ts`
@@ -348,7 +348,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 4: Device payload — presign images, wordmark, drop logoUrl (ditto-admin)
+## Task 4: Device payload — presign images, wordmark, drop logoUrl (maratus-admin)
 
 **Files:**
 - Modify: `lib/device-config.ts`
@@ -466,7 +466,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 5: Editor UI — add/upload image, remove logo uploader (ditto-admin)
+## Task 5: Editor UI — add/upload image, remove logo uploader (maratus-admin)
 
 **Files:**
 - Modify: `components/device-preview/printer-editor/use-printer-editor.ts`
@@ -617,7 +617,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 6: Preview — render image objects + logo-as-wordmark (ditto-admin)
+## Task 6: Preview — render image objects + logo-as-wordmark (maratus-admin)
 
 **Files:**
 - Modify: `components/device-preview/printer-preview.tsx`
@@ -685,7 +685,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 7: One-time migration — logoUrl → image object (ditto-admin)
+## Task 7: One-time migration — logoUrl → image object (maratus-admin)
 
 **Files:**
 - Create: `lib/db/migrate-logo-to-image.ts`
@@ -776,7 +776,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 8: Firmware — parse `image` object + `wordmark` (ditto-firmware)
+## Task 8: Firmware — parse `image` object + `wordmark` (maratus-firmware)
 
 **Files:**
 - Modify: `components/devcfg/include/device_config.h`
@@ -790,7 +790,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 - [ ] **Step 1: Create the firmware branch**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware && git checkout -b feat/branding-image-object
+cd /Users/eren/Projects/maratus-firmware && git checkout -b feat/branding-image-object
 ```
 
 - [ ] **Step 2: Write the failing host test + fixture**
@@ -873,7 +873,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 ---
 
-## Task 9: Firmware — render image + logo-as-wordmark (ditto-firmware)
+## Task 9: Firmware — render image + logo-as-wordmark (maratus-firmware)
 
 **Files:**
 - Modify: `components/ui/ui.c`
@@ -947,7 +947,7 @@ Update the comment above it (lines 162-164) to describe icons + images (no more 
 
 Run: `cd tools/cfg-harness && make test`
 Expected: all pass (this task doesn't change parsing, but confirm no regression).
-Run a firmware build: `cd /Users/eren/Projects/ditto-firmware && idf.py build` (per BUILD.md — ensure `ESP_IDF_VERSION` is **5.5**, not 5.5.4, per the SDIO trap note).
+Run a firmware build: `cd /Users/eren/Projects/maratus-firmware && idf.py build` (per BUILD.md — ensure `ESP_IDF_VERSION` is **5.5**, not 5.5.4, per the SDIO trap note).
 Expected: compiles clean.
 
 - [ ] **Step 6: Commit**
@@ -967,7 +967,7 @@ Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>"
 
 - [ ] **Step 1: Run the migration against the target DB**
 
-After the ditto-admin changes are deployed/previewed, run `npx tsx lib/db/migrate-logo-to-image.ts` once against the live DB (env via `.env.local`). Confirm the printed count and that re-running reports 0.
+After the maratus-admin changes are deployed/previewed, run `npx tsx lib/db/migrate-logo-to-image.ts` once against the live DB (env via `.env.local`). Confirm the printed count and that re-running reports 0.
 
 - [ ] **Step 2: Inspect the device payload**
 

@@ -499,7 +499,7 @@ git commit -m "feat: platform health dashboard page"
 
 ## Task 5: Manual verification (human-run)
 
-- [ ] As `admin@ditto.app`, open `/admin/health`. Confirm fleet/ingest/usage
+- [ ] As `admin@maratus.app`, open `/admin/health`. Confirm fleet/ingest/usage
       sections populate from seeded data (9 devices, 30 receipts, Roastwell + the
       test org).
 - [ ] In `npm run db:studio`, set one online device's `last_seen_at` to several

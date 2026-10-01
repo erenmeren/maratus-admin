@@ -2,13 +2,13 @@
 
 **Tarih:** 2026-07-06
 **Durum:** Onaylandı (yapı) — içerik yazımı bekliyor
-**Kapsam:** Ditto Admin konsolunun **Kiracı Yöneticisi (tenant owner/admin, müşteri tarafı)** bölümü için Türkçe kullanıcı kılavuzu. Süper Admin kılavuzunun (`super-admin-kilavuzu`) kardeş belgesidir; aynı biçim ve kuralları izler.
+**Kapsam:** Maratus Admin konsolunun **Kiracı Yöneticisi (tenant owner/admin, müşteri tarafı)** bölümü için Türkçe kullanıcı kılavuzu. Süper Admin kılavuzunun (`super-admin-kilavuzu`) kardeş belgesidir; aynı biçim ve kuralları izler.
 
 ---
 
 ## 1. Amaç
 
-Ditto'yu hiç kullanmamış bir kiracı yöneticisinin, yalnızca bu belgeyi izleyerek
+Maratus'yu hiç kullanmamış bir kiracı yöneticisinin, yalnızca bu belgeyi izleyerek
 kendi organizasyonunu (mağazalar, cihazlar, marka, üyeler, krediler, API) baştan
 sona yönetebilmesini sağlayacak **kapsamlı, Türkçe bir kullanım kılavuzu** üretmek.
 
@@ -47,7 +47,7 @@ Numaralandırma **1. görevden itibaren kilitlidir** (aşağıdaki nihai numaral
 
 0. Kapak + İçindekiler (make-pdf üretir)
 1. **Giriş & Bu Kılavuz Hakkında**
-2. **Ditto Nedir? (Kiracı Bakışıyla)** — kiracı/organizasyon, mağaza, cihaz (yazıcı),
+2. **Maratus Nedir? (Kiracı Bakışıyla)** — kiracı/organizasyon, mağaza, cihaz (yazıcı),
    tetikleme→QR akışı, ön ödemeli kredi, roller.
 3. **Başlarken** — giriş, `/tenant`'a yönlenme, kenar çubuğu ("Workspace" grubu, 10 öğe),
    çalışma alanı değiştirici (workspace switcher), hesap menüsü (Profile/Settings **işlevsiz**,
@@ -92,7 +92,7 @@ Numaralandırma **1. görevden itibaren kilitlidir** (aşağıdaki nihai numaral
 
 ## 8. Başarı Ölçütü
 
-Ditto'yu hiç görmemiş bir kiracı yöneticisi yalnızca bu PDF ile: giriş yapıp gezinebilir,
+Maratus'yu hiç görmemiş bir kiracı yöneticisi yalnızca bu PDF ile: giriş yapıp gezinebilir,
 mağaza oluşturup düzenleyebilir, yazıcı sahiplenip yönetebilir, markasını ve cihaz
 politikalarını ayarlayabilir, üye davet edebilir, kredi satın alabilir, API anahtarı
 oluşturabilir, rapor/analitiği ve etkinlik günlüğünü yorumlayabilir.

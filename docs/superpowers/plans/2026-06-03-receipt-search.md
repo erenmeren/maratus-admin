@@ -725,7 +725,7 @@ git commit -m "feat: admin cross-org receipts list + detail pages"
 - [ ] Click a `ready`/`downloaded` receipt → image renders; re-check its status in
       `npm run db:studio` → **unchanged** (viewing did not flip it).
 - [ ] Token lookup: paste a known token → single matching row.
-- [ ] As `admin@ditto.app`: open `/admin/receipts` → all orgs; filter by org; open a receipt.
+- [ ] As `admin@maratus.app`: open `/admin/receipts` → all orgs; filter by org; open a receipt.
 
 ---
 

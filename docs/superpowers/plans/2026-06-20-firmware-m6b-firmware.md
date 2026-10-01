@@ -6,7 +6,7 @@
 
 **Architecture:** A pure `ota_manifest` module (parse + version-compare, host-tested). `cloud_get_firmware()` fetches `GET /api/device/firmware`. A new `ota` component runs `esp_https_ota` from the presigned URL and handles pending-verify/mark-valid. The poll loop calls the check every ~Nth idle poll and marks the running image valid on the first healthy poll; the `firmware-update` command forces an immediate check. Rollback enabled via `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE`.
 
-**Tech Stack:** ESP-IDF 5.5 (C), `esp_https_ota` + `app_update` (`esp_ota_ops`), `esp_crt_bundle`, cJSON. Host tests: `make -C tools/cfg-harness test`. Build: `. ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`. Flash: `idf.py -p /dev/cu.usbmodem5A671704091 flash`. Repo: `/Users/eren/Projects/ditto-firmware`. Branch off `main`: `feat/m6b-firmware`.
+**Tech Stack:** ESP-IDF 5.5 (C), `esp_https_ota` + `app_update` (`esp_ota_ops`), `esp_crt_bundle`, cJSON. Host tests: `make -C tools/cfg-harness test`. Build: `. ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`. Flash: `idf.py -p /dev/cu.usbmodem5A671704091 flash`. Repo: `/Users/eren/Projects/maratus-firmware`. Branch off `main`: `feat/m6b-firmware`.
 
 This is **Plan 2 of 2** for M6b; it consumes the cloud manifest from Plan 1 (`GET /api/device/firmware` → `{version,url,sha256,size}` or 204). Spec: `docs/superpowers/specs/2026-06-20-firmware-m6b-ota-design.md`. Partition table is already A/B (`factory`/`ota_0`/`ota_1`/`otadata`).
 
@@ -14,7 +14,7 @@ This is **Plan 2 of 2** for M6b; it consumes the cloud manifest from Plan 1 (`GE
 
 ### Task 0: Branch
 
-- [ ] From `/Users/eren/Projects/ditto-firmware` on `main` (clean): `git checkout -b feat/m6b-firmware`.
+- [ ] From `/Users/eren/Projects/maratus-firmware` on `main` (clean): `git checkout -b feat/m6b-firmware`.
 
 ---
 
@@ -319,7 +319,7 @@ git commit -m "feat(firmware): wire OTA — firmware-update command + poll auto-
 - [ ] **Step 2:** `. ~/.espressif/v5.5/esp-idf/export.sh && idf.py build` → clean; confirm `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y`.
 - [ ] **Step 3:** Flash the **current** version first: bump `CONFIG_DITTO_FW_VERSION` only when publishing the *next* one. Flash this build (`idf.py -p /dev/cu.usbmodem5A671704091 flash`) as the running baseline (e.g. `0.2.0-m2`).
 - [ ] **Step 4: HIL (needs board + user + the cloud deployed/reachable so the device can fetch the manifest):**
-  - Bump `CONFIG_DITTO_FW_VERSION` to e.g. `0.3.0-m6b`, `idf.py build`, and **publish** that `build/ditto-firmware.bin` via the admin Firmware page (Plan 1).
+  - Bump `CONFIG_DITTO_FW_VERSION` to e.g. `0.3.0-m6b`, `idf.py build`, and **publish** that `build/maratus-firmware.bin` via the admin Firmware page (Plan 1).
   - On the device: either wait for the ~10-min auto-check, or hit **"Update firmware"** in the dashboard CommandBar for an immediate update.
   - Device logs `GET /firmware -> 200`, `OTA … -> 0.3.0-m6b`, downloads, reboots; after boot it reports `x-device-version: 0.3.0-m6b` (admin device page shows the new version) and logs `marked OTA image valid`.
   - **Power-cycle** → stays on `0.3.0-m6b` (image was marked valid).

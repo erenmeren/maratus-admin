@@ -2,13 +2,13 @@
 
 **Tarih:** 2026-07-05
 **Durum:** Onaylandı (yapı) — içerik yazımı bekliyor
-**Kapsam:** Ditto Admin konsolunun **Süper Admin (platform_admin)** bölümü için Türkçe kullanıcı kılavuzu.
+**Kapsam:** Maratus Admin konsolunun **Süper Admin (platform_admin)** bölümü için Türkçe kullanıcı kılavuzu.
 
 ---
 
 ## 1. Amaç
 
-Ditto Admin'in Süper Admin bölümünü hiç bilmeyen bir kişinin, yalnızca bu belgeyi
+Maratus Admin'in Süper Admin bölümünü hiç bilmeyen bir kişinin, yalnızca bu belgeyi
 takip ederek konsolu baştan sona kullanabilmesini sağlayacak **kapsamlı, Türkçe bir
 kullanım kılavuzu** üretmek. Bu, çok bölümlü bir dokümantasyon çalışmasının ilk
 parçasıdır; kiracı (tenant) tarafı kılavuzları sonraki aşamalarda ele alınacaktır.
@@ -21,7 +21,7 @@ parçasıdır; kiracı (tenant) tarafı kılavuzları sonraki aşamalarda ele al
 | **Kaynak** | Türkçe **Markdown** dosyası repoda kalır: `docs/manuals/tr/super-admin-kilavuzu.md`. PDF bundan üretilir ve tekrar üretilebilir. |
 | **Ekran görüntüleri** | **İlk sürüm görüntüsüz** (metin ağırlıklı, ayrıntılı adım anlatımı). Gerçek ekran görüntüleri ikinci turda eklenecek. |
 | **Paketleme** | **Tek eksiksiz el kitabı** ("Süper Admin Kullanım Kılavuzu"), her ekran bir bölüm. |
-| **Derinlik** | **Kavramlar + görevler.** Önce "Ditto Nedir?" kavramsal bölümü ve Sözlük, ardından adım adım görev anlatımları. |
+| **Derinlik** | **Kavramlar + görevler.** Önce "Maratus Nedir?" kavramsal bölümü ve Sözlük, ardından adım adım görev anlatımları. |
 | **Dil kuralı** | Türkçe anlatım; arayüz İngilizce olduğu için ekran/buton/alan adları **"Türkçe karşılık (İngilizce arayüz metni)"** kalıbıyla verilir (ör. **Genel Bakış (Overview)**, **Yeni müşteri (New customer)** butonu). |
 | **Ton** | Nazik/resmî "siz" dili; sıfırdan öğrenen okura göre; numaralı adımlar. |
 
@@ -51,11 +51,11 @@ Kılavuz aşağıdaki bölümlerden oluşur. Her ekran bölümü, kod tabanında
 `make-pdf` tarafından üretilir.
 
 ### 1. Giriş & Bu Kılavuz Hakkında
-Kılavuzun kimin için olduğu (Ditto platform yöneticileri / Süper Admin), nasıl
+Kılavuzun kimin için olduğu (Maratus platform yöneticileri / Süper Admin), nasıl
 okunacağı, dil kuralı açıklaması.
 
-### 2. Ditto Nedir? (Kavramsal Model)
-- **Ditto ne yapar:** yazıcılar kâğıt belge yerine, müşterinin telefonuyla
+### 2. Maratus Nedir? (Kavramsal Model)
+- **Maratus ne yapar:** yazıcılar kâğıt belge yerine, müşterinin telefonuyla
   taradığı bir QR kod gösterir.
 - **Çok kiracılı (multi-tenant) model:** her müşteri = bir kiracı (organization).
 - **Cihaz = yazıcı**; tetikleme → QR akışı (caller URL sağlar, cihaz QR gösterir).
@@ -65,7 +65,7 @@ okunacağı, dil kuralı açıklaması.
   değildir; `user.role = 'platform_admin'`).
 
 ### 3. Başlarken (Giriş ve Gezinme)
-- **Giriş yapma:** `/login`, e-posta + parola. Demo süper admin: `admin@ditto.app` / `123456`.
+- **Giriş yapma:** `/login`, e-posta + parola. Demo süper admin: `admin@maratus.app` / `123456`.
   "Forgot password?" ve "Continue with SSO" şu an işlevsel değil (SSO yapılandırılmamış).
 - Giriş sonrası `platform_admin` → `/admin`'e yönlendirilir.
 - **Erişim yetkisi:** yalnızca `platform_admin` bu bölümü görür; değilse `/tenant`'a yönlenir.
@@ -166,6 +166,6 @@ tuzaklar kılavuzda doğru biçimde ele alınır:
 
 ## 8. Başarı Ölçütü
 
-Ditto'yu hiç görmemiş bir Süper Admin, yalnızca bu PDF'i okuyarak: giriş yapabilir,
+Maratus'yu hiç görmemiş bir Süper Admin, yalnızca bu PDF'i okuyarak: giriş yapabilir,
 gezinebilir, yeni müşteri ve şube oluşturabilir, cihaz sağlayıp yönetebilir, kredi
 yükleyebilir, firmware yayımlayabilir, sistem sağlığını ve faturalandırmayı yorumlayabilir.

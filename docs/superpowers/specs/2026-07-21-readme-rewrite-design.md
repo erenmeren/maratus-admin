@@ -19,17 +19,17 @@ with no loss of content.
   manuals already live in `docs/manuals`).
 - **Approach:** "Product-first, single link" — README contains zero code, env
   vars, or commands.
-- **Naming:** the product keeps the name **Ditto** (rename decision is
+- **Naming:** the product keeps the name **Maratus** (rename decision is
   deferred; see `docs/naming-candidates.md`).
 
 ## New `README.md` structure (~60–80 lines, no technical jargon)
 
-1. **Title + tagline** — one sentence, e.g. "Ditto turns paper documents into
+1. **Title + tagline** — one sentence, e.g. "Maratus turns paper documents into
    scannable QR codes at the point of sale."
-2. **The problem / what Ditto does** — stores print paper documents; Ditto's
+2. **The problem / what Maratus does** — stores print paper documents; Maratus's
    small touch-screen counter device shows a QR code instead; the customer
    scans it with their phone and gets the digital content. The business hosts
-   its own content — Ditto only triggers and displays (framed in plain words as
+   its own content — Maratus only triggers and displays (framed in plain words as
    a privacy plus).
 3. **How it works** — a 4-step conceptual story: device comes out of the box →
    connects to Wi-Fi and identifies itself (zero-touch setup) → your sales
@@ -38,7 +38,7 @@ with no loss of content.
 4. **Who uses it** — the two panels in plain language:
    - Store chains: manage stores, devices, screen branding, credit balance,
      team members.
-   - Ditto operations: customers, the device fleet, manufacturing inventory,
+   - Maratus operations: customers, the device fleet, manufacturing inventory,
      software updates.
 5. **Pricing in one paragraph** — prepaid credits; each successful QR display
    costs 1 credit; failed displays are not charged.
@@ -52,7 +52,7 @@ only): Stack, Setup, Environment table, Seed accounts, Commands, Architecture,
 Device → trigger → QR flow, Factory registry & zero-touch provisioning,
 Customer lifecycle (offboarding & archive), Billing (prepaid credits), Testing.
 
-- Title becomes "Ditto — Development Guide".
+- Title becomes "Maratus — Development Guide".
 - Add a one-line back-link to the README at the top.
 - Relative links inside the moved content (e.g. `docs/device-protocol.md`,
   `docs/runbooks/...`) must be re-based for the new location (now siblings

@@ -11,7 +11,7 @@ describe("isTenantImageKey", () => {
     expect(isTenantImageKey(org, "branding/org_zzz/images/image_x1")).toBe(false);
   });
   it("rejects firmware and other bucket paths", () => {
-    expect(isTenantImageKey(org, "firmware/0.19.1/ditto-firmware.bin")).toBe(false);
+    expect(isTenantImageKey(org, "firmware/0.19.1/maratus-firmware.bin")).toBe(false);
     expect(isTenantImageKey(org, "logos/org_abc/l1")).toBe(false);
   });
   it("rejects traversal, empty segments and a bare prefix", () => {

@@ -6,7 +6,7 @@
 
 ## Summary
 
-Let tenants subscribe to receipt-lifecycle events by registering HTTPS endpoints; Ditto POSTs
+Let tenants subscribe to receipt-lifecycle events by registering HTTPS endpoints; Maratus POSTs
 signed JSON events to them. v1 emits `receipt.created` and `receipt.downloaded`. Delivery is
 **near-real-time and non-blocking** (fired with Next's `after()` so it never delays the kiosk's
 ingest response or the public receipt page), persisted to a delivery log, with a daily cron
@@ -34,7 +34,7 @@ events are the two discrete DB state transitions already in the codebase, so emi
 |---|---|
 | Delivery mechanism | **Inline via `after()`** (non-blocking, near-real-time) + **daily cron retry sweep** |
 | Events (v1) | `receipt.created`, `receipt.downloaded` |
-| Signing | Stripe-style HMAC-SHA256: `X-Ditto-Signature: t=<unix>,v1=<hex>` over `"t.payload"` |
+| Signing | Stripe-style HMAC-SHA256: `X-Maratus-Signature: t=<unix>,v1=<hex>` over `"t.payload"` |
 | Secret storage | `whsec_<nanoid>` stored (needed to sign), shown **once** at creation (delete+recreate to roll) |
 | SSRF protection | **Required** — https-only + block private/loopback/link-local ranges, checked at create AND pre-delivery |
 | Auto-disable | After **15** consecutive failures |
@@ -102,8 +102,8 @@ Add both to the `schema` export map. (`boolean`, `jsonb`, `integer`, `.array()` 
 `attemptDelivery(delivery, endpoint)`:
 - Re-check `isAllowedWebhookUrl(endpoint.url)` (DNS may have changed) → if blocked, mark failed,
   no retry.
-- `fetch(url, { method: POST, headers: {content-type, X-Ditto-Event-Id, X-Ditto-Event-Type,
-  X-Ditto-Signature}, body, signal: AbortSignal.timeout(5000) })`.
+- `fetch(url, { method: POST, headers: {content-type, X-Maratus-Event-Id, X-Maratus-Event-Type,
+  X-Maratus-Signature}, body, signal: AbortSignal.timeout(5000) })`.
 - 2xx → `status=success`, bump `attempts`, set `responseStatus`, **reset** `endpoint.consecutiveFailures=0`,
   stamp `lastDeliveryAt`.
 - non-2xx / network / timeout → `status=failed`, bump `attempts`, set `nextRetryAt = now + nextBackoff(attempts)`
@@ -118,9 +118,9 @@ Add both to the `schema` export map. (`boolean`, `jsonb`, `integer`, `.array()` 
 
 ## Signing & idempotency
 
-- Headers: `X-Ditto-Event-Id: evt_…`, `X-Ditto-Event-Type: receipt.created`,
-  `X-Ditto-Signature: t=<unix>,v1=<hex HMAC-SHA256 of "t.<raw-json-body>">`.
-- Delivery is **at-least-once**; subscribers dedupe on `X-Ditto-Event-Id`. Payload `{ id, type,
+- Headers: `X-Maratus-Event-Id: evt_…`, `X-Maratus-Event-Type: receipt.created`,
+  `X-Maratus-Signature: t=<unix>,v1=<hex HMAC-SHA256 of "t.<raw-json-body>">`.
+- Delivery is **at-least-once**; subscribers dedupe on `X-Maratus-Event-Id`. Payload `{ id, type,
   created, data }`. A short "verifying signatures" note + the scheme is documented on `/tenant/webhooks`.
 
 ## Management UI — `/tenant/webhooks` (owner/admin)

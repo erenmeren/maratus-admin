@@ -29,7 +29,7 @@ Download the two C files from Nayuki's QR-Code-generator (MIT), C port:
 - `https://raw.githubusercontent.com/nayuki/QR-Code-generator/master/c/qrcodegen.h` → `components/qrcodegen/include/qrcodegen.h`
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 mkdir -p components/qrcodegen/include
 curl -fsSL https://raw.githubusercontent.com/nayuki/QR-Code-generator/master/c/qrcodegen.c -o components/qrcodegen/qrcodegen.c
 curl -fsSL https://raw.githubusercontent.com/nayuki/QR-Code-generator/master/c/qrcodegen.h -o components/qrcodegen/include/qrcodegen.h
@@ -323,7 +323,7 @@ git commit -m "feat(firmware): parse GS ( k QR command family"
 ```js
 import { writeFileSync, mkdirSync } from "node:fs";
 
-const url = process.argv[2] || "https://ditto.app/r/qr-fixture-demo";
+const url = process.argv[2] || "https://maratus.app/r/qr-fixture-demo";
 const bytes = Buffer.from(url, "latin1");
 
 // GS ( k helpers (cn = 49 for QR).
@@ -359,7 +359,7 @@ console.log(`wrote fixtures/qr-basic.escpos (${job.length} bytes) encoding: ${ur
 - [ ] **Step 2: Generate + send**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware/tools/escpos-harness
+cd /Users/eren/Projects/maratus-firmware/tools/escpos-harness
 node make-qr-fixture.js
 node send.js <device-ip> fixtures/qr-basic.escpos
 ```
@@ -367,12 +367,12 @@ node send.js <device-ip> fixtures/qr-basic.escpos
 - [ ] **Step 3: Verify end-to-end (after flashing the M4b firmware)**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware && idf.py build && idf.py -p <PORT> flash monitor
+cd /Users/eren/Projects/maratus-firmware && idf.py build && idf.py -p <PORT> flash monitor
 ```
 Expected:
 - Device serial: `job received: N bytes`, `parsed 1 ops` (the QR), `rendered 576xH -> PNG …`, `receipt ready: https://…/r/…`.
 - Screen: `Processing…` → QR screen (the on-screen QR of the *receipt URL*).
-- **Scan the on-screen QR** → the public receipt loads, and the receipt image itself **contains the QR** encoding `https://ditto.app/r/qr-fixture-demo` (centered, 6px modules).
+- **Scan the on-screen QR** → the public receipt loads, and the receipt image itself **contains the QR** encoding `https://maratus.app/r/qr-fixture-demo` (centered, 6px modules).
 - **Scan the QR inside the receipt image** → it resolves to that fixture URL (proves the rasterized QR is valid).
 - Admin lists the receipt.
 

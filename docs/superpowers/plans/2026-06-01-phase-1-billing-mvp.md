@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Let tenants subscribe to a metered Stripe plan, report receipt usage to Stripe, and mirror Stripe's generated/charged invoices back into Ditto via webhooks — with an in-app Elements card form and a tenant billing page.
+**Goal:** Let tenants subscribe to a metered Stripe plan, report receipt usage to Stripe, and mirror Stripe's generated/charged invoices back into Maratus via webhooks — with an in-app Elements card form and a tenant billing page.
 
 **Architecture:** Stripe owns the billing clock (metered Subscriptions + Billing Meters). Our DB mirrors Stripe through a signed webhook. `lib/stripe.ts` exports a `null`-when-unconfigured client so the app builds and pure tests pass without keys. Pure mapping logic (`statusForStripeInvoice`) is isolated and TDD'd; IO/UI is verified manually in Stripe test mode.
 
@@ -232,7 +232,7 @@ async function main() {
   const stripe = new Stripe(key, { typescript: true });
   const eventName = getEnv().STRIPE_METER_EVENT_NAME;
 
-  const product = await stripe.products.create({ name: "Ditto digital receipts" });
+  const product = await stripe.products.create({ name: "Maratus digital receipts" });
 
   const meter = await stripe.billing.meters.create({
     display_name: "Receipts",

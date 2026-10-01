@@ -10,9 +10,9 @@
 
 ## Global Constraints
 
-- **Repo: ditto-firmware ONLY.** Cloud contract is unchanged. (Spec + this plan live in ditto-admin per the cross-cutting-record convention.)
+- **Repo: maratus-firmware ONLY.** Cloud contract is unchanged. (Spec + this plan live in maratus-admin per the cross-cutting-record convention.)
 - **Build on ESP-IDF 5.5** (`. ~/.espressif/v5.5/esp-idf/export.sh`), target `esp32p4`. NOT 6.x.
-- **Preset order is the contract:** the 16 names, in this exact order, mirror `ditto-admin/lib/printer-layout.ts` `ICON_PRESETS`: `check, check-circle, heart, star, gift, mail, thumbs-up, smile, clock, bell, alert-triangle, wifi-off, sparkles, party-popper, badge-check, coffee`. Index 0 (`check`) is the default for unknown/empty names (mirrors `DEFAULT_ICON_PRESET`).
+- **Preset order is the contract:** the 16 names, in this exact order, mirror `maratus-admin/lib/printer-layout.ts` `ICON_PRESETS`: `check, check-circle, heart, star, gift, mail, thumbs-up, smile, clock, bell, alert-triangle, wifi-off, sparkles, party-popper, badge-check, coffee`. Index 0 (`check`) is the default for unknown/empty names (mirrors `DEFAULT_ICON_PRESET`).
 - **Sprite format:** 128×128, `LV_COLOR_FORMAT_A8`, stride 128, `data_size` = 16384 bytes each.
 - **Tint mapping:** `TINT_ACCENT`→accent, `TINT_MUTED`→muted, `TINT_WARN`→warn, `TINT_NONE`→fg; resolve against the per-screen palette (`cfg_screen_t.has_colors` → `col_accent/col_muted/col_fg`) first, else global `brand_*`. No per-screen `warn` column exists → warn always uses `brand_warn`.
 - **Generated files are committed** (like the font binaries); CMake never runs the generator.
@@ -39,7 +39,7 @@
 `tools/gen-icons/package.json`:
 ```json
 {
-  "name": "ditto-gen-icons",
+  "name": "maratus-gen-icons",
   "private": true,
   "type": "module",
   "description": "Build-time: rasterize lucide preset icons to 128x128 A8 LVGL sprites. Output is committed; not run by CMake.",
@@ -56,7 +56,7 @@
 `tools/gen-icons/gen-icons.mjs`:
 ```js
 // Rasterize the 16 lucide preset icons to 128x128 A8 and emit two generated C
-// files. Order MUST match ditto-admin lib/printer-layout.ts ICON_PRESETS.
+// files. Order MUST match maratus-admin lib/printer-layout.ts ICON_PRESETS.
 import sharp from "sharp";
 import { readFileSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -151,7 +151,7 @@ Rasterizes the 16 lucide preset icons to 128×128 A8 LVGL sprites and writes
 
     cd tools/gen-icons && npm install && npm run gen
 
-Order + names MUST match `ditto-admin/lib/printer-layout.ts` `ICON_PRESETS`. To
+Order + names MUST match `maratus-admin/lib/printer-layout.ts` `ICON_PRESETS`. To
 add/remove an icon: change the cloud list first, then update `NAMES` here and
 regenerate. `STROKE` tunes line weight if an icon reads too thin on hardware.
 Source: `lucide-static` (version pinned in package.json).

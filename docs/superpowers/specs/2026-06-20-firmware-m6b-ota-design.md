@@ -2,8 +2,8 @@
 
 **Date:** 2026-06-20
 **Status:** Approved (design); implementation plan(s) to follow.
-**Repos:** ditto-admin (cloud: publish + manifest + admin UI) + ditto-firmware (OTA client).
-Completes the M6 section of `2026-06-14-ditto-firmware-design.md` (provisioning shipped in
+**Repos:** maratus-admin (cloud: publish + manifest + admin UI) + maratus-firmware (OTA client).
+Completes the M6 section of `2026-06-14-maratus-firmware-design.md` (provisioning shipped in
 M6a/M6a-2).
 
 ## Goal
@@ -31,7 +31,7 @@ safety**. The partition table is already A/B-capable (`factory` + `ota_0` + `ota
 ```
   admin (platform)                         device (poll loop / on command)
   ────────────────                         ──────────────────────────────
-  upload ditto-firmware.bin (vN+1)
+  upload maratus-firmware.bin (vN+1)
    → server sha256 + putObject(R2)
    → insert firmwareRelease row (latest)
                                            1. GET /api/device/firmware (device-key) ──┐
@@ -46,7 +46,7 @@ safety**. The partition table is already A/B-capable (`factory` + `ota_0` + `ota
   device.firmwareVersion updated from the x-device-version header on the next poll.
 ```
 
-## Cloud (ditto-admin)
+## Cloud (maratus-admin)
 
 ### Data model — `firmwareRelease` table
 New table (one Drizzle migration):
@@ -62,7 +62,7 @@ New table (one Drizzle migration):
 - Server action / route handler (`requirePlatformAdmin`): accept multipart upload of the
   `.bin` (~1.5 MB), compute SHA-256, `putObject(firmwareStorageKey(version), bytes,
   "application/octet-stream")`, insert the `firmwareRelease` row. Reject a duplicate version.
-- `lib/storage.ts`: add `firmwareStorageKey(version)` → `firmware/<version>/ditto-firmware.bin`.
+- `lib/storage.ts`: add `firmwareStorageKey(version)` → `firmware/<version>/maratus-firmware.bin`.
 
 ### Manifest endpoint — `GET /api/device/firmware`
 - `app/api/device/firmware/route.ts`, **device-key auth** (reuse `authenticateDevice`,
@@ -80,7 +80,7 @@ New table (one Drizzle migration):
 - Device detail page: show **running** (`device.firmwareVersion`) vs **latest published**
   version (read the latest release), so the admin sees whether an update is available.
 
-## Firmware (ditto-firmware)
+## Firmware (maratus-firmware)
 
 ### New `ota` component
 - `ota_check_and_update(bool forced)`:

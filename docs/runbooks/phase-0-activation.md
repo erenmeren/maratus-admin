@@ -7,7 +7,7 @@ needs code changes — it's all accounts + config.
 
 **Where env vars go:**
 - **Local dev** → `.env.local` (copy missing keys from `.env.example`).
-- **Production** → Vercel project `ditto-admin`. Either the dashboard
+- **Production** → Vercel project `maratus-admin`. Either the dashboard
   (Settings → Environment Variables) or the CLI:
   `vercel env add <NAME> production` (paste the value when prompted).
   After changing production env vars, **redeploy** for them to take effect.
@@ -61,7 +61,7 @@ be delivered. Until then, company signup auto-verifies (so dev/seed never breaks
 2. **API Keys** → create a key (`re_...`).
 3. Set env:
    - `RESEND_API_KEY` = the key
-   - `EMAIL_FROM` = leave as the default `Ditto <onboarding@resend.dev>`
+   - `EMAIL_FROM` = leave as the default `Maratus <onboarding@resend.dev>`
      (Resend's shared test sender — no domain required).
 4. **Important limitation:** the test sender only delivers to **your own Resend
    account email**. So sign up with that exact email to receive the verification
@@ -73,7 +73,7 @@ be delivered. Until then, company signup auto-verifies (so dev/seed never breaks
 ### 2b. Production (your own domain) — when you have one
 1. Buy a domain; in Resend → **Domains** → add it and complete DNS verification
    (SPF/DKIM records at your DNS provider).
-2. Set `EMAIL_FROM` = `Ditto <noreply@yourdomain.com>` (must match the verified
+2. Set `EMAIL_FROM` = `Maratus <noreply@yourdomain.com>` (must match the verified
    domain) in Vercel, and redeploy.
 3. Now verification + invite emails deliver to any recipient.
 
@@ -88,8 +88,8 @@ be delivered. Until then, company signup auto-verifies (so dev/seed never breaks
 Auto-deploy on push to `main` was previously disconnected, so pushes don't ship
 on their own.
 
-1. Vercel dashboard → project **ditto-admin** → **Settings → Git**.
-2. Confirm the connected repo is `erenmeren/ditto-admin` and the **Production
+1. Vercel dashboard → project **maratus-admin** → **Settings → Git**.
+2. Confirm the connected repo is `erenmeren/maratus-admin` and the **Production
    Branch** is `main`. If the repo shows disconnected, **Connect Git Repository**.
 3. Ensure "Automatically deploy" for the production branch is enabled.
 4. **Verify:** push a trivial commit to `main` and confirm a new Production

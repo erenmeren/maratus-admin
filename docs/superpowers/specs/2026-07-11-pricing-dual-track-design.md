@@ -1,4 +1,4 @@
-# Ditto Pricing — Dual-Track Strategy (Flat Fleet ∥ Base + Usage)
+# Maratus Pricing — Dual-Track Strategy (Flat Fleet ∥ Base + Usage)
 
 **Date:** 2026-07-11
 **Status:** Approved (design)
@@ -20,7 +20,7 @@ run in parallel; convergence to one model is a later, data-driven decision.
   ~167 req/s of polling ≈ $600–1,800/month total.
 
 **Key insight: cost scales with fleet size (device count), not trigger volume.**
-A shop firing 5,000 triggers/day costs Ditto almost the same as one firing 10/day.
+A shop firing 5,000 triggers/day costs Maratus almost the same as one firing 10/day.
 Pure per-trigger pricing is therefore structurally mispriced: idle devices lose
 money, busy shops perceive the price as "more expensive than paper".
 

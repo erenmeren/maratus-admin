@@ -1,13 +1,13 @@
 # Firmware: Boot Loading Bar
 
 **Date:** 2026-07-09
-**Repo:** `ditto-firmware` (spec recorded here in ditto-admin per convention)
+**Repo:** `maratus-firmware` (spec recorded here in maratus-admin per convention)
 **Status:** Approved
 
 ## Problem
 
-On power-on the device shows a static splash (Ditto-green background, white
-"Ditto" wordmark) and then — if a cached branding config exists — jumps to the
+On power-on the device shows a static splash (Maratus-green background, white
+"Maratus" wordmark) and then — if a cached branding config exists — jumps to the
 branded idle screen *before* Wi-Fi even associates. Wi-Fi connection, asset
 mount, and first cloud contact all happen with no visual feedback. The user
 cannot tell whether the device is still starting, stuck on Wi-Fi, or ready.
@@ -42,7 +42,7 @@ wordmark:
 ```
 ┌──────────────────────┐
 │                      │
-│        Ditto         │   ← existing wordmark (64 px bold)
+│        Maratus         │   ← existing wordmark (64 px bold)
 │                      │
 │   ████████░░░░░░     │   ← lv_bar, white on green
 │  Connecting to Wi-Fi… │   ← status label
@@ -57,7 +57,7 @@ wordmark:
 | 10 % | Starting up… | splash first paint (display + NVS init done) |
 | 25 % | Loading saved settings… | cached config loaded from NVS |
 | 40 % | Connecting to Wi-Fi… | `net_connect` begins (or Wi-Fi setup hand-off) |
-| 70 % | Contacting Ditto… | Wi-Fi has an IP; waiting for first poll 200 |
+| 70 % | Contacting Maratus… | Wi-Fi has an IP; waiting for first poll 200 |
 | 100 % | Ready | first HTTP 200 from the commands poll |
 
 After READY the splash holds a short beat (~300 ms) so the full bar is
@@ -157,7 +157,7 @@ stage table is a trivial pure lookup — no host test invented for it.
      the router returns.
    - **Unclaimed device:** bar through Wi-Fi stage, then pairing screen.
    - **First boot (no creds):** bar → Wi-Fi setup UI hand-off → after setup,
-     splash returns at "Contacting Ditto…" → idle.
+     splash returns at "Contacting Maratus…" → idle.
 
 ## Out of scope
 

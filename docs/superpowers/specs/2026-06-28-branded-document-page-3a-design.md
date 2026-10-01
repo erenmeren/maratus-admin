@@ -1,19 +1,19 @@
 # Phase 3A — Branded Customer Document Page — Design
 
 **Date:** 2026-06-28
-**Repo:** `ditto-admin`
+**Repo:** `maratus-admin`
 **Status:** Approved design, pre-implementation
 **Phase:** 3 ("long-term vision"), sub-project **3A** (first). The realistic v1 of "customer-facing document features."
 
 ## Problem
 
-The public `/d/{token}` page — what a customer sees after scanning the QR — is an anonymous bare image view: a hard-coded **Ditto** wordmark, no tenant branding, no store info, no contact affordance. The branding (brand color, logo) and store data already exist in the system; they're just not wired to the public route. 3A turns the page into a **branded, trustworthy customer experience**.
+The public `/d/{token}` page — what a customer sees after scanning the QR — is an anonymous bare image view: a hard-coded **Maratus** wordmark, no tenant branding, no store info, no contact affordance. The branding (brand color, logo) and store data already exist in the system; they're just not wired to the public route. 3A turns the page into a **branded, trustworthy customer experience**.
 
 (Phase 3's grander visions — warranty/return lookup keyed on order#/amount, white-label domains, multi-region R2 — are blocked on missing structured business data / new infra and are out of scope; see the Phase 3 assessment.)
 
 ## Decisions (locked via brainstorming)
 
-1. **Tenant logo leads; Ditto becomes a small "Powered by Ditto" footer.** Show the tenant's logo (presigned) in the header when set, else the org name as a wordmark.
+1. **Tenant logo leads; Maratus becomes a small "Powered by Maratus" footer.** Show the tenant's logo (presigned) in the header when set, else the org name as a wordmark.
 2. **Brand color is an accent, not a full theme** — applied (inline, from the hex) to the "ready" check icon and the Download button only.
 3. **Add two optional tenant fields** — `supportEmail` + `supportUrl` (return-policy/help link) — surfaced as a "Questions about this? Contact {store}" block; hidden when both blank.
 4. **Provenance line:** "Issued by {org} · {store}", store address, date.
@@ -63,7 +63,7 @@ Implementation: the existing query already `LEFT JOIN store` + `INNER JOIN organ
 - **Ready state:** brand-color accent on the check icon + the Download button (`style={{ backgroundColor: brandColor }}` / icon color); keep the image + download anchor.
 - **Provenance:** "Issued by {organizationName} · {storeName}", `storeAddress` (when set), and the date (existing).
 - **Support block:** compute `supportLinks({ supportEmail, supportUrl })`; when `show`, render "Questions about this order? Contact {storeName}" with a `mailto:{email}` link and/or a "Return policy & help" link to `url`. Hidden when `!show`.
-- **Footer:** small muted "Powered by Ditto" (`DittoWordmark` moved here from the header).
+- **Footer:** small muted "Powered by Maratus" (`MaratusWordmark` moved here from the header).
 - pending / not-found states unchanged in logic; they may still show branding when the org resolves (not-found has no org → plain).
 
 ### E) Tenant settings form — wherever `tenantSettings` is edited (the Branding/Settings surface)
@@ -77,7 +77,7 @@ Customer scans QR → /d/{token}
   getDocumentByToken(token): document ⋈ store ⋈ organization ⋈ tenantSettings
     → { status, image (presigned), orgName, storeName, storeAddress, date,
         brandColor, logoUrl (presigned), supportEmail, supportUrl }
-  page renders: tenant logo + brand-color accents + provenance + support block + "Powered by Ditto"
+  page renders: tenant logo + brand-color accents + provenance + support block + "Powered by Maratus"
 
 Tenant settings form → save supportEmail/supportUrl (validated) → tenantSettings
 ```

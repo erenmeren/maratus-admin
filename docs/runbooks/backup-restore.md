@@ -2,7 +2,7 @@
 
 _Owner: platform team · Last reviewed: 2026-06-01_
 
-Ditto's durable state lives in two places:
+Maratus's durable state lives in two places:
 
 | Store | Holds | Backup mechanism |
 |---|---|---|

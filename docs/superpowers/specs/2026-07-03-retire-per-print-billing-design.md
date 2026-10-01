@@ -6,7 +6,7 @@
 
 ## Problem
 
-Ditto bills two ways today, but only one is real:
+Maratus bills two ways today, but only one is real:
 
 - **Per-print / postpaid (vestigial):** a monthly cron counts `document` rows × `perPrintPriceCents`, generates `invoice` rows, pushes them to Stripe (invoices + a metered subscription + a usage meter), duns overdue accounts, and a `isOrgPaymentBlocked` gate 402/403s a tenant whose invoices are overdue. Since the pivot, **nothing writes `document` rows**, so this whole machine meters $0, generates empty invoices, and the enforcement gate is permanently no-op.
 - **Prepaid credits (real):** every device trigger reserves→settles a credit (`creditLedger`); tenants buy credit packs via Stripe Checkout. This is the actual, working payment path and is **inherently self-enforcing** — no credits → the trigger endpoint already returns `402 insufficient_credits`.

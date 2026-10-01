@@ -1,7 +1,7 @@
 # Credits UI Surfaces — Design
 
 **Date:** 2026-06-27
-**Repo:** `ditto-admin`
+**Repo:** `maratus-admin`
 **Status:** Approved design, pre-implementation
 **Follows:** [credits + device-trigger core](2026-06-26-credits-and-device-trigger-core-design.md). Closes two deferred-Minor surfaces from that work.
 

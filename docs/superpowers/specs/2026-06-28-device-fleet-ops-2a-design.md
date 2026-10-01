@@ -1,7 +1,7 @@
 # Phase 2A — Device Fleet Ops — Design
 
 **Date:** 2026-06-28
-**Repo:** `ditto-admin`
+**Repo:** `maratus-admin`
 **Status:** Approved design, pre-implementation
 **Phase:** 2 ("feature expansion"), sub-project **2A** (first). Siblings: **2B** tenant-health drill-down + alert delivery, **2C** audit-log UI polish.
 

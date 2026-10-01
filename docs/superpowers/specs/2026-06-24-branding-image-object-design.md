@@ -1,7 +1,7 @@
 # Branding "Image" Object — Design
 
 **Date:** 2026-06-24
-**Repos:** `ditto-admin` (cloud/admin) + `ditto-firmware` (device)
+**Repos:** `maratus-admin` (cloud/admin) + `maratus-firmware` (device)
 **Status:** Approved design, pre-implementation
 
 ## Problem
@@ -45,7 +45,7 @@ freely as they add text — not just one logo in one slot.
 
 ## Architecture
 
-### A. New `image` object (ditto-admin)
+### A. New `image` object (maratus-admin)
 
 **Type** (`lib/printer-layout.ts`)
 - Add `"image"` to `OBJECT_TYPES`.
@@ -107,7 +107,7 @@ freely as they add text — not just one logo in one slot.
   `computeConfigVersion`, so adding/removing image objects rotates the ETag.
   Remove `logoUrl` from the version input once it's no longer delivered.
 
-### B. One-time data migration (ditto-admin)
+### B. One-time data migration (maratus-admin)
 
 A migration script (TS, run once against Neon; loads env via
 `lib/db/load-env.ts`) walks every `tenantSettings` row:
@@ -126,7 +126,7 @@ re-fetch on next poll.
 
 Idempotent: re-running finds no remaining `logo` widgets and is a no-op.
 
-### C. Firmware (ditto-firmware)
+### C. Firmware (maratus-firmware)
 
 Small, mirrors the icon-upload path.
 

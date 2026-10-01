@@ -957,7 +957,7 @@ git push origin main && vercel deploy --prod
 ```
 Expected: deployment Ready.
 
-- [ ] **Step 2: QA checklist (production, org "Starbucks", user erenmeren88@gmail.com or admin@ditto.app via workspace switcher)**
+- [ ] **Step 2: QA checklist (production, org "Starbucks", user erenmeren88@gmail.com or admin@maratus.app via workspace switcher)**
 
 Using Playwright MCP (remember: use `browser_evaluate` with native `.click()` — `browser_click` doesn't fire React handlers on this app):
 

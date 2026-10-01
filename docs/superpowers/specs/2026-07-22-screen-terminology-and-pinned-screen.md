@@ -1,6 +1,6 @@
 # Screen Terminology + Editable Pinned Screen + Styled QR (cloud side)
 
-*2026-07-22 · approved in conversation. Firmware counterpart: ditto-firmware
+*2026-07-22 · approved in conversation. Firmware counterpart: maratus-firmware
 `docs/superpowers/specs/2026-07-22-pinned-screen-styled-qr-firmware.md`.*
 
 ## A. printer → screen wording sweep

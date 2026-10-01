@@ -4,7 +4,7 @@ _Last updated: 2026-06-02_
 
 ## Context
 
-Ditto uses Better Auth's **organization plugin** (`organization = tenant`).
+Maratus uses Better Auth's **organization plugin** (`organization = tenant`).
 The `member` and `invitation` tables already exist, the client has
 `organizationClient()`, and the plugin ships invite/accept APIs — but there is
 **no member-management UI** today (only the org owner, created at signup, exists).
@@ -27,7 +27,7 @@ UX, and finally records the member-event audit entries stubbed in Billing Spec 2
 1. Owners/admins can invite a teammate by email + role (admin or member), see
    pending invites, change a member's role, and remove a member.
 2. Members can view the team list (read-only).
-3. An invited person — new or existing Ditto user — can accept and join the
+3. An invited person — new or existing Maratus user — can accept and join the
    **inviting** org via `/signup?invite=<id>` (never creating a new org).
 4. Invite emails are sent via Resend (graceful console-log no-op without a key).
 5. Member events are recorded to the audit log.
@@ -53,8 +53,8 @@ organization({
     const url = `${env.BETTER_AUTH_URL}/signup?invite=${data.id}`;
     await sendEmail(
       data.email,
-      `You're invited to ${data.organization.name} on Ditto`,
-      `<p>${data.inviter.user.name} invited you to join <b>${data.organization.name}</b> on Ditto.</p>` +
+      `You're invited to ${data.organization.name} on Maratus`,
+      `<p>${data.inviter.user.name} invited you to join <b>${data.organization.name}</b> on Maratus.</p>` +
         `<p><a href="${url}">Accept the invitation</a></p>`,
     );
   },

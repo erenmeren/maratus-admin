@@ -1,7 +1,7 @@
 # Addable Brand-Name Wordmark — Design
 
 **Date:** 2026-06-25
-**Repo:** `ditto-admin` (admin/editor only — no firmware change)
+**Repo:** `maratus-admin` (admin/editor only — no firmware change)
 **Status:** Approved design, pre-implementation
 **Follows:** [2026-06-24 Branding image object](2026-06-24-branding-image-object-design.md)
 

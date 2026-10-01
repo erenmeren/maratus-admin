@@ -161,7 +161,7 @@ bool png_encode_gray8(const uint8_t *gray, int w, int h, uint8_t **out, size_t *
 - [ ] **Step 4: Build to confirm it compiles**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 idf.py build
 ```
 Expected: clean build. (Full validation happens in Task 5 when a real framebuffer is encoded + uploaded + scanned.)
@@ -709,11 +709,11 @@ git commit -m "feat(firmware): receipt job pipeline (TCP -> parse -> render -> u
 `tools/escpos-harness/package.json`:
 ```json
 {
-  "name": "ditto-escpos-harness",
+  "name": "maratus-escpos-harness",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "bin": { "ditto-send": "send.js" }
+  "bin": { "maratus-send": "send.js" }
 }
 ```
 
@@ -769,7 +769,7 @@ sock.on("error", (e) => { console.error("error:", e.message); process.exit(1); }
 
 `tools/escpos-harness/README.md`:
 ```md
-# Ditto ESC/POS test harness
+# Maratus ESC/POS test harness
 
 Streams ESC/POS fixtures to the device's TCP :9100 (acts as a fake POS).
 
@@ -783,7 +783,7 @@ Streams ESC/POS fixtures to the device's TCP :9100 (acts as a fake POS).
 - [ ] **Step 2: Generate the fixture**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware/tools/escpos-harness
+cd /Users/eren/Projects/maratus-firmware/tools/escpos-harness
 mkdir -p fixtures
 node make-fixture.js
 ```
@@ -805,7 +805,7 @@ Expected:
 - [ ] **Step 4: Commit**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 git add tools/escpos-harness
 git commit -m "feat(firmware): Node ESC/POS fixture harness + raster fixture"
 ```

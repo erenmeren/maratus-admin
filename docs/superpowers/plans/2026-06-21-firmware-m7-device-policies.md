@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make the Ditto printer firmware honor the org-wide device settings the cloud already delivers — screen brightness, screen sleep/wake, and a long-press PIN-gated on-device Settings page.
+**Goal:** Make the Maratus printer firmware honor the org-wide device settings the cloud already delivers — screen brightness, screen sleep/wake, and a long-press PIN-gated on-device Settings page.
 
 **Architecture:** Extend the existing `devcfg` config model + parser with a `device` block (host-tested). Brightness and sleep/wake hook into the existing `main/app_state.c` poll loop and its 500ms idle slice; backlight is driven through the Waveshare BSP (`bsp_display_brightness_set` / `bsp_display_backlight_on/off`). The PIN-gated Settings UI is a new passive LVGL screen (`components/ui/ui_settings.c`) mirroring the existing `ui_wifi.c` pattern, orchestrated from `app_state.c`; the PIN is verified locally with a vendored SHA-256 (host-tested).
 
 **Tech Stack:** ESP-IDF 5.5 (C), LVGL v9, ESP32-P4 (Waveshare ESP32-P4-WIFI6-Touch-LCD-4B), cJSON, vendored SHA-256. Host unit tests via `tools/cfg-harness/` (`make test`, no IDF needed).
 
-**Repo:** `/Users/eren/Projects/ditto-firmware` (separate from ditto-admin). All work happens there on a feature branch.
+**Repo:** `/Users/eren/Projects/maratus-firmware` (separate from maratus-admin). All work happens there on a feature branch.
 
 ## Global Constraints
 
@@ -46,7 +46,7 @@
 
 Run:
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 git checkout main && git pull --ff-only 2>/dev/null; git checkout -b feat/m7-device-policies
 git rev-parse --abbrev-ref HEAD
 ```
@@ -174,7 +174,7 @@ Expected: PASS (all assertions, including the new ones).
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 git add components/devcfg/include/device_config.h components/devcfg/cfg_parse.c tools/cfg-harness/test_cfg.c tools/cfg-harness/fixtures/sample-config.json
 git commit -m "feat(m7): parse device-policy block (brightness/sleep/pin)"
 ```
@@ -235,7 +235,7 @@ In `app_state_run()`, after `cloud_config_load_cached(...)` and `ui_set_config(.
 
 - [ ] **Step 4: Build**
 
-Run: `cd /Users/eren/Projects/ditto-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
+Run: `cd /Users/eren/Projects/maratus-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
 Expected: compiles clean. (If the ESP-IDF toolchain isn't available in this environment, skip the build, note it in the report, and rely on review — do NOT mark the task done without either a clean build or an explicit toolchain-unavailable note.)
 
 - [ ] **Step 5: Commit**
@@ -470,7 +470,7 @@ In `poll_task`, where `s_state = DEV_IDLE;` is set before the loop, add `s_last_
 
 - [ ] **Step 8: Build**
 
-Run: `cd /Users/eren/Projects/ditto-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
+Run: `cd /Users/eren/Projects/maratus-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
 Expected: compiles clean. (Toolchain-unavailable note allowed, as Task 2.)
 
 - [ ] **Step 9: Commit**
@@ -500,7 +500,7 @@ git commit -m "feat(m7): screen sleep on inactivity, wake on touch/receipt"
 
 Vendor Brad Conte's public-domain SHA-256 into the devcfg component. Fetch the two files from the canonical source (github.com/B-Con/crypto-algorithms — `sha256.h`, `sha256.c`):
 ```bash
-cd /Users/eren/Projects/ditto-firmware/components/devcfg
+cd /Users/eren/Projects/maratus-firmware/components/devcfg
 curl -fsSL https://raw.githubusercontent.com/B-Con/crypto-algorithms/master/sha256.h -o sha256.h
 curl -fsSL https://raw.githubusercontent.com/B-Con/crypto-algorithms/master/sha256.c -o sha256.c
 ```
@@ -671,7 +671,7 @@ In `components/ui/CMakeLists.txt`, add `ui_settings.c` to the registered `SRCS` 
 
 - [ ] **Step 5: Build**
 
-Run: `cd /Users/eren/Projects/ditto-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
+Run: `cd /Users/eren/Projects/maratus-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
 Expected: compiles clean. (Toolchain-unavailable note allowed.)
 
 - [ ] **Step 6: Commit**
@@ -799,7 +799,7 @@ In `poll_task`, after the tap check (Task 4) and before the `net_is_connected()`
 
 - [ ] **Step 4: Build**
 
-Run: `cd /Users/eren/Projects/ditto-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
+Run: `cd /Users/eren/Projects/maratus-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
 Expected: compiles clean. If `wifi_setup_run` (or the equivalent provisioning entry point) does not exist as a callable, this build surfaces the missing symbol — factor the provisioning Wi-Fi loop into a re-enterable function in `main/` and call it. (Toolchain-unavailable note allowed, but then the linker check is deferred to the user's build.)
 
 - [ ] **Step 5: Commit**
@@ -824,7 +824,7 @@ This task is the on-device acceptance pass — performed by the USER at the boar
 
 User runs (their terminal):
 ```bash
-cd /Users/eren/Projects/ditto-firmware && . ~/.espressif/v5.5/esp-idf/export.sh
+cd /Users/eren/Projects/maratus-firmware && . ~/.espressif/v5.5/esp-idf/export.sh
 idf.py -p <USB-UART-port> flash
 ```
 

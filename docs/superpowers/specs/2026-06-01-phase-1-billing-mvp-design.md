@@ -4,7 +4,7 @@ _Last updated: 2026-06-01_
 
 ## Context
 
-Ditto bills tenants **usage-based postpaid**: `lib/billing-engine.ts` meters
+Maratus bills tenants **usage-based postpaid**: `lib/billing-engine.ts` meters
 receipts and generates an idempotent monthly **draft** invoice per org
 (`unitPriceCents` default $0.04/receipt). Today a platform admin manually
 advances `draft → sent → paid` — **no money actually moves**. There is no
@@ -48,7 +48,7 @@ payment-receipt emails, and the **audit log** seed.
 
 ### One-time setup (`scripts/stripe-setup.ts`, run once per Stripe account)
 
-1. Create a **Product** ("Ditto digital receipts").
+1. Create a **Product** ("Maratus digital receipts").
 2. Create a **Meter**: `stripe.billing.meters.create({ display_name: 'Receipts',
    event_name: 'receipts', default_aggregation: { formula: 'sum' } })`.
 3. Create a metered **Price**: `unit_amount: 4`, `currency: 'usd'`,

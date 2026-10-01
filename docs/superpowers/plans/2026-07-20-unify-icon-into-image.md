@@ -10,7 +10,7 @@
 
 ## Global Constraints
 
-- Two repos: **ditto-admin** (cloud) and **ditto-firmware**. Cloud + firmware changes ship on separate branches; firmware needs HIL before merge.
+- Two repos: **maratus-admin** (cloud) and **maratus-firmware**. Cloud + firmware changes ship on separate branches; firmware needs HIL before merge.
 - The seeded decorative icons are `check` (Sent screen) and `wifi-off` (Error screen). Their lucide-static SVG filenames are `circle-check` and `wifi-off` (lucide 0.400 renamed check-circle→circle-check).
 - Default images are **static app assets** at `public/defaults/check.png` and `public/defaults/wifi-off.png`, referenced by absolute URL (`BETTER_AUTH_URL` + path). NOT R2, no presigning.
 - Backward compat is mandatory: an existing stored `icon` object must never error or render a broken box — it converts to `image` (uploaded-icon → image with that url; seeded-preset icon → the matching default image URL; any other preset → dropped).
@@ -29,7 +29,7 @@
 - [ ] **Step 1: Create the branch off main and cherry-pick the boot commits**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 git switch main
 git switch -c feat/image-unify-widgets
 git cherry-pick a9dba88 72f10e6 6b66d83
@@ -62,7 +62,7 @@ Expected: `components/icons` and `tools/gen-icons` do NOT exist; log shows exact
 
 - [ ] **Step 1: Restyle `render_wifi` to match the branding preview**
 
-The branding `WifiObject` (ditto-admin `components/device-preview/printer-preview.tsx`) draws 4 bars: heights `[0.45, 0.65, 0.85, 1] × min(w,h)`, bar width `≈ 0.22 × base`, gap `≈ 0.14 × base`, corner radius `≈ 0.10 × base`, active bars `brand_fg` at ~85% opacity, inactive at ~20%, bottom-aligned. Replace the current linear-height/`radius 1`/`(i+1)/n` loop in `render_wifi` with these proportions. Example replacement for the bar loop (keep the container + `s_wifi_obj = cont;` bookkeeping):
+The branding `WifiObject` (maratus-admin `components/device-preview/printer-preview.tsx`) draws 4 bars: heights `[0.45, 0.65, 0.85, 1] × min(w,h)`, bar width `≈ 0.22 × base`, gap `≈ 0.14 × base`, corner radius `≈ 0.10 × base`, active bars `brand_fg` at ~85% opacity, inactive at ~20%, bottom-aligned. Replace the current linear-height/`radius 1`/`(i+1)/n` loop in `render_wifi` with these proportions. Example replacement for the bar loop (keep the container + `s_wifi_obj = cont;` bookkeeping):
 ```c
     const float heights[4] = {0.45f, 0.65f, 0.85f, 1.0f};
     int base = (b.w > 0 ? b.w : 40); if ((b.h > 0 ? b.h : 24) < base) base = (b.h > 0 ? b.h : 24);

@@ -1,8 +1,8 @@
 # Firmware — M5b preset icons + boot-bar minor fixes (design)
 
 Date: 2026-07-20
-Repo touched: **ditto-firmware only** (cloud contract unchanged). Spec lives here in
-ditto-admin per the cross-cutting-record convention.
+Repo touched: **maratus-firmware only** (cloud contract unchanged). Spec lives here in
+maratus-admin per the cross-cutting-record convention.
 
 Two independent firmware deliverables, shipped together:
 
@@ -68,9 +68,9 @@ flash saving here.
 
 Build-time DEV tool (not run by CMake — output is committed). Self-contained: its
 own `tools/gen-icons/package.json` with `sharp` + `lucide-static` as devDependencies
-(`npm install` inside the tool dir — keeps ditto-firmware's + ditto-admin's roots
+(`npm install` inside the tool dir — keeps maratus-firmware's + maratus-admin's roots
 clean). `lucide-static` ships the raw per-icon SVGs; `sharp` is already present in
-ditto-admin but the tool pins its own copy.
+maratus-admin but the tool pins its own copy.
 
 - Reads the 16 lucide SVGs by `ICON_PRESETS` name from `lucide-static`.
 - Rasterizes each SVG to 128×128, extracts the alpha channel → a 16384-byte A8
@@ -171,7 +171,7 @@ set. Input is released normally the instant the gate clears (online or timeout).
 
 ## Delivery
 
-- Branch `feat/m5b-preset-icons` in ditto-firmware (both parts; they're small and
+- Branch `feat/m5b-preset-icons` in maratus-firmware (both parts; they're small and
   ship together as one HW-verification pass). Subagent-driven.
 - Host harness green + `idf.py build` clean before flashing.
 - HIL per the gates above. On pass: `BUILD.md` entry (M5b preset icons + boot fixes),

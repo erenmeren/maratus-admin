@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-21
 **Status:** Approved (design)
-**Scope:** Cloud (ditto-admin) + coordinated firmware (ditto-firmware, separate plan)
+**Scope:** Cloud (maratus-admin) + coordinated firmware (maratus-firmware, separate plan)
 
 ## Overview
 
@@ -120,10 +120,10 @@ stored values (not presigned URLs), so they are safe to include in the hash.
 { label: "Device Settings", href: "/tenant/device-settings", icon: MonitorCog }
 ```
 
-## 6. Firmware (ditto-firmware — coordinated, separate plan)
+## 6. Firmware (maratus-firmware — coordinated, separate plan)
 
 This spec is the **contract**; firmware implementation is a separate milestone in
-the ditto-firmware repo, HIL-tested like prior milestones. Device behavior:
+the maratus-firmware repo, HIL-tested like prior milestones. Device behavior:
 
 - **Brightness** → map 0–100 to the LCD PWM backlight duty (cloud already clamps to
   ≥10, so the screen can't be bricked dark).
@@ -147,8 +147,8 @@ the ditto-firmware repo, HIL-tested like prior milestones. Device behavior:
 - **Brightness:** 0–100% slider, clamped to a 10% floor.
 - **Sleep timeout bounds:** 30s–60min.
 - **No-PIN behavior:** on-device Settings screen is ungated when no password is set.
-- **Scope:** cloud changes land in ditto-admin; firmware honoring brightness/sleep is
-  a coordinated, separately-planned ditto-firmware milestone.
+- **Scope:** cloud changes land in maratus-admin; firmware honoring brightness/sleep is
+  a coordinated, separately-planned maratus-firmware milestone.
 
 ## Validation ranges (authoritative)
 

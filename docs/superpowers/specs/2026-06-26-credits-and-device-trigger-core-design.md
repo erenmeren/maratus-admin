@@ -1,7 +1,7 @@
 # Credits + Device-Trigger Core (Spec A) — Design
 
 **Date:** 2026-06-26
-**Repo:** `ditto-admin` (cloud only — firmware is Spec B)
+**Repo:** `maratus-admin` (cloud only — firmware is Spec B)
 **Status:** Approved architecture, design pre-implementation
 **Part of:** "Public device-trigger API" feature. This is **Spec A**, with one firmware follow-up:
 - **A (this doc):** credits balance + ledger + reserve/settle/release, API-key scopes, the trigger endpoint, device-command payload + ack + TTL cron, admin grant, **self-serve Stripe credit-pack purchase**, and analytics. Cloud-only; testable with a simulated device ack.

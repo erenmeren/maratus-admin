@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Produce a comprehensive Turkish (tr) PDF user manual for the Ditto Admin **Süper Admin (platform_admin)** console, written so a person with zero prior knowledge can operate every screen by following it.
+**Goal:** Produce a comprehensive Turkish (tr) PDF user manual for the Maratus Admin **Süper Admin (platform_admin)** console, written so a person with zero prior knowledge can operate every screen by following it.
 
 **Architecture:** Author one Turkish Markdown source file (`docs/manuals/tr/super-admin-kilavuzu.md`), built up chapter-group by chapter-group with an accuracy check against exact UI facts after each. A final task renders it to a polished PDF via the `make-pdf` skill (cover, TOC, page numbers) and commits both `.md` and `.pdf`.
 
@@ -34,7 +34,7 @@ There is no test framework for prose. Each task's "verification" step is a concr
 
 ---
 
-### Task 1: Scaffold + foundational chapters (Giriş, Ditto Nedir?, Başlarken)
+### Task 1: Scaffold + foundational chapters (Giriş, Maratus Nedir?, Başlarken)
 
 **Files:**
 - Create: `docs/manuals/tr/super-admin-kilavuzu.md`
@@ -43,14 +43,14 @@ There is no test framework for prose. Each task's "verification" step is a concr
 - Produces: the document title (H1 `# Süper Admin Kullanım Kılavuzu`) and chapters 1–3. Later tasks append `## ` chapters after chapter 3. `make-pdf` (Task 6) reads the H1 as the cover title and `##` headings as TOC entries.
 
 **SOURCE FACTS (from the codebase — use these exactly):**
-- **What Ditto is:** Printers replace paper documents with a QR code the customer scans to download a digital document. Trigger-only model: the device shows a QR of a caller-supplied URL; Ditto no longer hosts documents.
+- **What Maratus is:** Printers replace paper documents with a QR code the customer scans to download a digital document. Trigger-only model: the device shows a QR of a caller-supplied URL; Maratus no longer hosts documents.
 - **Multi-tenant:** each customer = one organization (kiracı/tenant). Tenant roles (owner/admin/member) live on membership.
 - **Super Admin is NOT an org membership:** it is `user.role = 'platform_admin'`. Distinct from tenant admins.
 - **Device = printer.** Hardware shows a QR; customer scans it.
 - **Trigger→QR flow:** an authenticated caller POSTs a trigger with a URL → 1 credit reserved → device polls, renders QR, acks → success settles the credit, failure/expiry releases it.
 - **Prepaid credits:** each trigger costs 1 credit; reserve → settle → release lifecycle. New signups get 50 starter credits.
 - **Firmware/OTA:** newest published firmware release is the OTA target devices fetch.
-- **Login:** `/login`, email + password (Better Auth). Demo super admin: `admin@ditto.app` / `123456`. After sign-in, `platform_admin` → `/admin`; others → `/tenant`. "Forgot password?" and "Continue with SSO" are non-functional (SSO toast: "SSO not configured"). A "Demo accounts" panel lists the platform admin account.
+- **Login:** `/login`, email + password (Better Auth). Demo super admin: `admin@maratus.app` / `123456`. After sign-in, `platform_admin` → `/admin`; others → `/tenant`. "Forgot password?" and "Continue with SSO" are non-functional (SSO toast: "SSO not configured"). A "Demo accounts" panel lists the platform admin account.
 - **Access gate:** whole `/admin` section requires `platform_admin`; otherwise redirect to `/tenant` (or `/login` if signed out).
 - **Sidebar group "Platform", item order:** Overview → Customers → Device Fleet → Health → Firmware → Billing & Revenue. Top bar: theme toggle + user menu (name, email, role "Super Admin").
 
@@ -61,16 +61,16 @@ Create `docs/manuals/tr/super-admin-kilavuzu.md` starting with:
 ```markdown
 # Süper Admin Kullanım Kılavuzu
 
-*Ditto Admin — Platform Yöneticisi (Süper Admin) Rehberi*
+*Maratus Admin — Platform Yöneticisi (Süper Admin) Rehberi*
 
 ## 1. Giriş & Bu Kılavuz Hakkında
 ```
 
-Write 2–3 short paragraphs: who this is for (Ditto platform yöneticileri / Süper Admin), that the app UI is in English so labels are given as "Türkçe (İngilizce)", and how to read the manual (önce kavramlar, sonra her ekran).
+Write 2–3 short paragraphs: who this is for (Maratus platform yöneticileri / Süper Admin), that the app UI is in English so labels are given as "Türkçe (İngilizce)", and how to read the manual (önce kavramlar, sonra her ekran).
 
-- [ ] **Step 2: Write chapter "2. Ditto Nedir? (Kavramsal Model)"**
+- [ ] **Step 2: Write chapter "2. Maratus Nedir? (Kavramsal Model)"**
 
-Add `## 2. Ditto Nedir? (Kavramsal Model)`. Cover every SOURCE FACT under "What Ditto is", "Multi-tenant", "Super Admin is NOT an org membership", "Device = printer", "Trigger→QR flow", "Prepaid credits", "Firmware/OTA". Use short subsections or a bullet list. Explain the *why* (paperless, credit-metered) not just the *what*.
+Add `## 2. Maratus Nedir? (Kavramsal Model)`. Cover every SOURCE FACT under "What Maratus is", "Multi-tenant", "Super Admin is NOT an org membership", "Device = printer", "Trigger→QR flow", "Prepaid credits", "Firmware/OTA". Use short subsections or a bullet list. Explain the *why* (paperless, credit-metered) not just the *what*.
 
 - [ ] **Step 3: Write chapter "3. Başlarken (Giriş ve Gezinme)"**
 
@@ -104,7 +104,7 @@ git commit -m "docs(manual): TR super-admin manual — intro, concepts, getting 
 - Produces: `## 4. Genel Bakış (Overview)` and `## 5. Müşteriler (Customers)`.
 
 **SOURCE FACTS — Overview (`/admin`):**
-- Title "Overview", desc "Platform-wide performance across all Ditto customers."
+- Title "Overview", desc "Platform-wide performance across all Maratus customers."
 - KPI cards: **Activations this month** (delta badge **+12.1%** is HARDCODED — say so), hint "platform-wide"; **Active devices** shown as `active/total`, hint "printers online"; **Customers**, hint "{N} stores".
 - Chart card **Activations over time** ("Monthly activations, all customers") — area chart.
 - Table card **Top customers** ("By activations this month") + **All customers** link → `/admin/customers`. Columns: Customer, Stores, Devices, Activations. Names link to customer detail; each shows a status badge.
@@ -112,11 +112,11 @@ git commit -m "docs(manual): TR super-admin manual — intro, concepts, getting 
 - No mutating controls on this screen.
 
 **SOURCE FACTS — Customers list (`/admin/customers`):**
-- Title "Customers", desc "{N} store chains on Ditto". Header button **New customer**.
+- Title "Customers", desc "{N} store chains on Maratus". Header button **New customer**.
 - Table columns: Customer, Stores, Devices, Health, Activations (mo.), Status, (chevron). Row links to `/admin/customers/{id}`.
 - Health cell: colored dot + label + (online/total). States: **Healthy** (yeşil), **Warning** (amber), **Critical** (kırmızı).
 - Status cell badge: **Active** (yeşil), **Trial** (mor), **Suspended** (kırmızı).
-- **New customer dialog:** title "New customer", desc "Add a store chain to the Ditto platform." Fields: **Company name** (zorunlu, placeholder "e.g. Roastwell Coffee"), **Contact name** ("Jane Doe"), **Contact email** ("jane@store.com"). Footer: **Cancel**, **Create customer** ("Creating…"). Action creates the tenant; success toast "Customer created — {name} has been added to Ditto."; error "Couldn't create customer".
+- **New customer dialog:** title "New customer", desc "Add a store chain to the Maratus platform." Fields: **Company name** (zorunlu, placeholder "e.g. Roastwell Coffee"), **Contact name** ("Jane Doe"), **Contact email** ("jane@store.com"). Footer: **Cancel**, **Create customer** ("Creating…"). Action creates the tenant; success toast "Customer created — {name} has been added to Maratus."; error "Couldn't create customer".
 
 - [ ] **Step 1: Write chapter "4. Genel Bakış (Overview)"**
 
@@ -255,7 +255,7 @@ git commit -m "docs(manual): TR super-admin manual — Device Fleet, device deta
 
 **SOURCE FACTS — Billing (`/admin/billing`):**
 - Title "Billing & Credits", desc "Platform-wide prepaid credit sales, consumption, and per-tenant balances." (Sidebar item labeled "Billing & Revenue" — note the mismatch.)
-- Header button **Export tenants** → CSV `ditto-credits.csv`, headers **Customer, Balance, Consumed (mo.), Lifetime purchased**; toast "Export ready — {n} rows → filename".
+- Header button **Export tenants** → CSV `maratus-credits.csv`, headers **Customer, Balance, Consumed (mo.), Lifetime purchased**; toast "Export ready — {n} rows → filename".
 - KPI cards: **Credits sold** ("lifetime, all tenants"), **Credits consumed** ("lifetime, all tenants"), **Outstanding liability** ("unspent credits owed to tenants").
 - Table **Per-tenant credits** ("Balance, consumption this month, and lifetime purchases"). Columns: **Customer** (link), **Balance**, **Consumed (mo.)**, **Lifetime purchased**. Empty "No tenants with credit activity yet."
 
@@ -332,7 +332,7 @@ git commit -m "docs(manual): render TR super-admin manual to PDF"
 
 ## Self-Review (author checklist — completed during planning)
 
-**Spec coverage:** Every design-doc chapter maps to a task — Giriş/Ditto Nedir?/Başlarken → Task 1; Overview/Customers → Task 2; Customer detail → Task 3; Device Fleet/detail/Firmware → Task 4; Health/Billing/Reference/Sözlük/SSS → Task 5; PDF render → Task 6. The four mandatory accuracy notes are assigned: +12.1% (Task 2), Billing label mismatch (Task 5), no Suspend button (Tasks 5), non-functional login links (Task 1).
+**Spec coverage:** Every design-doc chapter maps to a task — Giriş/Maratus Nedir?/Başlarken → Task 1; Overview/Customers → Task 2; Customer detail → Task 3; Device Fleet/detail/Firmware → Task 4; Health/Billing/Reference/Sözlük/SSS → Task 5; PDF render → Task 6. The four mandatory accuracy notes are assigned: +12.1% (Task 2), Billing label mismatch (Task 5), no Suspend button (Tasks 5), non-functional login links (Task 1).
 
 **Placeholder scan:** No "TBD/TODO". Each task carries its exact SOURCE FACTS so the writer needs no re-exploration.
 

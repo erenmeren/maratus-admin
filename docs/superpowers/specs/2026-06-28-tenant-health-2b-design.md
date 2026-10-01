@@ -1,7 +1,7 @@
 # Phase 2B — Tenant Health Drill-down + Alert Delivery — Design
 
 **Date:** 2026-06-28
-**Repo:** `ditto-admin`
+**Repo:** `maratus-admin`
 **Status:** Approved design, pre-implementation
 **Phase:** 2 ("feature expansion"), sub-project **2B**. Builds on **2A** (device fleet ops, merged). Sibling: **2C** audit-log UI polish.
 
@@ -70,7 +70,7 @@ Pure → unit-tested for each level + precedence (critical beats warning).
     devices: { name: string; storeName: string; lastSeenLabel: string }[];
   }): { subject: string; html: string };
   ```
-  Subject e.g. `"A Ditto printer went offline"` (singular) / `"N Ditto printers went offline"` (plural); body lists each device (name · store · last seen) + a link to the dashboard. Imports `emailLayout`/`escapeHtml` from `lib/billing/invoice-emails.ts`. `orgName` + device/store names escaped.
+  Subject e.g. `"A Maratus printer went offline"` (singular) / `"N Maratus printers went offline"` (plural); body lists each device (name · store · last seen) + a link to the dashboard. Imports `emailLayout`/`escapeHtml` from `lib/billing/invoice-emails.ts`. `orgName` + device/store names escaped.
 - **Trigger** in `lib/alerts-sync.ts` `reconcileOfflineDevices(now)`: after the bulk flip + per-device audit, **group `toFlip` by `organizationId`**; for each org, resolve `getOrgEmailContext(orgId)` and, if there's an owner, `sendEmail(ownerEmail, ...deviceOfflineEmail(...))`. The builder needs device name + store name + last-seen; the reconcile's `SELECT` is widened to include `name`/`storeId` (or it loads names for the flipped ids). `sendEmail` never throws / no-ops without Resend, so the cron is never broken. One email per org per sweep.
 
 ## Data flow

@@ -84,9 +84,9 @@ describe("formatDueDate", () => {
 });
 
 describe("emailLayout", () => {
-  it("wraps the body with the Ditto wordmark", () => {
+  it("wraps the body with the Maratus wordmark", () => {
     const html = emailLayout("<p>hi</p>");
-    expect(html).toContain("Ditto");
+    expect(html).toContain("Maratus");
     expect(html).toContain("<p>hi</p>");
   });
 });
@@ -94,14 +94,14 @@ describe("emailLayout", () => {
 describe("invoice email builders", () => {
   it("invoiceSentEmail: subject names the period, body has amount + pay link", () => {
     const { subject, html } = invoiceSentEmail(base);
-    expect(subject).toBe("Your Ditto invoice for Jun 2026");
+    expect(subject).toBe("Your Maratus invoice for Jun 2026");
     expect(html).toContain("$49.60");
     expect(html).toContain("https://pay.stripe.com/abc");
   });
 
   it("paymentFailedEmail: subject signals failure, body has the update-payment link", () => {
     const { subject, html } = paymentFailedEmail(base);
-    expect(subject).toBe("Payment failed for your Ditto invoice");
+    expect(subject).toBe("Payment failed for your Maratus invoice");
     expect(html).toContain("https://pay.stripe.com/abc");
     expect(html).toContain("$49.60");
   });
@@ -115,7 +115,7 @@ describe("invoice email builders", () => {
 
   it("overdueReminderEmail: subject signals overdue, body has the pay link", () => {
     const { subject, html } = overdueReminderEmail(base);
-    expect(subject).toBe("Your Ditto invoice is overdue");
+    expect(subject).toBe("Your Maratus invoice is overdue");
     expect(html).toContain("https://pay.stripe.com/abc");
   });
 
@@ -154,7 +154,7 @@ export interface InvoiceEmailData {
   dueDateLabel?: string;     // e.g. "July 14, 2026"
 }
 
-const BRAND = "Ditto";
+const BRAND = "Maratus";
 
 export function escapeHtml(s: string): string {
   return s

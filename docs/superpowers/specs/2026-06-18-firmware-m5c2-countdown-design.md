@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-18
 **Status:** Approved (design)
-**Repos:** ditto-admin (config + editor + preview) + ditto-firmware (widget + state)
+**Repos:** maratus-admin (config + editor + preview) + maratus-firmware (widget + state)
 **Parent:** `2026-06-15-device-config-driven-ui-design.md` (M5c deferred `countdown`); continues M5c-1 (shipped).
 
 ## Problem
@@ -41,7 +41,7 @@ A live countdown widget on the receipt/QR screen **and** an auto-return
 
 ## Components
 
-### Admin (`ditto-admin`)
+### Admin (`maratus-admin`)
 
 1. **`lib/printer-layout.ts`** — add `qrTimeoutSeconds: number` to `PrinterConfig`
    (version stays 3); set it in `defaultLayout()`/the config default to `60`;
@@ -58,7 +58,7 @@ A live countdown widget on the receipt/QR screen **and** an auto-return
 4. **Tests** — `lib/printer-layout.test.ts`: `normalizePrinterConfig` defaults the
    field to 60 when absent and clamps out-of-range values into 15–180.
 
-### Firmware (`ditto-firmware`)
+### Firmware (`maratus-firmware`)
 
 5. **`components/devcfg/device_config.h` + `cfg_parse.c`** — add
    `int qr_timeout_seconds;` to `device_config_t`; parse `"qrTimeoutSeconds"`

@@ -88,7 +88,7 @@ where (${q} = '' or d.name ilike ${like} or d.serial ilike ${like} or s.name ili
 ### Task 3: Live QA + deploy
 
 - [ ] Deploy: push main after merge + `vercel deploy --prod`.
-- [ ] QA (Playwright, native-click quirk applies), signed in as admin@ditto.app on https://ditto-admin-brown.vercel.app:
+- [ ] QA (Playwright, native-click quirk applies), signed in as admin@maratus.app on https://ditto-admin-brown.vercel.app:
   1. /admin/devices: six tabs with counts; search by serial `e8f60ae0b580`, by org name `Starbucks`, by store `Kadikoy`; bogus q → empty state; tab URLs correct; row links to device detail work.
   2. Unclaimed tab: provision a device from the customer page if none exists (creates an unclaimed row), verify it appears ONLY under Unclaimed, then delete it (admin device actions) — restore state.
   3. Tenant dashboard (workspace: erenmeren88's Starbucks — needs that login; otherwise verify by code inspection + screenshot of admin view only, and note it): greeting + top-stores block renders.

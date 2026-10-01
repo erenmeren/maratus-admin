@@ -1,6 +1,6 @@
 # QR Style Options (shape + colors) — cloud side
 
-*2026-07-23 · approved in conversation. FW counterpart: ditto-firmware
+*2026-07-23 · approved in conversation. FW counterpart: maratus-firmware
 `docs/superpowers/specs/2026-07-23-qr-style-options-firmware.md` (0.11.0).*
 
 ## Decisions (locked)
@@ -293,7 +293,7 @@ of truth, not the other way around.
     own viewBox dimension; stdDeviation = blurPx/2, the standard CSS-blur↔
     SVG-stdDeviation relationship).
   - Every formula function carries a `FIRMWARE PARITY: mirrored in
-    ditto-firmware qr_style.c — keep in sync` doc comment.
+    maratus-firmware qr_style.c — keep in sync` doc comment.
 - `qrBackgroundRadius` (the old enum-based corner helper) is removed
   entirely, not deprecated alongside the new function — there is exactly one
   corner-radius formula now.

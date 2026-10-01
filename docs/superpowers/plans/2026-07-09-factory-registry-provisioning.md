@@ -18,9 +18,9 @@
 - Auto-claim fires ONLY on the one-shot `allocated → claimed` registry transition, and ONLY when the allocation includes BOTH an organization AND a store (a store-less claimed device breaks `getDevice`, which resolves devices through stores). A `claimed` serial never re-mints a key (hijack guard).
 - Money/none involved. All timestamps `new Date()` per existing schema style.
 - Drizzle migration hazard: after `npm run db:generate`, strip the generated SQL to ONLY this feature's changes (snapshot drift emits spurious FK churn).
-- Firmware: source ESP-IDF **5.5** (`ESP_IDF_VERSION=5.5.4` breaks esp_wifi_remote SDIO — use major.minor only). Firmware repo: `/Users/eren/Projects/ditto-firmware`, work on branch `feat/factory-serial`.
+- Firmware: source ESP-IDF **5.5** (`ESP_IDF_VERSION=5.5.4` breaks esp_wifi_remote SDIO — use major.minor only). Firmware repo: `/Users/eren/Projects/maratus-firmware`, work on branch `feat/factory-serial`.
 - Run repo test suite with `npm test` (vitest run); single file: `npx vitest run <path>`.
-- Commit after every task; ditto-admin work happens directly on `main` (matches this repo's convention).
+- Commit after every task; maratus-admin work happens directly on `main` (matches this repo's convention).
 
 ---
 
@@ -1409,7 +1409,7 @@ Expected: clean.
 
 - [ ] **Step 6: Manual smoke (dev server)**
 
-Run `npm run dev`, sign in as `admin@ditto.app` / `123456`, open `/admin/inventory`:
+Run `npm run dev`, sign in as `admin@maratus.app` / `123456`, open `/admin/inventory`:
 - Import a 3-line CSV (one bad serial) → toast shows 2 imported + 1 warning.
 - Allocate a serial to Roastwell Coffee + a store → status badge flips to "allocated".
 - Show label QR renders. Mark as RMA works.
@@ -1491,7 +1491,7 @@ git commit -m "feat(registry): serial + registry badges on admin device detail"
 
 ### Task 8: Firmware — send the serial on claim-polls
 
-**Files (in `/Users/eren/Projects/ditto-firmware`, branch `feat/factory-serial`):**
+**Files (in `/Users/eren/Projects/maratus-firmware`, branch `feat/factory-serial`):**
 - Modify: `components/cloud/cloud.c` (`cloud_claim_poll`, ~line 69)
 
 **Interfaces:**
@@ -1501,7 +1501,7 @@ git commit -m "feat(registry): serial + registry badges on admin device detail"
 - [ ] **Step 1: Create the branch**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware && git checkout -b feat/factory-serial
+cd /Users/eren/Projects/maratus-firmware && git checkout -b feat/factory-serial
 ```
 
 - [ ] **Step 2: Add the serial to the claim URL in `components/cloud/cloud.c`**
@@ -1563,7 +1563,7 @@ Merging `feat/factory-serial` to firmware main waits for the cloud side to be de
 - [ ] **Step 1: Full admin-repo verification**
 
 ```bash
-cd /Users/eren/Projects/ditto-admin && npm run build && npm test && npm run lint
+cd /Users/eren/Projects/maratus-admin && npm run build && npm test && npm run lint
 ```
 
 Expected: all clean.

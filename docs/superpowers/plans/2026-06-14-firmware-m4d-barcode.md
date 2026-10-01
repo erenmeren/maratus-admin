@@ -105,7 +105,7 @@ idf_component_register(SRCS "code128.c"
 - [ ] **Step 4: Build**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 idf.py build
 ```
 Expected: clean build.
@@ -320,7 +320,7 @@ git commit -m "feat(firmware): parse GS k Code128 + GS h/w/H barcode config"
 ```js
 import { writeFileSync, mkdirSync } from "node:fs";
 
-const code = process.argv[2] || "DITTO-100423";
+const code = process.argv[2] || "MARATUS-100423";
 const data = Buffer.from(code, "latin1");
 
 const b = [];
@@ -347,7 +347,7 @@ console.log(`wrote fixtures/barcode.escpos (${job.length} bytes) encoding: ${cod
 - [ ] **Step 2: Generate + send (after flashing M4d firmware)**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware && idf.py build && idf.py -p <PORT> flash monitor
+cd /Users/eren/Projects/maratus-firmware && idf.py build && idf.py -p <PORT> flash monitor
 cd tools/escpos-harness && node make-barcode-fixture.js && node send.js <device-ip> fixtures/barcode.escpos
 ```
 
@@ -356,8 +356,8 @@ cd tools/escpos-harness && node make-barcode-fixture.js && node send.js <device-
 Expected:
 - Serial: `parsed N ops` (text "Order", a barcode op), `rendered <W>xH -> PNG …`, `receipt ready: …`.
 - Screen: `Processing…` → QR (of the receipt URL).
-- **Scan the screen QR** → the public receipt shows: centered "Order", a Code128 barcode, and "DITTO-100423" in HRI digits beneath it.
-- **Scan the barcode inside the receipt image** with a phone barcode app → it decodes to **`DITTO-100423`**. This is the correctness gate: a correct symbol table + checksum produce a scannable code.
+- **Scan the screen QR** → the public receipt shows: centered "Order", a Code128 barcode, and "MARATUS-100423" in HRI digits beneath it.
+- **Scan the barcode inside the receipt image** with a phone barcode app → it decodes to **`MARATUS-100423`**. This is the correctness gate: a correct symbol table + checksum produce a scannable code.
 - Admin lists the receipt.
 
 - [ ] **Step 4: Commit**

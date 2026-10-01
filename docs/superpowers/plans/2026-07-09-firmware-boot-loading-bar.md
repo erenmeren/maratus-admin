@@ -4,16 +4,16 @@
 
 **Goal:** Add a staged loading bar + status label to the device boot splash, and gate the idle screen on first successful cloud contact (with a 25 s offline fallback).
 
-**Architecture:** Firmware-chrome extension of the existing splash in `components/ui` (new `ui_boot_progress(boot_stage_t)` API). `main/app_main.c` advances stages at real boot milestones and no longer renders idle early; `main/app_state.c` arms a boot gate and releases it on the first poll 200 (or a 25 s timeout → cached idle). Spec: ditto-admin `docs/superpowers/specs/2026-07-09-firmware-boot-loading-bar-design.md`.
+**Architecture:** Firmware-chrome extension of the existing splash in `components/ui` (new `ui_boot_progress(boot_stage_t)` API). `main/app_main.c` advances stages at real boot milestones and no longer renders idle early; `main/app_state.c` arms a boot gate and releases it on the first poll 200 (or a 25 s timeout → cached idle). Spec: maratus-admin `docs/superpowers/specs/2026-07-09-firmware-boot-loading-bar-design.md`.
 
 **Tech Stack:** ESP-IDF 5.5 (C), LVGL v9 (`lv_bar`), FreeRTOS tasks, existing `font_cache` / `esp_lvgl_port` lock pattern.
 
 ## Global Constraints
 
-- **Repo:** ALL code changes in `/Users/eren/Projects/ditto-firmware` (NOT ditto-admin). Work on branch `feat/boot-loading-bar` off `main`.
-- **Toolchain:** ESP-IDF 5.5 — every build is `cd /Users/eren/Projects/ditto-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`. Expected: `Project build complete.` No 5.4/6.x.
+- **Repo:** ALL code changes in `/Users/eren/Projects/maratus-firmware` (NOT maratus-admin). Work on branch `feat/boot-loading-bar` off `main`.
+- **Toolchain:** ESP-IDF 5.5 — every build is `cd /Users/eren/Projects/maratus-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`. Expected: `Project build complete.` No 5.4/6.x.
 - **LVGL thread-safety:** any LVGL object access goes through `lvgl_port_lock(0)` / `lvgl_port_unlock()` (existing pattern in `ui.c`).
-- **Copy (exact, ASCII three dots — the embedded Open Sans subset may lack U+2026):** `Starting up...`, `Loading saved settings...`, `Connecting to Wi-Fi...`, `Contacting Ditto...`, `Ready`, `Starting offline...`.
+- **Copy (exact, ASCII three dots — the embedded Open Sans subset may lack U+2026):** `Starting up...`, `Loading saved settings...`, `Connecting to Wi-Fi...`, `Contacting Maratus...`, `Ready`, `Starting offline...`.
 - **Stage → percent:** STARTING 10, CONFIG 25, WIFI 40, CLOUD 70, READY 100, OFFLINE = label-only (bar untouched).
 - **Timings:** gate timeout 25 000 ms (from `app_state_run()` start), READY hold 300 ms, OFFLINE hold 1000 ms.
 - No new components, no admin/config-schema changes, no host-test harness for LVGL UI (verification = clean build + HIL).
@@ -34,7 +34,7 @@
       BOOT_STARTING,   // 10%  "Starting up..."
       BOOT_CONFIG,     // 25%  "Loading saved settings..."
       BOOT_WIFI,       // 40%  "Connecting to Wi-Fi..."
-      BOOT_CLOUD,      // 70%  "Contacting Ditto..."
+      BOOT_CLOUD,      // 70%  "Contacting Maratus..."
       BOOT_READY,      // 100% "Ready"
       BOOT_OFFLINE,    // label-only "Starting offline..."
   } boot_stage_t;
@@ -55,7 +55,7 @@ typedef enum {
     BOOT_STARTING,   // 10%  "Starting up..."
     BOOT_CONFIG,     // 25%  "Loading saved settings..."
     BOOT_WIFI,       // 40%  "Connecting to Wi-Fi..."
-    BOOT_CLOUD,      // 70%  "Contacting Ditto..."
+    BOOT_CLOUD,      // 70%  "Contacting Maratus..."
     BOOT_READY,      // 100% "Ready"
     BOOT_OFFLINE,    // label-only: "Starting offline..."
 } boot_stage_t;
@@ -78,7 +78,7 @@ static const boot_stage_info_t BOOT_STAGES[] = {
     [BOOT_STARTING] = { 10,  "Starting up..." },
     [BOOT_CONFIG]   = { 25,  "Loading saved settings..." },
     [BOOT_WIFI]     = { 40,  "Connecting to Wi-Fi..." },
-    [BOOT_CLOUD]    = { 70,  "Contacting Ditto..." },
+    [BOOT_CLOUD]    = { 70,  "Contacting Maratus..." },
     [BOOT_READY]    = { 100, "Ready" },
     [BOOT_OFFLINE]  = { -1,  "Starting offline..." },   // label-only
 };
@@ -92,10 +92,10 @@ Change `build_splash` to take a flag (the config-fallback splash must NOT show a
 static lv_obj_t *build_splash(bool with_progress) {
     font_cache_begin_pass();
     lv_obj_t *scr = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(scr, lv_color_hex(DITTO_GREEN), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(scr, lv_color_hex(MARATUS_GREEN), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_t *title = lv_label_create(scr);
-    lv_label_set_text(title, "Ditto");
+    lv_label_set_text(title, "Maratus");
     lv_obj_set_style_text_color(title, lv_color_white(), LV_PART_MAIN);
     lv_obj_set_style_text_font(title, font_cache_get(64, /*bold*/ true), LV_PART_MAIN);
     lv_obj_center(title);
@@ -163,13 +163,13 @@ void ui_boot_progress(boot_stage_t stage) {
 
 - [ ] **Step 6: Build**
 
-Run: `cd /Users/eren/Projects/ditto-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
+Run: `cd /Users/eren/Projects/maratus-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
 Expected: `Project build complete.` (warnings-as-errors clean; no unused-symbol warnings for the new statics)
 
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 git add components/ui/include/ui.h components/ui/ui.c
 git commit -m "feat(ui): boot splash progress bar + ui_boot_progress stage API"
 ```
@@ -253,13 +253,13 @@ Replace the step-4 comment + `app_state_run()` call (line 147–148):
 
 - [ ] **Step 5: Build**
 
-Run: `cd /Users/eren/Projects/ditto-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
+Run: `cd /Users/eren/Projects/maratus-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
 Expected: `Project build complete.`
 
 - [ ] **Step 6: Commit**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 git add main/app_main.c
 git commit -m "feat(boot): advance splash progress at boot milestones; defer idle to the boot gate"
 ```
@@ -350,13 +350,13 @@ And arm the gate just before `xTaskCreate(poll_task, ...)` (line 503):
 
 - [ ] **Step 6: Build**
 
-Run: `cd /Users/eren/Projects/ditto-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
+Run: `cd /Users/eren/Projects/maratus-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
 Expected: `Project build complete.`
 
 - [ ] **Step 7: Commit**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 git add main/app_state.c
 git commit -m "feat(boot): boot gate — release to idle on first cloud 200, 25s offline fallback"
 ```
@@ -374,12 +374,12 @@ git commit -m "feat(boot): boot gate — release to idle on first cloud 200, 25s
 
 - [ ] **Step 1: Full clean build**
 
-Run: `cd /Users/eren/Projects/ditto-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
+Run: `cd /Users/eren/Projects/maratus-firmware && . ~/.espressif/v5.5/esp-idf/export.sh && idf.py build`
 Expected: `Project build complete.`
 
 - [ ] **Step 2: Review the whole diff against main**
 
-Run: `cd /Users/eren/Projects/ditto-firmware && git diff main...HEAD --stat && git diff main...HEAD`
+Run: `cd /Users/eren/Projects/maratus-firmware && git diff main...HEAD --stat && git diff main...HEAD`
 Check: only `components/ui/include/ui.h`, `components/ui/ui.c`, `main/app_main.c`, `main/app_state.c` changed; stage copy matches the Global Constraints strings exactly; every LVGL touch is inside `lvgl_port_lock`.
 
 - [ ] **Step 3: Report the HIL checklist (user runs on hardware)**
@@ -387,4 +387,4 @@ Check: only `components/ui/include/ui.h`, `components/ui/ui.c`, `main/app_main.c
 1. **Normal cold boot** (claimed device, router on): bar fills 10→25→40→70→100 with matching labels, "Ready" holds ~300 ms, branded idle appears after the first poll.
 2. **Router off**: bar sticks at "Connecting to Wi-Fi..." → at ~25 s shows "Starting offline..." ~1 s → cached idle; turn the router back on → device comes online by itself (no reboot).
 3. **Unclaimed device**: bar through the Wi-Fi stage, then the pairing/setup screen renders as before.
-4. **First boot (no creds)**: bar → Wi-Fi setup UI hand-off → after connecting, splash returns at "Contacting Ditto..." → idle.
+4. **First boot (no creds)**: bar → Wi-Fi setup UI hand-off → after connecting, splash returns at "Contacting Maratus..." → idle.

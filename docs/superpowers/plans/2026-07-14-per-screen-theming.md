@@ -579,7 +579,7 @@ Run: `npm run dev -- -p 3457` (background). Wait until `curl -s -o /dev/null -w 
 - [ ] **Step 2: Create a temp tenant (same recipe as 2026-07-13 QA)**
 
 Write `tmp-qa-setup.ts` in the repo root (module resolution needs it there):
-`auth.api.signUpEmail({ body: { email: "qa-theming-tmp@ditto.test", password: "qa-tmp-123456", name: "QA Theming Tmp" } })`, then insert
+`auth.api.signUpEmail({ body: { email: "qa-theming-tmp@maratus.test", password: "qa-tmp-123456", name: "QA Theming Tmp" } })`, then insert
 `organization { id: "qa-theming-tmp-org", name: "QA Theming Tmp", slug: "qa-theming-tmp", createdAt: new Date() }` and
 `member { id: "qa-theming-tmp-member", organizationId, userId, role: "owner", createdAt: new Date() }` (both `.onConflictDoNothing()`), and set the user's `emailVerified = true`. Run with `npx tsx tmp-qa-setup.ts`.
 
@@ -606,7 +606,7 @@ Verify each item:
 `tmp-qa-cleanup.ts` (repo root, then delete all tmp-*.ts files): delete rows in order
 `audit_log (organization_id)`, `tenant_settings`, `member`, `session (user)`,
 `account (user)`, `verification (identifier like %email%)`, `organization`, `user`
-for `qa-theming-tmp-org` / `qa-theming-tmp@ditto.test`; print remaining counts
+for `qa-theming-tmp-org` / `qa-theming-tmp@maratus.test`; print remaining counts
 (must be 0). Kill the dev server.
 
 - [ ] **Step 5: Report**

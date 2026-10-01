@@ -8,16 +8,16 @@
 
 **Tech Stack:** ESP-IDF 5.5, LVGL 9 (`esp_lvgl_port`), `font_cache` (lv_tiny_ttf brand font), FreeRTOS.
 
-**Spec:** `docs/superpowers/specs/2026-07-11-firmware-wifi-screen-redesign-design.md` (ditto-admin repo)
+**Spec:** `docs/superpowers/specs/2026-07-11-firmware-wifi-screen-redesign-design.md` (maratus-admin repo)
 
 ## Global Constraints
 
-- **Repo:** ALL code changes are in **`/Users/eren/Projects/ditto-firmware`** (NOT ditto-admin). Work on branch `feat/wifi-screen-redesign` off `main`.
+- **Repo:** ALL code changes are in **`/Users/eren/Projects/maratus-firmware`** (NOT maratus-admin). Work on branch `feat/wifi-screen-redesign` off `main`.
 - **Toolchain:** ESP-IDF **5.5** only — `. ~/.espressif/v5.5/esp-idf/export.sh`. NEVER export `ESP_IDF_VERSION` as a patch version like `5.5.4` (breaks esp_wifi_remote SDIO selection → boot panic; see BUILD.md).
 - **The keyboard is untouchable:** same creation call, size `720×280`, `LV_ALIGN_BOTTOM_MID`, no styling. Only its parent (the password panel) and hidden-flag state may change.
 - **Passive UI pattern:** LVGL event callbacks set volatile flags ONLY — no network calls, no heavy work. Every public `ui_wifi_*` function takes `lvgl_port_lock(0)` / `lvgl_port_unlock()` internally.
 - **Exact copy strings (verbatim):** `Choose your Wi-Fi`, `Scanning...`, `No networks - tap Rescan`, `Other network...`, `Rescan`, `Other network`, `Network name`, `Password`, `Next`, `Connect`, `Connecting...`, `Enter the Wi-Fi password`, `Enter the network name`, `Enter a network name`, `Password must be 8+ characters`, `Couldn't connect - check the password`.
-- **Brand:** background `DITTO_GREEN 0x10A765`, white text, brand font via `font_cache_get(px, bold)`; LVGL symbol glyphs (`LV_SYMBOL_*`) must stay on the DEFAULT font (the brand TTF has no symbol glyphs).
+- **Brand:** background `MARATUS_GREEN 0x10A765`, white text, brand font via `font_cache_get(px, bold)`; LVGL symbol glyphs (`LV_SYMBOL_*`) must stay on the DEFAULT font (the brand TTF has no symbol glyphs).
 - **No cloud changes.** No signal-strength icons, no lock glyphs (explicitly out of scope).
 - Screen is 720×720. Money quote from the spec: password stage = back chip + SSID title + textarea (~480px) and Connect (~180px) **side by side, no overlap**.
 
@@ -42,7 +42,7 @@
 - [ ] **Step 1: Create the branch**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 git checkout main && git pull --ff-only 2>/dev/null; git checkout -b feat/wifi-screen-redesign
 ```
 
@@ -68,7 +68,7 @@ git checkout main && git pull --ff-only 2>/dev/null; git checkout -b feat/wifi-s
 //   password stage — back chip + network-name title + status line +
 //                    textarea/Connect row + keyboard (unchanged 720x280)
 
-#define DITTO_GREEN 0x10A765
+#define MARATUS_GREEN 0x10A765
 
 // screen + list-stage widgets
 static lv_obj_t *s_wscreen, *s_list_panel, *s_list_sub, *s_list;
@@ -163,7 +163,7 @@ void ui_wifi_show(void) {
     (void)f_row;                                      // pinned for add_row()
 
     s_wscreen = lv_obj_create(NULL);
-    lv_obj_set_style_bg_color(s_wscreen, lv_color_hex(DITTO_GREEN), LV_PART_MAIN);
+    lv_obj_set_style_bg_color(s_wscreen, lv_color_hex(MARATUS_GREEN), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(s_wscreen, LV_OPA_COVER, LV_PART_MAIN);
     lv_obj_clear_flag(s_wscreen, LV_OBJ_FLAG_SCROLLABLE);
 
@@ -265,7 +265,7 @@ void ui_wifi_show(void) {
     s_connect_lbl = lv_label_create(btn);
     lv_label_set_text(s_connect_lbl, "Connect");      // becomes "Next" in manual mode
     lv_obj_set_style_text_font(s_connect_lbl, f_btn, LV_PART_MAIN);
-    lv_obj_set_style_text_color(s_connect_lbl, lv_color_hex(DITTO_GREEN), LV_PART_MAIN);
+    lv_obj_set_style_text_color(s_connect_lbl, lv_color_hex(MARATUS_GREEN), LV_PART_MAIN);
     lv_obj_center(s_connect_lbl);
 
     // Keyboard — UNCHANGED: same creation, size, position, default styling.
@@ -433,7 +433,7 @@ void ui_wifi_prompt_password(const char *ssid);
 - [ ] **Step 4: Build to verify it compiles**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 . ~/.espressif/v5.5/esp-idf/export.sh
 idf.py build
 ```
@@ -443,7 +443,7 @@ Expected: `Project build complete.` (If the failure is inside `esp_wifi_remote`,
 - [ ] **Step 5: Commit**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 git add components/ui/ui_wifi.c components/ui/include/ui.h
 git commit -m "feat(ui): staged two-panel Wi-Fi setup screen (list -> password), brand styling"
 ```
@@ -530,7 +530,7 @@ The `LIST` branch and the rest of `PASSWORD` (manual-SSID validation, password v
 - [ ] **Step 2: Build**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 . ~/.espressif/v5.5/esp-idf/export.sh
 idf.py build
 ```
@@ -540,7 +540,7 @@ Expected: `Project build complete.`
 - [ ] **Step 3: Commit**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 git add main/wifi_setup.c
 git commit -m "feat(wifi-setup): back navigation + connecting view for staged Wi-Fi UI"
 ```
@@ -553,16 +553,16 @@ git commit -m "feat(wifi-setup): back navigation + connecting view for staged Wi
 
 **Interfaces:**
 - Consumes: the built firmware from Tasks 1–2.
-- Produces: `feat/wifi-screen-redesign` merged to ditto-firmware `main`.
+- Produces: `feat/wifi-screen-redesign` merged to maratus-firmware `main`.
 
-**⚠️ Pre-flight — device-key orphaning hazard:** `idf.py erase-flash` wipes NVS, which holds BOTH the Wi-Fi creds AND the device key. The prod factory-registry entry for `e8f60ae0b580` is currently `claimed` (key already consumed), so after an erase the device could NOT re-claim and would be orphaned (this exact incident happened on 2026-07-10). **Before erasing**, re-arm the registry: in the admin console (`/admin/inventory`, admin@ditto.app), use the revert-claim action on serial `e8f60ae0b580` so the entry returns to `allocated` with a fresh pending key. The end of this task doubles as a zero-touch-claim regression test.
+**⚠️ Pre-flight — device-key orphaning hazard:** `idf.py erase-flash` wipes NVS, which holds BOTH the Wi-Fi creds AND the device key. The prod factory-registry entry for `e8f60ae0b580` is currently `claimed` (key already consumed), so after an erase the device could NOT re-claim and would be orphaned (this exact incident happened on 2026-07-10). **Before erasing**, re-arm the registry: in the admin console (`/admin/inventory`, admin@maratus.app), use the revert-claim action on serial `e8f60ae0b580` so the entry returns to `allocated` with a fresh pending key. The end of this task doubles as a zero-touch-claim regression test.
 
 - [ ] **Step 1: Re-arm the factory-registry entry** — admin console → `/admin/inventory` → serial `e8f60ae0b580` → revert claim. Verify the entry shows `allocated`.
 
 - [ ] **Step 2: Confirm first-boot Kconfig** — the gitignored `sdkconfig` must have `CONFIG_DITTO_WIFI_SSID="changeme"` (else the boot gate silently connects and skips the UI):
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 grep 'CONFIG_DITTO_WIFI_SSID\|CONFIG_DITTO_WIFI_PASSWORD' sdkconfig
 ```
 
@@ -594,7 +594,7 @@ If any check fails: STOP, report exactly what was seen (photo/serial log), fix b
 - [ ] **Step 5: Merge to main**
 
 ```bash
-cd /Users/eren/Projects/ditto-firmware
+cd /Users/eren/Projects/maratus-firmware
 git checkout main
 git merge --no-ff feat/wifi-screen-redesign -m "Merge feat/wifi-screen-redesign: staged two-panel Wi-Fi setup UI"
 git push && git branch -d feat/wifi-screen-redesign

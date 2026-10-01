@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Repo: `/Users/eren/Projects/ditto-admin`, branch `feat/store-deletion` off `main` (created in Task 1).
+- Repo: `/Users/eren/Projects/maratus-admin`, branch `feat/store-deletion` off `main` (created in Task 1).
 - ⚠️ `.env.local` points at PRODUCTION Neon. `npm run db:seed` is FORBIDDEN. No migration is needed and none may be created (`npm run db:generate`/`db:push` must NOT run).
 - Tests: `npm test` (vitest). Type gate: `npx tsc --noEmit`. Both must pass at the end of every task.
 - Pool membership is exactly `storeId === null && claimedAt !== null` — unclaimed provisioned devices (claimedAt null) stay OUT of the pool.
@@ -37,7 +37,7 @@
 - [ ] **Step 1: Create the branch**
 
 ```bash
-cd /Users/eren/Projects/ditto-admin
+cd /Users/eren/Projects/maratus-admin
 git checkout main && git pull && git checkout -b feat/store-deletion
 ```
 
@@ -457,7 +457,7 @@ export function DeleteStoreDialog({
               {armedCount > 0 && (
                 <p className="text-amber-600 dark:text-amber-500">
                   {armedCount} {armedCount === 1 ? "device" : "devices"} prepared for
-                  zero-touch setup will need to be re-armed by Ditto.
+                  zero-touch setup will need to be re-armed by Maratus.
                 </p>
               )}
             </div>
@@ -934,7 +934,7 @@ Expected: all clean.
 1. `/tenant/stores`: no "Unassigned devices" section (pool empty).
 2. Create store "QA Temp". Open it → "Delete store" button visible next to Edit.
 3. Note the org's total device count on `/tenant` dashboard.
-4. As admin (admin@ditto.app / 123456) on the customer page: Stores card lists all stores incl. QA Temp with device counts; provision a virtual device INTO "QA Temp" (existing provision flow), or as dana claim nothing — a provisioned-unclaimed device must NOT enter the pool later (claimedAt null). To create a poolable device instead: use the admin device row action "Move to store" to move an EXISTING claimed test device (NOT b580) into QA Temp — if none exists, skip pool-content checks and verify empty-store deletion only.
+4. As admin (admin@maratus.app / 123456) on the customer page: Stores card lists all stores incl. QA Temp with device counts; provision a virtual device INTO "QA Temp" (existing provision flow), or as dana claim nothing — a provisioned-unclaimed device must NOT enter the pool later (claimedAt null). To create a poolable device instead: use the admin device row action "Move to store" to move an EXISTING claimed test device (NOT b580) into QA Temp — if none exists, skip pool-content checks and verify empty-store deletion only.
 5. As dana: delete "QA Temp" → dialog shows the correct device count → confirm → redirected to `/tenant/stores`; if it had a claimed device, "Unassigned devices" section now lists it; `/tenant` dashboard totals unchanged from step 3.
 6. Assign the pool device to another store (NOT Downtown Flagship if avoidable) → pool section disappears, device visible under the target store, device detail page reachable.
 7. Tenant Activity (audit) page shows "Store deleted" and "Device reassigned" entries with friendly labels.

@@ -299,6 +299,7 @@ function mapDevice(
     storeId: d.storeId ?? "",
     tenantId: organizationId,
     name: d.name,
+    registerNumber: d.registerNumber,
     // Effective status: the stored column is only reconciled to "offline" by the
     // daily health cron, so derive from lastSeenAt here — every view-model
     // consumer (dashboard, store detail, device cards) sees the truth live.

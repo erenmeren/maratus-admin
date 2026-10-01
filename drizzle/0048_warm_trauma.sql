@@ -1,0 +1,2 @@
+ALTER TABLE "device" ADD COLUMN "register_number" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "device_org_register_number_idx" ON "device" USING btree ("organization_id",lower("register_number")) WHERE "device"."register_number" is not null;

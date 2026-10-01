@@ -337,6 +337,13 @@
       "when": 1790779920468,
       "tag": "0047_gray_power_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1790853381275,
+      "tag": "0048_warm_trauma",
+      "breakpoints": true
     }
   ]
 }

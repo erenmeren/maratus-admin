@@ -12,6 +12,7 @@ export interface Device {
   storeId: string;
   tenantId: string;
   name: string;
+  registerNumber: string | null;
   status: DeviceStatus;
   ipAddress: string;
   connectionType: ConnectionType;

@@ -21,6 +21,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "customer.renamed": "Customer renamed",
   "device.provisioned": "Device provisioned",
   "device.renamed": "Device renamed",
+  "device.register_changed": "Register number changed",
   "device.reassigned": "Device reassigned",
   "device.unassigned": "Device unassigned",
   "device.command_enqueued": "Command sent to device",

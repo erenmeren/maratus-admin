@@ -20,6 +20,7 @@ export const AUDIT = {
   customerRenamed: "customer.renamed",
   deviceProvisioned: "device.provisioned",
   deviceRenamed: "device.renamed",
+  deviceRegisterChanged: "device.register_changed",
   deviceReassigned: "device.reassigned",
   deviceUnassigned: "device.unassigned",
   deviceCommandEnqueued: "device.command_enqueued",

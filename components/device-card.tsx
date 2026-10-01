@@ -64,6 +64,11 @@ export function DeviceCard({
               <p className="truncate font-mono text-xs text-muted-foreground">
                 {device.id}
               </p>
+              {device.registerNumber && (
+                <p className="truncate text-xs text-muted-foreground">
+                  Register {device.registerNumber}
+                </p>
+              )}
             </div>
           </Link>
           <span className="inline-flex items-center gap-1.5 text-xs font-medium capitalize">

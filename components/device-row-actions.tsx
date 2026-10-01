@@ -30,7 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
+import { EditDeviceDialog } from "@/components/edit-device-dialog";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -42,7 +42,6 @@ import {
 import {
   deleteDevice,
   reassignDevice,
-  renameDevice,
   setDeviceActiveAdmin,
   unassignDevice,
 } from "@/lib/actions/devices";
@@ -51,11 +50,13 @@ import type { DeviceStatus } from "@/lib/types";
 export function DeviceRowActions({
   deviceId,
   deviceName = "Device",
+  registerNumber,
   status,
   stores,
 }: {
   deviceId: string;
   deviceName?: string;
+  registerNumber?: string | null;
   status: DeviceStatus;
   /** Same-org stores; enables "Move to store" when provided. */
   stores?: { id: string; name: string }[];
@@ -65,7 +66,6 @@ export function DeviceRowActions({
   const [renameOpen, setRenameOpen] = React.useState(false);
   const [moveOpen, setMoveOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
-  const [name, setName] = React.useState(deviceName);
   const [targetStore, setTargetStore] = React.useState(stores?.[0]?.id ?? "");
 
   async function run(
@@ -122,11 +122,10 @@ export function DeviceRowActions({
           <DropdownMenuItem
             onSelect={(e) => {
               e.preventDefault();
-              setName(deviceName);
               setRenameOpen(true);
             }}
           >
-            <Pencil className="size-4" /> Rename
+            <Pencil className="size-4" /> Edit details
           </DropdownMenuItem>
           {stores && stores.length > 0 && (
             <DropdownMenuItem
@@ -156,43 +155,13 @@ export function DeviceRowActions({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {/* Rename */}
-      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Rename device</DialogTitle>
-            <DialogDescription className="font-mono text-xs">
-              {deviceId}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2 py-2">
-            <Label htmlFor={`rename-${deviceId}`}>Device name</Label>
-            <Input
-              id={`rename-${deviceId}`}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              autoFocus
-            />
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="outline">
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button
-              disabled={pending || !name.trim()}
-              onClick={() =>
-                run(() => renameDevice(deviceId, name), "Device renamed", () =>
-                  setRenameOpen(false),
-                )
-              }
-            >
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EditDeviceDialog
+        deviceId={deviceId}
+        name={deviceName}
+        registerNumber={registerNumber ?? null}
+        open={renameOpen}
+        onOpenChange={setRenameOpen}
+      />
 
       {/* Move to store */}
       {stores && stores.length > 0 && (

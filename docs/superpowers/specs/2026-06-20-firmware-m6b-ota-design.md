@@ -114,9 +114,9 @@ New table (one Drizzle migration):
 
 ### Version reporting
 - After the OTA reboot the device reports `x-device-version = <new version>` (already wired via
-  `appcfg_fw_version()` ← `CONFIG_DITTO_FW_VERSION`, baked into the build). The cloud updates
+  `appcfg_fw_version()` ← `CONFIG_MARATUS_FW_VERSION`, baked into the build). The cloud updates
   `device.firmwareVersion` from that header (existing behavior). So the published version string
-  MUST match the `CONFIG_DITTO_FW_VERSION` of the uploaded build.
+  MUST match the `CONFIG_MARATUS_FW_VERSION` of the uploaded build.
 
 ## Error handling
 

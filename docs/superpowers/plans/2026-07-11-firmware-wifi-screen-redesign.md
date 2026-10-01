@@ -559,11 +559,11 @@ git commit -m "feat(wifi-setup): back navigation + connecting view for staged Wi
 
 - [ ] **Step 1: Re-arm the factory-registry entry** — admin console → `/admin/inventory` → serial `e8f60ae0b580` → revert claim. Verify the entry shows `allocated`.
 
-- [ ] **Step 2: Confirm first-boot Kconfig** — the gitignored `sdkconfig` must have `CONFIG_DITTO_WIFI_SSID="changeme"` (else the boot gate silently connects and skips the UI):
+- [ ] **Step 2: Confirm first-boot Kconfig** — the gitignored `sdkconfig` must have `CONFIG_MARATUS_WIFI_SSID="changeme"` (else the boot gate silently connects and skips the UI):
 
 ```bash
 cd /Users/eren/Projects/maratus-firmware
-grep 'CONFIG_DITTO_WIFI_SSID\|CONFIG_DITTO_WIFI_PASSWORD' sdkconfig
+grep 'CONFIG_MARATUS_WIFI_SSID\|CONFIG_MARATUS_WIFI_PASSWORD' sdkconfig
 ```
 
 Expected: both values `"changeme"`. If not, edit them in `sdkconfig`, then `idf.py build`.

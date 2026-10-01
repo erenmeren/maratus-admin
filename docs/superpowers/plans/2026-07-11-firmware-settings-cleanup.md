@@ -234,7 +234,7 @@ Replace the format string:
              "Signal\t%s\n"
              "Online\t%s\n"
              "Print listener\tListening",
-             CONFIG_DITTO_FW_VERSION, ip, mac, ssid, bars,
+             CONFIG_MARATUS_FW_VERSION, ip, mac, ssid, bars,
              net_is_connected() ? "Online" : "Offline");
 ```
 
@@ -248,7 +248,7 @@ with:
              "Wi-Fi\t%s\n"
              "Signal\t%s\n"
              "Online\t%s",
-             CONFIG_DITTO_FW_VERSION, ip, mac, ssid, bars,
+             CONFIG_MARATUS_FW_VERSION, ip, mac, ssid, bars,
              net_is_connected() ? "Online" : "Offline");
 ```
 

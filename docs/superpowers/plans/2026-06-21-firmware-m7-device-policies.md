@@ -718,11 +718,11 @@ static void build_settings_info(char *out, int cap) {
         snprintf(ip, sizeof(ip), IPSTR, IP2STR(&ipi.ip));
     snprintf(out, cap,
              "Firmware: %s\nWi-Fi: %s (%d/4)\nIP: %s\nStatus: %s",
-             CONFIG_DITTO_FW_VERSION, ssid, bars, ip,
+             CONFIG_MARATUS_FW_VERSION, ssid, bars, ip,
              net_is_connected() ? "Online" : "Offline");
 }
 ```
-(`rssi_to_level` already exists in this file. Confirm the Kconfig symbol name for the firmware version — the repo uses `CONFIG_DITTO_FW_VERSION`; if it differs, use the actual symbol.)
+(`rssi_to_level` already exists in this file. Confirm the Kconfig symbol name for the firmware version — the repo uses `CONFIG_MARATUS_FW_VERSION`; if it differs, use the actual symbol.)
 
 - [ ] **Step 2: Add the Settings flow**
 

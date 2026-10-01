@@ -317,9 +317,9 @@ git commit -m "feat(firmware): wire OTA — firmware-update command + poll auto-
 
 - [ ] **Step 1:** `make -C tools/cfg-harness test` → ALL TESTS PASSED (incl. `test_ota_manifest`).
 - [ ] **Step 2:** `. ~/.espressif/v5.5/esp-idf/export.sh && idf.py build` → clean; confirm `CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y`.
-- [ ] **Step 3:** Flash the **current** version first: bump `CONFIG_DITTO_FW_VERSION` only when publishing the *next* one. Flash this build (`idf.py -p /dev/cu.usbmodem5A671704091 flash`) as the running baseline (e.g. `0.2.0-m2`).
+- [ ] **Step 3:** Flash the **current** version first: bump `CONFIG_MARATUS_FW_VERSION` only when publishing the *next* one. Flash this build (`idf.py -p /dev/cu.usbmodem5A671704091 flash`) as the running baseline (e.g. `0.2.0-m2`).
 - [ ] **Step 4: HIL (needs board + user + the cloud deployed/reachable so the device can fetch the manifest):**
-  - Bump `CONFIG_DITTO_FW_VERSION` to e.g. `0.3.0-m6b`, `idf.py build`, and **publish** that `build/maratus-firmware.bin` via the admin Firmware page (Plan 1).
+  - Bump `CONFIG_MARATUS_FW_VERSION` to e.g. `0.3.0-m6b`, `idf.py build`, and **publish** that `build/maratus-firmware.bin` via the admin Firmware page (Plan 1).
   - On the device: either wait for the ~10-min auto-check, or hit **"Update firmware"** in the dashboard CommandBar for an immediate update.
   - Device logs `GET /firmware -> 200`, `OTA … -> 0.3.0-m6b`, downloads, reboots; after boot it reports `x-device-version: 0.3.0-m6b` (admin device page shows the new version) and logs `marked OTA image valid`.
   - **Power-cycle** → stays on `0.3.0-m6b` (image was marked valid).

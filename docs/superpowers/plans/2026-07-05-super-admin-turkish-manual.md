@@ -209,7 +209,7 @@ git commit -m "docs(manual): TR super-admin manual — Customer detail (credits,
 - **Remote control** (CommandBar) buttons: **Reboot**, **Refresh config**, **Identify**, **Update firmware** → queues a command; feedback "{type} queued — the device will pick it up on its next check-in." Command history table: **Command**, **Status**, **Queued**.
 
 **SOURCE FACTS — Firmware (`/admin/firmware`):**
-- Title "Firmware", desc "Upload a build (its version must match the binary's CONFIG_DITTO_FW_VERSION). The newest release is what devices fetch via the OTA manifest."
+- Title "Firmware", desc "Upload a build (its version must match the binary's CONFIG_MARATUS_FW_VERSION). The newest release is what devices fetch via the OTA manifest."
 - **Publish form:** **version** text ("Version (e.g. 0.3.0-m6b)", zorunlu), **file** input (`.bin`, zorunlu), **Publish firmware** ("Publishing…"). Rules: version required; a non-empty `.bin` required; size ≤ 8MB; duplicate version rejected ("Version {v} is already published."). Success "Published {version}."
 - Releases table (newest 50): **Version** (first row "(latest)"), **Size** (KB), **SHA-256** (first 12 chars + "…"), **Published**.
 - **Delete** per row (window.confirm). Latest warning: "Delete {v}? It is the LATEST release — devices will fall back to the previous release as their OTA target." Non-latest: "Delete {v}? This permanently removes the binary and cannot be undone."
@@ -222,7 +222,7 @@ Append `## 7. Cihaz Filosu (Device Fleet)`. Cover KPI cards, filters, table colu
 
 - [ ] **Step 2: Write chapter "8. Firmware"**
 
-Append `## 8. Firmware`. `#### Adım adım: Firmware yayımlama` (numbered: version gir → .bin seç → **Publish firmware**; kurallar: ≤8MB, yinelenen sürüm reddedilir, sürüm CONFIG_DITTO_FW_VERSION ile eşleşmeli). Describe the releases table columns and the two different **Delete** warnings (latest vs non-latest). Explain OTA: en yeni sürüm cihazların hedefidir.
+Append `## 8. Firmware`. `#### Adım adım: Firmware yayımlama` (numbered: version gir → .bin seç → **Publish firmware**; kurallar: ≤8MB, yinelenen sürüm reddedilir, sürüm CONFIG_MARATUS_FW_VERSION ile eşleşmeli). Describe the releases table columns and the two different **Delete** warnings (latest vs non-latest). Explain OTA: en yeni sürüm cihazların hedefidir.
 
 - [ ] **Step 3: Verify against SOURCE FACTS**
 

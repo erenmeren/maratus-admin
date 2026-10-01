@@ -20,7 +20,7 @@ export async function publishFirmware(formData: FormData): Promise<Result> {
   if (!version) {
     return {
       ok: false,
-      error: "Enter a version (must match the build's CONFIG_DITTO_FW_VERSION).",
+      error: "Enter a version (must match the build's CONFIG_MARATUS_FW_VERSION).",
     };
   }
   if (!(file instanceof File) || file.size === 0) {

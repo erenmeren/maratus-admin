@@ -40,7 +40,7 @@ int appcfg_roll_width(void);          // dots (e.g. 576 = 80mm, 384 = 58mm)
 ```
 Add to `components/appcfg/appcfg.c`:
 ```c
-int appcfg_roll_width(void) { return CONFIG_DITTO_ROLL_WIDTH; }
+int appcfg_roll_width(void) { return CONFIG_MARATUS_ROLL_WIDTH; }
 ```
 
 - [ ] **Step 3: Build**

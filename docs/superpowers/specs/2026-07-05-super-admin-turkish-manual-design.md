@@ -113,7 +113,7 @@ okunacağı, dil kuralı açıklaması.
     → `enqueueDeviceCommand`; komut geçmişi tablosu.
 
 ### 7. Firmware — `/admin/firmware`
-- **Publish firmware** formu: version (CONFIG_DITTO_FW_VERSION ile eşleşmeli), `.bin`
+- **Publish firmware** formu: version (CONFIG_MARATUS_FW_VERSION ile eşleşmeli), `.bin`
   dosya (≤ 8MB), yinelenen sürüm reddi. Başarı/hata metinleri.
 - Sürümler tablosu: Version ("latest"), Size (KB), SHA-256, Published.
 - **Delete** butonu (latest silme uyarısı farklıdır; window.confirm).

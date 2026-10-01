@@ -278,7 +278,7 @@ Replace this block:
   <div>
     <h1 className="text-xl font-medium">Firmware</h1>
     <p className="text-sm text-muted-foreground">
-      Upload a build (its version must match the binary&apos;s CONFIG_DITTO_FW_VERSION). The newest
+      Upload a build (its version must match the binary&apos;s CONFIG_MARATUS_FW_VERSION). The newest
       release is what devices fetch via the OTA manifest.
     </p>
   </div>
@@ -288,7 +288,7 @@ with:
 <>
   <PageHeader
     title="Firmware"
-    description="Upload a build (its version must match the binary's CONFIG_DITTO_FW_VERSION). The newest release is what devices fetch via the OTA manifest."
+    description="Upload a build (its version must match the binary's CONFIG_MARATUS_FW_VERSION). The newest release is what devices fetch via the OTA manifest."
   />
 ```
 Change the matching outer closing `</div>` to `</>`.

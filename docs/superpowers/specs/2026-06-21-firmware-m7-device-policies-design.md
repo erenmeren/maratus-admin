@@ -102,7 +102,7 @@ Gate:
 - If the hash is empty (no PIN set): open the Settings menu directly (ungated).
 
 Settings menu (LVGL screen):
-- **Device info (read-only):** device name, device ID, firmware version (`CONFIG_DITTO_FW_VERSION`), Wi-Fi SSID + RSSI, IP address, online status. Fields not already exposed get small accessors (`net_get_ssid` / `net_get_rssi` / `net_get_ip`) added to the `net` component as needed.
+- **Device info (read-only):** device name, device ID, firmware version (`CONFIG_MARATUS_FW_VERSION`), Wi-Fi SSID + RSSI, IP address, online status. Fields not already exposed get small accessors (`net_get_ssid` / `net_get_rssi` / `net_get_ip`) added to the `net` component as needed.
 - **Buttons:** **Wi-Fi setup** (reuse the existing `ui_wifi` provisioning screen), **Test print** (run the existing self-test ingest path), **Reboot** (`esp_restart()`), **Close** (return to idle).
 
 PIN verify is a pure function (`settings_pin_verify(pin, hash, salt)`), **host-tested** against vectors generated with the same `sha256(salt+pin)` scheme the cloud uses.

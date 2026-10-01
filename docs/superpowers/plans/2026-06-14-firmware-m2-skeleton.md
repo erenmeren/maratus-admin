@@ -409,8 +409,8 @@ void net_start(void)
     ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, on_wifi, NULL, NULL));
 
     wifi_config_t wc = { 0 };
-    strncpy((char *)wc.sta.ssid, CONFIG_DITTO_WIFI_SSID, sizeof(wc.sta.ssid) - 1);
-    strncpy((char *)wc.sta.password, CONFIG_DITTO_WIFI_PASSWORD, sizeof(wc.sta.password) - 1);
+    strncpy((char *)wc.sta.ssid, CONFIG_MARATUS_WIFI_SSID, sizeof(wc.sta.ssid) - 1);
+    strncpy((char *)wc.sta.password, CONFIG_MARATUS_WIFI_PASSWORD, sizeof(wc.sta.password) - 1);
 
     ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wc));
@@ -502,9 +502,9 @@ const char *appcfg_fw_version(void);  // x-device-version value
 #include "appcfg.h"
 #include "sdkconfig.h"
 
-const char *appcfg_base_url(void)   { return CONFIG_DITTO_API_BASE_URL; }
-const char *appcfg_device_key(void) { return CONFIG_DITTO_DEVICE_KEY; }
-const char *appcfg_fw_version(void) { return CONFIG_DITTO_FW_VERSION; }
+const char *appcfg_base_url(void)   { return CONFIG_MARATUS_API_BASE_URL; }
+const char *appcfg_device_key(void) { return CONFIG_MARATUS_DEVICE_KEY; }
+const char *appcfg_fw_version(void) { return CONFIG_MARATUS_FW_VERSION; }
 ```
 
 `maratus-firmware/components/appcfg/CMakeLists.txt`:

@@ -272,7 +272,7 @@ void appcfg_store_device_key(const char *key) {
 }
 const char *appcfg_device_key(void) {
     if (nvs_read("device_key", s_dev_key, sizeof(s_dev_key))) return s_dev_key;
-    return CONFIG_DITTO_DEVICE_KEY;   // Kconfig fallback (dev)
+    return CONFIG_MARATUS_DEVICE_KEY;   // Kconfig fallback (dev)
 }
 const char *appcfg_pairing_code(void) {
     if (s_pair[0]) return s_pair;

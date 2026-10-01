@@ -19,7 +19,7 @@
   - `lib/db/migrations/**` and all DB identifiers/values; alert key `documents-stuck` precedent applies.
   - R2 bucket name `ditto-receipts` (`.env.example` `R2_BUCKET`) — R2 buckets can't be renamed; invisible to users.
   - Firmware storage key `firmware/<v>/maratus-firmware.bin` (`lib/storage.ts:101`, `lib/firmware.test.ts`) — must keep matching what the firmware build produces until the firmware repo's own rename.
-  - `CONFIG_DITTO_FW_VERSION` mentions (`app/(admin)/admin/firmware/page.tsx`, `lib/actions/firmware.ts`) — real Kconfig symbol in the firmware repo; renames with the firmware plan, not this one.
+  - `CONFIG_MARATUS_FW_VERSION` mentions (`app/(admin)/admin/firmware/page.tsx`, `lib/actions/firmware.ts`) — real Kconfig symbol in the firmware repo; renames with the firmware plan, not this one.
   - References to the **repo name** `maratus-firmware` in comments (`lib/qr-svg.ts`, `app/api/mqtt/heartbeat/route.ts`, `lib/db/publish-firmware.ts`, `components/ui` parity notes) — the repo really is still called that.
   - `"https://*.vercel.app"` in `lib/auth.ts` trustedOrigins and the existing Vercel project name / `*.vercel.app` URLs — the device fleet bootstraps against the old URL; it must keep working indefinitely (see Task 7 runbook).
   - `package-lock.json` — only changes via `npm install` in Task 5, never by hand.
@@ -122,11 +122,11 @@ git commit -m "feat(rename): Maratus brand component, wordmark and shell identit
 | `components/branding-studio/branding-studio.tsx:540` | `const QR_STYLE_PREVIEW_VALUE = "https://maratus.app";` | `const QR_STYLE_PREVIEW_VALUE = "https://maratus.co";` |
 | `app/api/v1/devices/[deviceId]/trigger/route.ts:57` | `Contact Maratus to activate it.` | `Contact Maratus to activate it.` |
 
-Do NOT touch `app/(admin)/admin/firmware/page.tsx` (`CONFIG_DITTO_FW_VERSION` is a real firmware symbol — Global Constraints).
+Do NOT touch `app/(admin)/admin/firmware/page.tsx` (`CONFIG_MARATUS_FW_VERSION` is a real firmware symbol — Global Constraints).
 
 - [ ] **Step 2: Verify**
 
-Run: `grep -rn "Maratus" app components --include="*.tsx" | grep -v "CONFIG_DITTO_FW_VERSION"` → expected: no output.
+Run: `grep -rn "Maratus" app components --include="*.tsx" | grep -v "CONFIG_MARATUS_FW_VERSION"` → expected: no output.
 Run: `npx tsc --noEmit` and `npm test` → green.
 
 - [ ] **Step 3: Commit**
@@ -373,7 +373,7 @@ may the old URL ever be retired (in practice: never retire it; it costs nothing)
 Run: `grep -rli "maratus" --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.git . | grep -v "^./docs/superpowers/" | grep -v "^./docs/business/" | grep -v "^./docs/naming-candidates.md" | grep -v "^./docs/manuals"`
 
 Expected remaining files, each covered by Global Constraints — anything NOT on this list is a missed rename, go fix it:
-`.env.example` (R2 bucket), `package-lock.json` (dep hashes only — verify with `grep -i maratus package-lock.json`), `lib/storage.ts` + `lib/firmware.test.ts` (firmware binary key), `lib/db/publish-firmware.ts` (firmware repo path comment), `lib/qr-svg.ts` + `app/api/mqtt/heartbeat/route.ts` (maratus-firmware repo references), `app/(admin)/admin/firmware/page.tsx` + `lib/actions/firmware.ts` (CONFIG_DITTO_FW_VERSION), `docs/runbooks/*` (historical), `docs/device-protocol.md` (check: if its "Maratus" is prose branding rather than protocol constants, rename it here; protocol constants stay), `docs/DEVELOPMENT.md` should NOT appear (renamed in Task 5), `docs/runbooks/maratus-cutover.md` (mentions old name by design).
+`.env.example` (R2 bucket), `package-lock.json` (dep hashes only — verify with `grep -i maratus package-lock.json`), `lib/storage.ts` + `lib/firmware.test.ts` (firmware binary key), `lib/db/publish-firmware.ts` (firmware repo path comment), `lib/qr-svg.ts` + `app/api/mqtt/heartbeat/route.ts` (maratus-firmware repo references), `app/(admin)/admin/firmware/page.tsx` + `lib/actions/firmware.ts` (CONFIG_MARATUS_FW_VERSION), `docs/runbooks/*` (historical), `docs/device-protocol.md` (check: if its "Maratus" is prose branding rather than protocol constants, rename it here; protocol constants stay), `docs/DEVELOPMENT.md` should NOT appear (renamed in Task 5), `docs/runbooks/maratus-cutover.md` (mentions old name by design).
 
 - [ ] **Step 3: Final gates + commit**
 

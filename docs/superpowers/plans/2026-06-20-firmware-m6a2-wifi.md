@@ -279,11 +279,11 @@ void appcfg_store_wifi_creds(const char *ssid, const char *pass) {
 }
 const char *appcfg_wifi_ssid(void) {
     if (nvs_read("wifi_ssid", s_wifi_ssid, sizeof(s_wifi_ssid))) return s_wifi_ssid;
-    return CONFIG_DITTO_WIFI_SSID;
+    return CONFIG_MARATUS_WIFI_SSID;
 }
 const char *appcfg_wifi_password(void) {
     if (nvs_read("wifi_pass", s_wifi_pass, sizeof(s_wifi_pass))) return s_wifi_pass;
-    return CONFIG_DITTO_WIFI_PASSWORD;
+    return CONFIG_MARATUS_WIFI_PASSWORD;
 }
 ```
 (Note: `nvs_read` returns false for an empty stored value, so an open network's empty password falls through to the Kconfig default on read. That's acceptable — open networks connect with an empty password regardless; `net_connect` is called with the live entered value during setup, and on reboot `appcfg_has_wifi_creds()` keys off the SSID. If exact empty-password round-trip matters later, store a sentinel; YAGNI now.)

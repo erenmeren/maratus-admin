@@ -330,6 +330,9 @@ export const device = pgTable(
     // A second physical device tried to claim this serial (unique-index hit);
     // this row's serial stayed null and the admin UI shows a warning.
     serialConflict: boolean("serial_conflict").default(false).notNull(),
+    // Customer's own till label (kasa no). Optional; unique per org,
+    // case-insensitively (index below). Addresses the trigger-by-register API.
+    registerNumber: text("register_number"),
     // Pinned QR: when set, the device shows this URL as a persistent QR while
     // idle (triggers temporarily override, then return to it). Null = no pin.
     // Pin changes are free — they are a "pin" command, never a "trigger", and
@@ -357,6 +360,9 @@ export const device = pgTable(
     uniqueIndex("device_pairing_code_idx").on(t.pairingCode),
     index("device_key_hash_idx").on(t.deviceKeyHash),
     uniqueIndex("device_serial_idx").on(t.serial),
+    uniqueIndex("device_org_register_number_idx")
+      .on(t.organizationId, sql`lower(${t.registerNumber})`)
+      .where(sql`${t.registerNumber} is not null`),
   ],
 );
 

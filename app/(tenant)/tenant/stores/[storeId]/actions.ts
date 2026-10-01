@@ -26,6 +26,7 @@ export interface ClaimDeviceResult {
 export async function claimDeviceAction(
   storeId: string,
   pairingCodeRaw: string,
+  opts?: { name?: string; registerNumber?: string },
 ): Promise<ClaimDeviceResult> {
   const { ctx, organizationId } = await requireTenant();
 
@@ -42,7 +43,7 @@ export async function claimDeviceAction(
     ? `${typed.slice(0, 4)}-${typed.slice(4)}`
     : typed;
   // A code that cannot have been shown by a device must never reach
-  // claimDevice: its create-row path would mint a phantom "New Printer" that
+  // claimDevice: its create-row path would mint a phantom device that
   // occupies a paid slot or gets prorated, while the real device keeps polling.
   if (!isValidPairingCode(pairingCode)) {
     return { ok: false, error: "Enter the 8-character code shown on the printer (e.g. ABCD-EFGH)." };
@@ -59,7 +60,7 @@ export async function claimDeviceAction(
   }
 
   try {
-    const result = await claimDevice(pairingCode, storeId);
+    const result = await claimDevice(pairingCode, storeId, opts);
 
     await recordAudit({
       organizationId,
@@ -79,6 +80,9 @@ export async function claimDeviceAction(
     const message =
       err instanceof Error ? err.message : "Could not claim device.";
     // Friendly mapping for the known throw cases.
+    if (message.includes("Register number")) {
+      return { ok: false, error: message };
+    }
     if (message.includes("Unknown pairing code")) {
       return { ok: false, error: "No device found with that pairing code." };
     }

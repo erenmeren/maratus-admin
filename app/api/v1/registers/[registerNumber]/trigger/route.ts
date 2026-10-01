@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 
 export async function POST(req: Request, { params }: { params: Promise<{ registerNumber: string }> }) {
   const { registerNumber } = await params;
-  const key = registerKey(decodeURIComponent(registerNumber));
+  const key = registerKey(registerNumber);
   return handleTrigger(
     req,
     async (organizationId) => {

@@ -2,11 +2,13 @@
 // provisioning). Separate from lib/data.ts because claiming is keyed by the
 // one-time pairing code, not the caller's organization.
 
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "./db";
 import { device as deviceTable, store as storeTable } from "./db/schema";
 import { generateDeviceKey, id } from "./ids";
 import { isValidPairingCode } from "./provisioning";
+import { isUniqueViolation, parseRegisterNumber, registerKey } from "./register-number";
+import { nextDeviceName } from "./device-name-db";
 import { provisionDeviceMqtt } from "@/lib/mqtt";
 import { pushEffectivePinSafe } from "@/lib/pin-service";
 // Claim-time billing (free slot vs. proration) lives in lib/invoices.ts so the
@@ -33,8 +35,14 @@ export interface ClaimResult {
 export async function claimDevice(
   pairingCode: string,
   storeId: string,
+  opts?: { name?: string; registerNumber?: string | null },
 ): Promise<ClaimResult> {
   if (!isValidPairingCode(pairingCode)) throw new Error("Unknown pairing code");
+
+  const parsedRegister = parseRegisterNumber(opts?.registerNumber);
+  if (!parsedRegister.ok) throw new Error(parsedRegister.error);
+  const registerNumber = parsedRegister.value;
+  const customName = opts?.name?.trim();
 
   const [store] = await db
     .select({ id: storeTable.id, organizationId: storeTable.organizationId })
@@ -50,6 +58,22 @@ export async function claimDevice(
     .limit(1);
   if (existing?.claimedAt) throw new Error("Device already claimed");
 
+  // Deterministic duplicate pre-check (org-wide, case-insensitive). The unique
+  // index still backstops a race at write time (mapped to the same error).
+  if (registerNumber) {
+    const [dup] = await db
+      .select({ id: deviceTable.id })
+      .from(deviceTable)
+      .where(
+        and(
+          eq(deviceTable.organizationId, store.organizationId),
+          sql`lower(${deviceTable.registerNumber}) = ${registerKey(registerNumber)}`,
+        ),
+      )
+      .limit(1);
+    if (dup) throw new Error("Register number already in use");
+  }
+
   // Mint the key now; the raw key goes to pendingDeviceKey for the device's
   // one-time claim-poll fetch, only the hash is the durable credential.
   const { key, hash } = generateDeviceKey();
@@ -62,10 +86,15 @@ export async function claimDevice(
     // Guard against a concurrent double-claim: only bind while still unclaimed,
     // so a racing second claim updates 0 rows rather than silently overwriting
     // the first claim's key.
-    const bound = await db
+    const finalName = customName || existing.name;
+    let bound: { id: string }[];
+    try {
+      bound = await db
       .update(deviceTable)
       .set({
         storeId,
+        name: finalName,
+        registerNumber,
         deviceKeyHash: hash,
         pendingDeviceKey: key, // device fetches once via /api/device/claim
         claimedAt: new Date(),
@@ -74,6 +103,10 @@ export async function claimDevice(
       })
       .where(and(eq(deviceTable.id, existing.id), isNull(deviceTable.claimedAt)))
       .returning({ id: deviceTable.id });
+    } catch (err) {
+      if (isUniqueViolation(err)) throw new Error("Register number already in use");
+      throw err;
+    }
     if (bound.length === 0) throw new Error("Device already claimed");
     // Provision the device's MQTT credential (device key = MQTT password).
     // Fail-open: a provisioning hiccup must never fail a claim. There is no HTTP
@@ -91,18 +124,19 @@ export async function claimDevice(
     // hiccup must never fail a claim.
     await pushEffectivePinSafe(store.organizationId, [existing.id]);
     await settleClaimBilling(store.organizationId, existing.id);
-    return { deviceId: existing.id, deviceName: existing.name, deviceKey: key };
+    return { deviceId: existing.id, deviceName: finalName, deviceKey: key };
   }
 
   // Create a row for a device-generated code with no pre-existing device.
   const deviceId = id("dev");
-  const name = "New Printer";
+  const name = customName || (await nextDeviceName(store.organizationId));
   try {
     await db.insert(deviceTable).values({
       id: deviceId,
       organizationId: store.organizationId,
       storeId,
       name,
+      registerNumber,
       status: "offline",
       connectionType: "wifi",
       firmwareVersion: "2.4.1",
@@ -115,7 +149,15 @@ export async function claimDevice(
   } catch (err) {
     // unique(pairingCode) violation (Postgres 23505) → two devices generated the
     // same code. Re-throw anything else so genuine faults aren't mislabelled.
-    if (err && typeof err === "object" && "code" in err && err.code === "23505") {
+    if (isUniqueViolation(err)) {
+      // The register-number pre-check above ran first, so a violation here is
+      // most likely the pairing code; a racing register-number insert is
+      // distinguished by the constraint/message when readable.
+      const text = String((err as { message?: unknown })?.message ?? "") +
+        String((err as { cause?: { message?: unknown } })?.cause?.message ?? "");
+      if (registerNumber && text.includes("register_number")) {
+        throw new Error("Register number already in use");
+      }
       throw new Error("Pairing code already in use");
     }
     throw err;

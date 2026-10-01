@@ -12,6 +12,7 @@ import {
 } from "./db/schema";
 import { AUDIT, recordAudit } from "./audit";
 import { chunk } from "./chunk";
+import { nextDeviceName } from "./device-name-db";
 import { generateDeviceKey, id } from "./ids";
 import { deprovisionDeviceMqtt, provisionDeviceMqtt } from "@/lib/mqtt";
 import { pushEffectivePinSafe } from "@/lib/pin-service";
@@ -426,6 +427,16 @@ export async function autoClaimDevice(
   const deviceId = id("dev");
   let claimedOrganizationId: string | null = null;
 
+  // The org is only known inside the transaction, so read the allocation first
+  // to pick the default name (concurrent claims may duplicate a default name;
+  // names are not unique, accepted).
+  const [alloc] = await db
+    .select({ org: factoryDevice.allocatedOrganizationId })
+    .from(factoryDevice)
+    .where(eq(factoryDevice.serial, serial))
+    .limit(1);
+  const autoName = alloc?.org ? await nextDeviceName(alloc.org) : "device_1";
+
   try {
     await dbTx.transaction(async (tx) => {
       const [locked] = await tx
@@ -450,7 +461,7 @@ export async function autoClaimDevice(
         id: deviceId,
         organizationId: locked.organizationId,
         storeId: locked.storeId,
-        name: `Printer ${serial.slice(-4)}`,
+        name: autoName,
         status: "offline",
         connectionType: "wifi",
         firmwareVersion: "2.4.1",

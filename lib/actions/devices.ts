@@ -15,6 +15,7 @@ import { requirePlatformAdmin, requireTenant } from "@/lib/session";
 import { canManageTenant } from "@/lib/roles";
 import { getTenantStoreOptions } from "@/lib/data";
 import { id, pairingCode } from "@/lib/ids";
+import { nextDeviceName } from "@/lib/device-name-db";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import type { DeviceStatus } from "@/lib/types";
 import { isOrgArchived } from "@/lib/archived-guard";
@@ -319,11 +320,12 @@ export async function provisionDevice(
 
   const deviceId = id("dev");
   const code = pairingCode();
+  const finalName = name.trim() || (await nextDeviceName(organizationId));
   await db.insert(deviceTable).values({
     id: deviceId,
     organizationId,
     storeId: storeId ?? null,
-    name: name.trim() || "New Printer",
+    name: finalName,
     status: "offline",
     connectionType: "wifi",
     firmwareVersion: "2.4.1",
@@ -338,7 +340,7 @@ export async function provisionDevice(
     actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
     action: AUDIT.deviceProvisioned,
     target: { type: "device", id: deviceId },
-    metadata: { name: name.trim() || "New Printer" },
+    metadata: { name: finalName },
   });
 
   revalidatePath(`/admin/customers/${organizationId}`);

@@ -31,6 +31,8 @@ export function ClaimDeviceDialog({ storeId }: { storeId: string }) {
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const [code, setCode] = React.useState("");
+  const [name, setName] = React.useState("");
+  const [registerNumber, setRegisterNumber] = React.useState("");
   const [loading, setLoading] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
   // After a successful claim we show the one-time key instead of the form.
@@ -41,6 +43,8 @@ export function ClaimDeviceDialog({ storeId }: { storeId: string }) {
 
   function reset() {
     setCode("");
+    setName("");
+    setRegisterNumber("");
     setLoading(false);
     setCopied(false);
     setIssued(null);
@@ -59,7 +63,7 @@ export function ClaimDeviceDialog({ storeId }: { storeId: string }) {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
-    const res = await claimDeviceAction(storeId, code);
+    const res = await claimDeviceAction(storeId, code, { name, registerNumber });
     setLoading(false);
     if (!res.ok) {
       toast.error("Couldn't claim device", { description: res.error });
@@ -115,6 +119,37 @@ export function ClaimDeviceDialog({ storeId }: { storeId: string }) {
               />
               <p className="text-xs text-muted-foreground">
                 Find it under Settings → Pairing on the device.
+              </p>
+
+              <Label htmlFor="deviceName" className="mt-2">
+                Name <span className="text-muted-foreground">(optional)</span>
+              </Label>
+              <Input
+                id="deviceName"
+                name="deviceName"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="device_1"
+                maxLength={60}
+                autoComplete="off"
+              />
+
+              <Label htmlFor="registerNumber" className="mt-2">
+                Register number{" "}
+                <span className="text-muted-foreground">(optional)</span>
+              </Label>
+              <Input
+                id="registerNumber"
+                name="registerNumber"
+                value={registerNumber}
+                onChange={(e) => setRegisterNumber(e.target.value)}
+                placeholder="e.g. K1"
+                maxLength={40}
+                autoComplete="off"
+                spellCheck={false}
+              />
+              <p className="text-xs text-muted-foreground">
+                Your own till number — lets your POS trigger this device by it.
               </p>
             </div>
 

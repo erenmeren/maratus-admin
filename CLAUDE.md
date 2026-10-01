@@ -65,7 +65,8 @@ write those actions anymore.
   the data layer converts to dollars for the UI. The TRY side of a bank
   transfer is stored in whole kuruş (`invoice.tryAmountKurus`, `invoice.fxRate`).
 - Indexes: `device.pairingCode` (unique),
-  `device.deviceKeyHash`, every `organizationId`.
+  `device.deviceKeyHash`, every `organizationId`,
+  `device(organizationId, lower(registerNumber))` (unique where not null).
 
 ## Architecture
 
@@ -114,8 +115,12 @@ and pass a URL. The only device-activation path is the trigger API:
    scope, plus a required `Idempotency-Key` header) does
    `POST /api/v1/devices/{deviceId}/trigger` with body
    `{ action: "show_qr", payload: { url } }` — `url` points at content the
-   caller hosts themselves. `app/api/v1/devices/[deviceId]/trigger/route.ts`
-   checks device ownership/online status, then checks the subscription gate
+   caller hosts themselves. Callers may instead `POST
+   /api/v1/registers/{registerNumber}/trigger` (same body, scope and
+   `Idempotency-Key`; the register number is the customer's own till label, set
+   at claim or via Edit device, unique per org case-insensitively; unknown →
+   `404 register_not_found`). Both routes share `lib/api/trigger-device.ts`,
+   which checks device ownership/online status, then checks the subscription gate
    (`lib/subscription-gate.ts` `checkSubscriptionGate`): a paid device
    (`device.subscriptionPaidAt` set) always passes; an unpaid device gets 50
    lifetime trial triggers, then `403 device_not_subscribed`. Nothing in the
@@ -149,6 +154,8 @@ delivery) and `GET /api/device/identity` (device-key auth; the one thing a
 device can't learn over MQTT before it can even connect — its own id and the
 broker's coordinates) — plus R2 asset fetches and the OTA binary download. Full
 design: `docs/superpowers/specs/2026-07-29-mqtt-only-device-transport-design.md`.
+
+Devices claimed without a name are auto-named `device_{n}`.
 
 ## Billing (subscription, `lib/invoicing.ts` / `lib/invoices.ts` / `lib/billing-cron.ts`)
 

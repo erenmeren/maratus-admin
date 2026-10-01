@@ -2,7 +2,7 @@
 // provisioning). Separate from lib/data.ts because claiming is keyed by the
 // one-time pairing code, not the caller's organization.
 
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import { db } from "./db";
 import { device as deviceTable, store as storeTable } from "./db/schema";
 import { generateDeviceKey, id } from "./ids";
@@ -45,6 +45,7 @@ export async function claimDevice(
   if (!parsedRegister.ok) throw new Error(parsedRegister.error);
   const registerNumber = parsedRegister.value;
   const customName = opts?.name?.trim();
+  if (customName && customName.length > 60) throw new Error("Name can be at most 60 characters.");
 
   const [store] = await db
     .select({ id: storeTable.id, organizationId: storeTable.organizationId })
@@ -69,6 +70,7 @@ export async function claimDevice(
       .where(
         and(
           eq(deviceTable.organizationId, store.organizationId),
+          existing ? ne(deviceTable.id, existing.id) : undefined,
           sql`lower(${deviceTable.registerNumber}) = ${registerKey(registerNumber)}`,
         ),
       )
@@ -96,7 +98,7 @@ export async function claimDevice(
       .set({
         storeId,
         name: finalName,
-        registerNumber,
+        registerNumber: registerNumber ?? existing.registerNumber,
         deviceKeyHash: hash,
         pendingDeviceKey: key, // device fetches once via /api/device/claim
         claimedAt: new Date(),

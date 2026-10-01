@@ -1,5 +1,5 @@
 // Terminal state for triggers nobody acked. A trigger carries
-// expiresAt = createdAt + 60 s (app/api/v1/devices/[deviceId]/trigger/route.ts)
+// expiresAt = createdAt + 60 s (lib/api/trigger-device.ts)
 // because it is a QR for the customer at the counter NOW; once that passes it
 // must become `expired`, not sit `pending` forever. The heartbeat
 // republish already refuses expired rows; this sweep just records the fact.

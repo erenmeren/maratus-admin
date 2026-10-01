@@ -12,7 +12,7 @@
 //   directly (lib/invoices.ts countAckedTriggers), with no per-row cost field
 //   to distinguish real from manual. A manually-enqueued trigger would inflate
 //   that count without going through the real trigger route's ownership/
-//   subscription-gate checks (app/api/v1/devices/[deviceId]/trigger/route.ts),
+//   subscription-gate checks (lib/api/trigger-device.ts),
 //   and the firmware acks ok=false for a triggerless/empty payload anyway.
 //   Triggers may only ever originate from the v1 trigger route.
 // - "config-changed": redundant with "refresh" — the firmware maps refresh onto

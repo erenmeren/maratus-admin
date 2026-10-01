@@ -783,7 +783,7 @@ export async function returnSerialToStock(
   const blocker = returnToStockBlocker(row);
   if (blocker === "noop") return { ok: true, changed: false, organizationId: null };
   if (blocker) return { ok: false, error: blocker, changed: false, organizationId: null };
-  await db
+  const updated = await db
     .update(factoryDevice)
     .set({
       status: "manufactured",
@@ -792,6 +792,21 @@ export async function returnSerialToStock(
       deviceId: null,
       claimedAt: null,
     })
-    .where(and(eq(factoryDevice.serial, serial), inArray(factoryDevice.status, ["rma", "retired"])));
+    .where(
+      and(
+        eq(factoryDevice.serial, serial),
+        inArray(factoryDevice.status, ["rma", "retired"]),
+        isNull(factoryDevice.deviceId),
+      ),
+    )
+    .returning({ serial: factoryDevice.serial });
+  if (updated.length === 0) {
+    return {
+      ok: false,
+      error: "Serial changed while returning it to stock — refresh and try again.",
+      changed: false,
+      organizationId: null,
+    };
+  }
   return { ok: true, changed: true, organizationId: row.org };
 }

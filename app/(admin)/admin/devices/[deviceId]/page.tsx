@@ -158,7 +158,7 @@ export default async function AdminDeviceDetailPage({
               )}
               <div className="flex items-center justify-between pt-1">
                 <span className="text-muted-foreground">Actions</span>
-                <DeviceRowActions deviceId={device.id} deviceName={device.name} status={status} />
+                <DeviceRowActions deviceId={device.id} deviceName={device.name} registerNumber={device.registerNumber} status={status} />
               </div>
             </CardContent>
           </Card>

@@ -4,14 +4,19 @@
 // guarded so a tenant can only touch devices in its active organization.
 
 import { revalidatePath } from "next/cache";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import {
   device as deviceTable,
   organization as orgTable,
   store as storeTable,
 } from "@/lib/db/schema";
-import { requirePlatformAdmin, requireTenant } from "@/lib/session";
+import { getContext, requirePlatformAdmin, requireTenant } from "@/lib/session";
+import {
+  parseRegisterNumber,
+  registerKey,
+  uniqueViolationConstraint,
+} from "@/lib/register-number";
 import { canManageTenant } from "@/lib/roles";
 import { getTenantStoreOptions } from "@/lib/data";
 import { id, pairingCode } from "@/lib/ids";
@@ -117,41 +122,115 @@ export async function setDeviceActiveAdmin(
   return { ok: true, status: next };
 }
 
-/** Rename any device (platform-admin). */
+/** Rename a device. Delegates to {@link updateDeviceDetails}. */
 export async function renameDevice(
   deviceId: string,
   name: string,
 ): Promise<ActionResult> {
-  const ctx = await requirePlatformAdmin();
-  const clean = name.trim();
-  if (!clean) return { ok: false, error: "Name is required." };
+  return updateDeviceDetails(deviceId, { name });
+}
+
+/**
+ * Edit a device's name and/or register number. Allowed for a tenant owner/admin
+ * on the ACTIVE org, or a platform admin.
+ */
+export async function updateDeviceDetails(
+  deviceId: string,
+  patch: { name?: string; registerNumber?: string | null },
+): Promise<ActionResult> {
+  const ctx = await getContext();
+  if (!ctx) return { ok: false, error: "Not signed in." };
 
   const [device] = await db
-    .select({ storeId: deviceTable.storeId, organizationId: deviceTable.organizationId })
+    .select({
+      organizationId: deviceTable.organizationId,
+      storeId: deviceTable.storeId,
+      name: deviceTable.name,
+      registerNumber: deviceTable.registerNumber,
+    })
     .from(deviceTable)
     .where(eq(deviceTable.id, deviceId))
     .limit(1);
   if (!device) return { ok: false, error: "Device not found." };
+
+  const isPlatform = ctx.user.role === "platform_admin";
+  if (!isPlatform) {
+    const m = ctx.organizations.find((o) => o.id === device.organizationId);
+    if (!m || m.id !== ctx.activeOrganizationId || !canManageTenant(m.role)) {
+      return { ok: false, error: "You don't have permission to edit this device." };
+    }
+  }
   if (await isOrgArchived(device.organizationId)) {
     return { ok: false, error: "Customer is archived." };
   }
 
-  await db
-    .update(deviceTable)
-    .set({ name: clean })
-    .where(eq(deviceTable.id, deviceId));
+  const set: { name?: string; registerNumber?: string | null } = {};
+  if (patch.name !== undefined) {
+    const clean = patch.name.trim();
+    if (!clean) return { ok: false, error: "Name is required." };
+    if (clean.length > 60) return { ok: false, error: "Name can be at most 60 characters." };
+    set.name = clean;
+  }
+  if (patch.registerNumber !== undefined) {
+    const parsed = parseRegisterNumber(patch.registerNumber);
+    if (!parsed.ok) return { ok: false, error: parsed.error };
+    set.registerNumber = parsed.value;
+  }
+  if (Object.keys(set).length === 0) return { ok: true };
 
-  await recordAudit({
-    organizationId: device.organizationId,
-    actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
-    action: AUDIT.deviceRenamed,
-    target: { type: "device", id: deviceId },
-    metadata: { name: clean },
-  });
+  try {
+    await db.update(deviceTable).set(set).where(eq(deviceTable.id, deviceId));
+  } catch (err) {
+    if (uniqueViolationConstraint(err) === "device_org_register_number_idx") {
+      let holder = "";
+      if (set.registerNumber) {
+        const [h] = await db
+          .select({ name: deviceTable.name })
+          .from(deviceTable)
+          .where(
+            and(
+              eq(deviceTable.organizationId, device.organizationId),
+              sql`lower(${deviceTable.registerNumber}) = ${registerKey(set.registerNumber)}`,
+            ),
+          )
+          .limit(1);
+        if (h) holder = ` (${h.name})`;
+      }
+      return {
+        ok: false,
+        error: `That register number is already used by another device${holder}.`,
+      };
+    }
+    throw err;
+  }
+
+  const actor = { type: "user" as const, id: ctx.user.id, label: ctx.user.email };
+  if (set.name !== undefined && set.name !== device.name) {
+    await recordAudit({
+      organizationId: device.organizationId,
+      actor,
+      action: AUDIT.deviceRenamed,
+      target: { type: "device", id: deviceId },
+      metadata: { name: set.name },
+    });
+  }
+  if (set.registerNumber !== undefined && set.registerNumber !== device.registerNumber) {
+    await recordAudit({
+      organizationId: device.organizationId,
+      actor,
+      action: AUDIT.deviceRegisterChanged,
+      target: { type: "device", id: deviceId },
+      metadata: { from: device.registerNumber, to: set.registerNumber },
+    });
+  }
 
   revalidatePath("/admin/devices");
+  revalidatePath(`/admin/devices/${deviceId}`);
   revalidatePath(`/admin/customers/${device.organizationId}`);
-  if (device.storeId) revalidatePath(`/tenant/stores/${device.storeId}`);
+  if (device.storeId) {
+    revalidatePath(`/tenant/stores/${device.storeId}`);
+    revalidatePath(`/tenant/stores/${device.storeId}/${deviceId}`);
+  }
   return { ok: true };
 }
 

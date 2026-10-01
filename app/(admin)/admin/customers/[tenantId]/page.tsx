@@ -332,6 +332,8 @@ export default async function CustomerDetailPage({
                     {!isArchived && (
                       <DeviceRowActions
                         deviceId={d.id}
+                        deviceName={d.name}
+                        registerNumber={d.registerNumber}
                         status={d.status}
                         stores={storeOptions}
                       />

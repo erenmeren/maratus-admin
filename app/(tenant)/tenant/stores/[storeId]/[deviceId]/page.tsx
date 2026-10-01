@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { desc } from "drizzle-orm";
-import { ArrowLeft, Cable, Cpu, Globe, HardDrive, QrCode, Wifi } from "lucide-react";
+import { ArrowLeft, Cable, Cpu, Globe, Hash, HardDrive, QrCode, Wifi } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { DevicePauseControl } from "@/components/device-pause-control";
@@ -9,6 +9,7 @@ import { DeviceMoveControl } from "@/components/device-move-control";
 import { DevicePinControl } from "@/components/device-pin-control";
 import { Card, CardContent, CardHeader, CardTitle,  } from "@/components/ui/card";
 import { CommandBar } from "@/components/devices/command-bar";
+import { EditDeviceDialogButton } from "@/components/edit-device-dialog";
 import { CopyButton } from "@/components/copy-button";
 import {
   getDevice,
@@ -80,6 +81,13 @@ export default async function DeviceDetailPage({
 
   const specs: { icon: typeof Cpu; label: string; value: string; mono?: boolean; copy?: boolean }[] = [
     { icon: HardDrive, label: "Device ID", value: device.id, mono: true, copy: true },
+    {
+      icon: Hash,
+      label: "Register number",
+      value: device.registerNumber ?? "—",
+      mono: true,
+      copy: !!device.registerNumber,
+    },
     { icon: Globe, label: "IP address", value: device.ipAddress, mono: true },
     {
       icon: device.connectionType === "wifi" ? Wifi : Cable,
@@ -104,7 +112,18 @@ export default async function DeviceDetailPage({
         {store.name}
       </Link>
 
-      <PageHeader title={device.name} description={`Screen in ${store.name}`} />
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <PageHeader title={device.name} description={`Screen in ${store.name}`} />
+        </div>
+        {canManage && (
+          <EditDeviceDialogButton
+            deviceId={device.id}
+            name={device.name}
+            registerNumber={device.registerNumber}
+          />
+        )}
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">

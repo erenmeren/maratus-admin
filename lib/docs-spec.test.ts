@@ -48,3 +48,9 @@ describe("freshIdempotencyKey", () => {
     expect(none.has("idempotency-key")).toBe(false);
   });
 });
+
+describe("openapi paths", () => {
+  it("documents trigger-by-register", () => {
+    expect(Object.keys(openapi.paths)).toContain("/registers/{registerNumber}/trigger");
+  });
+});

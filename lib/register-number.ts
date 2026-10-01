@@ -34,3 +34,20 @@ export function isUniqueViolation(err: unknown): boolean {
   }
   return false;
 }
+
+/** Constraint name of a Postgres unique violation (direct or on `cause`), else null. */
+export function uniqueViolationConstraint(err: unknown): string | null {
+  for (let i = 0; i < 5 && err && typeof err === "object"; i++) {
+    const node = err as { code?: unknown; constraint?: unknown; message?: unknown; cause?: unknown };
+    if (node.code === "23505") {
+      if (typeof node.constraint === "string" && node.constraint) return node.constraint;
+      if (typeof node.message === "string") {
+        const m = /unique constraint "([^"]+)"/.exec(node.message);
+        if (m) return m[1];
+      }
+      return null;
+    }
+    err = node.cause;
+  }
+  return null;
+}

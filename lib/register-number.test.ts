@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseRegisterNumber, registerKey, isUniqueViolation } from "./register-number";
+import { parseRegisterNumber, registerKey, isUniqueViolation, uniqueViolationConstraint } from "./register-number";
 
 describe("parseRegisterNumber", () => {
   it("trims and keeps case", () => {
@@ -49,5 +49,39 @@ describe("isUniqueViolation", () => {
   });
   it("nested non-23505 code returns false", () => {
     expect(isUniqueViolation({ cause: { cause: { code: "42P01" } } })).toBe(false);
+  });
+});
+
+describe("uniqueViolationConstraint", () => {
+  it("reads constraint on the node", () => {
+    expect(uniqueViolationConstraint({ code: "23505", constraint: "a_idx" })).toBe("a_idx");
+  });
+  it("reads constraint on cause", () => {
+    expect(uniqueViolationConstraint({ cause: { code: "23505", constraint: "b_idx" } })).toBe("b_idx");
+  });
+  it("parses the name from the message", () => {
+    expect(
+      uniqueViolationConstraint({
+        code: "23505",
+        message: 'duplicate key value violates unique constraint "device_org_register_number_idx"',
+      }),
+    ).toBe("device_org_register_number_idx");
+  });
+  it("returns null for non-23505", () => {
+    expect(uniqueViolationConstraint({ code: "23503", constraint: "x" })).toBeNull();
+    expect(uniqueViolationConstraint(new Error("boom"))).toBeNull();
+  });
+  it("returns null for a cyclic cause", () => {
+    const e: { cause?: unknown } = {};
+    e.cause = e;
+    expect(uniqueViolationConstraint(e)).toBeNull();
+  });
+  it("ignores column names in a DrizzleQueryError-shaped message", () => {
+    expect(
+      uniqueViolationConstraint({
+        message: 'Failed query: insert into "device" ("register_number") values ($1)',
+        cause: { code: "23505", constraint: "device_pairing_code_idx" },
+      }),
+    ).toBe("device_pairing_code_idx");
   });
 });

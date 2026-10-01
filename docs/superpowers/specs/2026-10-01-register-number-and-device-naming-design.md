@@ -59,8 +59,8 @@ with no register number.
 - Lookup: `organizationId = auth.organizationId AND lower(registerNumber) = lower(param)`.
   Miss → `404 register_not_found`. Idempotency keys are shared across both
   endpoints (same table, same org scope).
-- `GET` device payloads in the public API gain `registerNumber`; `openapi.json`
-  and the docs site (Scalar, personalised examples) document the new endpoint.
+- `openapi.json` (served by the docs site) documents the new endpoint. There is
+  no public device-listing endpoint today, so no GET payload gains the field.
 
 ## 4. Return to stock (inventory)
 

@@ -11,4 +11,7 @@ describe("defaultDeviceName", () => {
   it("ignores names that do not match exactly", () => {
     expect(defaultDeviceName(["Printer a1b2", "device_x", "my device_9", "device_2b"])).toBe("device_1");
   });
+  it("handles leading zeros in numeric suffix", () => {
+    expect(defaultDeviceName(["device_01"])).toBe("device_2");
+  });
 });

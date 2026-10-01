@@ -28,8 +28,9 @@ export function registerKey(value: string): string {
 
 /** Postgres unique violation, directly or wrapped (drizzle puts it on `cause`). */
 export function isUniqueViolation(err: unknown): boolean {
-  if (!err || typeof err !== "object") return false;
-  const e = err as { code?: unknown; cause?: unknown };
-  if (e.code === "23505") return true;
-  return isUniqueViolation(e.cause);
+  for (let i = 0; i < 5 && err && typeof err === "object"; i++) {
+    if ((err as { code?: unknown }).code === "23505") return true;
+    err = (err as { cause?: unknown }).cause;
+  }
+  return false;
 }

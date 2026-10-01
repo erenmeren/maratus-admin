@@ -29,6 +29,9 @@ describe("registerKey", () => {
   it("is case-insensitive", () => {
     expect(registerKey("K1")).toBe(registerKey("k1"));
   });
+  it("pins exact behavior", () => {
+    expect(registerKey("K1")).toBe("k1");
+  });
 });
 
 describe("isUniqueViolation", () => {
@@ -38,5 +41,13 @@ describe("isUniqueViolation", () => {
     expect(isUniqueViolation({ code: "42P01" })).toBe(false);
     expect(isUniqueViolation(new Error("x"))).toBe(false);
     expect(isUniqueViolation(null)).toBe(false);
+  });
+  it("handles cyclic cause without stack overflow", () => {
+    const e: any = {};
+    e.cause = e;
+    expect(isUniqueViolation(e)).toBe(false);
+  });
+  it("nested non-23505 code returns false", () => {
+    expect(isUniqueViolation({ cause: { cause: { code: "42P01" } } })).toBe(false);
   });
 });

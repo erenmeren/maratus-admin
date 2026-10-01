@@ -11,6 +11,7 @@ import {
   allocateSerials,
   deallocateSerials,
   importFactoryDevices,
+  returnSerialToStock,
   revertRegistryClaim,
   setRegistryStatus,
 } from "@/lib/factory-registry";
@@ -58,6 +59,7 @@ const setStatusInputSchema = z.object({
   serial: serialSchema,
   status: z.enum(["rma", "retired"]),
 });
+const returnToStockInputSchema = z.object({ serial: serialSchema });
 const revertClaimInputSchema = z.object({ serial: serialSchema });
 
 export async function importRegistryCsvAction(
@@ -225,6 +227,28 @@ export async function revertRegistryClaimAction(
       organizationId: result.organizationId,
       actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
       action: AUDIT.registryClaimReverted,
+      target: { type: "registry", id: parsed.data.serial },
+      metadata: { serial: parsed.data.serial },
+    });
+  }
+  revalidatePath("/admin/inventory");
+  return { ok: true };
+}
+
+/** Return an RMA/retired serial to stock so it can be allocated again. */
+export async function returnSerialToStockAction(
+  serial: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const ctx = await requirePlatformAdmin();
+  const parsed = returnToStockInputSchema.safeParse({ serial });
+  if (!parsed.success) return { ok: false, error: "Invalid input." };
+  const result = await returnSerialToStock(parsed.data.serial);
+  if (!result.ok) return { ok: false, error: result.error };
+  if (result.changed && result.organizationId) {
+    await recordAudit({
+      organizationId: result.organizationId,
+      actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
+      action: AUDIT.registryReturnedToStock,
       target: { type: "registry", id: parsed.data.serial },
       metadata: { serial: parsed.data.serial },
     });

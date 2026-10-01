@@ -285,6 +285,256 @@
         }
       }
     },
+    "/registers/{registerNumber}/trigger": {
+      "post": {
+        "operationId": "triggerRegister",
+        "tags": [
+          "Triggers"
+        ],
+        "summary": "Trigger a device by register number",
+        "description": "Shows a QR code for the given URL on the device with this register number. Requires the `devices:trigger` scope and an `Idempotency-Key` header.\n\nDelivery is **push**: the command is published to the device over its live connection before this call returns. `202 Accepted` means the command was accepted and handed to the device; the device typically renders the QR within a few seconds. The command expires 60 seconds after it is accepted. A trigger that could not be delivered is never shown late — you get `503 transport_unavailable` instead and can retry.\n\nThe device must be online (not paused, and seen in the last 15 minutes) and either subscribed or within its 50-trigger trial.\n\nPossible errors: `400 missing_idempotency_key`, `401 unauthorized`, `403 insufficient_scope`, `403 device_not_subscribed`, `404 register_not_found`, `409 device_offline`, `409 conflict`, `422 invalid_request`, `429 rate_limited`, `500 internal_error`, `503 transport_unavailable` (retry), `503 transport_unconfigured` (do not retry).",
+        "parameters": [
+          {
+            "name": "registerNumber",
+            "in": "path",
+            "required": true,
+            "description": "The register (kasa) number you assigned to the device in the console; unique in your organization, case-insensitive.",
+            "schema": {
+              "type": "string"
+            },
+            "example": "K1"
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "description": "Unique value per logical trigger (e.g. a UUID); reuse it when retrying. Once a trigger is accepted, the same key returns the original `202` response without showing the QR again, regardless of the body. Scoped to your organization.",
+            "schema": {
+              "type": "string",
+              "minLength": 1
+            },
+            "example": "0b6f3c2a-8d4e-4f1a-9e7b-1c2d3e4f5a6b"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TriggerRequest"
+              },
+              "examples": {
+                "show_qr": {
+                  "summary": "Show a QR code",
+                  "value": {
+                    "action": "show_qr",
+                    "payload": {
+                      "url": "https://example.com/receipt/8812"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Accepted and published to the device. Also returned, unchanged, when replaying an `Idempotency-Key` that was already accepted.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TriggerAccepted"
+                },
+                "example": {
+                  "id": "cmd_4Qp0dN7hZk2bWm9xYc1aE",
+                  "status": "queued"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`missing_idempotency_key` — the `Idempotency-Key` header is missing or empty.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "missing_idempotency_key": {
+                    "summary": "missing_idempotency_key",
+                    "value": {
+                      "error": {
+                        "code": "missing_idempotency_key",
+                        "message": "Idempotency-Key header is required."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "description": "`insufficient_scope` — the key lacks `devices:trigger`; or `device_not_subscribed` — the device has no paid subscription and has used its 50 trial triggers.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "insufficient_scope": {
+                    "summary": "insufficient_scope",
+                    "value": {
+                      "error": {
+                        "code": "insufficient_scope",
+                        "message": "API key lacks the devices:trigger scope."
+                      }
+                    }
+                  },
+                  "device_not_subscribed": {
+                    "summary": "device_not_subscribed",
+                    "value": {
+                      "error": {
+                        "code": "device_not_subscribed",
+                        "message": "This device has no active subscription. Contact Maratus to activate it."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`register_not_found` — no device in your organization has this register number.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "register_not_found": {
+                    "summary": "register_not_found",
+                    "value": {
+                      "error": {
+                        "code": "register_not_found",
+                        "message": "No device has that register number."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`device_offline` — the device is paused or has not checked in for 15 minutes; or `conflict` — a request with the same `Idempotency-Key` is in flight (retry shortly with the same key).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "device_offline": {
+                    "summary": "device_offline",
+                    "value": {
+                      "error": {
+                        "code": "device_offline",
+                        "message": "Device is offline or paused."
+                      }
+                    }
+                  },
+                  "conflict": {
+                    "summary": "conflict",
+                    "value": {
+                      "error": {
+                        "code": "conflict",
+                        "message": "Concurrent request in progress."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "`invalid_request` — malformed JSON, unknown `action`, or `payload.url` is not an http(s) URL of at most 2048 characters.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "invalid_request": {
+                    "summary": "invalid_request",
+                    "value": {
+                      "error": {
+                        "code": "invalid_request",
+                        "message": "payload.url must be an http(s) URL ≤ 2048 chars."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/RateLimited"
+          },
+          "500": {
+            "description": "`internal_error` — the command could not be recorded. Nothing was sent; retry with the same `Idempotency-Key`.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "internal_error": {
+                    "summary": "internal_error",
+                    "value": {
+                      "error": {
+                        "code": "internal_error",
+                        "message": "Could not enqueue the command."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "`transport_unavailable` — the device messaging service did not accept the command; nothing was shown and the key was released, so retry with the same `Idempotency-Key`. `transport_unconfigured` — device messaging is not configured on this deployment; retrying will not help.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "examples": {
+                  "transport_unavailable": {
+                    "summary": "transport_unavailable",
+                    "value": {
+                      "error": {
+                        "code": "transport_unavailable",
+                        "message": "Could not reach the device transport. Retry."
+                      }
+                    }
+                  },
+                  "transport_unconfigured": {
+                    "summary": "transport_unconfigured",
+                    "value": {
+                      "error": {
+                        "code": "transport_unconfigured",
+                        "message": "The device transport is not configured on this deployment. Retrying will not help."
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/devices/{deviceId}/pin": {
       "put": {
         "operationId": "setDevicePin",

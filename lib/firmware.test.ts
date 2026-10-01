@@ -18,6 +18,6 @@ describe("latestFirmwareManifest", () => {
 
 describe("firmwareStorageKey", () => {
   it("namespaces by version", () => {
-    expect(firmwareStorageKey("0.3.0")).toBe("firmware/0.3.0/ditto-firmware.bin");
+    expect(firmwareStorageKey("0.3.0")).toBe("firmware/0.3.0/maratus-firmware.bin");
   });
 });

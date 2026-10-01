@@ -4,7 +4,7 @@
 //
 //   npx tsx lib/db/publish-firmware.ts <version> <path-to-.bin>
 //   e.g. npx tsx lib/db/publish-firmware.ts 0.8.0 \
-//        /Users/eren/Projects/ditto-firmware/build/ditto-firmware.bin
+//        /Users/eren/Projects/maratus-firmware/build/maratus-firmware.bin
 //
 // Writes to whatever DATABASE_URL + R2_* .env.local points at (currently PROD).
 // After the release row lands, this pushes a firmware-update command to every

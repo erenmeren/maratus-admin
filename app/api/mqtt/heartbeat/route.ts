@@ -226,7 +226,7 @@ async function reconcileOta(
     // Cooldown, not an in-flight check: ANY firmware-update row for this device
     // inside the window blocks another push, whatever its status. The firmware
     // acks a firmware-update BEFORE starting the OTA (it reboots —
-    // ditto-firmware components/cloud/commands.c), so "acked" means "download
+    // maratus-firmware components/cloud/commands.c), so "acked" means "download
     // started", not "installed". Gating on "pending" alone therefore
     // never engages on a retry: a download that fails (TLS blip, truncated body,
     // presign expiry) would be re-pushed every heartbeat forever — ~288 rows and

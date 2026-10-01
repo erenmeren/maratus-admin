@@ -43,7 +43,7 @@ describe("isUniqueViolation", () => {
     expect(isUniqueViolation(null)).toBe(false);
   });
   it("handles cyclic cause without stack overflow", () => {
-    const e: any = {};
+    const e: { cause?: unknown } = {};
     e.cause = e;
     expect(isUniqueViolation(e)).toBe(false);
   });

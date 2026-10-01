@@ -122,14 +122,6 @@ export async function setDeviceActiveAdmin(
   return { ok: true, status: next };
 }
 
-/** Rename a device. Delegates to {@link updateDeviceDetails}. */
-export async function renameDevice(
-  deviceId: string,
-  name: string,
-): Promise<ActionResult> {
-  return updateDeviceDetails(deviceId, { name });
-}
-
 /**
  * Edit a device's name and/or register number. Allowed for a tenant owner/admin
  * on the ACTIVE org, or a platform admin.

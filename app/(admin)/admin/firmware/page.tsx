@@ -12,7 +12,7 @@ export default async function FirmwarePage() {
     <>
       <PageHeader
         title="Firmware"
-        description="Upload a build (its version must match the binary's CONFIG_DITTO_FW_VERSION). The newest release is what devices fetch via the OTA manifest."
+        description="Upload a build (its version must match the binary's CONFIG_MARATUS_FW_VERSION). The newest release is what devices fetch via the OTA manifest."
       />
       <PublishForm />
       <table className="text-sm">

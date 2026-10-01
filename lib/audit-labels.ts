@@ -61,6 +61,7 @@ export const AUDIT_LABELS: Record<string, string> = {
   "registry.claim_reverted": "Inventory claim reverted",
   "registry.marked_rma": "Device marked RMA",
   "registry.retired": "Device retired",
+  "registry.returned_to_stock": "Serial returned to stock",
   "registry.allocation_conflict": "Inventory allocation conflict",
   "org.archived": "Customer archived",
   "org.restored": "Customer restored",

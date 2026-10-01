@@ -60,6 +60,7 @@ export const AUDIT = {
   // release the device's paid slot) that must be readable at a glance.
   registryMarkedRma: "registry.marked_rma",
   registryRetired: "registry.retired",
+  registryReturnedToStock: "registry.returned_to_stock",
   registryAllocationConflict: "registry.allocation_conflict",
   orgArchived: "org.archived",
   orgRestored: "org.restored",

@@ -26,7 +26,8 @@ import type { InventoryRow } from "@/lib/factory-registry";
 import type { RegistryStatus } from "@/lib/provisioning";
 import {
   addSerialAction, allocateSerialsAction, deallocateSerialsAction,
-  importRegistryCsvAction, revertRegistryClaimAction, setRegistryStatusAction,
+  importRegistryCsvAction, returnSerialToStockAction, revertRegistryClaimAction,
+  setRegistryStatusAction,
 } from "@/lib/actions/inventory";
 
 // Filters are debounced on the client but always resolved server-side —
@@ -151,6 +152,8 @@ export function InventoryTable({
   // effect at all).
   const [rmaRow, setRmaRow] = useState<InventoryRow | null>(null);
   const [rmaBusy, setRmaBusy] = useState(false);
+  const [stockRow, setStockRow] = useState<InventoryRow | null>(null);
+  const [stockBusy, setStockBusy] = useState(false);
 
   async function onImportFile(file: File) {
     setBusy(true);
@@ -235,6 +238,25 @@ export function InventoryTable({
     } finally {
       setRevertBusy(false);
       closeRevertDialog();
+    }
+  }
+
+  async function onReturnToStock() {
+    if (!stockRow) return;
+    setStockBusy(true);
+    try {
+      const res = await returnSerialToStockAction(stockRow.serial);
+      if (res.ok) {
+        toast.success("Returned to stock.");
+        router.refresh();
+      } else {
+        toast.error(res.error ?? "Failed to return to stock.");
+      }
+    } catch {
+      toast.error("Failed to return to stock.");
+    } finally {
+      setStockBusy(false);
+      setStockRow(null);
     }
   }
 
@@ -429,6 +451,11 @@ export function InventoryTable({
                         Revert claim…
                       </DropdownMenuItem>
                     )}
+                    {(r.status === "rma" || r.status === "retired") && (
+                      <DropdownMenuItem onSelect={() => setStockRow(r)}>
+                        Return to stock…
+                      </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem onSelect={() => onShowQr(r.serial)}>
                       <QrCode className="size-4" /> Show label QR
                     </DropdownMenuItem>
@@ -565,6 +592,25 @@ export function InventoryTable({
             </Button>
             <Button variant="destructive" disabled={rmaBusy} onClick={onMarkRma}>
               Mark as RMA
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={stockRow !== null} onOpenChange={(o) => !o && !stockBusy && setStockRow(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Return {stockRow?.serial} to stock?</DialogTitle>
+            <DialogDescription>
+              It becomes available to allocate again.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" disabled={stockBusy} onClick={() => setStockRow(null)}>
+              Cancel
+            </Button>
+            <Button disabled={stockBusy} onClick={onReturnToStock}>
+              Return to stock
             </Button>
           </DialogFooter>
         </DialogContent>

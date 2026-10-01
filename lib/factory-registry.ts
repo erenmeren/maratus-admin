@@ -20,6 +20,7 @@ import { fillFreeSlots, settleClaimBilling, voidOpenProrationsForDevice } from "
 import type { RegistryAllocationSnapshot, RegistryStatus } from "./provisioning";
 import type { RegistryCsvRow } from "./factory-registry-csv";
 import { clampPage, foldDeallocatedByOrg } from "./factory-registry-fold";
+import { returnToStockBlocker } from "./registry-return";
 
 function isUniqueViolation(err: unknown): boolean {
   return !!err && typeof err === "object" && "code" in err && (err as { code?: string }).code === "23505";
@@ -762,4 +763,35 @@ export async function stampDeviceSerial(
       // row exists, which is all this branch is trying to guarantee.
     }
   }
+}
+
+/** Put an RMA/retired serial back in stock (status `manufactured`, no
+ *  allocation). Refuses while a device row is still linked. */
+export async function returnSerialToStock(
+  serial: string,
+): Promise<{ ok: boolean; error?: string; changed: boolean; organizationId: string | null }> {
+  const [row] = await db
+    .select({
+      status: factoryDevice.status,
+      deviceId: factoryDevice.deviceId,
+      org: factoryDevice.allocatedOrganizationId,
+    })
+    .from(factoryDevice)
+    .where(eq(factoryDevice.serial, serial))
+    .limit(1);
+  if (!row) return { ok: false, error: "Serial not found.", changed: false, organizationId: null };
+  const blocker = returnToStockBlocker(row);
+  if (blocker === "noop") return { ok: true, changed: false, organizationId: null };
+  if (blocker) return { ok: false, error: blocker, changed: false, organizationId: null };
+  await db
+    .update(factoryDevice)
+    .set({
+      status: "manufactured",
+      allocatedOrganizationId: null,
+      allocatedStoreId: null,
+      deviceId: null,
+      claimedAt: null,
+    })
+    .where(and(eq(factoryDevice.serial, serial), inArray(factoryDevice.status, ["rma", "retired"])));
+  return { ok: true, changed: true, organizationId: row.org };
 }

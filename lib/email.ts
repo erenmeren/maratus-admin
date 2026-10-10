@@ -26,6 +26,9 @@ export async function sendEmail(
       method: "POST",
       headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
       body: JSON.stringify({ from: env.EMAIL_FROM, to, subject, html }),
+      // A stalled Resend call must fail (and be logged) instead of hanging the
+      // request — e.g. the forgot-password button spinning forever.
+      signal: AbortSignal.timeout(8000),
     });
     if (!res.ok) {
       const body = await res.text();

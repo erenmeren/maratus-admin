@@ -359,19 +359,24 @@ function CountdownObject({ object: _object, brand: _brand, seconds }: { object: 
   const s = seconds % 60;
   const remain = `${m}:${String(s).padStart(2, "0")}`;
   return (
-    <div className="flex size-full items-center justify-between" style={{ gap: cq(12) }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: cq(8), color: "var(--k-muted)", fontSize: cq(17), fontWeight: 600 }}>
+    <div className="flex size-full items-center justify-between" style={{ gap: cq(16) }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: cq(10), color: "var(--k-muted)", fontSize: cq(22), fontWeight: 600 }}>
         <span>Expires in</span>
-        <span style={{ fontSize: cq(26), fontWeight: 700, color: "var(--k-text)", fontVariantNumeric: "tabular-nums" }}>{remain}</span>
+        <span style={{ fontSize: cq(40), fontWeight: 800, color: "var(--k-text)", fontVariantNumeric: "tabular-nums" }}>{remain}</span>
       </div>
       <div
         style={{
-          padding: `${cq(6)} ${cq(16)}`,
-          borderRadius: cq(999),
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          minWidth: cq(104),
+          height: cq(52),
+          padding: `0 ${cq(24)}`,
+          borderRadius: cq(14),
           background: "var(--k-accent)",
           color: "var(--k-accent-fg)",
-          fontSize: cq(17),
-          fontWeight: 700,
+          fontSize: cq(24),
+          fontWeight: 800,
         }}
       >
         +5s

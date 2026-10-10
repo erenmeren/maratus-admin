@@ -116,7 +116,8 @@ export function PropertyFields({
 
       {object.type === "countdown" && (
         <p className="text-xs text-muted-foreground">
-          The QR code&apos;s visible duration is set in <span className="font-medium">Device Settings</span>.
+          The QR code&apos;s visible duration is set in <span className="font-medium">Device Settings</span>. Customers can tap
+          +5s to extend it.
         </p>
       )}
     </div>

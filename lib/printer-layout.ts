@@ -262,7 +262,7 @@ export function seededScreen(screen: PrinterScreen): ScreenLayout {
           obj({ id: "text-heading", type: "text", x: 0.1, y: 0.2, w: 0.8, h: 0.07, z: 1, text: "Scan to continue", fontSize: 24, align: "center" }),
           obj({ id: "qr", type: "qr", x: 0.32, y: 0.3, w: 0.36, h: 0.36, z: 2 }),
           obj({ id: "text-hint", type: "text", x: 0.15, y: 0.7, w: 0.7, h: 0.06, z: 3, text: "Point your phone camera at the code", fontSize: 16, align: "center" }),
-          obj({ id: "countdown", type: "countdown", x: 0.3, y: 0.8, w: 0.4, h: 0.1, z: 4 }),
+          obj({ id: "countdown", type: "countdown", x: 0.2, y: 0.8, w: 0.6, h: 0.1, z: 4 }),
         ],
       };
     case "sent":
@@ -561,7 +561,7 @@ const WIDGET_BOX: Record<WidgetType, Pick<PrinterObject, "x" | "y" | "w" | "h">>
   wifi: { x: 0.82, y: 0.04, w: 0.1, h: 0.06 },
   qr: { x: 0.32, y: 0.3, w: 0.36, h: 0.36 },
   spinner: { x: 0.42, y: 0.34, w: 0.16, h: 0.16 },
-  countdown: { x: 0.3, y: 0.8, w: 0.4, h: 0.1 },
+  countdown: { x: 0.2, y: 0.8, w: 0.6, h: 0.1 },
   pairingCode: { x: 0.25, y: 0.66, w: 0.3, h: 0.12 },
   steps: { x: 0.18, y: 0.34, w: 0.64, h: 0.28 },
 };

@@ -350,39 +350,31 @@ function SpinnerObject({ object: _object }: { object: PrinterObject }) {
 }
 
 /**
- * CountdownObject — lifted from the QR screen's "Code expires" progress bar.
- * Preview values (remain/progress) are fixed for the mockup; the live printer
- * app substitutes real values via its own render path.
+ * CountdownObject — one compact row: "Expires in 0:42" plus a "+5s" pill the
+ * end user taps to extend the QR. Preview values are static; the live printer
+ * app substitutes the real remaining time and handles the tap.
  */
 function CountdownObject({ object: _object, brand: _brand, seconds }: { object: PrinterObject; brand: PrinterBrand; seconds: number }) {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   const remain = `${m}:${String(s).padStart(2, "0")}`;
-  const progress = 0; // editor preview is static — show the full duration
   return (
-    <div className="flex size-full flex-col justify-center">
+    <div className="flex size-full items-center justify-between" style={{ gap: cq(12) }}>
+      <div style={{ display: "flex", alignItems: "baseline", gap: cq(8), color: "var(--k-muted)", fontSize: cq(17), fontWeight: 600 }}>
+        <span>Expires in</span>
+        <span style={{ fontSize: cq(26), fontWeight: 700, color: "var(--k-text)", fontVariantNumeric: "tabular-nums" }}>{remain}</span>
+      </div>
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
+          padding: `${cq(6)} ${cq(16)}`,
+          borderRadius: cq(999),
+          background: "var(--k-accent)",
+          color: "var(--k-accent-fg)",
           fontSize: cq(17),
-          fontWeight: 600,
-          color: "var(--k-muted)",
-          marginBottom: cq(10),
+          fontWeight: 700,
         }}
       >
-        <span>Code expires</span>
-        <span style={{ fontVariantNumeric: "tabular-nums" }}>{remain}</span>
-      </div>
-      <div style={{ height: cq(8), borderRadius: cq(8), background: "var(--k-hairline)", overflow: "hidden" }}>
-        <div
-          style={{
-            height: "100%",
-            width: `${Math.max(0, (1 - progress) * 100)}%`,
-            background: "var(--k-accent)",
-            borderRadius: cq(8),
-          }}
-        />
+        +5s
       </div>
     </div>
   );

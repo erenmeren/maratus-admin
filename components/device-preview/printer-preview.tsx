@@ -5,7 +5,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import { QrSvg } from "@/components/qr-svg";
 import { qrCornerRadiusPx, qrShadowCss } from "@/lib/qr-svg";
 import { PrinterClock } from "./printer-clock";
-import { resolveBrandTokens, withAlpha } from "@/lib/color";
+import { readableOn, resolveBrandTokens, withAlpha } from "@/lib/color";
 import {
   screenColors,
   type PrinterConfig,
@@ -56,7 +56,7 @@ export function printerRootStyle(brand: PrinterBrand): React.CSSProperties {
   });
   return {
     "--k-accent": t.accent,
-    "--k-accent-fg": "#ffffff",
+    "--k-accent-fg": readableOn(t.accent),
     "--k-bg": t.bg,
     "--k-fg": t.fg,
     "--k-muted": t.muted,
@@ -365,7 +365,7 @@ function CountdownObject({ object: _object, brand: _brand, seconds }: { object: 
       <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: cq(16) }}>
         <div style={{ display: "flex", flexDirection: "column", lineHeight: 1 }}>
           <span style={{ fontSize: cq(20), fontWeight: 600, color: "var(--k-muted)", marginBottom: cq(6) }}>Expires in</span>
-          <span style={{ fontSize: cq(56), fontWeight: 800, color: "var(--k-text)", fontVariantNumeric: "tabular-nums" }}>{remain}</span>
+          <span style={{ fontSize: cq(56), fontWeight: 800, color: "var(--k-fg)", fontVariantNumeric: "tabular-nums" }}>{remain}</span>
         </div>
         <div
           style={{

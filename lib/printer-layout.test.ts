@@ -147,12 +147,12 @@ describe("pinned screen", () => {
     expect(PRINTER_SCREENS).toContain("pinned");
   });
 
-  it("seeds a qr object and a 'Scan to continue' heading, with no countdown", () => {
+  it("seeds a qr object and a 'Scan QR' heading, with no countdown", () => {
     const { objects } = seededScreen("pinned");
     expect(objects.some((o) => o.type === "qr")).toBe(true);
     expect(objects.some((o) => o.type === "countdown")).toBe(false);
     const heading = objects.find((o) => o.id === "text-heading");
-    expect(heading?.text).toBe("Scan to continue");
+    expect(heading?.text).toBe("Scan QR");
   });
 
   it("otherwise matches the qr screen's seed (minus the countdown object)", () => {

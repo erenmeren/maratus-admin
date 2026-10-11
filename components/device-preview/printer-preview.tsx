@@ -350,36 +350,49 @@ function SpinnerObject({ object: _object }: { object: PrinterObject }) {
 }
 
 /**
- * CountdownObject — one compact row: "Expires in 0:42" plus a "+5s" pill the
- * end user taps to extend the QR. Preview values are static; the live printer
- * app substitutes the real remaining time and handles the tap.
+ * CountdownObject — "Expires in" over a large m:ss readout on the left, a "+5s"
+ * extend button on the right, and a thin progress bar spanning the full width.
+ * Preview values are static; the live printer app substitutes the real
+ * remaining time and handles the tap.
  */
 function CountdownObject({ object: _object, brand: _brand, seconds }: { object: PrinterObject; brand: PrinterBrand; seconds: number }) {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
   const remain = `${m}:${String(s).padStart(2, "0")}`;
+  const progress = 0; // editor preview is static — show the full duration
   return (
-    <div className="flex size-full items-center justify-between" style={{ gap: cq(16) }}>
-      <div style={{ display: "flex", alignItems: "baseline", gap: cq(10), color: "var(--k-muted)", fontSize: cq(22), fontWeight: 600 }}>
-        <span>Expires in</span>
-        <span style={{ fontSize: cq(40), fontWeight: 800, color: "var(--k-text)", fontVariantNumeric: "tabular-nums" }}>{remain}</span>
+    <div className="flex size-full flex-col justify-between">
+      <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: cq(16) }}>
+        <div style={{ display: "flex", flexDirection: "column", lineHeight: 1 }}>
+          <span style={{ fontSize: cq(20), fontWeight: 600, color: "var(--k-muted)", marginBottom: cq(6) }}>Expires in</span>
+          <span style={{ fontSize: cq(56), fontWeight: 800, color: "var(--k-text)", fontVariantNumeric: "tabular-nums" }}>{remain}</span>
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            minWidth: cq(150),
+            height: cq(56),
+            borderRadius: cq(14),
+            background: "var(--k-accent)",
+            color: "var(--k-accent-fg)",
+            fontSize: cq(28),
+            fontWeight: 800,
+          }}
+        >
+          +5s
+        </div>
       </div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          minWidth: cq(104),
-          height: cq(52),
-          padding: `0 ${cq(24)}`,
-          borderRadius: cq(14),
-          background: "var(--k-accent)",
-          color: "var(--k-accent-fg)",
-          fontSize: cq(24),
-          fontWeight: 800,
-        }}
-      >
-        +5s
+      <div style={{ height: cq(8), borderRadius: cq(8), background: "var(--k-hairline)", overflow: "hidden" }}>
+        <div
+          style={{
+            height: "100%",
+            width: `${Math.max(0, (1 - progress) * 100)}%`,
+            background: "var(--k-accent)",
+            borderRadius: cq(8),
+          }}
+        />
       </div>
     </div>
   );

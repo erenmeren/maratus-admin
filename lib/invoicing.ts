@@ -6,7 +6,7 @@ import { addMonthsAnchored, MONTHS_PER_YEAR, periodIndexFor } from "./billing-pe
 
 export const DEFAULT_PRICE_PER_DEVICE_CENTS = 1500; // $15/device/month
 export const DEFAULT_OVERAGE_PRICE_CENTS = 2; // $0.02/trigger past the pool
-export const DEFAULT_INCLUDED_TRIGGERS_PER_DEVICE = 1000;
+export const DEFAULT_INCLUDED_TRIGGERS_PER_DEVICE = 30_000; // per slot per period, pooled
 export const DUE_DAYS = 14;
 
 /** Free acked triggers an unpaid device may make, lifetime. */

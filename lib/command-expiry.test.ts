@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isExpiredPending, isUndeliveredTrigger } from "./command-expiry";
+import { isAckWindowOpen, isExpiredPending, isUndeliveredTrigger } from "./command-expiry";
 
 const NOW = new Date("2026-09-09T10:00:00Z");
 
@@ -76,5 +76,22 @@ describe("isUndeliveredTrigger", () => {
         60 * 60 * 1000,
       ),
     ).toBe(false);
+  });
+});
+
+describe("isAckWindowOpen", () => {
+  it("accepts an ack while the TTL is still open", () => {
+    expect(isAckWindowOpen({ expiresAt: new Date("2026-09-09T10:00:30Z") }, NOW)).toBe(true);
+  });
+  it("rejects a late ack once the TTL has passed (it must not become a billed `acked`)", () => {
+    expect(isAckWindowOpen({ expiresAt: new Date("2026-09-09T09:59:59Z") }, NOW)).toBe(false);
+  });
+  it("always accepts acks for desired-state rows (null expiresAt)", () => {
+    expect(isAckWindowOpen({ expiresAt: null }, NOW)).toBe(true);
+  });
+  it("is the exact complement of isExpiredPending for pending rows", () => {
+    for (const expiresAt of [null, new Date("2026-09-09T09:59:59Z"), NOW, new Date("2026-09-09T10:00:01Z")]) {
+      expect(isAckWindowOpen({ expiresAt }, NOW)).toBe(!isExpiredPending({ status: "pending", expiresAt }, NOW));
+    }
   });
 });

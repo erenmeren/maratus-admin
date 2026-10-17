@@ -102,6 +102,11 @@ export async function POST(req: Request) {
             }
           : {}),
         ...(hb.fonts !== null ? { lastFontSlots: hb.fonts } : {}),
+        // Link-health telemetry (fw 0.20.1+); older firmware omits these.
+        ...(hb.rssi !== null ? { lastRssi: hb.rssi } : {}),
+        ...(hb.drops !== null ? { linkDrops: hb.drops } : {}),
+        ...(hb.kicks !== null ? { linkKicks: hb.kicks } : {}),
+        ...(hb.rst !== null ? { lastResetReason: hb.rst } : {}),
         // Atomic in-DB decision: never resurrect a paused device, even under
         // concurrent writes (no stale JS-side status read driving this write).
         status: sql`CASE WHEN ${deviceTable.status} = 'paused' THEN ${deviceTable.status} ELSE 'online' END`,

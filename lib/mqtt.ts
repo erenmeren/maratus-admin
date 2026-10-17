@@ -185,6 +185,10 @@ export function parseHeartbeatPayload(raw: unknown): {
   cfgimg: number | null;
   cfgstat: number | null;
   cfgparse: number | null;
+  rssi: number | null;
+  drops: number | null;
+  kicks: number | null;
+  rst: number | null;
 } | null {
   if (!isObject(raw)) return null;
   // heap = free internal DRAM (bytes); fonts = font-cache slots in use (both
@@ -194,6 +198,12 @@ export function parseHeartbeatPayload(raw: unknown): {
     typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.round(v) : null;
   const anyInt = (v: unknown): number | null =>
     typeof v === "number" && Number.isFinite(v) ? Math.round(v) : null;
+  // Link health (fw 0.20.1+): rssi = Wi-Fi RSSI in dBm (negative; any finite
+  // value, rounded); drops/kicks = since-boot counters and rst = the boot's
+  // esp_reset_reason() — these must already be non-negative integers (a
+  // fractional count is garbage, not something to round).
+  const count = (v: unknown): number | null =>
+    typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null;
   return {
     version: typeof raw.version === "string" ? raw.version : null,
     heap: nonNegInt(raw.heap),
@@ -203,6 +213,10 @@ export function parseHeartbeatPayload(raw: unknown): {
     cfgimg: anyInt(raw.cfgimg),
     cfgstat: anyInt(raw.cfgstat),
     cfgparse: anyInt(raw.cfgparse),
+    rssi: anyInt(raw.rssi),
+    drops: count(raw.drops),
+    kicks: count(raw.kicks),
+    rst: count(raw.rst),
   };
 }
 

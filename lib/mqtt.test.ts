@@ -206,7 +206,8 @@ describe("parseHeartbeatPayload", () => {
   // Full null-default shape; override only the fields under test.
   const hb = (o: Record<string, unknown> = {}) => ({
     version: null, heap: null, fonts: null, afetch: null, aimg: null,
-    cfgimg: null, cfgstat: null, cfgparse: null, ...o,
+    cfgimg: null, cfgstat: null, cfgparse: null,
+    rssi: null, drops: null, kicks: null, rst: null, ...o,
   });
   it("parses a version and defaults it to null", () => {
     expect(parseHeartbeatPayload({ version: "2.13.0" })).toEqual(hb({ version: "2.13.0" }));
@@ -223,6 +224,26 @@ describe("parseHeartbeatPayload", () => {
     expect(parseHeartbeatPayload({ heap: -5 })).toEqual(hb());
     expect(parseHeartbeatPayload({ heap: Infinity })).toEqual(hb());
     expect(parseHeartbeatPayload({ fonts: -1 })).toEqual(hb());
+  });
+  it("parses link-health fields (rssi/drops/kicks/rst)", () => {
+    expect(parseHeartbeatPayload({ rssi: -67, drops: 3, kicks: 1, rst: 4 })).toEqual(
+      hb({ rssi: -67, drops: 3, kicks: 1, rst: 4 }),
+    );
+    expect(parseHeartbeatPayload({ drops: 0, kicks: 0, rst: 1 })).toEqual(
+      hb({ drops: 0, kicks: 0, rst: 1 }),
+    );
+    expect(parseHeartbeatPayload({ rssi: -71.6 })).toEqual(hb({ rssi: -72 }));
+  });
+  it("leaves link-health fields null when absent (older firmware)", () => {
+    expect(parseHeartbeatPayload({ version: "0.19.2", heap: 200000 })).toEqual(
+      hb({ version: "0.19.2", heap: 200000 }),
+    );
+  });
+  it("rejects garbage link-health values", () => {
+    expect(parseHeartbeatPayload({ rssi: "weak", drops: "2", kicks: true, rst: null })).toEqual(hb());
+    expect(parseHeartbeatPayload({ rssi: NaN, drops: Infinity, kicks: -Infinity, rst: NaN })).toEqual(hb());
+    expect(parseHeartbeatPayload({ drops: -1, kicks: -3, rst: -1 })).toEqual(hb());
+    expect(parseHeartbeatPayload({ drops: 1.5, kicks: 0.2, rst: 4.9 })).toEqual(hb());
   });
   it("parses image diagnostics, allowing negative values", () => {
     expect(parseHeartbeatPayload({ afetch: -1, aimg: 0 })).toEqual(hb({ afetch: -1, aimg: 0 }));

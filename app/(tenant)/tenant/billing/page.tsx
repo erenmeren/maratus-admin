@@ -5,6 +5,7 @@ import { isInvoiceOverdue, listInvoices } from "@/lib/invoices";
 import { subscriptionAmountCents } from "@/lib/invoicing";
 import { PageHeader } from "@/components/page-header";
 import { InvoiceTable } from "@/components/billing/invoice-table";
+import { TriggerUsageSummary } from "@/components/billing/trigger-usage-summary";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -114,7 +115,7 @@ export default async function TenantBillingPage() {
           <CardTitle>This period</CardTitle>
           <CardDescription>
             {overview.periodStart && overview.periodEnd
-              ? `${formatDate(overview.periodStart)} – ${formatDate(overview.periodEnd)}`
+              ? `${formatDate(overview.periodStart)} – ${formatDate(overview.periodEnd)}. Each paid slot includes ${formatNumber(overview.includedPerSlot)} triggers per period, pooled across your organization.`
               : "Starts once your subscription is active."}
           </CardDescription>
         </CardHeader>
@@ -124,28 +125,7 @@ export default async function TenantBillingPage() {
               Trigger usage will appear here once your subscription starts.
             </p>
           ) : (
-            <div className="space-y-2">
-              <p className="text-2xl font-semibold tabular-nums">
-                {formatNumber(overview.used)}{" "}
-                <span className="text-base font-normal text-muted-foreground">
-                  / {formatNumber(overview.includedTotal)} triggers
-                </span>
-              </p>
-              {overview.overageTriggers > 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {formatNumber(overview.overageTriggers)} extra ×{" "}
-                  {formatUsdCents(overview.overagePriceCents)} ={" "}
-                  <span className="font-medium text-foreground">
-                    {formatUsdCents(overview.estimatedOverageUsdCents)}
-                  </span>{" "}
-                  estimated
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Within your included quota.
-                </p>
-              )}
-            </div>
+            <TriggerUsageSummary usage={overview} />
           )}
         </CardContent>
       </Card>

@@ -9,7 +9,9 @@ import {
 import { formatDate, formatNumber, formatUsdCents } from "@/lib/format";
 import { subscriptionAmountCents } from "@/lib/invoicing";
 import { isInvoiceOverdue, type InvoiceRow } from "@/lib/invoices";
+import type { TenantBillingOverview } from "@/lib/data";
 import { StartSubscriptionButton } from "./start-subscription-button";
+import { TriggerUsageSummary } from "./trigger-usage-summary";
 
 type Status = "not_subscribed" | "active" | "overdue";
 
@@ -31,6 +33,9 @@ export function SubscriptionCard(props: {
   paidDeviceSlots: number;
   freeSlots: number;
   invoices: InvoiceRow[];
+  // Live period-quota usage (getTenantBillingOverview). Rendered read-only and
+  // only once the org is subscribed — before that there is no period.
+  usage: TenantBillingOverview;
   disabled?: boolean;
 }) {
   const now = new Date();
@@ -82,39 +87,59 @@ export function SubscriptionCard(props: {
             )}
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-4">
-            <div>
-              <p className="text-xs text-muted-foreground">Started</p>
-              <p className="font-medium">
-                {formatDate(props.subscriptionStartedAt as Date)}
-              </p>
+          <div className="space-y-6">
+            <div className="grid gap-4 sm:grid-cols-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Started</p>
+                <p className="font-medium">
+                  {formatDate(props.subscriptionStartedAt as Date)}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Renews</p>
+                <p className="font-medium">
+                  {props.subscriptionRenewsAt
+                    ? formatDate(props.subscriptionRenewsAt)
+                    : "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Slots</p>
+                <p className="flex items-center gap-2 font-medium tabular-nums">
+                  {formatNumber(props.paidDeviceCount)} of{" "}
+                  {formatNumber(props.paidDeviceSlots)} in use
+                  {props.freeSlots > 0 && (
+                    <Badge variant="secondary" className="tabular-nums">
+                      {formatNumber(props.freeSlots)} free
+                    </Badge>
+                  )}
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Annual amount</p>
+                <p className="font-medium tabular-nums">
+                  {formatUsdCents(annualAmountCents)}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Renews</p>
-              <p className="font-medium">
-                {props.subscriptionRenewsAt
-                  ? formatDate(props.subscriptionRenewsAt)
-                  : "—"}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Slots</p>
-              <p className="flex items-center gap-2 font-medium tabular-nums">
-                {formatNumber(props.paidDeviceCount)} of{" "}
-                {formatNumber(props.paidDeviceSlots)} in use
-                {props.freeSlots > 0 && (
-                  <Badge variant="secondary" className="tabular-nums">
-                    {formatNumber(props.freeSlots)} free
-                  </Badge>
-                )}
-              </p>
-            </div>
-            <div>
-              <p className="text-xs text-muted-foreground">Annual amount</p>
-              <p className="font-medium tabular-nums">
-                {formatUsdCents(annualAmountCents)}
-              </p>
-            </div>
+            {props.usage.subscribed &&
+              props.usage.periodStart &&
+              props.usage.periodEnd && (
+                <div className="space-y-3 border-t pt-6">
+                  <div className="space-y-1">
+                    <p className="text-sm font-medium">Quota usage</p>
+                    <p className="text-sm text-muted-foreground">
+                      Period {formatDate(props.usage.periodStart)} –{" "}
+                      {formatDate(props.usage.periodEnd)}. Pool{" "}
+                      {formatNumber(props.usage.includedTotal)} (
+                      {formatNumber(props.usage.paidDeviceSlots)} slot
+                      {props.usage.paidDeviceSlots === 1 ? "" : "s"} ×{" "}
+                      {formatNumber(props.usage.includedPerSlot)}).
+                    </p>
+                  </div>
+                  <TriggerUsageSummary usage={props.usage} />
+                </div>
+              )}
           </div>
         )}
       </CardContent>

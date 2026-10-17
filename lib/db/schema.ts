@@ -207,10 +207,11 @@ export const tenantSettings = pgTable("tenant_settings", {
   deviceSettingsPasswordHash: text("device_settings_password_hash"),
   deviceSettingsPasswordSalt: text("device_settings_password_salt"),
   // --- Subscription plan (2026-08-15 subscription-billing spec) ------------
-  // One plan: $15/device/month billed annually by bank transfer, 1000 triggers
-  // per paid device per month POOLED at the org, $0.02/trigger post-paid
-  // overage. `billingPlan` and the credit ledger it selected were dropped in
-  // migration 0044; `legacyCreditsRemaining` below is all that outlived them.
+  // One plan: $15/device/month billed annually by bank transfer, 30,000
+  // triggers per paid slot per monthly period POOLED at the org, $0.02/trigger
+  // post-paid overage. `billingPlan` and the credit ledger it selected were
+  // dropped in migration 0044; `legacyCreditsRemaining` below is all that
+  // outlived them.
   //
   // null = not subscribed yet. Set when a platform admin marks the first
   // subscription invoice paid; it is the anchor for every billing period.
@@ -235,9 +236,11 @@ export const tenantSettings = pgTable("tenant_settings", {
   // (lib/billing-cron.ts). Both null = nothing pending.
   pendingDeviceSlots: integer("pending_device_slots"),
   pendingSlotsAt: timestamp("pending_slots_at"),
-  // Triggers included per PAID device per month; pooled org-wide.
+  // Triggers included per PAID SLOT per monthly billing period; pooled
+  // org-wide (pool = paidDeviceSlots × this). Unused quota carries across days
+  // within the period, never into the next one. 1000 → 30,000 in migration 0049.
   includedTriggersPerDevice: integer("included_triggers_per_device")
-    .default(1000)
+    .default(30000)
     .notNull(),
   // Migration-only: the org's prepaid credit balance at cutover, offset
   // against its FIRST overage invoice and then set to 0. NULL means the
@@ -316,6 +319,16 @@ export const device = pgTable(
     // creation (e.g. first Settings render) rather than a leak; also flags a
     // device approaching the 32-slot cap (where it degrades to the default font).
     lastFontSlots: integer("last_font_slots"),
+    // Cloud-link health reported on the MQTT heartbeat (fw 0.20.1+); all null
+    // until such a firmware checks in. lastRssi is the latest Wi-Fi RSSI (dBm).
+    // linkDrops (cloud-link losses) and linkKicks (forced Wi-Fi re-associations)
+    // are since-boot counters as the device reports them, so they reset on
+    // reboot — a reboot shows up as lastResetReason (esp_reset_reason_t of the
+    // current boot: 1=POWERON, 3=SW, 4=PANIC, 5/6/7=WDT, 9=BROWNOUT, ...).
+    lastRssi: integer("last_rssi"),
+    linkDrops: integer("link_drops"),
+    linkKicks: integer("link_kicks"),
+    lastResetReason: integer("last_reset_reason"),
     // One-time human-friendly code used to claim an unprovisioned device.
     pairingCode: text("pairing_code").unique(),
     // SHA-256 hash of the device's bearer key (raw key shown once at claim).

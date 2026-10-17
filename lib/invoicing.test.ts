@@ -17,7 +17,7 @@ describe("defaults", () => {
   it("prices a device at $15/month and overage at 2 cents", () => {
     expect(DEFAULT_PRICE_PER_DEVICE_CENTS).toBe(1500);
     expect(DEFAULT_OVERAGE_PRICE_CENTS).toBe(2);
-    expect(DEFAULT_INCLUDED_TRIGGERS_PER_DEVICE).toBe(1000);
+    expect(DEFAULT_INCLUDED_TRIGGERS_PER_DEVICE).toBe(30_000);
     expect(DUE_DAYS).toBe(14);
   });
 });

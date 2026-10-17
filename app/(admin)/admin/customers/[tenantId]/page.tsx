@@ -41,6 +41,7 @@ import {
   getArmedAllocationCountByStore,
   getDeviceUsageThisMonth,
   getCustomerTeam,
+  getTenantBillingOverview,
 } from "@/lib/data";
 import { countPaidDevices, listInvoices } from "@/lib/invoices";
 import { DEFAULT_PRICE_PER_DEVICE_CENTS } from "@/lib/invoicing";
@@ -74,6 +75,7 @@ export default async function CustomerDetailPage({
     paidDeviceCount,
     invoices,
     team,
+    billingUsage,
   ] = await Promise.all([
     getArmedAllocationCountByStore(tenantId),
     getDeviceUsageThisMonth(tenantId),
@@ -92,6 +94,7 @@ export default async function CustomerDetailPage({
     countPaidDevices(tenantId),
     listInvoices(tenantId),
     getCustomerTeam(tenantId),
+    getTenantBillingOverview(tenantId),
   ]);
 
   const { tenant, summary, devices, health } = detail;
@@ -238,6 +241,7 @@ export default async function CustomerDetailPage({
           paidDevices: paidDeviceCount,
         })}
         invoices={invoices}
+        usage={billingUsage}
         disabled={isArchived}
       />
 

@@ -522,6 +522,7 @@ export interface TenantBillingOverview {
   // the display edge.
   pricePerDeviceCents: number;
   overagePriceCents: number;
+  includedPerSlot: number;
   includedTotal: number;
   used: number;
   overageTriggers: number;
@@ -574,6 +575,7 @@ export async function getTenantBillingOverview(
       freeSlots,
       pricePerDeviceCents,
       overagePriceCents,
+      includedPerSlot: settings?.includedTriggersPerDevice ?? 0,
       includedTotal: 0,
       used: 0,
       overageTriggers: 0,
@@ -612,6 +614,7 @@ export async function getTenantBillingOverview(
     freeSlots,
     pricePerDeviceCents,
     overagePriceCents,
+    includedPerSlot: settings.includedTriggersPerDevice,
     includedTotal: overage.includedTotal,
     used,
     overageTriggers: overage.overageTriggers,

@@ -69,8 +69,8 @@ that ships to devices over the air.
 ## Pricing
 
 Maratus is sold as a subscription: each device slot is $15/month billed
-annually by bank transfer, and every paid slot includes 1,000 triggers/month
-pooled across the organization. Usage beyond the pool is billed post-paid at
+annually by bank transfer, and every paid slot includes 30,000 triggers per
+monthly billing period, pooled across the organization. Usage beyond the pool is billed post-paid at
 $0.02/trigger on the next invoice — overage never blocks a request.
 
 ## For developers

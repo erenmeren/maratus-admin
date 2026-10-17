@@ -3,7 +3,7 @@
 // because it is a QR for the customer at the counter NOW; once that passes it
 // must become `expired`, not sit `pending` forever. The heartbeat
 // republish already refuses expired rows; this sweep just records the fact.
-import { and, eq, gt, isNotNull, lt, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, gt, gte, isNotNull, isNull, lt, or, sql, type SQL } from "drizzle-orm";
 import { db } from "./db";
 import { deviceCommand } from "./db/schema";
 
@@ -12,6 +12,21 @@ export function isExpiredPending(
   now: Date,
 ): boolean {
   return cmd.status === "pending" && cmd.expiresAt !== null && cmd.expiresAt.getTime() < now.getTime();
+}
+
+/** WHERE for "an ack may still settle this row": no TTL (pin, config-changed,
+ *  firmware-update rows are desired state and never expire), or a TTL that
+ *  has not yet passed. A late ack on a trigger must not flip it to `acked` —
+ *  acked triggers are what billing counts, and that QR was never shown in time.
+ *  The row stays `pending` and the daily sweep records it `expired`. */
+export function ackWindowOpenWhere(now: Date): SQL {
+  return or(isNull(deviceCommand.expiresAt), gte(deviceCommand.expiresAt, now))!;
+}
+
+/** Pure mirror of `ackWindowOpenWhere` — the exact complement of the TTL test
+ *  in `isExpiredPending`, so no instant is both "expired" and "ackable". */
+export function isAckWindowOpen(cmd: { expiresAt: Date | null }, now: Date): boolean {
+  return cmd.expiresAt === null || cmd.expiresAt.getTime() >= now.getTime();
 }
 
 /** Window for the "undelivered trigger" signal: a QR that never reached a

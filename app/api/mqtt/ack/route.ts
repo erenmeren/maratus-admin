@@ -9,6 +9,7 @@ import { db } from "@/lib/db";
 import { deviceCommand } from "@/lib/db/schema";
 import { mqttEnabled, verifyWebhookSecret, parseAckPayload } from "@/lib/mqtt";
 import { recordWebhookPing } from "@/lib/mqtt-ping";
+import { ackWindowOpenWhere } from "@/lib/command-expiry";
 
 export const runtime = "nodejs";
 
@@ -38,7 +39,11 @@ export async function POST(req: Request) {
   // and would let one device (and its tenant) ack/cancel another's command.
   // Guard on "pending": the deviceId scope plus this being a terminal-status
   // transition (pending -> acked/failed) keeps it idempotent — a second ack
-  // just no-ops.
+  // just no-ops. Guard on the TTL too: a late ack on an expired trigger
+  // matches nothing and leaves the row `pending` for the daily sweep to mark
+  // `expired`, so it is never billed as `acked`. Rows with no TTL (pin,
+  // config-changed, firmware-update) are unaffected. Either no-op still
+  // answers 200 so EMQX doesn't retry it.
   await db
     .update(deviceCommand)
     .set({ status: nextStatus, ackedAt: now, result: ack.result })
@@ -47,6 +52,7 @@ export async function POST(req: Request) {
         eq(deviceCommand.id, ack.commandId),
         eq(deviceCommand.deviceId, clientid),
         eq(deviceCommand.status, "pending"),
+        ackWindowOpenWhere(now),
       ),
     )
     .returning({

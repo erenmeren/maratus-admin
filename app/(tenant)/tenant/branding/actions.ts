@@ -18,6 +18,7 @@ import { id } from "@/lib/ids";
 import { deleteObject, imageStorageKey, putObject } from "@/lib/storage";
 import { normalizeUploadImage } from "@/lib/image";
 import { recordAudit, AUDIT } from "@/lib/audit";
+import { brandingChanges } from "@/lib/audit-changes";
 import { enqueueConfigChangedForOrg, isDirectAssetUrl } from "@/lib/data";
 import { isTenantImageKey } from "@/lib/asset-keys";
 
@@ -136,28 +137,40 @@ export async function saveBranding(
 
   // Capture current state for cleanup (previous image keys). Bundled default
   // images (seeded, or converted from a legacy icon) aren't R2 objects — skip them.
+  // Also the "before" snapshot for the audit row's changed-parts list.
   const previousImageKeys = new Set<string>();
-  if (printerConfig !== undefined) {
-    const [existing] = await db
-      .select({
-        printerScreens: tenantSettings.printerScreens,
-        printerLayout: tenantSettings.printerLayout,
-      })
-      .from(tenantSettings)
-      .where(eq(tenantSettings.organizationId, organizationId))
-      .limit(1);
+  const [existing] = await db
+    .select({
+      brandColor: tenantSettings.brandColor,
+      brandBg: tenantSettings.brandBg,
+      brandFg: tenantSettings.brandFg,
+      brandMuted: tenantSettings.brandMuted,
+      printerScreens: tenantSettings.printerScreens,
+      printerLayout: tenantSettings.printerLayout,
+    })
+    .from(tenantSettings)
+    .where(eq(tenantSettings.organizationId, organizationId))
+    .limit(1);
+  const prevConfig =
+    printerConfig !== undefined && existing
+      ? normalizePrinterConfig(existing.printerScreens ?? existing.printerLayout)
+      : null;
 
-    if (printerConfig !== undefined && existing) {
-      const prevConfig = normalizePrinterConfig(existing.printerScreens ?? existing.printerLayout);
-      for (const screen of PRINTER_SCREENS) {
-        for (const o of prevConfig.screens[screen].objects) {
-          if (o.type === "image" && o.image?.url && !isDirectAssetUrl(o.image.url) && isTenantImageKey(organizationId, o.image.url)) {
-            previousImageKeys.add(o.image.url);
-          }
+  if (prevConfig) {
+    for (const screen of PRINTER_SCREENS) {
+      for (const o of prevConfig.screens[screen].objects) {
+        if (o.type === "image" && o.image?.url && !isDirectAssetUrl(o.image.url) && isTenantImageKey(organizationId, o.image.url)) {
+          previousImageKeys.add(o.image.url);
         }
       }
     }
   }
+  const changed = brandingChanges(
+    existing
+      ? { brandColor: existing.brandColor, brandBg: existing.brandBg, brandFg: existing.brandFg, brandMuted: existing.brandMuted, printerConfig: prevConfig }
+      : null,
+    { brandColor, brandBg, brandFg, brandMuted, printerConfig: printerConfig ?? null },
+  );
 
   // --- Upsert tenant_settings --------------------------------------------
   const now = new Date();
@@ -205,6 +218,7 @@ export async function saveBranding(
     organizationId,
     actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
     action: AUDIT.brandingUpdated,
+    metadata: { changed },
   });
 
   revalidatePath("/tenant/branding");

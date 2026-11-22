@@ -13,7 +13,7 @@ import {
   type PrinterBrand,
 } from "@/components/device-preview/printer-preview";
 import { usePrinterEditor, type PrinterEditor } from "@/components/device-preview/printer-editor/use-printer-editor";
-import { type PrinterConfig } from "@/lib/printer-layout";
+import { type PrinterConfig, PRINTER_SCREENS, SCREEN_LABEL } from "@/lib/printer-layout";
 import { saveBranding } from "@/app/(tenant)/tenant/branding/actions";
 import { isValidHex } from "@/lib/color";
 
@@ -29,16 +29,10 @@ export interface BrandingVariantProps {
   canEdit: boolean;
 }
 
-export const SCREENS: { value: PrinterScreen; label: string }[] = [
-  { value: "idle", label: "Idle / ready" },
-  { value: "processing", label: "Processing" },
-  { value: "qr", label: "QR ready" },
-  { value: "sent", label: "Sent ✓" },
-  { value: "error", label: "Error / offline" },
-  { value: "paused", label: "Paused" },
-  { value: "setup", label: "Setup / pairing" },
-  { value: "pinned", label: "Pinned" },
-];
+export const SCREENS: { value: PrinterScreen; label: string }[] = PRINTER_SCREENS.map((value) => ({
+  value,
+  label: SCREEN_LABEL[value],
+}));
 
 export interface BrandingDraft {
   // Colors

@@ -4,12 +4,14 @@
 // On save, pushes the updated config to every device in the org over MQTT.
 
 import { revalidatePath } from "next/cache";
+import { eq, sql } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { tenantSettings } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
 import { canManage } from "@/lib/roles";
 import { normalizeDeviceSettings, hashSettingsPassword } from "@/lib/device-settings";
 import { recordAudit, AUDIT } from "@/lib/audit";
+import { deviceSettingsChanges } from "@/lib/audit-changes";
 import { enqueueConfigChangedForOrg } from "@/lib/data";
 
 export interface SaveDeviceSettingsResult {
@@ -52,6 +54,23 @@ export async function saveDeviceSettings(
     passwordUpdate = { deviceSettingsPasswordHash: hash, deviceSettingsPasswordSalt: salt };
   }
 
+  const [existing] = await db
+    .select({
+      qrVisibleSeconds: tenantSettings.qrVisibleSeconds,
+      screenBrightness: tenantSettings.screenBrightness,
+      screenSleepEnabled: tenantSettings.screenSleepEnabled,
+      screenSleepTimeoutSeconds: tenantSettings.screenSleepTimeoutSeconds,
+      hasPin: sql<boolean>`${tenantSettings.deviceSettingsPasswordHash} is not null`,
+    })
+    .from(tenantSettings)
+    .where(eq(tenantSettings.organizationId, organizationId))
+    .limit(1);
+  const changed = deviceSettingsChanges(
+    existing ?? null,
+    ds,
+    clearPassword ? "cleared" : newPassword ? "set" : "unchanged",
+  );
+
   const now = new Date();
   await db
     .insert(tenantSettings)
@@ -65,6 +84,7 @@ export async function saveDeviceSettings(
     organizationId,
     actor: { type: "user", id: ctx.user.id, label: ctx.user.email },
     action: AUDIT.deviceSettingsUpdated,
+    metadata: { changed },
   });
 
   revalidatePath("/tenant/device-settings");

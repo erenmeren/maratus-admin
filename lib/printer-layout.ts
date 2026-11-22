@@ -16,6 +16,18 @@ export { QR_SHAPES, type QrShape, QR_SHADOW_MODES, type QrShadowMode } from "./q
 export const PRINTER_SCREENS = ["idle", "processing", "qr", "sent", "error", "paused", "setup", "pinned"] as const;
 export type PrinterScreen = (typeof PRINTER_SCREENS)[number];
 
+/** Screen names as the branding studio shows them (also used in audit history). */
+export const SCREEN_LABEL: Record<PrinterScreen, string> = {
+  idle: "Idle / ready",
+  processing: "Processing",
+  qr: "QR ready",
+  sent: "Sent ✓",
+  error: "Error / offline",
+  paused: "Paused",
+  setup: "Setup / pairing",
+  pinned: "Pinned",
+};
+
 export const OBJECT_TYPES = [
   "text", "logo", "clock", "wifi",
   "image",

@@ -12,7 +12,7 @@ import {
   store as storeTable,
 } from "@/lib/db/schema";
 import { requirePlatformAdmin, requireTenant } from "@/lib/session";
-import { canManageTenant } from "@/lib/roles";
+import { canManage } from "@/lib/roles";
 import { id } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { normalizeTimezone } from "@/lib/timezones";
@@ -30,9 +30,9 @@ export async function createStore(
 ): Promise<CreateStoreResult> {
   const { ctx, organizationId } = await requireTenant();
 
-  // Authorize: only owners/admins may add stores.
+  // Authorize: only roles that manage stores may add them.
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  if (!membership || !canManageTenant(membership.role)) {
+  if (!membership || !canManage(membership.role, "stores")) {
     return { ok: false, error: "You don't have permission to add stores." };
   }
 
@@ -113,7 +113,7 @@ export async function createStoreForOrg(
 }
 
 /**
- * Update a store's name/address/timezone (tenant-scoped, owner/admin only).
+ * Update a store's name/address/timezone (tenant-scoped, roles that manage stores).
  * Verifies the store belongs to the active org before mutating.
  */
 export async function updateStore(
@@ -123,7 +123,7 @@ export async function updateStore(
   const { ctx, organizationId } = await requireTenant();
 
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  if (!membership || !canManageTenant(membership.role)) {
+  if (!membership || !canManage(membership.role, "stores")) {
     return { ok: false, error: "You don't have permission to edit stores." };
   }
 
@@ -214,12 +214,12 @@ async function performStoreDelete(
   return { ok: true };
 }
 
-/** Delete a store (tenant owner/admin). Its devices move to the Unassigned pool. */
+/** Delete a store (roles that manage stores). Its devices move to the Unassigned pool. */
 export async function deleteStore(storeId: string): Promise<DeleteStoreResult> {
   const { ctx, organizationId } = await requireTenant();
 
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  if (!membership || !canManageTenant(membership.role)) {
+  if (!membership || !canManage(membership.role, "stores")) {
     return { ok: false, error: "You don't have permission to delete stores." };
   }
 

@@ -14,13 +14,10 @@ import {
 import { OrgPinCard } from "@/components/pin/org-pin-card";
 import { StorePinTable } from "@/components/pin/store-pin-table";
 import { getPinOverview, getOrgQrStyle } from "@/lib/data";
-import { requireTenant } from "@/lib/session";
-import { canManageTenant } from "@/lib/roles";
+import { requireSection } from "@/lib/session";
 
 export default async function PinnedQrPage() {
-  const { ctx, organizationId } = await requireTenant();
-  const membership = ctx.organizations.find((o) => o.id === organizationId);
-  const canManage = canManageTenant(membership?.role);
+  const { organizationId, canManage } = await requireSection("pinnedQr");
 
   const [overview, qrStyle] = await Promise.all([
     getPinOverview(organizationId),

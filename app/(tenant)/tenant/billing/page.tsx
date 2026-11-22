@@ -1,5 +1,5 @@
 // app/(tenant)/tenant/billing/page.tsx
-import { requireTenant } from "@/lib/session";
+import { requireSection } from "@/lib/session";
 import { getTenantBillingOverview } from "@/lib/data";
 import { isInvoiceOverdue, listInvoices } from "@/lib/invoices";
 import { subscriptionAmountCents } from "@/lib/invoicing";
@@ -29,7 +29,7 @@ const STATUS_UI: Record<
 };
 
 export default async function TenantBillingPage() {
-  const { organizationId } = await requireTenant();
+  const { organizationId } = await requireSection("billing");
   const [overview, invoices] = await Promise.all([
     getTenantBillingOverview(organizationId),
     listInvoices(organizationId),

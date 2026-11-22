@@ -2,7 +2,7 @@
 
 // Server action: claim (provision) an unclaimed device into a store.
 // Binds the device to the store, issues its device key (returned ONCE), and
-// consumes the pairing code. Guarded to org owners/admins, and scoped so a
+// consumes the pairing code. Guarded to roles that manage stores, and scoped so a
 // tenant can only claim into a store they own — claimDevice() additionally
 // enforces device.org === store.org, so the device must be in the same org too.
 
@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { store as storeTable } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
-import { canManageTenant } from "@/lib/roles";
+import { canManage } from "@/lib/roles";
 import { claimDevice } from "@/lib/device-claim";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { isValidPairingCode } from "@/lib/provisioning";
@@ -30,9 +30,9 @@ export async function claimDeviceAction(
 ): Promise<ClaimDeviceResult> {
   const { ctx, organizationId } = await requireTenant();
 
-  // Authorize: only owners/admins may provision devices.
+  // Authorize: only roles that manage stores may provision devices.
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  if (!membership || !canManageTenant(membership.role)) {
+  if (!membership || !canManage(membership.role, "stores")) {
     return { ok: false, error: "You don't have permission to claim devices." };
   }
 

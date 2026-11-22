@@ -1,7 +1,7 @@
 "use server";
 
 // Server action: persist tenant branding to tenant_settings.
-// Only org owners/admins may edit. Uploaded images (layout image objects) are
+// Only roles that manage branding may edit. Uploaded images (layout image objects) are
 // stored in R2 (private) under branding/{org}/images/{id}; their keys are
 // persisted inside the printerScreens JSON. When images are replaced or removed,
 // the previous R2 objects are deleted so no orphans accumulate.
@@ -11,7 +11,7 @@ import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { tenantSettings } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
-import { canManageTenant } from "@/lib/roles";
+import { canManage } from "@/lib/roles";
 import { isValidHex } from "@/lib/color";
 import { normalizePrinterConfig, PRINTER_SCREENS, type PrinterConfig } from "@/lib/printer-layout";
 import { id } from "@/lib/ids";
@@ -33,9 +33,9 @@ export async function saveBranding(
 ): Promise<SaveBrandingResult> {
   const { ctx, organizationId } = await requireTenant();
 
-  // Authorize: only owners/admins of the active org may change branding.
+  // Authorize: only roles that manage branding in the active org.
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  if (!membership || !canManageTenant(membership.role)) {
+  if (!membership || !canManage(membership.role, "branding")) {
     return { ok: false, error: "You don't have permission to edit branding." };
   }
 

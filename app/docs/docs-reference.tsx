@@ -127,7 +127,9 @@ export function DocsReference({
           ) : (
             <>
               <IdsPopover ctx={ctx} />
-              {live ? (
+              {ctx.allowed === false ? (
+                <span className="text-xs text-muted-foreground">{NO_API_ACCESS}</span>
+              ) : live ? (
                 <span className="hidden items-center gap-2 rounded-full border px-3 py-1 text-xs sm:flex">
                   <span className="size-2 rounded-full bg-[#9bd11e]" />
                   Try it on · {ctx.organizationName} · {minutesLeft(live.expiresAt, now)} min
@@ -161,7 +163,7 @@ export function DocsReference({
 }
 
 function IdsPopover({ ctx }: { ctx: Ctx }) {
-  if (!ctx.signedIn) return null;
+  if (!ctx.signedIn || ctx.allowed === false) return null;
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -236,8 +238,12 @@ function minutesLeft(expiresAt: string, now: number): number {
   return Math.min(60, Math.max(1, Math.ceil((new Date(expiresAt).getTime() - now) / 60_000)));
 }
 
+const NO_API_ACCESS = "Your role has no API access.";
+
 function reasonText(reason: string): string {
   switch (reason) {
+    case "no_api_access":
+      return NO_API_ACCESS;
     case "signed_out":
       return "Your session ended — sign in again.";
     case "no_org":

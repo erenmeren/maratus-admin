@@ -17,7 +17,7 @@ import {
   registerKey,
   uniqueViolationConstraint,
 } from "@/lib/register-number";
-import { canManageTenant } from "@/lib/roles";
+import { canManage } from "@/lib/roles";
 import { getTenantStoreOptions } from "@/lib/data";
 import { id, pairingCode } from "@/lib/ids";
 import { nextDeviceName } from "@/lib/device-name-db";
@@ -41,10 +41,10 @@ export async function setDeviceActive(
 ): Promise<ActionResult> {
   const { ctx, organizationId } = await requireTenant();
 
-  // Members are read-only for device operations; only owners/admins may
+  // Only roles that manage devices may
   // pause/resume (mirrors assignDeviceToStore + enqueueDeviceCommand).
   const role = ctx.organizations.find((o) => o.id === organizationId)?.role;
-  if (!canManageTenant(role)) {
+  if (!canManage(role, "devices")) {
     return { ok: false, error: "You don't have permission to manage devices." };
   }
 
@@ -123,7 +123,7 @@ export async function setDeviceActiveAdmin(
 }
 
 /**
- * Edit a device's name and/or register number. Allowed for a tenant owner/admin
+ * Edit a device's name and/or register number. Allowed for a role that manages devices
  * on the ACTIVE org, or a platform admin.
  */
 export async function updateDeviceDetails(
@@ -148,7 +148,7 @@ export async function updateDeviceDetails(
   const isPlatform = ctx.user.role === "platform_admin";
   if (!isPlatform) {
     const m = ctx.organizations.find((o) => o.id === device.organizationId);
-    if (!m || m.id !== ctx.activeOrganizationId || !canManageTenant(m.role)) {
+    if (!m || m.id !== ctx.activeOrganizationId || !canManage(m.role, "devices")) {
       return { ok: false, error: "You don't have permission to edit this device." };
     }
   }
@@ -456,7 +456,7 @@ export async function unassignDevice(deviceId: string): Promise<ActionResult> {
 
 /**
  * Assign a pool (or any same-org) device to a store — the tenant-scoped
- * sibling of the admin-only reassignDevice. Owner/admin only.
+ * sibling of the admin-only reassignDevice. Roles that manage devices only.
  */
 export async function assignDeviceToStore(
   deviceId: string,
@@ -465,7 +465,7 @@ export async function assignDeviceToStore(
   const { ctx, organizationId } = await requireTenant();
 
   const membership = ctx.organizations.find((o) => o.id === organizationId);
-  if (!membership || !canManageTenant(membership.role)) {
+  if (!membership || !canManage(membership.role, "devices")) {
     return { ok: false, error: "You don't have permission to manage devices." };
   }
 

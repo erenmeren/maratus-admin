@@ -10,7 +10,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { device as deviceTable, store as storeTable } from "@/lib/db/schema";
 import { requireTenant, type AppContext } from "@/lib/session";
-import { canManageTenant } from "@/lib/roles";
+import { canManage } from "@/lib/roles";
 import { validatePinBody } from "@/lib/pin";
 import { applyScopedPinChange } from "@/lib/pin-service";
 
@@ -34,7 +34,7 @@ type Guard =
 async function guard(): Promise<Guard> {
   const { ctx, organizationId } = await requireTenant();
   const role = ctx.organizations.find((o) => o.id === organizationId)?.role;
-  if (!canManageTenant(role)) {
+  if (!canManage(role, "pinnedQr")) {
     return { ok: false, error: "You don't have permission to manage devices." };
   }
   return { ok: true, ctx, organizationId };

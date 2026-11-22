@@ -16,8 +16,7 @@ import {
 } from "@/components/ui/table";
 import { getTenantDevicesPage } from "@/lib/data";
 import { parseListParams } from "@/lib/list-params";
-import { requireTenant } from "@/lib/session";
-import { canManageTenant } from "@/lib/roles";
+import { requireSection } from "@/lib/session";
 import { formatNumber, timeAgo } from "@/lib/format";
 
 export default async function DevicesPage({
@@ -25,11 +24,9 @@ export default async function DevicesPage({
 }: {
   searchParams: Promise<{ q?: string; status?: string; page?: string }>;
 }) {
-  const { ctx, organizationId } = await requireTenant();
+  const { organizationId, canManage } = await requireSection("devices");
   const { q, status, page } = parseListParams(await searchParams);
   const { rows, total, counts } = await getTenantDevicesPage(organizationId, { q, status, page });
-  const membership = ctx.organizations.find((o) => o.id === organizationId);
-  const canManage = canManageTenant(membership?.role);
 
   const tabs = [
     { value: "all", label: "All", count: counts.all, active: status === "all" },

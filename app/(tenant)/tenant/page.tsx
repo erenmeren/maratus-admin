@@ -4,11 +4,11 @@ import { KpiCard } from "@/components/kpi-card";
 import { ActivationsAreaChart } from "@/components/charts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTenantDashboard } from "@/lib/data";
-import { requireTenant } from "@/lib/session";
+import { requireSection } from "@/lib/session";
 import { formatNumber } from "@/lib/format";
 
 export default async function TenantDashboardPage() {
-  const { ctx, organizationId } = await requireTenant();
+  const { ctx, organizationId } = await requireSection("dashboard");
   const dash = await getTenantDashboard(organizationId);
 
   return (

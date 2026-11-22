@@ -1,15 +1,11 @@
 import { PageHeader } from "@/components/page-header";
 import { DeviceSettingsForm } from "@/components/device-settings-form";
 import { getTenantDeviceSettings } from "@/lib/data";
-import { requireTenant } from "@/lib/session";
-import { canManageTenant } from "@/lib/roles";
+import { requireSection } from "@/lib/session";
 
 export default async function DeviceSettingsPage() {
-  const { ctx, organizationId } = await requireTenant();
+  const { organizationId, canManage: canEdit } = await requireSection("deviceSettings");
   const settings = await getTenantDeviceSettings(organizationId);
-
-  const membership = ctx.organizations.find((o) => o.id === organizationId);
-  const canEdit = canManageTenant(membership?.role);
 
   return (
     <>

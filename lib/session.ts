@@ -5,11 +5,12 @@
 // `require*` helpers in server components / layouts to gate access.
 
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { eq } from "drizzle-orm";
 import { auth } from "./auth";
 import { db } from "./db";
 import { member, organization, tenantSettings } from "./db/schema";
+import { canManage, canView, firstViewableHref, type Section } from "./roles";
 
 export interface OrgRef {
   id: string;
@@ -80,6 +81,25 @@ export async function requireTenant(): Promise<{
     redirect(ctx.user.role === "platform_admin" ? "/admin" : "/archived");
   }
   return { ctx, organizationId: ctx.activeOrganizationId };
+}
+
+/** Section guard: requireTenant + the active-org role must be able to view
+ *  `section`; otherwise send the user to their first viewable section (404 for
+ *  a role that can view nothing). */
+export async function requireSection(section: Section): Promise<{
+  ctx: AppContext;
+  organizationId: string;
+  role: string | undefined;
+  canManage: boolean;
+}> {
+  const { ctx, organizationId } = await requireTenant();
+  const role = ctx.organizations.find((o) => o.id === organizationId)?.role;
+  if (!canView(role, section)) {
+    const href = firstViewableHref(role);
+    if (!href) notFound();
+    redirect(href);
+  }
+  return { ctx, organizationId, role, canManage: canManage(role, section) };
 }
 
 /** Super-admin guard: requires a platform_admin user. */

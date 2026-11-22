@@ -16,8 +16,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { getTenantStoresPage } from "@/lib/data";
-import { requireTenant } from "@/lib/session";
-import { canManageTenant } from "@/lib/roles";
+import { requireSection } from "@/lib/session";
 import { formatNumber } from "@/lib/format";
 import { parseListParams } from "@/lib/list-params";
 
@@ -26,11 +25,9 @@ export default async function StoresPage({
 }: {
   searchParams: Promise<{ q?: string; page?: string }>;
 }) {
-  const { ctx, organizationId } = await requireTenant();
+  const { organizationId, canManage } = await requireSection("stores");
   const { q, page } = parseListParams(await searchParams);
   const { rows: stores, total, fleet } = await getTenantStoresPage(organizationId, { q, page });
-  const membership = ctx.organizations.find((o) => o.id === organizationId);
-  const canManage = canManageTenant(membership?.role);
   const params: Record<string, string> = {};
   if (q) params.q = q;
 

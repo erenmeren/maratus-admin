@@ -1,12 +1,8 @@
 // lib/roles.ts
-// Pure tenant-role predicates (no IO). Tenant roles are owner/admin/member
-// (Better Auth org plugin, stored on `member.role`); owners and admins may
-// mutate the tenant's resources, members are read-only.
-
-/** Owners and admins may manage tenant resources (devices, billing, etc.). */
-export function canManageTenant(role: string | null | undefined): boolean {
-  return role === "owner" || role === "admin";
-}
+// Pure tenant-role predicates (no IO). Tenant roles live on `member.role`
+// (Better Auth org plugin): owner/admin manage everything, member views
+// everything read-only, and the scoped roles (designer/operations/billing/
+// developer) see and manage only their sections — see ACCESS below.
 
 export type Section =
   | "dashboard"

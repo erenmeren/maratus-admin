@@ -12,16 +12,21 @@ import { apiKey as apiKeyTable } from "@/lib/db/schema";
 import { id, generateApiKey } from "@/lib/ids";
 import { recordAudit, AUDIT } from "@/lib/audit";
 import { API_SCOPES, type ApiScope } from "@/lib/api-scopes";
-import { canManageTenant } from "@/lib/roles";
+import { canManage, canView } from "@/lib/roles";
 
 export const PLAYGROUND_KEY_NAME = "Docs playground";
 export const PLAYGROUND_KEY_TTL_MINUTES = 60;
 
-/** Scopes a playground key gets for a tenant role: owner/admin → every scope,
- *  member (or anything else) → read-only usage. Mirrors the tenant RBAC model:
- *  members can't manage devices, so they can't trigger/pin via the console. */
+/** Scopes a playground key gets for a tenant role: a role that manages the
+ *  API section (owner/admin/developer) → every scope, anything else →
+ *  read-only usage. Members can view but not manage, so no trigger/pin. */
 export function playgroundScopes(role: string | null | undefined): ApiScope[] {
-  return canManageTenant(role) ? [...API_SCOPES] : ["usage:read"];
+  return canManage(role, "api") ? [...API_SCOPES] : ["usage:read"];
+}
+
+/** Whether the role may use the docs "Try it" console at all. */
+export function playgroundAllowed(role: string | null | undefined): boolean {
+  return canView(role, "api");
 }
 
 /** Pure expiry check: null expiresAt (a normal key) never expires. */

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { playgroundScopes, isApiKeyExpired } from "./playground-key";
+import { playgroundScopes, playgroundAllowed, isApiKeyExpired } from "./playground-key";
 import { API_SCOPES } from "./api-scopes";
 
 describe("playgroundScopes", () => {
@@ -10,6 +10,9 @@ describe("playgroundScopes", () => {
   it("gives members read-only usage", () => {
     expect(playgroundScopes("member")).toEqual(["usage:read"]);
   });
+  it("gives developers every API scope", () => {
+    expect(playgroundScopes("developer")).toEqual([...API_SCOPES]);
+  });
   it("falls back to read-only for unknown/missing roles", () => {
     expect(playgroundScopes(null)).toEqual(["usage:read"]);
     expect(playgroundScopes(undefined)).toEqual(["usage:read"]);
@@ -19,6 +22,15 @@ describe("playgroundScopes", () => {
     const s = playgroundScopes("owner");
     s.pop();
     expect(playgroundScopes("owner")).toEqual([...API_SCOPES]);
+  });
+});
+
+describe("playgroundAllowed", () => {
+  it("allows roles that can view the API section", () => {
+    for (const r of ["owner", "admin", "member", "developer"]) expect(playgroundAllowed(r)).toBe(true);
+  });
+  it("denies roles without API access", () => {
+    for (const r of ["designer", "operations", "billing", null, undefined]) expect(playgroundAllowed(r)).toBe(false);
   });
 });
 

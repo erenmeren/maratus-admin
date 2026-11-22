@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requireTenant } from "@/lib/session";
+import { requireSection } from "@/lib/session";
 import { getOrgAuditPage } from "@/lib/data";
 import { actionLabel } from "@/lib/audit-labels";
 import { timeAgo } from "@/lib/format";
@@ -19,7 +19,7 @@ export default async function ActivityPage({
 }: {
   searchParams: Promise<Record<string, string | undefined>>;
 }) {
-  const { organizationId } = await requireTenant();
+  const { organizationId } = await requireSection("activity");
   const raw = await searchParams;
   const requested = Math.max(1, Number(raw.page) || 1);
   const { rows, page, pageCount } = await getOrgAuditPage(organizationId, requested);

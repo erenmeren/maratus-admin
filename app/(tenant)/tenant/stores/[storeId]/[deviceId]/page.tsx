@@ -20,8 +20,8 @@ import {
 } from "@/lib/data";
 import { db } from "@/lib/db";
 import { firmwareRelease } from "@/lib/db/schema";
-import { requireTenant } from "@/lib/session";
-import { canManageTenant } from "@/lib/roles";
+import { requireSection } from "@/lib/session";
+import { canManage as roleCanManage } from "@/lib/roles";
 import { formatNumber, timeAgo } from "@/lib/format";
 
 // Friendly names for the raw deviceCommand type/status values shown in the
@@ -54,7 +54,7 @@ export default async function DeviceDetailPage({
   params: Promise<{ storeId: string; deviceId: string }>;
 }) {
   const { storeId, deviceId } = await params;
-  const { ctx, organizationId } = await requireTenant();
+  const { organizationId, role, canManage } = await requireSection("devices");
   const result = await getDevice(deviceId);
   if (!result || result.tenant.id !== organizationId) notFound();
   if (result.store.id !== storeId) notFound();
@@ -64,8 +64,7 @@ export default async function DeviceDetailPage({
   const qrStyle = await getOrgQrStyle(organizationId);
   const pinCtx = await getDevicePinContext(organizationId, deviceId);
 
-  const membership = ctx.organizations.find((o) => o.id === organizationId);
-  const canManage = canManageTenant(membership?.role);
+  const canManagePin = roleCanManage(role, "pinnedQr");
   const otherStores = canManage
     ? (await getTenantStores(organizationId))
         .filter((s) => s.id !== storeId)
@@ -233,7 +232,7 @@ export default async function DeviceDetailPage({
             pinMode={pinCtx?.pinMode ?? "inherit"}
             inheritedUrl={pinCtx?.inheritedUrl ?? null}
             inheritedSource={pinCtx?.inheritedSource ?? null}
-            canManage={canManage}
+            canManage={canManagePin}
             qrShape={qrStyle.qrShape}
             qrFg={qrStyle.qrFg}
             qrBg={qrStyle.qrBg}

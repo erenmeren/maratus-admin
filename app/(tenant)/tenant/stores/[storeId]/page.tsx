@@ -8,8 +8,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { ClaimDeviceDialog } from "@/components/claim-device-dialog";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle,  } from "@/components/ui/card";
 import { getStoreAnalytics, getUnclaimedDevices } from "@/lib/data";
-import { requireTenant } from "@/lib/session";
-import { canManageTenant } from "@/lib/roles";
+import { requireSection } from "@/lib/session";
 import { ActivationsAreaChart } from "@/components/charts";
 import { StoreEditButton } from "@/components/store-edit-button";
 import { StoreDeleteButton } from "@/components/store-delete-button";
@@ -23,13 +22,11 @@ export default async function StoreDetailPage({
   params: Promise<{ storeId: string }>;
 }) {
   const { storeId } = await params;
-  const { ctx, organizationId } = await requireTenant();
+  const { organizationId, canManage } = await requireSection("stores");
   const result = await getStoreAnalytics(storeId);
   if (!result || result.store.tenantId !== organizationId) notFound();
 
   const { store, analytics } = result;
-  const membership = ctx.organizations.find((o) => o.id === organizationId);
-  const canManage = canManageTenant(membership?.role);
   const canClaim = canManage;
   const unclaimed = canClaim ? await getUnclaimedDevices(organizationId) : [];
   const armedByStore = canClaim ? await getArmedAllocationCountByStore(organizationId) : {};

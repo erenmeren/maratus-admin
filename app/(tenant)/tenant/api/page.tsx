@@ -8,13 +8,10 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { getApiKeys } from "@/lib/data";
-import { requireTenant } from "@/lib/session";
-import { canManageTenant } from "@/lib/roles";
+import { requireSection } from "@/lib/session";
 
 export default async function ApiKeysPage() {
-  const { ctx, organizationId } = await requireTenant();
-  const role = ctx.organizations.find((o) => o.id === organizationId)?.role;
-  const canManage = canManageTenant(role);
+  const { organizationId, canManage } = await requireSection("api");
   const keys = await getApiKeys(organizationId);
   const active = keys.filter((k) => !k.revokedAt);
 

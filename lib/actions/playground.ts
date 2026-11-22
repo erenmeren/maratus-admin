@@ -10,7 +10,7 @@ import { db } from "@/lib/db";
 import { device, store } from "@/lib/db/schema";
 import { getContext, type AppContext, type OrgRef } from "@/lib/session";
 import { isOrgArchived } from "@/lib/archived-guard";
-import { mintPlaygroundKey } from "@/lib/playground-key";
+import { mintPlaygroundKey, playgroundAllowed } from "@/lib/playground-key";
 import type { ApiScope } from "@/lib/api-scopes";
 
 export type IssuePlaygroundKeyResult =
@@ -21,13 +21,15 @@ export type IssuePlaygroundKeyResult =
       scopes: ApiScope[];
       organizationName: string;
     }
-  | { ok: false; reason: "signed_out" | "no_org" | "archived" };
+  | { ok: false; reason: "signed_out" | "no_org" | "archived" | "no_api_access" };
 
 export interface PlaygroundContext {
   signedIn: boolean;
   email?: string;
   organizationName?: string;
   role?: string;
+  /** False when the active-org role can't view the API section. */
+  allowed?: boolean;
   devices: { id: string; name: string; storeName: string | null }[];
   stores: { id: string; name: string }[];
 }
@@ -44,6 +46,7 @@ export async function issuePlaygroundKey(): Promise<IssuePlaygroundKeyResult> {
   if (!ctx) return { ok: false, reason: "signed_out" };
   const org = activeOrg(ctx);
   if (!org) return { ok: false, reason: "no_org" };
+  if (!playgroundAllowed(org.role)) return { ok: false, reason: "no_api_access" };
   // Backstop: getContext filters archived orgs, but re-check at mint time.
   if (await isOrgArchived(org.id)) return { ok: false, reason: "archived" };
 
@@ -70,6 +73,9 @@ export async function getPlaygroundContext(): Promise<PlaygroundContext> {
   if (!ctx) return { signedIn: false, devices: [], stores: [] };
   const org = activeOrg(ctx);
   if (!org) return { signedIn: true, email: ctx.user.email, devices: [], stores: [] };
+  if (!playgroundAllowed(org.role)) {
+    return { signedIn: true, email: ctx.user.email, organizationName: org.name, role: org.role, allowed: false, devices: [], stores: [] };
+  }
 
   const [devices, stores] = await Promise.all([
     db
@@ -92,6 +98,7 @@ export async function getPlaygroundContext(): Promise<PlaygroundContext> {
     email: ctx.user.email,
     organizationName: org.name,
     role: org.role,
+    allowed: true,
     devices,
     stores,
   };

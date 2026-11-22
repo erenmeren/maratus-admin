@@ -17,7 +17,7 @@ import {
   registerKey,
   uniqueViolationConstraint,
 } from "@/lib/register-number";
-import { canManage } from "@/lib/roles";
+import { canManage, canView } from "@/lib/roles";
 import { getTenantStoreOptions } from "@/lib/data";
 import { id, pairingCode } from "@/lib/ids";
 import { nextDeviceName } from "@/lib/device-name-db";
@@ -41,8 +41,7 @@ export async function setDeviceActive(
 ): Promise<ActionResult> {
   const { ctx, organizationId } = await requireTenant();
 
-  // Only roles that manage devices may
-  // pause/resume (mirrors assignDeviceToStore + enqueueDeviceCommand).
+  // Only roles that manage devices may pause/resume (mirrors assignDeviceToStore + enqueueDeviceCommand).
   const role = ctx.organizations.find((o) => o.id === organizationId)?.role;
   if (!canManage(role, "devices")) {
     return { ok: false, error: "You don't have permission to manage devices." };
@@ -508,9 +507,11 @@ export async function assignDeviceToStore(
   return { ok: true };
 }
 
-/** Store options for the tenant device assign/move picker (any member may read). */
+/** Store options for the tenant device assign/move picker (roles that view devices or stores). */
 export async function getTenantStoreOptionsAction(): Promise<{ id: string; name: string }[]> {
-  const { organizationId } = await requireTenant();
+  const { ctx, organizationId } = await requireTenant();
+  const role = ctx.organizations.find((o) => o.id === organizationId)?.role;
+  if (!canView(role, "devices") && !canView(role, "stores")) return [];
   return getTenantStoreOptions(organizationId);
 }
 

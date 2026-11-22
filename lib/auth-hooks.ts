@@ -13,6 +13,12 @@
 // id. The public POST /api/auth/sign-up/email must not create accounts —
 // with only an email-level invitation check, anyone who knew an invitee's
 // address could pre-register it with their own password.
+//
+// isOrgReadPathBlocked: the org plugin's own read routes hand back the member
+// list and pending invitations to any member of the org. Roles that cannot
+// view the Members section must not get it through that side door.
+
+import { canView } from "./roles";
 
 const PINNED: Record<string, Record<string, string>> = {
   "/request-password-reset": { redirectTo: "/reset-password" },
@@ -31,4 +37,14 @@ export type HttpSignUpDecision = { ok: true } | { ok: false; reason: "http_signu
 
 export function decideHttpSignUp(a: { isHttpRequest: boolean }): HttpSignUpDecision {
   return a.isHttpRequest ? { ok: false, reason: "http_signup_disabled" } : { ok: true };
+}
+
+const ORG_MEMBER_READ_PATHS = new Set([
+  "/organization/list-members",
+  "/organization/get-full-organization",
+  "/organization/list-invitations",
+]);
+
+export function isOrgReadPathBlocked(path: string, role: string | null | undefined): boolean {
+  return ORG_MEMBER_READ_PATHS.has(path) && !canView(role, "members");
 }

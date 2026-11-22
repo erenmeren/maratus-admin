@@ -14,13 +14,15 @@ describe("canManageMembers", () => {
 });
 
 describe("inviteRoleIsValid", () => {
-  it("accepts admin/member only", () => {
-    expect(inviteRoleIsValid("admin")).toBe(true);
-    expect(inviteRoleIsValid("member")).toBe(true);
+  it("accepts every non-owner tenant role", () => {
+    for (const r of ["admin", "member", "designer", "operations", "billing", "developer"]) {
+      expect(inviteRoleIsValid(r)).toBe(true);
+    }
   });
   it("rejects owner and anything else", () => {
     expect(inviteRoleIsValid("owner")).toBe(false);
     expect(inviteRoleIsValid("")).toBe(false);
+    expect(inviteRoleIsValid("superuser")).toBe(false);
   });
 });
 

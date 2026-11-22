@@ -10,7 +10,7 @@
 // App tables (stores/devices) are inserted with Drizzle.
 
 import "./load-env"; // must be first: loads env before ../db reads it
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db } from "../db";
 import { auth } from "../auth";
 import { renewalDueAt } from "../billing-period";
@@ -37,6 +37,14 @@ const OWNER = {
 };
 
 const ORG = { name: "Roastwell Coffee", slug: "roastwell" };
+
+// One account per scoped tenant role, so each role's console can be tried.
+const SCOPED_MEMBERS = [
+  { name: "Devon Designer", email: "designer@roastwell.co", password: "123456", role: "designer" },
+  { name: "Olu Operations", email: "ops@roastwell.co", password: "123456", role: "operations" },
+  { name: "Bea Billing", email: "billing@roastwell.co", password: "123456", role: "billing" },
+  { name: "Dev Developer", email: "dev@roastwell.co", password: "123456", role: "developer" },
+];
 
 const STORES = [
   { name: "Downtown Flagship", address: "412 Market St, San Francisco, CA", devices: 3 },
@@ -123,6 +131,24 @@ async function main() {
       role: "owner",
       createdAt: new Date(),
     });
+  }
+
+  // Scoped-role members (idempotent: one membership per user in this org).
+  for (const m of SCOPED_MEMBERS) {
+    const userId = await ensureUser(m);
+    const existing = await db.query.member.findFirst({
+      where: and(eq(member.organizationId, orgId), eq(member.userId, userId)),
+    });
+    if (!existing) {
+      await db.insert(member).values({
+        id: id("mem"),
+        organizationId: orgId,
+        userId,
+        role: m.role,
+        createdAt: new Date(),
+      });
+      console.log(`  • added ${m.email} as ${m.role}`);
+    }
   }
 
   // --- Tenant settings ----------------------------------------------------

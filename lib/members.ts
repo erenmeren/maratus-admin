@@ -1,16 +1,33 @@
 // lib/members.ts
 // Pure helpers for team-member management (no IO).
 
-export type InviteRole = "admin" | "member";
+import { TENANT_ROLES, type TenantRole } from "./roles";
+
+export type InviteRole = Exclude<TenantRole, "owner">;
+
+/** Roles an invite (or a role change) may grant: every tenant role but owner. */
+export const INVITE_ROLES: readonly InviteRole[] = TENANT_ROLES.filter(
+  (r): r is InviteRole => r !== "owner",
+);
+
+export const ROLE_LABELS: Record<TenantRole, { label: string; description: string }> = {
+  owner: { label: "Owner", description: "Full access, including members and billing. Cannot be removed." },
+  admin: { label: "Admin", description: "Full access to every section, including members." },
+  member: { label: "Member", description: "Can view every section but change nothing." },
+  designer: { label: "Designer", description: "Edits branding and pinned QR codes." },
+  operations: { label: "Operations", description: "Manages stores, devices and device settings." },
+  billing: { label: "Billing", description: "Views subscription and invoices." },
+  developer: { label: "Developer", description: "Manages API keys; views stores and devices." },
+};
 
 /** Owners and admins may manage members. */
 export function canManageMembers(role: string | undefined | null): boolean {
   return role === "owner" || role === "admin";
 }
 
-/** Invites may only grant admin or member (never owner). */
+/** Invites may grant any tenant role except owner. */
 export function inviteRoleIsValid(role: string): role is InviteRole {
-  return role === "admin" || role === "member";
+  return (INVITE_ROLES as readonly string[]).includes(role);
 }
 
 /** The admin console may remove a member / cancel an invitation only when a

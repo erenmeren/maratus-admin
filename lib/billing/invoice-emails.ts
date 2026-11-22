@@ -173,9 +173,9 @@ export function emailLayout(
   );
 }
 
-/** Resolve the org owner's email (fallback: any member) + the org name, for
+/** Resolve the org owner's email (fallback: an admin) + the org name, for
  * addressing/personalising a transition email. ownerEmail is null when the org
- * has no members. */
+ * has neither an owner nor an admin. */
 export async function getOrgEmailContext(
   organizationId: string,
 ): Promise<{ ownerEmail: string | null; orgName: string }> {
@@ -191,6 +191,6 @@ export async function getOrgEmailContext(
     .innerJoin(user, eq(member.userId, user.id))
     .where(eq(member.organizationId, organizationId));
 
-  const owner = rows.find((r) => r.role === "owner") ?? rows[0] ?? null;
+  const owner = rows.find((r) => r.role === "owner") ?? rows.find((r) => r.role === "admin") ?? null;
   return { ownerEmail: owner?.email ?? null, orgName: org?.name ?? "your organization" };
 }

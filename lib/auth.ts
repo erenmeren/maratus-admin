@@ -6,17 +6,25 @@
 // an org membership.
 
 import { betterAuth } from "better-auth";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { APIError, createAuthMiddleware, getSessionFromCtx } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { organization } from "better-auth/plugins";
+import { createAccessControl } from "better-auth/plugins/access";
+import {
+  adminAc,
+  defaultStatements,
+  memberAc,
+  ownerAc,
+} from "better-auth/plugins/organization/access";
+import { and, eq } from "drizzle-orm";
 import { nextCookies } from "better-auth/next-js";
 import { db } from "./db";
-import { schema } from "./db/schema";
+import { member, organization as organizationTable, schema } from "./db/schema";
 import { getEnv } from "./env";
 import { sendEmail } from "./email";
 import { checkSignUpGate } from "./signup-gate";
 import { computeTrustedOrigins } from "./trusted-origins";
-import { decideHttpSignUp, pinAuthCallbacks } from "./auth-hooks";
+import { decideHttpSignUp, isOrgReadPathBlocked, pinAuthCallbacks } from "./auth-hooks";
 import {
   expiresInLabel,
   memberInviteEmail,
@@ -25,6 +33,11 @@ import {
 } from "./auth-emails";
 
 const env = getEnv();
+
+// owner/admin/member keep the plugin's default permissions. The scoped roles
+// get no plugin permissions at all: what they may see and change in the app
+// is decided by lib/roles.ts, not by the org plugin.
+const ac = createAccessControl(defaultStatements);
 
 export const auth = betterAuth({
   appName: "Maratus",
@@ -97,7 +110,10 @@ export const auth = betterAuth({
         if (ctx.path !== "/sign-up/email") return { context: { body: pinned } };
         // Sign-up: also apply the invite-only gates below, then pin.
       }
-      if (ctx.path !== "/sign-up/email") return;
+      if (ctx.path !== "/sign-up/email") {
+        await guardOrgReadPath(ctx);
+        return;
+      }
 
       const http = decideHttpSignUp({ isHttpRequest: ctx.request !== undefined });
       if (!http.ok) {
@@ -124,6 +140,16 @@ export const auth = betterAuth({
       // routes must not be reachable by tenant users. Seeding still works:
       // auth.api.createOrganization with `userId` and no session is treated as
       // a system action by the plugin.
+      ac,
+      roles: {
+        owner: ownerAc,
+        admin: adminAc,
+        member: memberAc,
+        designer: ac.newRole({}),
+        operations: ac.newRole({}),
+        billing: ac.newRole({}),
+        developer: ac.newRole({}),
+      },
       allowUserToCreateOrganization: false,
       disableOrganizationDeletion: true,
       async sendInvitationEmail(data) {
@@ -147,3 +173,34 @@ export const auth = betterAuth({
 });
 
 export type Session = typeof auth.$Infer.Session;
+
+type HookCtx = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0];
+
+/** The org plugin's member/invitation read routes answer any member of the
+ *  org; deny them to roles that cannot view the Members section. The target
+ *  org is whatever the route would read: slug, then id, then active org. */
+async function guardOrgReadPath(ctx: HookCtx) {
+  if (!isOrgReadPathBlocked(ctx.path, null)) return; // not a guarded path
+  const session = await getSessionFromCtx(ctx);
+  if (!session) return; // the route itself rejects unauthenticated callers
+  const q = (ctx.query ?? {}) as { organizationId?: string; organizationSlug?: string };
+  let orgId = q.organizationId ?? session.session.activeOrganizationId ?? null;
+  if (q.organizationSlug) {
+    const [org] = await db
+      .select({ id: organizationTable.id })
+      .from(organizationTable)
+      .where(eq(organizationTable.slug, q.organizationSlug))
+      .limit(1);
+    orgId = org?.id ?? null;
+  }
+  const [row] = orgId
+    ? await db
+        .select({ role: member.role })
+        .from(member)
+        .where(and(eq(member.organizationId, orgId), eq(member.userId, session.user.id)))
+        .limit(1)
+    : [];
+  if (isOrgReadPathBlocked(ctx.path, row?.role)) {
+    throw new APIError("FORBIDDEN", { message: "Your role cannot view members." });
+  }
+}

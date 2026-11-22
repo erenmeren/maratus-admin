@@ -21,7 +21,7 @@ function actingRole(ctx: { organizations: { id: string; role: string }[] }, orgI
 const actor = (ctx: { user: { id: string; email: string } }) =>
   ({ type: "user", id: ctx.user.id, label: ctx.user.email }) as const;
 
-/** Invite a teammate (admin/member). Uses the plugin so sendInvitationEmail fires. */
+/** Invite a teammate (any role but owner). Uses the plugin so sendInvitationEmail fires. */
 export async function inviteMember(email: string, role: string): Promise<Result> {
   const { ctx, organizationId } = await requireTenant();
   if (!canManageMembers(actingRole(ctx, organizationId))) return { ok: false, error: "Not allowed." };
@@ -72,7 +72,7 @@ export async function removeMember(memberId: string): Promise<Result> {
   return { ok: true };
 }
 
-/** Change a member's role (admin/member only; never touch an owner). */
+/** Change a member's role (any role but owner; never touch an owner). */
 export async function updateMemberRole(memberId: string, role: string): Promise<Result> {
   const { ctx, organizationId } = await requireTenant();
   if (!canManageMembers(actingRole(ctx, organizationId))) return { ok: false, error: "Not allowed." };

@@ -9,6 +9,13 @@ import {
   removeMember,
   updateMemberRole,
 } from "@/lib/actions/members";
+import { INVITE_ROLES, ROLE_LABELS } from "@/lib/members";
+
+const SELECT_CLASS = "h-8 rounded-lg border border-input bg-transparent px-2 text-sm";
+
+function roleLabel(role: string): string {
+  return Object.hasOwn(ROLE_LABELS, role) ? ROLE_LABELS[role as keyof typeof ROLE_LABELS].label : role;
+}
 
 type Member = { id: string; name: string; email: string; role: string };
 type Invite = { id: string; email: string; role: string };
@@ -23,7 +30,7 @@ export function MembersManager({
   canManage: boolean;
 }) {
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("member");
+  const [role, setRole] = useState<(typeof INVITE_ROLES)[number]>("member");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
 
@@ -51,10 +58,12 @@ export function MembersManager({
           </div>
           <div className="flex flex-col gap-1">
             <label className="text-sm text-muted-foreground">Role</label>
-            <select className="h-8 rounded-lg border border-input bg-transparent px-2 text-sm" value={role} onChange={(e) => setRole(e.target.value)}>
-              <option value="member">Member</option>
-              <option value="admin">Admin</option>
+            <select className={SELECT_CLASS} value={role} onChange={(e) => setRole(e.target.value as typeof role)}>
+              {INVITE_ROLES.map((r) => (
+                <option key={r} value={r}>{ROLE_LABELS[r].label}</option>
+              ))}
             </select>
+            <p className="text-xs text-muted-foreground">{ROLE_LABELS[role].description}</p>
           </div>
           <Button type="submit" disabled={pending}>Invite</Button>
         </form>
@@ -69,13 +78,26 @@ export function MembersManager({
               <tr key={m.id} className="border-t">
                 <td className="py-2">{m.name}</td>
                 <td className="text-muted-foreground">{m.email}</td>
-                <td>{m.role}</td>
+                <td>
+                  {canManage && m.role !== "owner" ? (
+                    <select
+                      className={SELECT_CLASS}
+                      aria-label={`Role for ${m.email}`}
+                      value={m.role}
+                      disabled={pending}
+                      onChange={(e) => run(() => updateMemberRole(m.id, e.target.value))}
+                    >
+                      {INVITE_ROLES.map((r) => (
+                        <option key={r} value={r}>{ROLE_LABELS[r].label}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    roleLabel(m.role)
+                  )}
+                </td>
                 <td className="text-right">
                   {canManage && m.role !== "owner" && (
                     <span className="flex justify-end gap-2">
-                      <button type="button" className="underline" disabled={pending} onClick={() => run(() => updateMemberRole(m.id, m.role === "admin" ? "member" : "admin"))}>
-                        Make {m.role === "admin" ? "member" : "admin"}
-                      </button>
                       <button type="button" className="text-destructive underline" disabled={pending} onClick={() => run(() => removeMember(m.id))}>
                         Remove
                       </button>
@@ -96,7 +118,7 @@ export function MembersManager({
               {invitations.map((i) => (
                 <tr key={i.id} className="border-t">
                   <td className="py-2">{i.email}</td>
-                  <td>{i.role}</td>
+                  <td>{roleLabel(i.role)}</td>
                   <td className="text-right">
                     {canManage && (
                       <button type="button" className="text-destructive underline" disabled={pending} onClick={() => run(() => cancelInvitation(i.id))}>

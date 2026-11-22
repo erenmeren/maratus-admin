@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import type { Section } from "@/lib/roles";
 import {
   LayoutDashboard,
   Users,
@@ -18,6 +19,7 @@ export interface NavItem {
   label: string;
   href: string;
   icon: LucideIcon;
+  section?: Section;
 }
 
 export const ADMIN_NAV: NavItem[] = [
@@ -31,14 +33,14 @@ export const ADMIN_NAV: NavItem[] = [
 ];
 
 export const TENANT_NAV: NavItem[] = [
-  { label: "Dashboard", href: "/tenant", icon: LayoutDashboard },
-  { label: "Stores", href: "/tenant/stores", icon: Store },
-  { label: "Devices", href: "/tenant/devices", icon: Cpu },
-  { label: "Device Settings", href: "/tenant/device-settings", icon: MonitorCog },
-  { label: "Pinned QR", href: "/tenant/pinned-qr", icon: Pin },
-  { label: "Branding", href: "/tenant/branding", icon: Palette },
-  { label: "Members", href: "/tenant/members", icon: Users },
-  { label: "Billing", href: "/tenant/billing", icon: Wallet },
-  { label: "API", href: "/tenant/api", icon: KeyRound },
-  { label: "Activity", href: "/tenant/activity", icon: Activity },
+  { label: "Dashboard", href: "/tenant", icon: LayoutDashboard, section: "dashboard" },
+  { label: "Stores", href: "/tenant/stores", icon: Store, section: "stores" },
+  { label: "Devices", href: "/tenant/devices", icon: Cpu, section: "devices" },
+  { label: "Device Settings", href: "/tenant/device-settings", icon: MonitorCog, section: "deviceSettings" },
+  { label: "Pinned QR", href: "/tenant/pinned-qr", icon: Pin, section: "pinnedQr" },
+  { label: "Branding", href: "/tenant/branding", icon: Palette, section: "branding" },
+  { label: "Members", href: "/tenant/members", icon: Users, section: "members" },
+  { label: "Billing", href: "/tenant/billing", icon: Wallet, section: "billing" },
+  { label: "API", href: "/tenant/api", icon: KeyRound, section: "api" },
+  { label: "Activity", href: "/tenant/activity", icon: Activity, section: "activity" },
 ];

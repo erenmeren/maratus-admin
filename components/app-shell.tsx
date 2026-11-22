@@ -27,6 +27,7 @@ import {
 } from "@/components/workspace-switcher";
 import type { OrgRef } from "@/lib/session";
 import { ADMIN_NAV, TENANT_NAV } from "@/lib/nav";
+import { canView } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 // Pages that opt out of the shell's padded, max-w-7xl container and run
@@ -66,11 +67,14 @@ export function AppShell({
   const fullBleed = FULL_BLEED_ROUTES.has(pathname);
   // Nav lives inside the client boundary so we never pass icon components
   // (functions) across the server→client edge.
-  const nav = workspace === "admin" ? ADMIN_NAV : TENANT_NAV;
+  const orgRole = organizations.find((o) => o.id === activeOrganizationId)?.role;
+  const nav =
+    workspace === "admin"
+      ? ADMIN_NAV
+      : TENANT_NAV.filter((item) => !item.section || canView(orgRole, item.section));
   // The active top-level section drives the header breadcrumb (wayfinding).
   const activeItem = nav.find((item) => isActive(pathname, item.href)) ?? null;
   // The user's role in the active realm, for the account-menu caption.
-  const orgRole = organizations.find((o) => o.id === activeOrganizationId)?.role;
   const roleLabel =
     workspace === "admin"
       ? "Super Admin"

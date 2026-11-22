@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ChevronRight, MapPin, Store as StoreIcon } from "lucide-react";
 import { StoreRowActions } from "@/components/store-row-actions";
 import { PageHeader } from "@/components/page-header";
+import { SectionHistory } from "@/components/section-history";
 import { StatusBadge, StatusDot } from "@/components/status-badge";
 import { AddStoreDialog } from "@/components/add-store-dialog";
 import { ListControls } from "@/components/list-controls";
@@ -37,6 +38,7 @@ export default async function StoresPage({
         title="Stores"
         description={`${formatNumber(fleet.stores)} branches · ${formatNumber(fleet.online)}/${formatNumber(fleet.devices)} screens online`}
       >
+        <SectionHistory section="stores" />
         {canManage && <AddStoreDialog />}
       </PageHeader>
 

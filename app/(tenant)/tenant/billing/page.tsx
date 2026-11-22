@@ -4,6 +4,7 @@ import { getTenantBillingOverview } from "@/lib/data";
 import { isInvoiceOverdue, listInvoices } from "@/lib/invoices";
 import { subscriptionAmountCents } from "@/lib/invoicing";
 import { PageHeader } from "@/components/page-header";
+import { SectionHistory } from "@/components/section-history";
 import { InvoiceTable } from "@/components/billing/invoice-table";
 import { TriggerUsageSummary } from "@/components/billing/trigger-usage-summary";
 import { Badge } from "@/components/ui/badge";
@@ -58,7 +59,9 @@ export default async function TenantBillingPage() {
       <PageHeader
         title="Billing"
         description="Your subscription, this period's usage, and invoices — settled by bank transfer."
-      />
+      >
+        <SectionHistory section="billing" />
+      </PageHeader>
 
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0">

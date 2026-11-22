@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Pin } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
+import { SectionHistory } from "@/components/section-history";
 import { StatusBadge } from "@/components/status-badge";
 import { ListControls } from "@/components/list-controls";
 import { PaginationBar } from "@/components/pagination-bar";
@@ -44,7 +45,9 @@ export default async function DevicesPage({
       <PageHeader
         title="Devices"
         description={`${formatNumber(counts.all)} screens · ${formatNumber(counts.online)} online`}
-      />
+      >
+        <SectionHistory section="devices" />
+      </PageHeader>
 
       <ListControls initialQ={q} placeholder="Search by device, serial or store…" tabs={tabs} />
 

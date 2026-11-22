@@ -55,6 +55,7 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
+import { SectionHistory } from "@/components/section-history";
 
 const eq = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
@@ -289,6 +290,10 @@ function StageHeader({
             <Maximize2 className="size-3.5" />
           )}
         </button>
+        <SectionHistory
+          section="branding"
+          className="h-8 gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-medium text-zinc-200 hover:bg-white/10 hover:text-zinc-100"
+        />
         <button
           type="button"
           onClick={draft.reset}

@@ -1,4 +1,5 @@
 import { PageHeader } from "@/components/page-header";
+import { SectionHistory } from "@/components/section-history";
 import { ApiKeyCreateDialog } from "@/components/api-key-create-dialog";
 import { ApiKeyRowActions } from "@/components/api-key-row-actions";
 import { ArrowUpRight, BookOpen } from "lucide-react";
@@ -21,6 +22,7 @@ export default async function ApiKeysPage() {
         title="API keys"
         description="Keys for the Maratus public API. Each key can read usage, trigger devices or manage pinned QR codes, depending on the scopes you grant it."
       >
+        <SectionHistory section="api" />
         {canManage && <ApiKeyCreateDialog />}
       </PageHeader>
 

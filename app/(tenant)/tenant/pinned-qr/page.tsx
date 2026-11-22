@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
+import { SectionHistory } from "@/components/section-history";
 import { PageSection } from "@/components/page-section";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -29,7 +30,9 @@ export default async function PinnedQrPage() {
       <PageHeader
         title="Pinned QR"
         description="One QR your screens show while idle — tenant-wide, per store, or per device."
-      />
+      >
+        <SectionHistory section="pinnedQr" />
+      </PageHeader>
 
       <OrgPinCard
         tenant={overview.tenant}

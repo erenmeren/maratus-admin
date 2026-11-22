@@ -87,6 +87,9 @@ export function MembersManager({
                       disabled={pending}
                       onChange={(e) => run(() => updateMemberRole(m.id, e.target.value))}
                     >
+                      {!(INVITE_ROLES as readonly string[]).includes(m.role) && (
+                        <option value={m.role}>{roleLabel(m.role)}</option>
+                      )}
                       {INVITE_ROLES.map((r) => (
                         <option key={r} value={r}>{ROLE_LABELS[r].label}</option>
                       ))}

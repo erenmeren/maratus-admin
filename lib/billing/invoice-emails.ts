@@ -173,9 +173,20 @@ export function emailLayout(
   );
 }
 
-/** Resolve the org owner's email (fallback: an admin) + the org name, for
+/** Owner, else an admin, else a plain member. Scoped roles (designer,
+ *  operations, billing, developer) never receive org-wide mail. */
+export function pickOrgContact<T extends { role: string }>(rows: T[]): T | null {
+  return (
+    rows.find((r) => r.role === "owner") ??
+    rows.find((r) => r.role === "admin") ??
+    rows.find((r) => r.role === "member") ??
+    null
+  );
+}
+
+/** Resolve the org owner's email (fallback: admin, then member) + the org name, for
  * addressing/personalising a transition email. ownerEmail is null when the org
- * has neither an owner nor an admin. */
+ * has no owner, admin or member. */
 export async function getOrgEmailContext(
   organizationId: string,
 ): Promise<{ ownerEmail: string | null; orgName: string }> {
@@ -191,6 +202,6 @@ export async function getOrgEmailContext(
     .innerJoin(user, eq(member.userId, user.id))
     .where(eq(member.organizationId, organizationId));
 
-  const owner = rows.find((r) => r.role === "owner") ?? rows.find((r) => r.role === "admin") ?? null;
+  const owner = pickOrgContact(rows);
   return { ownerEmail: owner?.email ?? null, orgName: org?.name ?? "your organization" };
 }

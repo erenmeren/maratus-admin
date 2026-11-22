@@ -24,7 +24,7 @@ import { getEnv } from "./env";
 import { sendEmail } from "./email";
 import { checkSignUpGate } from "./signup-gate";
 import { computeTrustedOrigins } from "./trusted-origins";
-import { decideHttpSignUp, isOrgReadPathBlocked, pinAuthCallbacks } from "./auth-hooks";
+import { decideHttpSignUp, isOrgReadPath, isOrgReadPathBlocked, pinAuthCallbacks } from "./auth-hooks";
 import {
   expiresInLabel,
   memberInviteEmail,
@@ -180,7 +180,7 @@ type HookCtx = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0];
  *  org; deny them to roles that cannot view the Members section. The target
  *  org is whatever the route would read: slug, then id, then active org. */
 async function guardOrgReadPath(ctx: HookCtx) {
-  if (!isOrgReadPathBlocked(ctx.path, null)) return; // not a guarded path
+  if (!isOrgReadPath(ctx.path)) return;
   const session = await getSessionFromCtx(ctx);
   if (!session) return; // the route itself rejects unauthenticated callers
   const q = (ctx.query ?? {}) as { organizationId?: string; organizationSlug?: string };

@@ -69,17 +69,24 @@ async function ensureUser(u: typeof OWNER): Promise<string> {
     console.log(`  • user ${u.email} already exists`);
     return existing.id;
   }
-  const res = await auth.api.signUpEmail({
-    body: { name: u.name, email: u.email, password: u.password },
+  // Create the user directly through Better Auth's internals (same calls as
+  // its sign-up route) so the invite-only sign-up gate in lib/auth.ts does not
+  // reject seed accounts. Seeded accounts have no inbox, so mark them verified.
+  const c = await auth.$context;
+  const hash = await c.password.hash(u.password);
+  const created = await c.internalAdapter.createUser({
+    name: u.name,
+    email: u.email.toLowerCase(),
+    emailVerified: true,
   });
-  // Email verification is required for sign-in, but seeded accounts have no
-  // inbox — mark them verified so they can log in immediately.
-  await db
-    .update(user)
-    .set({ emailVerified: true })
-    .where(eq(user.id, res.user.id));
+  await c.internalAdapter.linkAccount({
+    userId: created.id,
+    providerId: "credential",
+    accountId: created.id,
+    password: hash,
+  });
   console.log(`  • created user ${u.email}`);
-  return res.user.id;
+  return created.id;
 }
 
 async function main() {

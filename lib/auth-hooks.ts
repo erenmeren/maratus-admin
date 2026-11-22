@@ -45,6 +45,10 @@ const ORG_MEMBER_READ_PATHS = new Set([
   "/organization/list-invitations",
 ]);
 
+export function isOrgReadPath(path: string): boolean {
+  return ORG_MEMBER_READ_PATHS.has(path);
+}
+
 export function isOrgReadPathBlocked(path: string, role: string | null | undefined): boolean {
-  return ORG_MEMBER_READ_PATHS.has(path) && !canView(role, "members");
+  return isOrgReadPath(path) && !canView(role, "members");
 }

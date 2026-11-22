@@ -1,6 +1,6 @@
 // lib/auth-hooks.test.ts
 import { describe, expect, it } from "vitest";
-import { decideHttpSignUp, isOrgReadPathBlocked, pinAuthCallbacks } from "./auth-hooks";
+import { decideHttpSignUp, isOrgReadPath, isOrgReadPathBlocked, pinAuthCallbacks } from "./auth-hooks";
 
 describe("pinAuthCallbacks", () => {
   it("forces redirectTo on password-reset requests, whatever the caller sent", () => {
@@ -46,5 +46,14 @@ describe("isOrgReadPathBlocked", () => {
   });
   it("ignores every other path", () => {
     expect(isOrgReadPathBlocked("/organization/set-active", "designer")).toBe(false);
+  });
+});
+
+describe("isOrgReadPath", () => {
+  it("matches only the three member/invitation read routes", () => {
+    expect(isOrgReadPath("/organization/list-members")).toBe(true);
+    expect(isOrgReadPath("/organization/get-full-organization")).toBe(true);
+    expect(isOrgReadPath("/organization/list-invitations")).toBe(true);
+    expect(isOrgReadPath("/organization/set-active")).toBe(false);
   });
 });

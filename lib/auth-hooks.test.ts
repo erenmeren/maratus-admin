@@ -1,6 +1,6 @@
 // lib/auth-hooks.test.ts
 import { describe, expect, it } from "vitest";
-import { decideHttpSignUp, isOrgReadPath, isOrgReadPathBlocked, pinAuthCallbacks } from "./auth-hooks";
+import { decideHttpSignUp, isOrgReadPath, isOrgReadPathBlocked, pinAuthCallbacks, resolveGuardedOrg } from "./auth-hooks";
 
 describe("pinAuthCallbacks", () => {
   it("forces redirectTo on password-reset requests, whatever the caller sent", () => {
@@ -55,5 +55,33 @@ describe("isOrgReadPath", () => {
     expect(isOrgReadPath("/organization/get-full-organization")).toBe(true);
     expect(isOrgReadPath("/organization/list-invitations")).toBe(true);
     expect(isOrgReadPath("/organization/set-active")).toBe(false);
+  });
+});
+
+describe("resolveGuardedOrg", () => {
+  it("ignores organizationSlug on list-invitations (the plugin does)", () => {
+    expect(resolveGuardedOrg("/organization/list-invitations", { organizationSlug: "other" }, "active"))
+      .toEqual({ kind: "id", value: "active" });
+    expect(resolveGuardedOrg("/organization/list-invitations", { organizationSlug: "other", organizationId: "o1" }, "active"))
+      .toEqual({ kind: "id", value: "o1" });
+  });
+  it("lets organizationSlug win on list-members and get-full-organization", () => {
+    for (const path of ["/organization/list-members", "/organization/get-full-organization"]) {
+      expect(resolveGuardedOrg(path, { organizationSlug: "s", organizationId: "o1" }, "active"))
+        .toEqual({ kind: "slug", value: "s" });
+      expect(resolveGuardedOrg(path, { organizationId: "o1" }, "active")).toEqual({ kind: "id", value: "o1" });
+      expect(resolveGuardedOrg(path, {}, "active")).toEqual({ kind: "id", value: "active" });
+    }
+  });
+  it("falls through empty strings like the plugin's ||", () => {
+    expect(resolveGuardedOrg("/organization/list-members", { organizationSlug: "", organizationId: "" }, "active"))
+      .toEqual({ kind: "id", value: "active" });
+    expect(resolveGuardedOrg("/organization/list-invitations", { organizationId: "" }, "active"))
+      .toEqual({ kind: "id", value: "active" });
+  });
+  it("returns null when nothing identifies an org", () => {
+    expect(resolveGuardedOrg("/organization/list-members", {}, null)).toBeNull();
+    expect(resolveGuardedOrg("/organization/list-invitations", { organizationSlug: "s" }, null)).toBeNull();
+    expect(resolveGuardedOrg("/organization/get-full-organization", undefined, "")).toBeNull();
   });
 });

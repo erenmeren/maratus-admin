@@ -1,6 +1,6 @@
 "use client";
 
-// Per-section "who changed what" sheet. Fetches nothing until first opened.
+// Per-section "who changed what" sheet. Fetches nothing until opened; reloads page 1 on every open.
 
 import { useState } from "react";
 import { History, Loader2 } from "lucide-react";
@@ -42,7 +42,14 @@ export function SectionHistory({ section, className }: { section: HistorySection
   }
 
   return (
-    <Sheet onOpenChange={(open) => open && rows === null && !pending && load()}>
+    <Sheet
+      onOpenChange={(open) => {
+        if (!open || pending) return;
+        setRows(null);
+        setNextCursor(null);
+        load();
+      }}
+    >
       <SheetTrigger asChild>
         <Button variant="ghost" className={className}>
           <History className="size-4" /> History

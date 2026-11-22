@@ -15,10 +15,12 @@ import {
 import { OrgPinCard } from "@/components/pin/org-pin-card";
 import { StorePinTable } from "@/components/pin/store-pin-table";
 import { getPinOverview, getOrgQrStyle } from "@/lib/data";
+import { canView } from "@/lib/roles";
 import { requireSection } from "@/lib/session";
 
 export default async function PinnedQrPage() {
-  const { organizationId, canManage } = await requireSection("pinnedQr");
+  const { organizationId, role, canManage } = await requireSection("pinnedQr");
+  const canViewDevices = canView(role, "devices");
 
   const [overview, qrStyle] = await Promise.all([
     getPinOverview(organizationId),
@@ -75,12 +77,16 @@ export default async function PinnedQrPage() {
                 overview.exceptions.map((d) => (
                   <TableRow key={d.id}>
                     <TableCell className="font-medium">
-                      <Link
-                        href={d.storeId ? `/tenant/stores/${d.storeId}/${d.id}` : "/tenant/devices"}
-                        className="hover:underline"
-                      >
-                        {d.name}
-                      </Link>
+                      {canViewDevices ? (
+                        <Link
+                          href={d.storeId ? `/tenant/stores/${d.storeId}/${d.id}` : "/tenant/devices"}
+                          className="hover:underline"
+                        >
+                          {d.name}
+                        </Link>
+                      ) : (
+                        d.name
+                      )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{d.storeName ?? "Unassigned"}</TableCell>
                     <TableCell>

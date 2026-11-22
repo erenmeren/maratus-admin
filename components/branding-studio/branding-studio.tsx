@@ -73,7 +73,8 @@ export function BrandingStudio(props: BrandingVariantProps) {
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setFullscreen(false);
+      // Radix dialogs/popovers preventDefault the Escape they close; leave fullscreen on.
+      if (e.key === "Escape" && !e.defaultPrevented) setFullscreen(false);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => {

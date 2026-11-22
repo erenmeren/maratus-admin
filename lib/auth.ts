@@ -24,7 +24,7 @@ import { getEnv } from "./env";
 import { sendEmail } from "./email";
 import { checkSignUpGate } from "./signup-gate";
 import { computeTrustedOrigins } from "./trusted-origins";
-import { decideHttpSignUp, isOrgReadPath, isOrgReadPathBlocked, pinAuthCallbacks } from "./auth-hooks";
+import { decideHttpSignUp, isOrgReadPath, isOrgReadPathBlocked, pinAuthCallbacks, resolveGuardedOrg } from "./auth-hooks";
 import {
   expiresInLabel,
   memberInviteEmail,
@@ -178,18 +178,22 @@ type HookCtx = Parameters<Parameters<typeof createAuthMiddleware>[0]>[0];
 
 /** The org plugin's member/invitation read routes answer any member of the
  *  org; deny them to roles that cannot view the Members section. The target
- *  org is whatever the route would read: slug, then id, then active org. */
+ *  org is whatever the route would read (see resolveGuardedOrg). */
 async function guardOrgReadPath(ctx: HookCtx) {
   if (!isOrgReadPath(ctx.path)) return;
   const session = await getSessionFromCtx(ctx);
   if (!session) return; // the route itself rejects unauthenticated callers
-  const q = (ctx.query ?? {}) as { organizationId?: string; organizationSlug?: string };
-  let orgId = q.organizationId ?? session.session.activeOrganizationId ?? null;
-  if (q.organizationSlug) {
+  const target = resolveGuardedOrg(
+    ctx.path,
+    ctx.query as { organizationId?: string; organizationSlug?: string } | undefined,
+    session.session.activeOrganizationId,
+  );
+  let orgId = target?.kind === "id" ? target.value : null;
+  if (target?.kind === "slug") {
     const [org] = await db
       .select({ id: organizationTable.id })
       .from(organizationTable)
-      .where(eq(organizationTable.slug, q.organizationSlug))
+      .where(eq(organizationTable.slug, target.value))
       .limit(1);
     orgId = org?.id ?? null;
   }

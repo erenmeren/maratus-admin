@@ -52,3 +52,21 @@ export function isOrgReadPath(path: string): boolean {
 export function isOrgReadPathBlocked(path: string, role: string | null | undefined): boolean {
   return isOrgReadPath(path) && !canView(role, "members");
 }
+
+export type GuardedOrg = { kind: "id" | "slug"; value: string };
+
+// Mirrors how Better Auth 1.6.30 picks the org on each read route, so the guard
+// checks the same org the plugin will actually return. list-invitations ignores
+// organizationSlug entirely; the other two let a slug win. `||` like the plugin,
+// so an empty string falls through.
+export function resolveGuardedOrg(
+  path: string,
+  query: { organizationId?: string; organizationSlug?: string } | undefined,
+  activeOrganizationId: string | null | undefined,
+): GuardedOrg | null {
+  if (path !== "/organization/list-invitations" && query?.organizationSlug) {
+    return { kind: "slug", value: query.organizationSlug };
+  }
+  const id = query?.organizationId || activeOrganizationId;
+  return id ? { kind: "id", value: id } : null;
+}

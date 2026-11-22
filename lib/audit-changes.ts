@@ -29,13 +29,13 @@ export function brandingChanges(before: BrandingSnapshot | null, after: Branding
   const statusKeys = ["clockTimezone", "clock24h", "wifiLevel", "qrTimeoutSeconds"] as const;
   if (statusKeys.some((k) => a[k] !== b[k])) out.push("Clock & status");
   for (const s of PRINTER_SCREENS) {
-    if (!same(a.screens[s], b.screens[s])) out.push(`${SCREEN_LABEL[s]} screen`);
+    if (!same(a.screens[s], b.screens[s])) out.push(`${SCREEN_LABEL[s].replace(" ✓", "")} screen`);
   }
   return out;
 }
 
 export function deviceSettingsChanges(
-  before: (DeviceSettings & { hasPin: boolean }) | null,
+  before: DeviceSettings | null,
   after: DeviceSettings,
   pin: "set" | "cleared" | "unchanged",
 ): string[] {

@@ -43,6 +43,8 @@ const ORG_MEMBER_READ_PATHS = new Set([
   "/organization/list-members",
   "/organization/get-full-organization",
   "/organization/list-invitations",
+  // ?userId= returns any member's role
+  "/organization/get-active-member-role",
 ]);
 
 export function isOrgReadPath(path: string): boolean {

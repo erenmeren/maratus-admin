@@ -39,6 +39,7 @@ describe("isOrgReadPathBlocked", () => {
     expect(isOrgReadPathBlocked("/organization/get-full-organization", "billing")).toBe(true);
     expect(isOrgReadPathBlocked("/organization/list-invitations", "developer")).toBe(true);
     expect(isOrgReadPathBlocked("/organization/list-members", null)).toBe(true);
+    expect(isOrgReadPathBlocked("/organization/get-active-member-role", "operations")).toBe(true);
   });
   it("allows roles that can view Members", () => {
     expect(isOrgReadPathBlocked("/organization/list-members", "member")).toBe(false);

@@ -52,6 +52,12 @@ describe("brandingChanges", () => {
     ]);
   });
 
+  it("sent screen label drops the checkmark", () => {
+    const after = config();
+    after.screens.sent.objects = [];
+    expect(brandingChanges(snap(), snap({ printerConfig: after }))).toEqual(["Sent screen"]);
+  });
+
   it("no printer config submitted → only colors compared", () => {
     expect(brandingChanges(snap(), snap({ printerConfig: null }))).toEqual([]);
   });
@@ -68,7 +74,7 @@ describe("brandingChanges", () => {
 });
 
 describe("deviceSettingsChanges", () => {
-  const before = { ...DEVICE_SETTINGS_DEFAULTS, hasPin: false };
+  const before = { ...DEVICE_SETTINGS_DEFAULTS };
 
   it("identical input → []", () => {
     expect(deviceSettingsChanges(before, DEVICE_SETTINGS_DEFAULTS, "unchanged")).toEqual([]);

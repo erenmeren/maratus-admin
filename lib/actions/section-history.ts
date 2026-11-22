@@ -3,9 +3,10 @@
 // Per-section "who changed what" history (spec 5d). Read-only: anyone who can
 // view the section sees it. Keyset pagination on (createdAt, id) desc.
 
-import { and, desc, eq, like, lt, notLike, or } from "drizzle-orm";
+import { and, desc, eq, like, lt, notLike, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { db } from "@/lib/db";
-import { auditLog, member, user } from "@/lib/db/schema";
+import { apiKey, auditLog, device, invitation, member, store, user } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
 import { canView, type Section } from "@/lib/roles";
 import { actionLabel } from "@/lib/audit-labels";
@@ -42,6 +43,10 @@ export async function getSectionHistory(
   const after = cursor ? decodeCursor(cursor) : null;
   if (cursor && !after) return { ok: false, error: "Invalid cursor." };
 
+  const targetMember = alias(member, "target_member");
+  const targetUser = alias(user, "target_user");
+  const isTarget = (type: string) => eq(auditLog.targetType, type);
+
   // shortcut: LIKE filter scans the org's audit rows newest-first; add an (organization_id, action, created_at) index if one org's log reaches millions of rows.
   const rows = await db
     .select({
@@ -55,10 +60,19 @@ export async function getSectionHistory(
       metadata: auditLog.metadata,
       userName: user.name,
       memberRole: member.role,
+      // Human name of the thing acted on; null when it's gone or has no name.
+      targetName: sql<string | null>`coalesce(${device.name}, ${store.name}, ${apiKey.name}, ${invitation.email}, ${targetUser.name})`,
     })
     .from(auditLog)
     .leftJoin(user, eq(user.id, auditLog.actorId))
     .leftJoin(member, and(eq(member.userId, auditLog.actorId), eq(member.organizationId, organizationId)))
+    .leftJoin(device, and(isTarget("device"), eq(device.id, auditLog.targetId), eq(device.organizationId, organizationId)))
+    .leftJoin(store, and(isTarget("store"), eq(store.id, auditLog.targetId), eq(store.organizationId, organizationId)))
+    .leftJoin(apiKey, and(isTarget("api_key"), eq(apiKey.id, auditLog.targetId), eq(apiKey.organizationId, organizationId)))
+    .leftJoin(invitation, and(isTarget("invitation"), eq(invitation.id, auditLog.targetId), eq(invitation.organizationId, organizationId)))
+    // member targets carry a member id or (on join) a user id
+    .leftJoin(targetMember, and(isTarget("member"), eq(targetMember.id, auditLog.targetId), eq(targetMember.organizationId, organizationId)))
+    .leftJoin(targetUser, and(isTarget("member"), eq(targetUser.id, sql`coalesce(${targetMember.userId}, ${auditLog.targetId})`)))
     .where(
       and(
         eq(auditLog.organizationId, organizationId),
@@ -90,7 +104,7 @@ export async function getSectionHistory(
       actor: r.userName || (r.actorType === "user" && r.actorLabel) || "System",
       actorRole: r.memberRole ?? null,
       action: actionLabel(r.action),
-      target: r.targetType && r.targetId ? `${r.targetType}:${r.targetId}` : null,
+      target: r.targetName ?? null,
       changed: changed(r.metadata),
     })),
     nextCursor: rows.length > HISTORY_PAGE_SIZE ? encodeCursor({ at: last.createdAt, id: last.id }) : null,

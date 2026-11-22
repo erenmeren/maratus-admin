@@ -4,7 +4,7 @@
 // On save, pushes the updated config to every device in the org over MQTT.
 
 import { revalidatePath } from "next/cache";
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db } from "@/lib/db";
 import { tenantSettings } from "@/lib/db/schema";
 import { requireTenant } from "@/lib/session";
@@ -60,7 +60,6 @@ export async function saveDeviceSettings(
       screenBrightness: tenantSettings.screenBrightness,
       screenSleepEnabled: tenantSettings.screenSleepEnabled,
       screenSleepTimeoutSeconds: tenantSettings.screenSleepTimeoutSeconds,
-      hasPin: sql<boolean>`${tenantSettings.deviceSettingsPasswordHash} is not null`,
     })
     .from(tenantSettings)
     .where(eq(tenantSettings.organizationId, organizationId))

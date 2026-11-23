@@ -47,7 +47,6 @@ export async function getSectionHistory(
   const targetUser = alias(user, "target_user");
   const isTarget = (type: string) => eq(auditLog.targetType, type);
 
-  // shortcut: LIKE filter scans the org's audit rows newest-first; add an (organization_id, action, created_at) index if one org's log reaches millions of rows.
   const rows = await db
     .select({
       id: auditLog.id,

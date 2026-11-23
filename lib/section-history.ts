@@ -18,7 +18,7 @@ export const HISTORY_SECTIONS: HistorySection[] = [
   "api",
 ];
 
-export const HISTORY_PAGE_SIZE = 20;
+export const HISTORY_PAGE_SIZE = 10;
 
 const PIN = ["org.pin_", "store.pin_", "device.pin_"];
 

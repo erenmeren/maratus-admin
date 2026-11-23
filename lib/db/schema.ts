@@ -621,7 +621,11 @@ export const auditLog = pgTable(
       .$defaultFn(() => new Date())
       .notNull(),
   },
-  (t) => [index("audit_log_org_created_idx").on(t.organizationId, t.createdAt)],
+  (t) => [
+    index("audit_log_org_created_idx").on(t.organizationId, t.createdAt),
+    // Section history filters by action prefix (LIKE 'x.%'); text_pattern_ops lets btree serve it.
+    index("audit_log_org_action_created_idx").on(t.organizationId, t.action.op("text_pattern_ops"), t.createdAt),
+  ],
 );
 
 export const alert = pgTable(

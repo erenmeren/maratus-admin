@@ -2,6 +2,8 @@
 
 import * as React from "react";
 import { publishFirmware } from "@/lib/actions/firmware";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
 export function PublishForm() {
   const [msg, setMsg] = React.useState<string | null>(null);
@@ -19,26 +21,17 @@ export function PublishForm() {
 
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3 max-w-md">
-      <input
-        name="version"
-        placeholder="Version (e.g. 0.3.0-m6b)"
-        required
-        className="rounded-md border px-3 py-2 text-sm"
-      />
+      <Input name="version" placeholder="Version (e.g. 0.3.0-m6b)" required />
       <input
         name="file"
         type="file"
         accept=".bin,application/octet-stream"
         required
-        className="text-sm"
+        className="text-sm text-muted-foreground file:mr-3 file:rounded-md file:border file:border-line-strong file:bg-transparent file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-foreground"
       />
-      <button
-        type="submit"
-        disabled={busy}
-        className="rounded-md bg-primary px-3 py-2 text-sm text-primary-foreground disabled:opacity-50"
-      >
+      <Button type="submit" disabled={busy} className="self-start">
         {busy ? "Publishing…" : "Publish firmware"}
-      </button>
+      </Button>
       {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
     </form>
   );

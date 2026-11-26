@@ -16,28 +16,40 @@ import { eq } from "drizzle-orm";
 
 const BRAND = "Maratus";
 
-// Visual language follows the "Maratus Email" designs (claude.ai/design): ink
-// header + footer, paper card, Courier eyebrow, big headline with an italic
-// serif accent, lime pill CTA, light/dark aware. Every style is inline —
-// Gmail/Outlook drop or rewrite <style> — the <style> block only carries the
-// mobile + dark-mode overrides that clients honouring it can use.
+// Visual language is direction 1g, light only (mail clients): near-white page,
+// one white panel with a hairline and 12px corners, near-black text, muted
+// secondary text, and the Peek orange on the primary button alone (white on
+// #c2461f is 5.01:1). No glass, no gradients, no background images, no web
+// font: Gabarito is named first for the heading and falls back to the system
+// stack wherever it isn't installed. Every style is inline — Gmail/Outlook
+// drop or rewrite <style> — the <style> block only carries the mobile
+// overrides that clients honouring it can use.
 //
-// Email clients don't render SVG, so the wordmark ships as a 3× PNG in
+// Dark mode: the mail declares itself light-only. Clients that recolour
+// anyway (Gmail app, Outlook) darken the panel, so the lockup PNG is not
+// transparent — it carries its own white rounded plate and stays legible.
+//
+// Email clients don't render SVG, so the lockup ships as a 3× PNG in
 // public/email (rendered from the brand SVG). Always the production origin —
 // a localhost BETTER_AUTH_URL would give a broken image in a real inbox.
+// public/email/maratus-logo-light.png is the previous header's wordmark; it
+// stays on disk because mail already delivered still points at it.
 const SITE = "https://maratus.co";
-const LOGO = "https://console.maratus.co/email/maratus-logo-light.png";
+const LOGO = "https://console.maratus.co/email/maratus-lockup.png";
 
-const INK = "#191820";
-const PAPER = "#f9f8fc";
-const LIME = "#d5fa58";
-const PAGE = "#eeedf3";
-const BODY = "#56546a";
-const MUTED = "#6b6980";
-const RULE = "#dddbe6";
-const SANS = "Helvetica,Arial,sans-serif";
-const MONO = "'Courier New',Courier,monospace";
-const SERIF = "Georgia,'Times New Roman',serif";
+const INK = "#171717";
+const MUTED = "#5e5e5e";
+const PAGE = "#fafafa";
+const PANEL = "#ffffff";
+const RULE = "#e8e8e8";
+const ACCENT = "#c2461f";
+const ON_ACCENT = "#ffffff";
+const SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+const DISPLAY = `Gabarito,${SANS}`;
+const MONO = "ui-monospace,SFMono-Regular,Menlo,Consolas,'Courier New',monospace";
+
+/** Muted secondary colour, for callers that build their own inline spans. */
+export const EMAIL_MUTED = MUTED;
 
 export function escapeHtml(s: string): string {
   return s
@@ -51,41 +63,43 @@ export function escapeHtml(s: string): string {
 // ── Body building blocks ─────────────────────────────────────────────────────
 // Callers pass already-escaped HTML — these helpers never escape for you.
 
-/** Small uppercase monospace label above the headline. */
+/** Small muted label above the headline. */
 export function emailEyebrow(html: string): string {
-  return `<p class="muted" style="margin:0 0 14px;font-family:${MONO};font-size:12px;line-height:16px;letter-spacing:1.5px;color:${MUTED};text-transform:uppercase">${html}</p>`;
+  return `<p style="margin:0 0 10px;font-family:${SANS};font-size:13px;line-height:20px;color:${MUTED}">${html}</p>`;
 }
 
-/** Italic serif accent for the tail of a headline: `Welcome ${emailAccent("aboard.")}`. */
+/** Tail of a headline: `Welcome ${emailAccent("aboard.")}`. Direction 1g sets
+ * the whole headline in one face, so this no longer restyles anything — it
+ * stays so callers keep marking which words are the tail. */
 export function emailAccent(html: string): string {
-  return `<span style="font-family:${SERIF};font-style:italic;font-weight:normal">${html}</span>`;
+  return html;
 }
 
 export function emailHeading(html: string): string {
-  return `<h1 class="h1 ink" style="margin:0 0 16px;font-family:${SANS};font-size:36px;line-height:40px;font-weight:bold;letter-spacing:-1.2px;color:${INK};mso-line-height-rule:exactly">${html}</h1>`;
+  return `<h1 class="h1" style="margin:0 0 14px;font-family:${DISPLAY};font-size:28px;line-height:34px;font-weight:600;letter-spacing:-0.5px;color:${INK};mso-line-height-rule:exactly">${html}</h1>`;
 }
 
 export function emailText(html: string): string {
-  return `<p class="muted" style="margin:0 0 20px;font-family:${SANS};font-size:16px;line-height:25px;color:${BODY};mso-line-height-rule:exactly">${html}</p>`;
+  return `<p style="margin:0 0 20px;font-family:${SANS};font-size:15px;line-height:24px;color:${INK};mso-line-height-rule:exactly">${html}</p>`;
 }
 
 /** Inline emphasis inside emailText (names, org names, addresses). */
 export function emailStrong(html: string): string {
-  return `<strong class="ink" style="color:${INK}">${html}</strong>`;
+  return `<strong style="font-weight:600;color:${INK}">${html}</strong>`;
 }
 
-/** Monospace small print right under the button (expiry etc.). */
+/** Muted small print right under the button (expiry etc.). */
 export function emailNote(html: string): string {
-  return `<p class="muted" style="margin:0 0 8px;font-family:${MONO};font-size:12px;line-height:18px;color:${MUTED}">${html}</p>`;
+  return `<p style="margin:0 0 8px;font-family:${SANS};font-size:13px;line-height:20px;color:${MUTED}">${html}</p>`;
 }
 
-/** Bulletproof lime pill button (VML fallback for Outlook). */
+/** Bulletproof orange button, 6px corners (VML fallback for Outlook). */
 export function emailButton(href: string, label: string): string {
   return (
-    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:10px 0 18px"><tr>` +
-    `<td bgcolor="${LIME}" style="background:${LIME};border-radius:999px">` +
-    `<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${href}" style="height:50px;v-text-anchor:middle;width:260px" arcsize="50%" stroke="f" fillcolor="${LIME}"><center style="color:${INK};font-family:Arial,sans-serif;font-size:16px;font-weight:bold">${label}</center></v:roundrect><![endif]-->` +
-    `<!--[if !mso]><!--><a href="${href}" target="_blank" style="display:block;white-space:nowrap;padding:16px 32px;font-family:${SANS};font-size:16px;line-height:18px;font-weight:bold;color:${INK};text-decoration:none;border-radius:999px">${label} &rarr;</a><!--<![endif]-->` +
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 18px"><tr>` +
+    `<td bgcolor="${ACCENT}" style="background:${ACCENT};border-radius:6px">` +
+    `<!--[if mso]><v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" href="${href}" style="height:44px;v-text-anchor:middle;width:240px" arcsize="14%" stroke="f" fillcolor="${ACCENT}"><center style="color:${ON_ACCENT};font-family:Arial,sans-serif;font-size:15px;font-weight:bold">${label}</center></v:roundrect><![endif]-->` +
+    `<!--[if !mso]><!--><a href="${href}" target="_blank" style="display:block;white-space:nowrap;padding:12px 22px;font-family:${SANS};font-size:15px;line-height:20px;font-weight:600;color:${ON_ACCENT};text-decoration:none;border-radius:6px">${label} &rarr;</a><!--<![endif]-->` +
     `</td></tr></table>`
   );
 }
@@ -94,15 +108,15 @@ export function emailButton(href: string, label: string): string {
  * some clients and by forwarding) and/or a "not expecting this?" line. */
 export function emailFallback(opts: { href?: string; ignore?: string }): string {
   const link = opts.href
-    ? `<p class="muted" style="margin:0 0 10px;font-family:${SANS};font-size:13px;line-height:20px;color:${BODY}">Button not working? Paste this link into your browser:</p>` +
-      `<p style="margin:0 0 18px;font-family:${MONO};font-size:12px;line-height:18px;word-break:break-all"><a href="${opts.href}" target="_blank" class="ink" style="color:${INK};text-decoration:underline">${opts.href}</a></p>`
+    ? `<p style="margin:0 0 8px;font-family:${SANS};font-size:13px;line-height:20px;color:${MUTED}">Button not working? Paste this link into your browser:</p>` +
+      `<p style="margin:0 0 16px;font-family:${MONO};font-size:12px;line-height:18px;word-break:break-all"><a href="${opts.href}" target="_blank" style="color:${INK};text-decoration:underline">${opts.href}</a></p>`
     : "";
   const ignore = opts.ignore
-    ? `<p class="muted" style="margin:0;font-family:${SANS};font-size:13px;line-height:20px;color:${BODY}">${opts.ignore}</p>`
+    ? `<p style="margin:0;font-family:${SANS};font-size:13px;line-height:20px;color:${MUTED}">${opts.ignore}</p>`
     : "";
   return (
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:20px"><tr>` +
-    `<td class="rule" style="border-top:1px solid ${RULE};padding-top:20px">${link}${ignore}</td>` +
+    `<td style="border-top:1px solid ${RULE};padding-top:20px">${link}${ignore}</td>` +
     `</tr></table>`
   );
 }
@@ -112,10 +126,10 @@ export function emailDetails(rows: { label: string; value: string }[]): string {
   const cells = rows
     .map(
       (r, i) =>
-        `<tr><td class="rule" style="border-top:1px solid ${RULE};${i === rows.length - 1 ? `border-bottom:1px solid ${RULE};` : ""}padding:14px 0">` +
+        `<tr><td style="border-top:1px solid ${RULE};${i === rows.length - 1 ? `border-bottom:1px solid ${RULE};` : ""}padding:12px 0">` +
         `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>` +
-        `<td width="130" valign="top" class="muted" style="font-family:${MONO};font-size:12px;line-height:22px;letter-spacing:0.5px;color:${MUTED};text-transform:uppercase">${r.label}</td>` +
-        `<td valign="top" class="ink" style="font-family:${SANS};font-size:15px;line-height:22px;color:${INK}">${r.value}</td>` +
+        `<td width="130" valign="top" style="padding-right:12px;font-family:${SANS};font-size:13px;line-height:22px;color:${MUTED}">${r.label}</td>` +
+        `<td valign="top" style="font-family:${SANS};font-size:15px;line-height:22px;color:${INK};word-break:break-word">${r.value}</td>` +
         `</tr></table></td></tr>`,
     )
     .join("");
@@ -131,42 +145,45 @@ export function emailLayout(
   const preheader = opts.preheader
     ? `<span style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px">${opts.preheader}&#8199;&#847;&#8199;&#847;&#8199;&#847;&#8199;&#847;</span>`
     : "";
+  const footLink = `color:${INK};text-decoration:underline`;
   return (
     `<!DOCTYPE html><html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><head>` +
     `<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="X-UA-Compatible" content="IE=edge">` +
-    `<meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark">` +
+    `<meta name="color-scheme" content="light only"><meta name="supported-color-schemes" content="light only">` +
     `<title>${opts.title ?? BRAND}</title>` +
-    `<!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><![endif]-->` +
+    `<!--[if mso]><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml><style>h1,p,td,a{font-family:Arial,sans-serif!important}</style><![endif]-->` +
     `<style>` +
+    `:root{color-scheme:light only}` +
     `body{margin:0;padding:0;-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%}` +
     `table,td{mso-table-lspace:0pt;mso-table-rspace:0pt}` +
     `img{border:0;outline:none;text-decoration:none;-ms-interpolation-mode:bicubic}` +
     `a{color:${INK}}` +
-    `@media only screen and (max-width:620px){.container{width:100%!important}.px{padding-left:24px!important;padding-right:24px!important}.h1{font-size:30px!important;line-height:34px!important}}` +
-    `@media (prefers-color-scheme:dark){.bg-page{background:#101015!important}.bg-card{background:#1f1e27!important}.ink{color:${PAPER}!important}.muted{color:#b9b7c6!important}.rule{border-color:#34323f!important}}` +
+    `@media only screen and (max-width:620px){.container{width:100%!important}.px{padding-left:24px!important;padding-right:24px!important}.logo{padding-left:16px!important;padding-right:16px!important}.h1{font-size:24px!important;line-height:30px!important}}` +
     `</style></head>` +
-    `<body class="bg-page" style="margin:0;padding:0;background:${PAGE}">` +
+    `<body style="margin:0;padding:0;background:${PAGE}">` +
     preheader +
-    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="bg-page" style="background:${PAGE}"><tr>` +
-    `<td align="center" style="padding:40px 12px">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${PAGE}" style="background:${PAGE}"><tr>` +
+    `<td align="center" style="padding:32px 12px">` +
     `<!--[if mso]><table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->` +
-    `<table role="presentation" class="container" width="560" cellpadding="0" cellspacing="0" border="0" style="width:560px;max-width:560px">` +
-    // header
-    `<tr><td bgcolor="${INK}" class="px" style="background:${INK};padding:26px 40px;border-radius:16px 16px 0 0">` +
-    `<a href="${SITE}/" target="_blank" style="text-decoration:none"><img src="${LOGO}" width="116" height="24" alt="maratus." style="display:block;width:116px;height:24px;color:${PAPER};font-family:${SANS};font-size:22px;font-weight:bold"></a>` +
+    `<table role="presentation" class="container" width="560" cellpadding="0" cellspacing="0" border="0" bgcolor="${PANEL}" style="width:560px;max-width:560px;background:${PANEL};border:1px solid ${RULE};border-radius:12px;border-collapse:separate">` +
+    // logo: the PNG is the lockup on its own white plate, 8px of plate all round
+    `<tr><td class="logo" style="padding:24px 32px 0">` +
+    `<a href="${SITE}/" target="_blank" style="text-decoration:none"><img src="${LOGO}" width="148" height="40" alt="${BRAND}" style="display:block;width:148px;height:40px;color:${INK};font-family:${SANS};font-size:20px;line-height:40px;font-weight:600"></a>` +
     `</td></tr>` +
-    // card
-    `<tr><td bgcolor="${PAPER}" class="px bg-card" style="background:${PAPER};padding:44px 40px 40px">` +
+    // body
+    `<tr><td class="px" style="padding:20px 40px 28px">` +
     bodyHtml +
     `</td></tr>` +
-    // footer
-    `<tr><td bgcolor="${INK}" class="px" style="background:${INK};padding:28px 40px;border-radius:0 0 16px 16px">` +
-    `<p style="margin:0 0 16px;font-family:${SERIF};font-style:italic;font-size:14px;line-height:20px;color:#c9c7d6">Small screen. Better goodbye.</p>` +
-    `<p style="margin:0;font-family:${SANS};font-size:12px;line-height:19px;color:#a9a7b8">` +
-    `<a href="mailto:hi@maratus.co" style="color:${PAPER};text-decoration:underline">hi@maratus.co</a> &nbsp;&middot;&nbsp; ` +
-    `<a href="${SITE}/" target="_blank" style="color:${PAPER};text-decoration:underline">maratus.co</a> &nbsp;&middot;&nbsp; ` +
-    `<a href="https://console.maratus.co/" target="_blank" style="color:${PAPER};text-decoration:underline">Console</a>` +
-    `</p></td></tr>` +
+    // footer, behind a hairline
+    `<tr><td class="px" style="padding:0 40px 28px">` +
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="border-top:1px solid ${RULE};padding-top:20px">` +
+    `<p style="margin:0 0 6px;font-family:${SANS};font-size:13px;line-height:20px;color:${MUTED}">Small screen. Better goodbye.</p>` +
+    `<p style="margin:0;font-family:${SANS};font-size:13px;line-height:20px;color:${MUTED}">` +
+    `<a href="mailto:hi@maratus.co" style="${footLink}">hi@maratus.co</a> &nbsp;&middot;&nbsp; ` +
+    `<a href="${SITE}/" target="_blank" style="${footLink}">maratus.co</a> &nbsp;&middot;&nbsp; ` +
+    `<a href="https://console.maratus.co/" target="_blank" style="${footLink}">Console</a>` +
+    `</p></td></tr></table>` +
+    `</td></tr>` +
     `</table>` +
     `<!--[if mso]></td></tr></table><![endif]-->` +
     `</td></tr></table></body></html>`

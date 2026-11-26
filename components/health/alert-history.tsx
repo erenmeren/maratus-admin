@@ -1,4 +1,5 @@
 import type { AlertRow } from "@/lib/data";
+import { StatusGlyph } from "@/components/status-badge";
 
 function ago(iso: string, now: number): string {
   const mins = Math.max(0, Math.round((now - new Date(iso).getTime()) / 60000));
@@ -18,7 +19,7 @@ export function AlertHistory({
 }) {
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-lg font-medium">Alert history</h2>
+      <h2 className="font-display text-lg font-semibold">Alert history</h2>
 
       <div>
         <h3 className="mb-2 text-sm font-medium text-muted-foreground">Open</h3>
@@ -29,13 +30,11 @@ export function AlertHistory({
             {open.map((a) => (
               <li key={a.id} className="flex items-center justify-between border-t py-1.5">
                 <span>
-                  <span
-                    className={
-                      a.severity === "warning"
-                        ? "mr-2 font-medium text-destructive"
-                        : "mr-2 font-medium text-amber-600 dark:text-amber-400"
-                    }
-                  >
+                  <span className="mr-2 inline-flex items-center gap-1.5 font-medium text-foreground">
+                    <StatusGlyph
+                      kind={a.severity === "warning" ? "suspended" : "paused"}
+                      className={a.severity === "warning" ? "text-destructive" : "text-status-paused"}
+                    />
                     {a.severity}
                   </span>
                   {a.message}

@@ -46,7 +46,7 @@ export default async function ActivityPage({
                 <TableCell>
                   {e.actor}
                   {e.actorType !== "user" && (
-                    <span className="ml-1.5 rounded bg-muted px-1.5 py-0.5 text-[10px] uppercase text-muted-foreground">
+                    <span className="ml-1.5 rounded-sm bg-muted px-1.5 py-0.5 text-xs uppercase text-muted-foreground">
                       {e.actorType}
                     </span>
                   )}

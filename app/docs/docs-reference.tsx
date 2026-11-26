@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { StatusGlyph } from "@/components/status-badge";
 import { issuePlaygroundKey } from "@/lib/actions/playground";
 import { freshIdempotencyKey } from "@/lib/docs-try-it";
 import type { getPlaygroundContext } from "@/lib/actions/playground";
@@ -18,29 +19,31 @@ type Playground = { key: string; expiresAt: string; scopes: string[] };
 
 const HEADER_H = 64;
 
-// Brand tokens mapped onto Scalar's theme variables (theme: "none").
+// The console's own tokens (app/globals.css) mapped onto Scalar's theme
+// variables (theme: "none"). They are var() references, so one block serves
+// both themes: <html class="dark"> flips the tokens under Scalar's
+// .light-mode/.dark-mode. The accent is neutral — orange stays on the primary
+// button and focus. Scalar's own HTTP-method colours are left to Scalar.
 const SCALAR_CSS = `
-.light-mode {
-  --scalar-color-1: #191820; --scalar-color-2: #56546a; --scalar-color-3: #8a8796;
-  --scalar-color-accent: #191820;
-  --scalar-background-1: #ffffff; --scalar-background-2: #f6f5f9; --scalar-background-3: #eeedf3;
-  --scalar-background-accent: #d5fa5833;
-  --scalar-border-color: #e3e1ea;
-}
-.dark-mode {
-  --scalar-color-1: #f9f8fc; --scalar-color-2: #b9b7c6; --scalar-color-3: #8a8796;
-  --scalar-color-accent: #d5fa58;
-  --scalar-background-1: #121117; --scalar-background-2: #1a1921; --scalar-background-3: #24232d;
-  --scalar-background-accent: #d5fa581f;
-  --scalar-border-color: #2c2b36;
+.light-mode, .dark-mode {
+  --scalar-color-1: var(--foreground); --scalar-color-2: var(--muted-foreground); --scalar-color-3: var(--muted-foreground);
+  --scalar-color-accent: var(--foreground);
+  --scalar-background-1: var(--card); --scalar-background-2: var(--background); --scalar-background-3: var(--secondary);
+  --scalar-background-accent: var(--selected);
+  --scalar-border-color: var(--border);
 }
 .light-mode, .dark-mode {
   --scalar-font: var(--font-sans), system-ui, sans-serif;
   --scalar-font-code: var(--font-mono), ui-monospace, monospace;
-  --scalar-radius: 8px; --scalar-radius-lg: 12px;
+  --scalar-radius: 6px; --scalar-radius-lg: 12px;
 }
 .light-mode .t-doc__sidebar, .dark-mode .t-doc__sidebar { --scalar-sidebar-color-active: var(--scalar-color-accent); }
 .scalar-app table code { white-space: nowrap; }
+.scalar-app table th { white-space: nowrap; }
+.scalar-app .sidebar-heading-type { font-size: 12px; }
+@media (max-width: 640px) {
+  .scalar-app .markdown table { display: block !important; width: auto !important; max-width: 100%; overflow-x: auto; }
+}
 `;
 
 export function DocsReference({
@@ -104,7 +107,7 @@ export function DocsReference({
   return (
     <div style={{ ["--scalar-custom-header-height" as string]: `${HEADER_H}px` }}>
       <header
-        className="sticky top-0 z-50 flex items-center gap-3 border-b bg-background/90 px-4 backdrop-blur sm:px-6"
+        className="glass-bar sticky top-0 z-50 flex items-center gap-3 px-4 sm:px-6"
         style={{ height: HEADER_H }}
       >
         <a href="https://maratus.co" className="flex shrink-0 items-center gap-2.5" aria-label="Maratus">
@@ -112,14 +115,14 @@ export function DocsReference({
           <img src="/brand/maratus-logo-ink.svg" alt="maratus." className="h-5 w-auto dark:hidden" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/brand/maratus-logo-light.svg" alt="maratus." className="hidden h-5 w-auto dark:block" />
-          <span className="hidden font-mono text-[11px] uppercase tracking-[0.14em] text-muted-foreground sm:inline">
+          <span className="hidden text-xs text-muted-foreground sm:inline">
             API Reference
           </span>
         </a>
 
         <div className="ml-auto flex items-center gap-2">
           {!ctx.signedIn ? (
-            <Button asChild size="sm" className="bg-[#191820] text-[#d5fa58] hover:bg-[#191820]/90 dark:bg-[#d5fa58] dark:text-[#191820] dark:hover:bg-[#d5fa58]/90">
+            <Button asChild size="sm">
               <a href={loginHref}>
                 <LogIn className="size-4" /> Sign in to try requests
               </a>
@@ -130,17 +133,12 @@ export function DocsReference({
               {ctx.allowed === false ? (
                 <span className="text-xs text-muted-foreground">{NO_API_ACCESS}</span>
               ) : live ? (
-                <span className="hidden items-center gap-2 rounded-full border px-3 py-1 text-xs sm:flex">
-                  <span className="size-2 rounded-full bg-[#9bd11e]" />
+                <span className="hidden items-center gap-2 rounded-md border border-line-strong px-3 py-1 text-xs sm:flex">
+                  <StatusGlyph kind="online" className="text-status-online" />
                   Try it on · {ctx.organizationName} · {minutesLeft(live.expiresAt, now)} min
                 </span>
               ) : (
-                <Button
-                  size="sm"
-                  onClick={enable}
-                  disabled={busy}
-                  className="bg-[#191820] text-[#d5fa58] hover:bg-[#191820]/90 dark:bg-[#d5fa58] dark:text-[#191820] dark:hover:bg-[#d5fa58]/90"
-                >
+                <Button size="sm" onClick={enable} disabled={busy}>
                   {busy ? <Loader2 className="size-4 animate-spin" /> : <KeyRound className="size-4" />}
                   Enable Try it
                 </Button>
@@ -188,7 +186,7 @@ function IdsPopover({ ctx }: { ctx: Ctx }) {
 function IdGroup({ title, items }: { title: string; items: { id: string; label: string; sub?: string | null }[] }) {
   return (
     <div className="py-1">
-      <p className="px-2 pb-1 font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">{title}</p>
+      <p className="px-2 pb-1 text-xs text-muted-foreground">{title}</p>
       {items.length === 0 ? (
         <p className="px-2 py-1 text-xs text-muted-foreground">None yet.</p>
       ) : (
@@ -208,7 +206,7 @@ function IdRow({ id, label, sub }: { id: string; label: string; sub?: string | n
         setCopied(true);
         setTimeout(() => setCopied(false), 1200);
       }}
-      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-muted"
+      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors duration-[120ms] hover:bg-hover"
     >
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm">
@@ -217,7 +215,7 @@ function IdRow({ id, label, sub }: { id: string; label: string; sub?: string | n
         </span>
         <span className="block truncate font-mono text-xs text-muted-foreground">{id}</span>
       </span>
-      {copied ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4 text-muted-foreground" />}
+      {copied ? <Check className="size-4 text-status-online" /> : <Copy className="size-4 text-muted-foreground" />}
     </button>
   );
 }

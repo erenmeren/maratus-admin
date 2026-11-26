@@ -33,7 +33,7 @@ export function VerifyEmailNotice({ email }: { email?: string }) {
       </div>
       <div className="flex flex-1 items-center justify-center">
         <div className="w-full max-w-sm space-y-6 py-10 text-center">
-          <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted text-foreground">
             <MailCheck className="size-6" />
           </span>
           <div className="space-y-2">
@@ -48,7 +48,7 @@ export function VerifyEmailNotice({ email }: { email?: string }) {
           </Button>
           <p className="text-sm text-muted-foreground">
             Already verified?{" "}
-            <Link href="/login" className="font-medium text-primary hover:underline">Sign in</Link>
+            <Link href="/login" className="font-medium text-foreground underline decoration-input underline-offset-[3px] transition-colors duration-[120ms] hover:decoration-current">Sign in</Link>
           </p>
         </div>
       </div>

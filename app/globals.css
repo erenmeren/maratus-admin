@@ -335,6 +335,14 @@ html[data-ground="off"] {
     pointer-events: none;
     background: var(--ground);
   }
+  /* iOS Safari: a fixed inset:0 layer follows the small viewport, so the
+     light would jump each time the toolbar collapses. Pin it to the large one. */
+  @supports (height: 100lvh) {
+    body::before {
+      bottom: auto;
+      height: 100lvh;
+    }
+  }
   /* Sign-in and the other auth pages: the source moves behind the card's upper left. */
   body:has([data-screen="auth"])::before {
     background: var(--ground-auth);

@@ -1,7 +1,7 @@
 import { desc } from "drizzle-orm";
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
-import { StatusBadge } from "@/components/status-badge";
+import { StatusBadge, StatusGlyph } from "@/components/status-badge";
 import { ListControls } from "@/components/list-controls";
 import { PaginationBar } from "@/components/pagination-bar";
 import { UnclaimedDeviceDelete } from "@/components/unclaimed-device-delete";
@@ -114,7 +114,8 @@ export default async function FleetPage({
                   <TableCell className="font-mono text-xs">
                     v{d.firmwareVersion}
                     {d.claimed && firmwareUpdateAvailable(d.firmwareVersion, latestFw?.version ?? null) && (
-                      <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-950/50 dark:text-amber-300">
+                      <span className="ml-1.5 inline-flex items-center gap-1 rounded-sm bg-muted px-1.5 py-0.5 font-sans text-xs font-medium text-foreground">
+                        <StatusGlyph kind="paused" className="size-2 text-status-paused" />
                         update
                       </span>
                     )}

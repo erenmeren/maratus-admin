@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { StatusGlyph } from "@/components/status-badge";
 
 /** Shared confirm dialog for store deletion (tenant + admin wire their own action). */
 export function DeleteStoreDialog({
@@ -52,9 +53,12 @@ export function DeleteStoreDialog({
                 </p>
               )}
               {armedCount > 0 && (
-                <p className="text-amber-600 dark:text-amber-500">
+                <p className="flex items-start gap-2 text-foreground">
+                  <StatusGlyph kind="suspended" className="mt-[5px] text-status-paused" />
+                  <span>
                   {armedCount} {armedCount === 1 ? "device" : "devices"} prepared for
                   zero-touch setup will need to be re-armed by Maratus.
+                  </span>
                 </p>
               )}
             </div>

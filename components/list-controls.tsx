@@ -71,7 +71,7 @@ export function ListControls({
         />
       </div>
       {tabs && (
-        <div className="flex max-w-full min-w-0 flex-wrap items-center gap-0.5 rounded-lg border bg-field p-0.5 max-sm:w-full max-sm:flex-nowrap max-sm:justify-between max-sm:gap-0">
+        <div className="flex max-w-full min-w-0 flex-wrap items-center gap-0.5 rounded-lg border bg-field p-0.5 max-sm:w-full max-sm:flex-nowrap max-sm:justify-between max-sm:gap-0 max-sm:overflow-x-auto max-sm:[scrollbar-width:none] max-sm:[&::-webkit-scrollbar]:hidden">
           {tabs.map((t) => (
             <button
               key={t.value}

@@ -8,7 +8,7 @@ export default function NotFound() {
     <div className="flex min-h-svh flex-col items-center justify-center gap-6 p-6 text-center">
       <MaratusWordmark />
       <div className="space-y-2">
-        <p className="font-display text-6xl font-bold tracking-tight text-primary">
+        <p className="font-display text-6xl font-bold tracking-tight text-foreground">
           404
         </p>
         <h1 className="font-display text-xl font-bold">Page not found</h1>

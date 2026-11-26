@@ -96,7 +96,7 @@ export function BrandingStudio(props: BrandingVariantProps) {
         className={cn(
           "relative",
           fullscreen &&
-            "fixed inset-0 z-50 overflow-y-auto bg-zinc-950 lg:overflow-hidden",
+            "fixed inset-0 z-50 overflow-y-auto bg-background lg:overflow-hidden",
         )}
       >
         {/* FLOATING CONTROL RAIL — in-flow above the stage on mobile; a
@@ -113,10 +113,11 @@ export function BrandingStudio(props: BrandingVariantProps) {
         {/* THE STAGE */}
         <div
           className={cn(
-            "relative flex flex-col overflow-hidden bg-zinc-950",
+            // Always dark, whatever the app theme: `dark` re-scopes the tokens for the stage.
+            "dark relative flex flex-col overflow-hidden bg-background text-foreground",
             fullscreen
               ? "min-h-dvh lg:h-full lg:min-h-0"
-              : "min-h-[calc(100vh-14rem)] rounded-2xl shadow-xl ring-1 ring-zinc-800/80",
+              : "min-h-[calc(100dvh-14rem)] rounded-xl ring-1 ring-border",
           )}
         >
           {/* Dot-grid texture + accent-tinted glow */}
@@ -125,7 +126,7 @@ export function BrandingStudio(props: BrandingVariantProps) {
             className="pointer-events-none absolute inset-0 opacity-60"
             style={{
               backgroundImage:
-                "radial-gradient(circle at 1px 1px, rgba(255,255,255,0.09) 1px, transparent 0)",
+                "radial-gradient(circle at 1px 1px, var(--edge) 1px, transparent 0)",
               backgroundSize: "22px 22px",
             }}
           />
@@ -151,19 +152,19 @@ export function BrandingStudio(props: BrandingVariantProps) {
             >
               <PrinterStage editor={draft.editor} brand={draft.printerBrand} />
             </div>
-            <p className="text-center text-xs text-zinc-500">
+            <p className="text-center text-xs text-muted-foreground">
               {draft.screen === "idle"
                 ? "Drag to arrange — double-click any text to edit it."
                 : `Editing the ${activeScreen?.label.toLowerCase() ?? "selected"} screen. The QR shown is illustrative.`}
             </p>
 
             {/* Zoom pill */}
-            <div className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full border border-white/10 bg-zinc-900/80 py-1.5 pl-3 pr-4 shadow-lg backdrop-blur">
+            <div className="absolute bottom-4 right-4 flex items-center gap-2 rounded-full border border-border bg-popover/80 py-1.5 pl-3 pr-4 backdrop-blur">
               <button
                 type="button"
                 onClick={() => setZoom((z) => clampZoom(z - ZOOM_STEP))}
                 aria-label="Zoom out"
-                className="flex size-6 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-100"
+                className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <Minus className="size-3.5" />
               </button>
@@ -180,18 +181,18 @@ export function BrandingStudio(props: BrandingVariantProps) {
                 type="button"
                 onClick={() => setZoom((z) => clampZoom(z + ZOOM_STEP))}
                 aria-label="Zoom in"
-                className="flex size-6 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-white/10 hover:text-zinc-100"
+                className="flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <Plus className="size-3.5" />
               </button>
-              <span className="w-9 text-right font-mono text-[11px] tabular-nums text-zinc-400">
+              <span className="w-9 text-right font-mono text-xs tabular-nums text-muted-foreground">
                 {zoom}%
               </span>
             </div>
           </div>
 
           {/* FILMSTRIP — all screens as live thumbnails */}
-          <div className="relative z-10 border-t border-white/10 bg-zinc-950/60 px-4 py-3 backdrop-blur lg:pl-[21.5rem]">
+          <div className="relative z-10 border-t border-border bg-background/60 px-4 py-3 backdrop-blur lg:pl-[21.5rem]">
             {/* p-1.5 gives the active thumbnail's ring-2 + shadow room inside the
                 scroll box — overflow-x-auto forces overflow-y to auto, which would
                 otherwise clip the top ring and the leftmost item's left ring. */}
@@ -211,8 +212,8 @@ export function BrandingStudio(props: BrandingVariantProps) {
                       className={cn(
                         "block w-[104px] overflow-hidden rounded-lg transition-all duration-200 group-hover:scale-[1.04] group-focus-visible:scale-[1.04]",
                         active
-                          ? "ring-2 shadow-lg"
-                          : "opacity-80 ring-1 ring-white/10 group-hover:opacity-100 group-hover:ring-white/30",
+                          ? "ring-2"
+                          : "opacity-80 ring-1 ring-border group-hover:opacity-100 group-hover:ring-line-strong",
                       )}
                       style={
                         active
@@ -231,8 +232,8 @@ export function BrandingStudio(props: BrandingVariantProps) {
                     </span>
                     <span
                       className={cn(
-                        "mt-1.5 block max-w-[104px] truncate text-center text-[10px] font-medium transition-colors",
-                        active ? "text-zinc-100" : "text-zinc-500 group-hover:text-zinc-300",
+                        "mt-1.5 block max-w-[104px] truncate text-center text-xs font-medium transition-colors",
+                        active ? "text-foreground" : "text-muted-foreground group-hover:text-foreground",
                       )}
                     >
                       {s.label}
@@ -262,18 +263,18 @@ function StageHeader({
   onToggleFullscreen: () => void;
 }) {
   return (
-    <div className="relative z-20 flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3 sm:px-5">
+    <div className="relative z-20 flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-b border-border px-4 py-3 sm:px-5">
       <div className="flex min-w-0 items-baseline gap-2">
-        <h2 className="shrink-0 text-sm font-semibold text-zinc-100">Branding studio</h2>
-        <span className="truncate text-xs text-zinc-500">{draft.storeName}</span>
+        <h2 className="shrink-0 text-sm font-semibold text-foreground">Branding studio</h2>
+        <span className="truncate text-xs text-muted-foreground">{draft.storeName}</span>
       </div>
 
       <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-        <span className="hidden items-center gap-2 text-xs text-zinc-400 sm:flex">
+        <span className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
           <span
             className={cn(
               "size-2 rounded-full transition-colors",
-              draft.dirty ? "bg-amber-400" : "bg-emerald-400",
+              draft.dirty ? "bg-status-paused" : "bg-status-online",
             )}
           />
           {draft.dirty ? "Unsaved changes" : "All changes saved"}
@@ -283,7 +284,7 @@ function StageHeader({
           onClick={onToggleFullscreen}
           aria-label={fullscreen ? "Exit full screen" : "Enter full screen"}
           title={fullscreen ? "Exit full screen (Esc)" : "Full screen"}
-          className="inline-flex size-8 items-center justify-center rounded-lg border border-white/10 bg-white/5 text-zinc-200 transition-colors hover:bg-white/10"
+          className="inline-flex size-8 items-center justify-center rounded-md border border-line-strong text-foreground transition-colors hover:bg-hover"
         >
           {fullscreen ? (
             <Minimize2 className="size-3.5" />
@@ -293,13 +294,13 @@ function StageHeader({
         </button>
         <SectionHistory
           section="branding"
-          className="h-8 gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-medium text-zinc-200 hover:bg-white/10 hover:text-zinc-100"
+          className="h-8 gap-1.5 rounded-md border border-line-strong bg-transparent px-3 text-xs font-medium text-foreground hover:bg-hover hover:text-foreground"
         />
         <button
           type="button"
           onClick={draft.reset}
           disabled={draft.disabled || !draft.dirty}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 text-xs font-medium text-zinc-200 transition-colors hover:bg-white/10 disabled:pointer-events-none disabled:opacity-40"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line-strong px-3 text-xs font-medium text-foreground transition-colors hover:bg-hover disabled:pointer-events-none disabled:opacity-40"
         >
           <RotateCcw className="size-3.5" /> Reset
         </button>
@@ -307,7 +308,7 @@ function StageHeader({
           type="button"
           onClick={draft.save}
           disabled={draft.disabled || !draft.dirty}
-          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-white px-3.5 text-xs font-semibold text-zinc-900 shadow-sm transition-colors hover:bg-zinc-200 disabled:pointer-events-none disabled:opacity-40"
+          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:pointer-events-none disabled:opacity-40"
         >
           {draft.saving ? (
             <Loader2 className="size-3.5 animate-spin" />
@@ -327,7 +328,7 @@ function StageHeader({
 
 function ControlPanel({ draft }: { draft: BrandingDraft }) {
   return (
-    <div className="flex flex-col overflow-hidden rounded-xl border bg-card shadow-2xl lg:h-full dark:border-white/10">
+    <div className="flex flex-col overflow-hidden rounded-xl border bg-card shadow-[var(--lift)] lg:h-full">
       <Tabs defaultValue="theme" className="flex min-h-0 flex-1 flex-col gap-0">
         <div className="shrink-0 border-b p-2.5">
           <TabsList className="w-full">
@@ -357,7 +358,7 @@ function ControlPanel({ draft }: { draft: BrandingDraft }) {
               <PanelLabel>
                 {SCREENS.find((s) => s.value === draft.screen)?.label ?? "Screen"}
               </PanelLabel>
-              <span className="text-[10px] text-muted-foreground">
+              <span className="text-xs text-muted-foreground">
                 switch in the filmstrip
               </span>
             </div>
@@ -374,7 +375,7 @@ function ControlPanel({ draft }: { draft: BrandingDraft }) {
 
 function PanelLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+    <p className="text-xs font-medium text-foreground">
       {children}
     </p>
   );
@@ -392,7 +393,7 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
       <section className="space-y-2.5">
         <div className="space-y-1">
           <PanelLabel>Global colors</PanelLabel>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-xs leading-relaxed text-muted-foreground">
             Used by every screen that doesn&apos;t set its own colors below.
           </p>
         </div>
@@ -433,7 +434,7 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
       <section className="space-y-2">
         <div className="space-y-1">
           <PanelLabel>Suggested palettes</PanelLabel>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Background &amp; text combos derived from your accent.
           </p>
         </div>
@@ -447,7 +448,7 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
                 disabled={draft.disabled}
                 onClick={() => draft.applyTheme({ bg: p.bg, fg: p.fg, muted: p.muted })}
                 className={cn(
-                  "flex flex-1 flex-col items-center gap-1.5 rounded-lg border py-2.5 ring-offset-2 ring-offset-card transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm disabled:pointer-events-none disabled:opacity-60",
+                  "flex flex-1 flex-col items-center gap-1.5 rounded-lg border py-2.5 ring-offset-2 ring-offset-card transition-colors duration-[120ms] hover:border-line-strong disabled:pointer-events-none disabled:opacity-60",
                   active && "ring-2",
                 )}
                 style={
@@ -465,7 +466,7 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
                     />
                   ))}
                 </span>
-                <span className="text-[10px] font-medium text-muted-foreground">{p.name}</span>
+                <span className="text-xs font-medium text-muted-foreground">{p.name}</span>
               </button>
             );
           })}
@@ -476,7 +477,7 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
       <section className="space-y-2">
         <div className="space-y-1">
           <PanelLabel>Preset themes</PanelLabel>
-          <p className="text-[11px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Optional shortcuts — applying one just fills in the colors above.
           </p>
         </div>
@@ -491,7 +492,7 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
                 onClick={() => draft.applyTheme(t)}
                 title={t.description}
                 className={cn(
-                  "rounded-lg border p-2 text-left ring-offset-2 ring-offset-card transition-all duration-150 hover:-translate-y-0.5 hover:shadow-md disabled:pointer-events-none disabled:opacity-60",
+                  "rounded-lg border p-2 text-left ring-offset-2 ring-offset-card transition-colors duration-[120ms] hover:border-line-strong disabled:pointer-events-none disabled:opacity-60",
                   active && "ring-2",
                 )}
                 style={{
@@ -507,7 +508,7 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
                     style={{ background: t.accent }}
                   />
                   <span
-                    className="truncate text-[11px] font-semibold"
+                    className="truncate text-xs font-semibold"
                     style={{ color: t.fg }}
                   >
                     {t.name}
@@ -568,7 +569,7 @@ function QrStylePanel({ draft }: { draft: BrandingDraft }) {
       <section className="space-y-2.5">
         <div className="space-y-1">
           <PanelLabel>Shape</PanelLabel>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-xs leading-relaxed text-muted-foreground">
             Applies to every QR on every screen — device, pinned, and setup.
           </p>
         </div>
@@ -584,7 +585,7 @@ function QrStylePanel({ draft }: { draft: BrandingDraft }) {
                 onClick={() => set({ qrShape: s })}
                 aria-pressed={active}
                 className={cn(
-                  "flex flex-col items-center gap-1.5 rounded-lg border p-2 ring-offset-2 ring-offset-card transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm disabled:pointer-events-none disabled:opacity-60",
+                  "flex flex-col items-center gap-1.5 rounded-lg border p-2 ring-offset-2 ring-offset-card transition-colors duration-[120ms] hover:border-line-strong disabled:pointer-events-none disabled:opacity-60",
                   active && "ring-2",
                 )}
                 style={active ? ({ "--tw-ring-color": draft.color } as React.CSSProperties) : undefined}
@@ -599,7 +600,7 @@ function QrStylePanel({ draft }: { draft: BrandingDraft }) {
                     ariaLabel={`${QR_SHAPE_LABEL[s]} QR style preview`}
                   />
                 </span>
-                <span className="text-[10px] font-medium text-muted-foreground">{QR_SHAPE_LABEL[s]}</span>
+                <span className="text-xs font-medium text-muted-foreground">{QR_SHAPE_LABEL[s]}</span>
               </button>
             );
           })}
@@ -617,7 +618,7 @@ function QrStylePanel({ draft }: { draft: BrandingDraft }) {
       <section className="space-y-2.5 border-t pt-4">
         <div className="space-y-1">
           <PanelLabel>Background plate</PanelLabel>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">
+          <p className="text-xs leading-relaxed text-muted-foreground">
             The surface behind the code — corner rounding and drop shadow.
           </p>
         </div>
@@ -635,7 +636,7 @@ function QrStylePanel({ draft }: { draft: BrandingDraft }) {
           <div className="flex-1 space-y-1.5">
             <div className="flex items-baseline justify-between">
               <Label className="text-xs">Corner radius</Label>
-              <span className="text-[11px] tabular-nums text-muted-foreground">{qrCornerRadius}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">{qrCornerRadius}</span>
             </div>
             <Slider
               min={0}
@@ -660,7 +661,7 @@ function QrStylePanel({ draft }: { draft: BrandingDraft }) {
                 onClick={() => set({ qrShadowMode: m })}
                 aria-pressed={active}
                 className={cn(
-                  "flex flex-col items-center gap-1.5 rounded-lg border p-2 ring-offset-2 ring-offset-card transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm disabled:pointer-events-none disabled:opacity-60",
+                  "flex flex-col items-center gap-1.5 rounded-lg border p-2 ring-offset-2 ring-offset-card transition-colors duration-[120ms] hover:border-line-strong disabled:pointer-events-none disabled:opacity-60",
                   active && "ring-2",
                 )}
                 style={active ? ({ "--tw-ring-color": draft.color } as React.CSSProperties) : undefined}
@@ -675,7 +676,7 @@ function QrStylePanel({ draft }: { draft: BrandingDraft }) {
                     }}
                   />
                 </span>
-                <span className="text-[10px] font-medium text-muted-foreground">{QR_SHADOW_MODE_LABEL[m]}</span>
+                <span className="text-xs font-medium text-muted-foreground">{QR_SHADOW_MODE_LABEL[m]}</span>
               </button>
             );
           })}
@@ -686,7 +687,7 @@ function QrStylePanel({ draft }: { draft: BrandingDraft }) {
             <div className="space-y-1.5">
               <div className="flex items-baseline justify-between">
                 <Label className="text-xs">Intensity</Label>
-                <span className="text-[11px] tabular-nums text-muted-foreground">{qrShadowStrength}</span>
+                <span className="text-xs tabular-nums text-muted-foreground">{qrShadowStrength}</span>
               </div>
               <Slider
                 min={0}
@@ -724,7 +725,7 @@ function ScreenColorsPanel({ draft }: { draft: BrandingDraft }) {
     <section className="space-y-2.5 border-t pt-4">
       <div className="space-y-1">
         <PanelLabel>Screen colors — {label}</PanelLabel>
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
+        <p className="text-xs leading-relaxed text-muted-foreground">
           Give this screen its own palette. Pick the screen in the filmstrip below.
         </p>
       </div>
@@ -757,7 +758,7 @@ function ScreenColorsPanel({ draft }: { draft: BrandingDraft }) {
                   disabled={draft.disabled}
                   onClick={() => set({ bg: p.bg, fg: p.fg, muted: p.muted })}
                   className={cn(
-                    "flex flex-1 flex-col items-center gap-1.5 rounded-lg border py-2.5 ring-offset-2 ring-offset-card transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm disabled:pointer-events-none disabled:opacity-60",
+                    "flex flex-1 flex-col items-center gap-1.5 rounded-lg border py-2.5 ring-offset-2 ring-offset-card transition-colors duration-[120ms] hover:border-line-strong disabled:pointer-events-none disabled:opacity-60",
                     active && "ring-2",
                   )}
                   style={active ? ({ "--tw-ring-color": override.accent } as React.CSSProperties) : undefined}
@@ -767,7 +768,7 @@ function ScreenColorsPanel({ draft }: { draft: BrandingDraft }) {
                       <span key={i} className="size-4 rounded-full ring-1 ring-border" style={{ background: c }} />
                     ))}
                   </span>
-                  <span className="text-[10px] font-medium text-muted-foreground">{p.name}</span>
+                  <span className="text-xs font-medium text-muted-foreground">{p.name}</span>
                 </button>
               );
             })}

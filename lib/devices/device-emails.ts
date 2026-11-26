@@ -2,6 +2,7 @@
 // Pure builder for the tenant-facing "device went offline" email (Phase 2B).
 // Reuses the shared branded layout + escaping from the billing email module.
 import {
+  EMAIL_MUTED,
   emailAccent,
   emailButton,
   emailDetails,
@@ -27,7 +28,7 @@ export function deviceOfflineEmail(input: {
     emailDetails(
       input.devices.map((d) => ({
         label: escapeHtml(d.storeName),
-        value: `${escapeHtml(d.name)}<br/><span class="muted" style="font-size:13px;color:#6b6980">Last seen ${escapeHtml(d.lastSeenLabel)}</span>`,
+        value: `${escapeHtml(d.name)}<br/><span style="font-size:13px;color:${EMAIL_MUTED}">Last seen ${escapeHtml(d.lastSeenLabel)}</span>`,
       })),
     ) +
     emailText("If this is unexpected, check the device’s power and network connection. It will reconnect on its own once it’s back online.") +

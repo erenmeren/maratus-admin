@@ -80,7 +80,7 @@ export function PropertyFields({
         <NumberField label="W" value={Math.round(object.w * CANVAS_REF_PX)} disabled={disabled} onChange={(v) => set({ w: clamp(v / CANVAS_REF_PX, MIN_BOX, 1 - object.x) })} />
         <NumberField label="H" value={Math.round(object.h * CANVAS_REF_PX)} disabled={disabled} onChange={(v) => set({ h: clamp(v / CANVAS_REF_PX, MIN_BOX, 1 - object.y) })} />
       </div>
-      <p className="text-[10px] text-muted-foreground">Pixels on the 720 × 720 printer canvas.</p>
+      <p className="text-xs text-muted-foreground">Pixels on the 720 × 720 printer canvas.</p>
 
       {object.type === "clock" && (
         <>
@@ -136,7 +136,7 @@ function AlignPicker({
 }) {
   return (
     <div className="space-y-1">
-      <Label className="text-[10px] text-muted-foreground">Align</Label>
+      <Label className="text-xs text-muted-foreground">Align</Label>
       <div className="flex gap-1">
         {([["left", AlignLeft], ["center", AlignCenter], ["right", AlignRight]] as [TextAlign, typeof AlignLeft][]).map(([a, Icon]) => (
           <button
@@ -204,7 +204,7 @@ function NumberField({
 
   return (
     <div className="space-y-1">
-      <Label className="text-[10px] text-muted-foreground">{label}</Label>
+      <Label className="text-xs text-muted-foreground">{label}</Label>
       <Input
         type="number"
         inputMode="numeric"

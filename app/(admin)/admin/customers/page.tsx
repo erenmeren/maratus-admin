@@ -123,7 +123,7 @@ export default async function CustomersPage({
                       href={`/admin/customers/${c.id}`}
                       className="flex items-center gap-3"
                     >
-                      <span className="flex size-9 items-center justify-center rounded-lg bg-primary/10 font-display text-sm font-bold text-primary">
+                      <span className="flex size-9 items-center justify-center rounded-lg bg-avatar font-display text-sm font-semibold text-foreground">
                         {c.name.slice(0, 1)}
                       </span>
                       <div>

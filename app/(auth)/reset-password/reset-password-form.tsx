@@ -142,7 +142,7 @@ export function ResetPasswordForm({
 
       <p className="text-center text-sm text-muted-foreground">
         Remembered it?{" "}
-        <Link href="/login" className="font-medium text-primary hover:underline">
+        <Link href="/login" className="font-medium text-foreground underline decoration-input underline-offset-[3px] transition-colors duration-[120ms] hover:decoration-current">
           Sign in
         </Link>
       </p>

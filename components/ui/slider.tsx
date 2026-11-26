@@ -40,13 +40,13 @@ function Slider({
         data-slot="slider-track"
         className="relative h-1.5 w-full grow overflow-hidden rounded-full bg-muted"
       >
-        <SliderPrimitive.Range data-slot="slider-range" className="absolute h-full bg-primary" />
+        <SliderPrimitive.Range data-slot="slider-range" className="absolute h-full bg-foreground" />
       </SliderPrimitive.Track>
       {Array.from({ length: values.length }, (_, i) => (
         <SliderPrimitive.Thumb
           data-slot="slider-thumb"
           key={i}
-          className="block size-4 shrink-0 rounded-full border border-primary bg-background shadow-sm transition-[color,box-shadow] hover:ring-4 hover:ring-ring/50 focus-visible:outline-hidden focus-visible:ring-4 focus-visible:ring-ring/50 disabled:pointer-events-none"
+          className="block size-4 shrink-0 rounded-full border border-foreground bg-field transition-[color,box-shadow] duration-[120ms] hover:ring-4 hover:ring-foreground/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none"
         />
       ))}
     </SliderPrimitive.Root>

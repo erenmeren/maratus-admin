@@ -399,7 +399,7 @@ export function InventoryTable({
                   <span className="inline-flex items-center gap-1.5">
                     {r.allocatedStoreName ?? r.allocatedStoreId}
                     {r.status === "allocated" && (
-                      <Badge variant="outline" className="text-[10px]">zero-touch</Badge>
+                      <Badge variant="outline">zero-touch</Badge>
                     )}
                   </span>
                 ) : "—"}

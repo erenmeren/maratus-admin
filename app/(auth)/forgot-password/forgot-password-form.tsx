@@ -51,7 +51,7 @@ export function ForgotPasswordForm() {
     return (
       <AuthShell {...PANEL}>
         <div className="space-y-6 text-center">
-          <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <span className="mx-auto flex size-12 items-center justify-center rounded-full bg-muted text-foreground">
             <MailCheck className="size-6" />
           </span>
           <div className="space-y-2">
@@ -123,7 +123,7 @@ export function ForgotPasswordForm() {
 
       <p className="text-center text-sm text-muted-foreground">
         Remembered it?{" "}
-        <Link href="/login" className="font-medium text-primary hover:underline">
+        <Link href="/login" className="font-medium text-foreground underline decoration-input underline-offset-[3px] transition-colors duration-[120ms] hover:decoration-current">
           Sign in
         </Link>
       </p>

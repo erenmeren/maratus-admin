@@ -34,7 +34,7 @@ export function autoClaimEmail(input: {
     ]) +
     emailText(
       `If this wasn’t expected, follow the hijack-recovery runbook: ` +
-        `<code style="font-family:'Courier New',Courier,monospace;font-size:13px">docs/runbooks/factory-registry-hijack-recovery.md</code>`,
+        `<code style="font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,'Courier New',monospace;font-size:13px;word-break:break-all">docs/runbooks/factory-registry-hijack-recovery.md</code>`,
     );
   return { subject, html: emailLayout(body, { title: subject, preheader: `${escapeHtml(input.serial)} → ${escapeHtml(input.orgName)}` }) };
 }

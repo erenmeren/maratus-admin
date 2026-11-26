@@ -27,7 +27,7 @@ describe("account emails", () => {
       ownerInviteEmail({ url, orgName: "Roastwell", expiresIn: "in 7 days" }),
     ]) {
       expect(m.html).toContain(`href="${url}"`);
-      expect(m.html).toContain("maratus-logo-light.png");
+      expect(m.html).toContain("maratus-lockup.png");
       expect(m.html).toContain("Paste this link");
     }
   });

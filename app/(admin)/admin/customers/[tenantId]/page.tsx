@@ -125,7 +125,7 @@ export default async function CustomerDetailPage({
         backHref="/admin/customers"
         backLabel="Customers"
         leading={
-          <span className="flex size-14 items-center justify-center rounded-2xl bg-primary/10 font-display text-2xl font-bold text-primary">
+          <span className="flex size-14 items-center justify-center rounded-xl bg-avatar font-display text-2xl font-semibold text-foreground">
             {tenant.name.slice(0, 1)}
           </span>
         }

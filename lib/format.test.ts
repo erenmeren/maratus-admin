@@ -16,4 +16,9 @@ describe("formatDate", () => {
   it("does not use day-first or numeric locale output", () => {
     expect(formatDate("2026-11-01T12:00:00.000Z")).toBe("Nov 1, 2026");
   });
+
+  it("uses the UTC calendar day near midnight", () => {
+    expect(formatDate("2026-11-01T23:30:00.000Z")).toBe("Nov 1, 2026");
+    expect(formatDate("2026-11-02T00:30:00.000Z")).toBe("Nov 2, 2026");
+  });
 });

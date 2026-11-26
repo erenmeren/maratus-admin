@@ -36,11 +36,12 @@ export function formatTryKurus(kurus: number): string {
   return (kurus / 100).toLocaleString("tr-TR", { style: "currency", currency: "TRY" });
 }
 
-/** Calendar date, e.g. "Aug 15, 2026". */
+/** Calendar date in UTC, e.g. "Aug 15, 2026" (same on server and browser). */
 export function formatDate(d: Date | string): string {
   return new Date(d).toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
     day: "numeric",
+    timeZone: "UTC",
   });
 }

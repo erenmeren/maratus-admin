@@ -48,7 +48,7 @@ import { DEFAULT_PRICE_PER_DEVICE_CENTS } from "@/lib/invoicing";
 import { freeSlots as computeFreeSlots, effectiveSlots } from "@/lib/device-slots";
 import { SubscriptionCard } from "@/components/billing/subscription-card";
 import { InvoiceTable } from "@/components/billing/invoice-table";
-import { formatNumber, timeAgo } from "@/lib/format";
+import { formatDate, formatNumber, timeAgo } from "@/lib/format";
 import { actionLabel } from "@/lib/audit-labels";
 import { deriveArchivedStatus, type OffboardSummary } from "@/lib/offboarding";
 
@@ -159,7 +159,7 @@ export default async function CustomerDetailPage({
             <Archive className="size-4 shrink-0 text-muted-foreground" />
             <p>
               <span className="font-medium">
-                Archived on {detail.archivedAt ? new Date(detail.archivedAt).toLocaleDateString() : "—"}
+                Archived on {detail.archivedAt ? formatDate(detail.archivedAt) : "—"}
               </span>
               {detail.archivedNote && (
                 <span className="text-muted-foreground"> — {detail.archivedNote}</span>

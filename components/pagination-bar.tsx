@@ -39,7 +39,7 @@ export function PaginationBar({
         <ChevronLeft className="size-4" /> Previous
       </Link>
       <span className="tabular-nums">
-        Page {page} of {pages} · {total.toLocaleString()} total
+        Page {page} of {pages} · {total.toLocaleString("en-US")} total
       </span>
       <Link href={href(page + 1)} className={linkCls(page >= pages)} aria-disabled={page >= pages}>
         Next <ChevronRight className="size-4" />

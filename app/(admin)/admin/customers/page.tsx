@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { getAdminCustomersPage, type CustomerViewFilter } from "@/lib/data";
-import { formatNumber } from "@/lib/format";
+import { formatDate, formatNumber } from "@/lib/format";
 
 const HEALTH_UI: Record<"healthy" | "warning" | "critical", { dot: string; label: string }> = {
   healthy: { dot: "bg-status-online", label: "Healthy" },
@@ -134,7 +134,7 @@ export default async function CustomersPage({
                               Archived
                             </Badge>
                             <span className="text-xs text-muted-foreground">
-                              {new Date(c.archivedAt).toLocaleDateString()}
+                              {formatDate(c.archivedAt)}
                             </span>
                           </span>
                         )}

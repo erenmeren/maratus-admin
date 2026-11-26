@@ -204,13 +204,13 @@ export function BrandingStudio(props: BrandingVariantProps) {
                     key={s.value}
                     type="button"
                     onClick={() => draft.setScreen(s.value)}
-                    className="group shrink-0 focus-visible:outline-none"
+                    className="group shrink-0 rounded-lg focus-visible:outline-none"
                     aria-label={`Edit ${s.label} screen`}
                     aria-current={active ? "true" : undefined}
                   >
                     <span
                       className={cn(
-                        "block w-[104px] overflow-hidden rounded-lg transition-all duration-200 group-hover:scale-[1.04] group-focus-visible:scale-[1.04]",
+                        "block w-[104px] overflow-hidden rounded-lg outline-offset-2 outline-ring transition-[opacity,box-shadow] duration-150 group-focus-visible:outline-2",
                         active
                           ? "ring-2"
                           : "opacity-80 ring-1 ring-border group-hover:opacity-100 group-hover:ring-line-strong",
@@ -399,7 +399,7 @@ function ThemePanel({ draft }: { draft: BrandingDraft }) {
         </div>
         <div className="flex items-center gap-3">
           <label
-            className="relative size-10 shrink-0 cursor-pointer overflow-hidden rounded-xl ring-1 ring-border transition-transform hover:scale-105"
+            className="relative size-10 shrink-0 cursor-pointer overflow-hidden rounded-xl ring-1 ring-border transition-shadow duration-150 hover:ring-line-strong"
             style={{ background: draft.color }}
           >
             <input

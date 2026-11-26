@@ -92,7 +92,7 @@ export function DeviceSettingsForm({
   const hasPassword = initial.hasPassword && !clearPassword;
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6 pb-[calc(6rem+env(safe-area-inset-bottom))]">
       {/* QR visible duration */}
       <Card className="space-y-3 p-5">
         <div className="flex items-center justify-between">
@@ -200,13 +200,13 @@ export function DeviceSettingsForm({
       </Card>
 
       {/* Sticky save bar (mirrors Branding) */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 px-6 py-3 backdrop-blur sm:left-[var(--sidebar-width,0)]">
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
-          <span className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className={cn("size-2 rounded-full", dirty ? "bg-status-paused" : "bg-status-online")} />
-            {!canEdit ? "Read only" : dirty ? "Unsaved changes" : "All changes saved"}
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] backdrop-blur sm:px-6 sm:left-[var(--sidebar-width,0)]">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-3">
+          <span className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+            <span className={cn("size-2 shrink-0 rounded-full", dirty ? "bg-status-paused" : "bg-status-online")} />
+            <span className="truncate">{!canEdit ? "Read only" : dirty ? "Unsaved changes" : "All changes saved"}</span>
           </span>
-          <div className="flex gap-2">
+          <div className="flex shrink-0 gap-2">
             <Button variant="outline" onClick={reset} disabled={disabled || !dirty}>
               Reset
             </Button>

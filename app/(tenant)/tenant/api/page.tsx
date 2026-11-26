@@ -9,6 +9,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { getApiKeys } from "@/lib/data";
+import { formatDate } from "@/lib/format";
 import { requireSection } from "@/lib/session";
 
 export default async function ApiKeysPage() {
@@ -80,10 +81,10 @@ export default async function ApiKeysPage() {
                     <code className="font-mono text-xs text-muted-foreground">{k.prefix}…</code>
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {k.lastUsedAt ? new Date(k.lastUsedAt).toLocaleDateString() : "Never"}
+                    {k.lastUsedAt ? formatDate(k.lastUsedAt) : "Never"}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">
-                    {new Date(k.createdAt).toLocaleDateString()}
+                    {formatDate(k.createdAt)}
                   </TableCell>
                   {canManage && (
                     <TableCell className="text-right">

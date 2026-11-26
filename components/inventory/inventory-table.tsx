@@ -23,6 +23,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import type { InventoryRow } from "@/lib/factory-registry";
+import { formatDate } from "@/lib/format";
 import type { RegistryStatus } from "@/lib/provisioning";
 import {
   addSerialAction, allocateSerialsAction, deallocateSerialsAction,
@@ -411,7 +412,7 @@ export function InventoryTable({
                   </Link>
                 ) : "—"}
               </TableCell>
-              <TableCell>{r.manufacturedAt ? new Date(r.manufacturedAt).toLocaleDateString() : "—"}</TableCell>
+              <TableCell>{r.manufacturedAt ? formatDate(r.manufacturedAt) : "—"}</TableCell>
               <TableCell>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>

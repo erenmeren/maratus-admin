@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
@@ -28,6 +28,14 @@ export const metadata: Metadata = {
   title: "Maratus Console",
   description:
     "Maratus console: manage screens, stores, and triggered content.",
+};
+
+// viewport-fit=cover makes env(safe-area-inset-*) non-zero on iPhone, which
+// the bottom-fixed save bar pads against (components/device-settings-form.tsx).
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({

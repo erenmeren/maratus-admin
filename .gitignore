@@ -58,3 +58,13 @@ lib/db/auth-schema.generated.ts
 # Product-council working notes + outputs. Candid internal strategy (kill
 # criteria, investor view, competitor analysis) and this repo is public.
 council/
+
+# Local-only internal material: kept on disk, never tracked (this repo is
+# public). docs/device-protocol.md and AGENTS.md stay tracked.
+/docs/business/
+/docs/superpowers/
+/docs/runbooks/
+/docs/DEVELOPMENT.md
+/docs/naming-candidates.md
+/.claude/
+/CLAUDE.md

@@ -19,7 +19,10 @@ import {
 import { MaratusMark } from "@/components/brand";
 import { authClient } from "@/lib/auth-client";
 import type { OrgRef } from "@/lib/session";
-import { cn } from "@/lib/utils";
+
+// The current workspace's tick keeps the accent even while its row is focused
+// (the dropdown item otherwise sets every child to the text colour).
+const CHECK = "size-4 text-primary! group-focus/dropdown-menu-item:text-primary!";
 
 export type Workspace = "admin" | "tenant";
 
@@ -59,18 +62,21 @@ export function WorkspaceSwitcher({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent"
+              className="h-10 gap-2.5 transition-[width,height,padding,background-color] duration-[120ms] hover:bg-hover active:bg-hover data-[state=open]:bg-hover data-open:hover:bg-hover group-data-[collapsible=icon]:justify-center"
             >
-              <MaratusMark className="size-7" />
-              <div className="grid flex-1 text-left leading-tight">
-                <span className="truncate font-display text-sm font-semibold">
+              {/* size-auto!: the menu button would otherwise force every svg to 16px */}
+              <MaratusMark className="h-[26px]! w-auto! group-data-[collapsible=icon]:h-5!" />
+              <div className="grid flex-1 text-left group-data-[collapsible=icon]:hidden">
+                <span className="truncate font-display text-sm leading-4 font-semibold tracking-[-0.005em]">
                   {headerName}
                 </span>
-                <span className="truncate text-xs text-muted-foreground">
+                <span className="truncate text-xs leading-4 text-muted-foreground">
                   {headerRole}
                 </span>
               </div>
-              {multi && <ChevronsUpDown className="ml-auto size-4 opacity-60" />}
+              {multi && (
+                <ChevronsUpDown className="ml-auto size-3.5 stroke-[1.6] text-muted-foreground group-data-[collapsible=icon]:hidden" />
+              )}
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -79,37 +85,28 @@ export function WorkspaceSwitcher({
           >
             {isPlatformAdmin && (
               <>
-                <DropdownMenuLabel className="text-xs text-muted-foreground">
+                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
                   Platform
                 </DropdownMenuLabel>
                 <DropdownMenuItem
                   onClick={() => router.push("/admin")}
-                  className="gap-2 py-2"
+                  className="py-2"
                 >
-                  <span
-                    className={cn(
-                      "flex size-7 items-center justify-center rounded-md border",
-                      active === "admin"
-                        ? "border-primary/30 bg-primary/10 text-primary"
-                        : "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    <Shield className="size-4" />
-                  </span>
-                  <div className="grid flex-1 leading-tight">
-                    <span className="text-sm font-medium">Maratus HQ</span>
-                    <span className="text-xs text-muted-foreground">
+                  <Shield className="size-4 stroke-[1.6]" />
+                  <div className="grid min-w-0 flex-1">
+                    <span className="text-sm leading-[18px] font-medium">Maratus HQ</span>
+                    <span className="text-xs leading-4 text-muted-foreground">
                       Super Admin
                     </span>
                   </div>
-                  {active === "admin" && <Check className="size-4 text-primary" />}
+                  {active === "admin" && <Check className={CHECK} />}
                 </DropdownMenuItem>
                 {organizations.length > 0 && <DropdownMenuSeparator />}
               </>
             )}
 
             {organizations.length > 0 && (
-              <DropdownMenuLabel className="text-xs text-muted-foreground">
+              <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
                 {organizations.length > 1 ? "Organizations" : "Workspace"}
               </DropdownMenuLabel>
             )}
@@ -120,25 +117,16 @@ export function WorkspaceSwitcher({
                 <DropdownMenuItem
                   key={o.id}
                   onClick={() => switchOrg(o.id)}
-                  className="gap-2 py-2"
+                  className="py-2"
                 >
-                  <span
-                    className={cn(
-                      "flex size-7 items-center justify-center rounded-md border",
-                      isCurrent
-                        ? "border-primary/30 bg-primary/10 text-primary"
-                        : "bg-muted text-muted-foreground",
-                    )}
-                  >
-                    <Store className="size-4" />
-                  </span>
-                  <div className="grid flex-1 leading-tight">
-                    <span className="truncate text-sm font-medium">{o.name}</span>
-                    <span className="text-xs text-muted-foreground capitalize">
+                  <Store className="size-4 stroke-[1.6]" />
+                  <div className="grid min-w-0 flex-1">
+                    <span className="truncate text-sm leading-[18px] font-medium">{o.name}</span>
+                    <span className="text-xs leading-4 text-muted-foreground capitalize">
                       {o.role}
                     </span>
                   </div>
-                  {isCurrent && <Check className="size-4 text-primary" />}
+                  {isCurrent && <Check className={CHECK} />}
                 </DropdownMenuItem>
               );
             })}

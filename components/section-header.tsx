@@ -19,7 +19,7 @@ export function SectionHeader({
       )}
     >
       <div className="space-y-1">
-        <h2 className="text-lg font-medium tracking-tight">{title}</h2>
+        <h2 className="font-display text-lg leading-6 font-semibold tracking-[-0.008em]">{title}</h2>
         {description && (
           <p className="text-sm text-muted-foreground">{description}</p>
         )}

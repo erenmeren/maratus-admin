@@ -1,6 +1,6 @@
 import { CalendarDays, Cpu, FileText, Pin } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { KpiCard } from "@/components/kpi-card";
+import { KpiCard, KpiGroup } from "@/components/kpi-card";
 import { ActivationsAreaChart } from "@/components/charts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getTenantDashboard } from "@/lib/data";
@@ -17,13 +17,13 @@ export default async function TenantDashboardPage() {
         title={`Welcome back, ${(ctx.user.name || dash.tenant.name).split(" ")[0]}`}
         description={`Here's how ${dash.tenant.name} is doing today.`}
       >
-        <span className="inline-flex items-center gap-1.5 rounded-md border bg-card px-2.5 py-1.5 text-xs text-muted-foreground">
-          <CalendarDays className="size-3.5" />
+        <span className="glass-panel inline-flex h-8 items-center gap-2 rounded-md px-2.5 text-[13px] whitespace-nowrap text-muted-foreground max-sm:self-start">
+          <CalendarDays aria-hidden className="size-4 stroke-[1.6]" />
           {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
         </span>
       </PageHeader>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <KpiGroup columns={4}>
         <KpiCard
           label="Activations today"
           value={formatNumber(dash.activationsToday)}
@@ -50,14 +50,14 @@ export default async function TenantDashboardPage() {
           hint="applied by screens"
           icon={Pin}
         />
-      </div>
+      </KpiGroup>
 
       <Card>
         <CardHeader>
           <CardTitle>Activations over time</CardTitle>
           <CardDescription>Daily activations, last 30 days</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pr-5 pl-3 max-md:pr-3 max-md:pl-1">
           <ActivationsAreaChart data={dash.daily} />
         </CardContent>
       </Card>

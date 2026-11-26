@@ -86,7 +86,7 @@ export function AppShell({
     <TooltipProvider>
       <SidebarProvider>
         <Sidebar collapsible="icon">
-          <SidebarHeader>
+          <SidebarHeader className="h-14 justify-center border-b">
             <WorkspaceSwitcher
               active={workspace}
               role={role}
@@ -96,18 +96,28 @@ export function AppShell({
             />
           </SidebarHeader>
           <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>
+            <SidebarGroup className="py-3">
+              <SidebarGroupLabel className="h-7 font-normal text-muted-foreground">
+                {groupLabel}
+              </SidebarGroupLabel>
               <SidebarGroupContent>
-                <SidebarMenu>
+                <SidebarMenu className="gap-0.5">
                   {nav.map((item) => {
                     const active = isActive(pathname, item.href);
                     return (
                       <SidebarMenuItem key={item.href}>
+                        {/* The one orange mark in the nav: a 2px bar on the sidebar's edge. */}
+                        {active && (
+                          <span
+                            aria-hidden
+                            className="pointer-events-none absolute top-2 -left-2 h-4 w-0.5 bg-primary max-md:top-2.5"
+                          />
+                        )}
                         <SidebarMenuButton
                           asChild
                           isActive={active}
                           tooltip={item.label}
+                          className="gap-2.5 text-muted-foreground max-md:h-9 transition-[width,height,padding,color,background-color] duration-[120ms] hover:bg-hover hover:text-foreground active:bg-hover data-active:bg-selected data-active:text-foreground [&_svg]:stroke-[1.6]"
                         >
                           <Link href={item.href}>
                             <item.icon />
@@ -121,50 +131,37 @@ export function AppShell({
               </SidebarGroupContent>
             </SidebarGroup>
           </SidebarContent>
-          <SidebarFooter>
-            <div className="rounded-lg border bg-sidebar-accent/40 p-3 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
-              <p className="font-medium text-foreground">Any content, one scan away.</p>
-            </div>
+          <SidebarFooter className="border-t p-4 text-xs text-muted-foreground group-data-[collapsible=icon]:hidden">
+            <p>Any content, one scan away.</p>
           </SidebarFooter>
           <SidebarRail />
         </Sidebar>
 
-        <SidebarInset>
-          <header className="edge-perforation relative sticky top-0 z-20 flex h-16 shrink-0 items-center gap-3 bg-gradient-to-b from-background/92 to-background/65 px-3 backdrop-blur-md sm:px-4">
-            {/* Emerald hairline — the top edge of the brand accent. */}
-            <span
-              aria-hidden
-              className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/45 to-transparent"
-            />
+        <SidebarInset className="min-w-0 bg-transparent">
+          {/* Glass: page content scrolls under the bar. */}
+          <header className="glass-bar sticky top-0 z-20 flex h-14 shrink-0 items-center gap-2 pr-4 pl-2 sm:pr-6 sm:pl-4">
+            <SidebarTrigger className="text-muted-foreground hover:text-foreground [&_svg]:stroke-[1.6]" />
 
-            <SidebarTrigger className="-ml-1 text-muted-foreground hover:text-foreground" />
-
-            {/* Wayfinding: where you are, set in the brand display face. */}
+            {/* Wayfinding: where you are. */}
             {activeItem ? (
-              <div
-                key={pathname}
-                className="flex min-w-0 items-center gap-2.5 duration-300 animate-in fade-in-50 slide-in-from-left-1"
-              >
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary ring-1 ring-inset ring-primary/15">
-                  <activeItem.icon className="size-4" />
+              <div className="flex min-w-0 items-center gap-2 text-sm">
+                <activeItem.icon
+                  aria-hidden
+                  className="mr-0.5 size-4 shrink-0 stroke-[1.6] text-muted-foreground"
+                />
+                <span className="hidden text-muted-foreground sm:inline">
+                  {workspace === "admin" ? "Platform" : "Workspace"}
                 </span>
-                <div className="flex min-w-0 items-baseline gap-1.5">
-                  <span className="hidden text-[11px] font-medium uppercase tracking-[0.16em] text-muted-foreground/80 sm:inline">
-                    {workspace === "admin" ? "Platform" : "Workspace"}
-                  </span>
-                  <span className="hidden text-muted-foreground/30 sm:inline">/</span>
-                  <span className="truncate font-display text-sm font-semibold tracking-tight">
-                    {activeItem.label}
-                  </span>
-                </div>
+                <span aria-hidden className="hidden text-disabled-foreground sm:inline">
+                  /
+                </span>
+                <span className="truncate font-medium">{activeItem.label}</span>
               </div>
             ) : (
-              <span className="font-display text-sm font-semibold tracking-tight">
-                {topBarLabel}
-              </span>
+              <span className="truncate text-sm font-medium">{topBarLabel}</span>
             )}
 
-            <div className="ml-auto flex items-center gap-1.5">
+            <div className="ml-auto flex items-center gap-1">
               <ThemeToggle />
               <UserMenu
                 name={user.name}
@@ -178,7 +175,7 @@ export function AppShell({
               "flex-1",
               // Full-bleed keeps a small inset on the sides and top so the stage
               // does not sit flush against the chrome; the bottom stays flush.
-              fullBleed ? "px-4 pt-4" : "p-4 sm:p-6 lg:p-8",
+              fullBleed ? "px-4 pt-4" : "px-4 pt-6 pb-8 md:p-8",
             )}
           >
             <div

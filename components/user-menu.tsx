@@ -40,37 +40,37 @@ export function UserMenu({
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="h-10 gap-2 rounded-xl px-1.5 pr-2 hover:bg-muted/70"
+            className="h-10 gap-2.5 px-2"
             aria-label="Account menu"
           >
             <span className="relative">
-              <Avatar className="size-7 ring-2 ring-primary/25">
-                <AvatarFallback className="bg-primary/15 text-[11px] font-bold text-primary">
+              <Avatar className="size-7 after:hidden">
+                <AvatarFallback className="bg-avatar text-xs font-medium tracking-normal text-foreground">
                   {initials}
                 </AvatarFallback>
               </Avatar>
               {/* Live-session dot — a small "you're online" tell. */}
               <span className="absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-background bg-status-online" />
             </span>
-            <span className="hidden flex-col items-start leading-tight sm:flex">
-              <span className="text-xs font-semibold">{name}</span>
-              <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+            <span className="hidden flex-col items-start sm:flex">
+              <span className="text-[13px] leading-4 font-medium">{name}</span>
+              <span className="text-xs leading-4 font-normal text-muted-foreground">
                 {subtitle}
               </span>
             </span>
-            <ChevronsUpDown className="hidden size-3.5 text-muted-foreground/60 sm:block" />
+            <ChevronsUpDown className="hidden size-3.5 stroke-[1.6] text-muted-foreground sm:block" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-60">
           <DropdownMenuLabel className="flex items-center gap-2.5 p-2">
-            <Avatar className="size-9 ring-2 ring-primary/20">
-              <AvatarFallback className="bg-primary/15 text-xs font-bold text-primary">
+            <Avatar className="size-9 after:hidden">
+              <AvatarFallback className="bg-avatar text-[13px] font-medium tracking-normal text-foreground">
                 {initials}
               </AvatarFallback>
             </Avatar>
             <div className="flex min-w-0 flex-col">
-              <span className="truncate text-sm font-semibold">{name}</span>
-              <span className="truncate text-xs font-normal text-muted-foreground">
+              <span className="truncate text-sm leading-[18px] font-medium">{name}</span>
+              <span className="truncate text-xs leading-4 font-normal text-muted-foreground">
                 {email}
               </span>
             </div>
@@ -82,7 +82,7 @@ export function UserMenu({
               setPasswordOpen(true);
             }}
           >
-            <KeyRound className="size-4" /> Change password
+            <KeyRound className="size-4 stroke-[1.6]" /> Change password
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={async () => {
@@ -93,7 +93,7 @@ export function UserMenu({
               router.refresh();
             }}
           >
-            <LogOut className="size-4" /> Sign out
+            <LogOut className="size-4 stroke-[1.6]" /> Sign out
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

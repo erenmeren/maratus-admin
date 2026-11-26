@@ -52,7 +52,7 @@ export function SectionHistory({ section, className }: { section: HistorySection
     >
       <SheetTrigger asChild>
         <Button variant="ghost" className={className}>
-          <History className="size-4" /> History
+          <History className="size-4 stroke-[1.6]" /> History
         </Button>
       </SheetTrigger>
       <SheetContent side="right" className="gap-0">

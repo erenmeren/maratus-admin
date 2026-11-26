@@ -203,7 +203,7 @@ export function DeviceSettingsForm({
       <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background/95 px-6 py-3 backdrop-blur sm:left-[var(--sidebar-width,0)]">
         <div className="mx-auto flex max-w-3xl items-center justify-between">
           <span className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span className={cn("size-2 rounded-full", dirty ? "bg-amber-500" : "bg-emerald-500")} />
+            <span className={cn("size-2 rounded-full", dirty ? "bg-status-paused" : "bg-status-online")} />
             {!canEdit ? "Read only" : dirty ? "Unsaved changes" : "All changes saved"}
           </span>
           <div className="flex gap-2">

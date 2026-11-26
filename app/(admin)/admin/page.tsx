@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight, Cpu, Zap, Users } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { KpiCard } from "@/components/kpi-card";
+import { KpiCard, KpiGroup } from "@/components/kpi-card";
 import { ActivationsAreaChart } from "@/components/charts";
 import { TenantStatusBadge } from "@/components/tenant-status-badge";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,7 @@ export default async function AdminOverviewPage() {
         description="Platform-wide performance across all Maratus customers."
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <KpiGroup columns={3}>
         <KpiCard
           label="Activations this month"
           value={formatCompact(o.activationsThisMonth)}
@@ -55,48 +55,48 @@ export default async function AdminOverviewPage() {
           hint={`${o.totalStores} stores`}
           icon={Users}
         />
-      </div>
+      </KpiGroup>
 
       <Card>
         <CardHeader>
           <CardTitle>Activations over time</CardTitle>
           <CardDescription>Monthly activations, all customers</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pr-5 pl-3 max-md:pr-3 max-md:pl-1">
           <ActivationsAreaChart data={o.monthly} />
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="flex-row items-center justify-between space-y-0">
-          <div className="space-y-1">
+      <Card className="gap-0 pb-0">
+        <CardHeader className="flex items-center justify-between gap-4 pb-4">
+          <div className="space-y-0.5">
             <CardTitle>Top customers</CardTitle>
             <CardDescription>By activations this month</CardDescription>
           </div>
-          <Button variant="ghost" size="sm" asChild>
+          <Button variant="ghost" size="sm" asChild className="-mr-2.5">
             <Link href="/admin/customers">
               All customers
-              <ArrowUpRight className="size-4" />
+              <ArrowUpRight className="size-4 stroke-[1.6]" />
             </Link>
           </Button>
         </CardHeader>
-        <CardContent className="px-0 pb-0">
+        <CardContent className="border-t px-0">
           <Table>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead className="pl-6">Customer</TableHead>
+                <TableHead>Customer</TableHead>
                 <TableHead className="text-center">Stores</TableHead>
                 <TableHead className="text-center">Devices</TableHead>
-                <TableHead className="text-right pr-6">Activations</TableHead>
+                <TableHead className="text-right">Activations</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {o.topCustomers.map((c) => (
                 <TableRow key={c.id}>
-                  <TableCell className="pl-6">
+                  <TableCell className="max-md:h-[60px] max-md:py-2.5 max-md:whitespace-normal">
                     <Link
                       href={`/admin/customers/${c.id}`}
-                      className="flex items-center gap-2 font-medium hover:underline"
+                      className="inline-flex items-center gap-2.5 font-medium hover:underline max-md:flex-col max-md:items-start max-md:gap-0.5"
                     >
                       {c.name}
                       <TenantStatusBadge status={c.status} />
@@ -108,7 +108,7 @@ export default async function AdminOverviewPage() {
                   <TableCell className="text-center tabular-nums">
                     {c.deviceCount}
                   </TableCell>
-                  <TableCell className="text-right pr-6 font-medium tabular-nums">
+                  <TableCell className="text-right font-medium tabular-nums">
                     {formatNumber(c.activationsThisMonth)}
                   </TableCell>
                 </TableRow>
@@ -118,31 +118,31 @@ export default async function AdminOverviewPage() {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
+      <Card className="gap-0 pb-0">
+        <CardHeader className="gap-0.5 pb-4">
           <CardTitle>Triggers by company</CardTitle>
           <CardDescription>Acked triggers this month</CardDescription>
         </CardHeader>
-        <CardContent className="px-0">
+        <CardContent className="border-t px-0">
           <Table>
             <TableHeader>
-              <TableRow>
-                <TableHead className="pl-6">Company</TableHead>
-                <TableHead className="text-right pr-6">Triggers</TableHead>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Company</TableHead>
+                <TableHead className="text-right">Triggers</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {triggersByOrg.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={2} className="pl-6 text-muted-foreground">
+                  <TableCell colSpan={2} className="text-muted-foreground">
                     No trigger usage yet this month.
                   </TableCell>
                 </TableRow>
               ) : (
                 triggersByOrg.slice(0, 10).map((row) => (
                   <TableRow key={row.organizationId}>
-                    <TableCell className="pl-6 font-medium">{row.name ?? row.organizationId}</TableCell>
-                    <TableCell className="text-right pr-6 tabular-nums">{formatNumber(row.triggers)}</TableCell>
+                    <TableCell className="font-medium">{row.name ?? row.organizationId}</TableCell>
+                    <TableCell className="text-right tabular-nums">{formatNumber(row.triggers)}</TableCell>
                   </TableRow>
                 ))
               )}

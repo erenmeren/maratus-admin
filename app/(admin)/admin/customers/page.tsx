@@ -20,9 +20,9 @@ import { getAdminCustomersPage, type CustomerViewFilter } from "@/lib/data";
 import { formatNumber } from "@/lib/format";
 
 const HEALTH_UI: Record<"healthy" | "warning" | "critical", { dot: string; label: string }> = {
-  healthy: { dot: "bg-emerald-500", label: "Healthy" },
-  warning: { dot: "bg-amber-500", label: "Warning" },
-  critical: { dot: "bg-red-500", label: "Critical" },
+  healthy: { dot: "bg-status-online", label: "Healthy" },
+  warning: { dot: "bg-status-paused", label: "Warning" },
+  critical: { dot: "bg-destructive", label: "Critical" },
 };
 
 const VIEWS: { value: CustomerViewFilter; label: string }[] = [

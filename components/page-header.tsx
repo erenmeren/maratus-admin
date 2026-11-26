@@ -27,7 +27,7 @@ export function PageHeader({
         <Link
           href={backHref}
           aria-label={backLabel ?? "Back"}
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors duration-[120ms] hover:text-foreground"
         >
           <ArrowLeft aria-hidden className="size-4" />
           {backLabel}
@@ -36,9 +36,9 @@ export function PageHeader({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex items-center gap-4">
           {leading}
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             <div className="flex items-center gap-2">
-              <h1 className="font-display text-2xl font-bold tracking-tight">
+              <h1 className="font-display text-[26px] leading-8 font-semibold tracking-[-0.018em]">
                 {title}
               </h1>
               {badge}

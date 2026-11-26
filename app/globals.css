@@ -22,6 +22,14 @@
   --color-status-online: var(--status-online);
   --color-status-offline: var(--status-offline);
   --color-status-paused: var(--status-paused);
+  --color-primary-hover: var(--primary-hover);
+  --color-disabled-foreground: var(--disabled-foreground);
+  --color-line-strong: var(--line-strong);
+  --color-field: var(--field);
+  --color-hover: var(--hover);
+  --color-selected: var(--selected);
+  --color-edge: var(--edge);
+  --color-avatar: var(--avatar);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -43,112 +51,269 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
+  /* Controls 6, panels 12, sign-in card 16 (direction 1g). */
+  --radius-sm: 4px;
+  --radius-md: var(--radius);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --radius-4xl: 24px;
 }
 
 /*
-  Maratus brand tokens.
-  ONE brand accent drives the app chrome via --primary: a confident emerald
-  that backs the eco story. A store's own brand color is DATA and lives only
-  inside the tenant Branding screen — never in this token set.
+  Maratus tokens: direction 1g, "Monochrome, glass", with the orange ground light.
+
+  ── THE GROUND SWITCH ─────────────────────────────────────────────────────
+  One setting turns the ground light AND the panel glass on or off: the
+  `data-ground` attribute on <html>, set in app/layout.tsx.
+
+      <html data-ground="orange">   light on, cards and the sign-in card are glass (default)
+      <html data-ground="off">      no light, cards are solid: plain monochrome
+
+  A missing attribute behaves like "orange". Everything the switch touches is
+  in the "Ground switch" block below (--ground, --panel, --panel-blur,
+  --panel-shine, --brand-pane). The top bar, sidebar, menus, dialogs and
+  sheets stay glass either way: content scrolls under them with or without
+  the light.
+  ──────────────────────────────────────────────────────────────────────────
+
+  Neutral near-black / near-white, low-alpha hairlines, one orange. Orange is
+  used for the primary button, focus, the active-nav bar and the last chart
+  point, nothing else. A store's own brand colour is DATA and lives only in
+  the tenant Branding screen, never in this token set.
+
+  Names are shadcn's, so every page restyles from here. Additions:
+    --hover / --selected        translucent washes (they sit on glass)
+    --edge, --edge-pop          hairline around glass layers / floating layers
+    --shine, --shine-pop        1px inset highlight on a layer's top edge
+    --line-strong               secondary-button border
+    --glass-*                   fill per glass layer (blur is on the .glass-* class)
+    --scrim, --lift             overlay scrim and the one soft shadow
 */
 :root {
-  --radius: 0.65rem;
+  color-scheme: light;
+  --radius: 6px;
 
-  --background: oklch(0.992 0.002 145);
-  --foreground: oklch(0.18 0.012 165);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.012 165);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.012 165);
+  --background: #fafafa;
+  --foreground: #171717;
+  --card: #ffffff;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
 
-  /* Emerald brand accent */
-  --primary: oklch(0.58 0.128 159);
-  --primary-foreground: oklch(0.99 0.01 150);
+  /* Peek orange, deepened so white text on it reaches 5.01:1 */
+  --primary: #c2461f;
+  --primary-hover: #ab3c19;
+  --primary-foreground: #ffffff;
 
-  --secondary: oklch(0.96 0.008 160);
-  --secondary-foreground: oklch(0.24 0.02 165);
-  --muted: oklch(0.965 0.005 160);
-  --muted-foreground: oklch(0.52 0.018 165);
-  --accent: oklch(0.95 0.022 160);
-  --accent-foreground: oklch(0.28 0.04 162);
+  --secondary: #ececec;
+  --secondary-foreground: #171717;
+  --muted: rgb(0 0 0 / 0.05);
+  --muted-foreground: #5e5e5e;
+  --accent: rgb(0 0 0 / 0.06);
+  --accent-foreground: #171717;
+  --disabled-foreground: #8f8f8f;
 
-  --destructive: oklch(0.585 0.21 27.5);
+  --destructive: #d1372f;
 
-  --border: oklch(0.91 0.006 160);
-  --input: oklch(0.91 0.006 160);
-  --ring: oklch(0.58 0.128 159);
+  --border: rgb(0 0 0 / 0.085);
+  --line-strong: rgb(0 0 0 / 0.17);
+  --input: #808080;
+  --field: #ffffff;
+  --ring: #c2461f;
 
-  /* Charts: emerald-led, eco-leaning supporting hues */
-  --chart-1: oklch(0.58 0.128 159);
-  --chart-2: oklch(0.7 0.13 175);
-  --chart-3: oklch(0.62 0.13 232);
-  --chart-4: oklch(0.78 0.16 85);
-  --chart-5: oklch(0.65 0.18 50);
+  --hover: rgb(0 0 0 / 0.028);
+  --selected: rgb(0 0 0 / 0.06);
 
-  /* Status tokens */
-  --status-online: oklch(0.62 0.16 150);
-  --status-offline: oklch(0.62 0.01 160);
-  --status-paused: oklch(0.78 0.15 78);
+  /* Charts: the series is neutral; only the last point is orange. */
+  --chart-1: #171717;
+  --chart-2: #4d4d4d;
+  --chart-3: #767676;
+  --chart-4: #9e9e9e;
+  --chart-5: #c4c4c4;
+  --chart-point: #c2461f;
+  --chart-grid: rgb(0 0 0 / 0.05);
+  --chart-area: rgb(0 0 0 / 0.07);
 
-  --sidebar: oklch(0.985 0.004 160);
-  --sidebar-foreground: oklch(0.24 0.012 165);
-  --sidebar-primary: oklch(0.58 0.128 159);
-  --sidebar-primary-foreground: oklch(0.99 0.01 150);
-  --sidebar-accent: oklch(0.95 0.018 160);
-  --sidebar-accent-foreground: oklch(0.28 0.04 162);
-  --sidebar-border: oklch(0.91 0.006 160);
-  --sidebar-ring: oklch(0.58 0.128 159);
+  /* Status: always drawn as shape plus word, never colour alone. */
+  --status-online: #2c8a45;
+  --status-offline: #767676;
+  --status-paused: #ab6900;
+
+  --logo-square: #171717;
+  --logo-arc: #d9552b;
+
+  --sidebar: #f7f7f7;
+  --sidebar-foreground: #171717;
+  --sidebar-primary: #c2461f;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: rgb(0 0 0 / 0.06);
+  --sidebar-accent-foreground: #171717;
+  --sidebar-border: rgb(0 0 0 / 0.085);
+  --sidebar-ring: #c2461f;
+
+  /* Glass layers */
+  --glass-bar: rgb(252 252 252 / 0.48);
+  --glass-side: rgb(245 245 245 / 0.46);
+  --glass-menu: rgb(255 255 255 / 0.46);
+  --glass-dialog: rgb(255 255 255 / 0.54);
+  --glass-sheet: rgb(252 252 252 / 0.54);
+  --glass-panel: rgb(255 255 255 / 0.62);
+  --glass-muted-foreground: #545454;
+  --glass-bar-muted-foreground: #545454;
+  --edge: rgb(0 0 0 / 0.085);
+  --edge-pop: rgb(0 0 0 / 0.12);
+  --shine: rgb(255 255 255 / 0.9);
+  --shine-pop: rgb(255 255 255 / 0.95);
+  --scrim: rgb(20 20 22 / 0.12);
+  --lift: 0 12px 32px rgb(0 0 0 / 0.12);
+  --avatar: rgb(0 0 0 / 0.065);
+
+  /* Ground light: two soft radial lights, centres at or outside the window's
+     edge. Generated by .design-work/stage2/lights.mjs from the approved comp
+     (raised-cosine fall-off in 12 stops; the first is pre-mixed with the
+     ground so hue does not flip between bands). */
+  --ground-inset: 0px;
+  --ground-dark:
+    radial-gradient(980px 720px at 104% 108%,rgb(236 160 92 / 0.075) 0%,rgb(236 160 92 / 0.0737) 8.3%,rgb(236 160 92 / 0.07) 16.7%,rgb(236 160 92 / 0.064) 25%,rgb(236 160 92 / 0.0562) 33.3%,rgb(236 160 92 / 0.0472) 41.7%,rgb(236 160 92 / 0.0375) 50%,rgb(236 160 92 / 0.0278) 58.3%,rgb(236 160 92 / 0.0188) 66.7%,rgb(236 160 92 / 0.011) 75%,rgb(236 160 92 / 0.005) 83.3%,rgb(236 160 92 / 0.0013) 91.7%,rgb(236 160 92 / 0) 100%),
+    radial-gradient(1120px 820px at calc(var(--ground-inset) + 14%) -110px,color(srgb 0.20133 0.1421 0.1001) 0%,color(srgb 0.19897 0.14068 0.09953) 8.3%,color(srgb 0.19205 0.13652 0.09786) 16.7%,color(srgb 0.18104 0.1299 0.0952) 25%,color(srgb 0.16669 0.12128 0.09174) 33.3%,color(srgb 0.14997 0.11124 0.08771) 41.7%,color(srgb 0.13204 0.10046 0.08338) 50%,color(srgb 0.1141 0.08968 0.07906) 58.3%,color(srgb 0.09739 0.07964 0.07502) 66.7%,color(srgb 0.08304 0.07102 0.07156) 75%,color(srgb 0.07203 0.0644 0.06891) 83.3%,color(srgb 0.06511 0.06024 0.06724) 91.7%,color(srgb 0.06275 0.05882 0.06667) 100%);
+  --ground-light:
+    radial-gradient(980px 720px at 104% 108%,rgb(255 178 96 / 0.065) 0%,rgb(255 178 96 / 0.0639) 8.3%,rgb(255 178 96 / 0.0606) 16.7%,rgb(255 178 96 / 0.0555) 25%,rgb(255 178 96 / 0.0488) 33.3%,rgb(255 178 96 / 0.0409) 41.7%,rgb(255 178 96 / 0.0325) 50%,rgb(255 178 96 / 0.0241) 58.3%,rgb(255 178 96 / 0.0163) 66.7%,rgb(255 178 96 / 0.0095) 75%,rgb(255 178 96 / 0.0044) 83.3%,rgb(255 178 96 / 0.0011) 91.7%,rgb(255 178 96 / 0) 100%),
+    radial-gradient(1120px 820px at calc(var(--ground-inset) + 14%) -110px,color(srgb 0.98245 0.94498 0.9038) 0%,color(srgb 0.98242 0.94558 0.90511) 8.3%,color(srgb 0.98231 0.94735 0.90893) 16.7%,color(srgb 0.98215 0.95017 0.91502) 25%,color(srgb 0.98194 0.95383 0.92295) 33.3%,color(srgb 0.98169 0.9581 0.93219) 41.7%,color(srgb 0.98142 0.96269 0.9421) 50%,color(srgb 0.98116 0.96727 0.95201) 58.3%,color(srgb 0.98091 0.97154 0.96125) 66.7%,color(srgb 0.98069 0.97521 0.96918) 75%,color(srgb 0.98053 0.97802 0.97526) 83.3%,color(srgb 0.98043 0.97979 0.97909) 91.7%,color(srgb 0.98039 0.98039 0.98039) 100%);
+  --ground-dark-phone:
+    radial-gradient(520px 560px at 108% 106%,rgb(236 160 92 / 0.075) 0%,rgb(236 160 92 / 0.0737) 8.3%,rgb(236 160 92 / 0.07) 16.7%,rgb(236 160 92 / 0.064) 25%,rgb(236 160 92 / 0.0562) 33.3%,rgb(236 160 92 / 0.0472) 41.7%,rgb(236 160 92 / 0.0375) 50%,rgb(236 160 92 / 0.0278) 58.3%,rgb(236 160 92 / 0.0188) 66.7%,rgb(236 160 92 / 0.011) 75%,rgb(236 160 92 / 0.005) 83.3%,rgb(236 160 92 / 0.0013) 91.7%,rgb(236 160 92 / 0) 100%),
+    radial-gradient(560px 620px at 18% -120px,color(srgb 0.21027 0.14747 0.10225) 0%,color(srgb 0.20776 0.14596 0.10165) 8.3%,color(srgb 0.20039 0.14153 0.09987) 16.7%,color(srgb 0.18867 0.13449 0.09704) 25%,color(srgb 0.17339 0.12531 0.09336) 33.3%,color(srgb 0.1556 0.11462 0.08907) 41.7%,color(srgb 0.13651 0.10315 0.08446) 50%,color(srgb 0.11742 0.09168 0.07986) 58.3%,color(srgb 0.09963 0.08099 0.07556) 66.7%,color(srgb 0.08435 0.07181 0.07188) 75%,color(srgb 0.07263 0.06476 0.06905) 83.3%,color(srgb 0.06526 0.06033 0.06727) 91.7%,color(srgb 0.06275 0.05882 0.06667) 100%);
+  --ground-light-phone:
+    radial-gradient(520px 560px at 108% 106%,rgb(255 178 96 / 0.065) 0%,rgb(255 178 96 / 0.0639) 8.3%,rgb(255 178 96 / 0.0606) 16.7%,rgb(255 178 96 / 0.0555) 25%,rgb(255 178 96 / 0.0488) 33.3%,rgb(255 178 96 / 0.0409) 41.7%,rgb(255 178 96 / 0.0325) 50%,rgb(255 178 96 / 0.0241) 58.3%,rgb(255 178 96 / 0.0163) 66.7%,rgb(255 178 96 / 0.0095) 75%,rgb(255 178 96 / 0.0044) 83.3%,rgb(255 178 96 / 0.0011) 91.7%,rgb(255 178 96 / 0) 100%),
+    radial-gradient(560px 620px at 18% -120px,color(srgb 0.98275 0.93992 0.89286) 0%,color(srgb 0.98271 0.94061 0.89435) 8.3%,color(srgb 0.98259 0.94263 0.89873) 16.7%,color(srgb 0.9824 0.94585 0.90568) 25%,color(srgb 0.98216 0.95004 0.91475) 33.3%,color(srgb 0.98187 0.95492 0.9253) 41.7%,color(srgb 0.98157 0.96016 0.93663) 50%,color(srgb 0.98126 0.96539 0.94795) 58.3%,color(srgb 0.98098 0.97027 0.95851) 66.7%,color(srgb 0.98074 0.97447 0.96757) 75%,color(srgb 0.98055 0.97768 0.97453) 83.3%,color(srgb 0.98043 0.9797 0.9789) 91.7%,color(srgb 0.98039 0.98039 0.98039) 100%);
+  --ground-auth-dark:
+    radial-gradient(980px 760px at 104% 108%,rgb(236 160 92 / 0.08) 0%,rgb(236 160 92 / 0.0786) 8.3%,rgb(236 160 92 / 0.0746) 16.7%,rgb(236 160 92 / 0.0683) 25%,rgb(236 160 92 / 0.06) 33.3%,rgb(236 160 92 / 0.0504) 41.7%,rgb(236 160 92 / 0.04) 50%,rgb(236 160 92 / 0.0296) 58.3%,rgb(236 160 92 / 0.02) 66.7%,rgb(236 160 92 / 0.0117) 75%,rgb(236 160 92 / 0.0054) 83.3%,rgb(236 160 92 / 0.0014) 91.7%,rgb(236 160 92 / 0) 100%),
+    radial-gradient(900px 760px at 6% 0%,color(srgb 0.22816 0.15822 0.10657) 0%,color(srgb 0.22534 0.15652 0.10589) 8.3%,color(srgb 0.21708 0.15156 0.1039) 16.7%,color(srgb 0.20393 0.14366 0.10073) 25%,color(srgb 0.1868 0.13337 0.09659) 33.3%,color(srgb 0.16686 0.12138 0.09178) 41.7%,color(srgb 0.14545 0.10852 0.08662) 50%,color(srgb 0.12405 0.09566 0.08145) 58.3%,color(srgb 0.1041 0.08367 0.07664) 66.7%,color(srgb 0.08697 0.07338 0.07251) 75%,color(srgb 0.07383 0.06548 0.06934) 83.3%,color(srgb 0.06556 0.06052 0.06735) 91.7%,color(srgb 0.06275 0.05882 0.06667) 100%);
+  --ground-auth-light:
+    radial-gradient(900px 760px at 6% 0%,color(srgb 0.98333 0.9298 0.87098) 0%,color(srgb 0.98328 0.93067 0.87284) 8.3%,color(srgb 0.98314 0.93319 0.87831) 16.7%,color(srgb 0.9829 0.93721 0.887) 25%,color(srgb 0.9826 0.94245 0.89833) 33.3%,color(srgb 0.98224 0.94855 0.91153) 41.7%,color(srgb 0.98186 0.9551 0.92569) 50%,color(srgb 0.98148 0.96164 0.93985) 58.3%,color(srgb 0.98113 0.96775 0.95304) 66.7%,color(srgb 0.98082 0.97298 0.96437) 75%,color(srgb 0.98059 0.977 0.97306) 83.3%,color(srgb 0.98044 0.97953 0.97853) 91.7%,color(srgb 0.98039 0.98039 0.98039) 100%);
+  --ground-auth-dark-phone:
+    radial-gradient(520px 560px at 108% 106%,rgb(236 160 92 / 0.08) 0%,rgb(236 160 92 / 0.0786) 8.3%,rgb(236 160 92 / 0.0746) 16.7%,rgb(236 160 92 / 0.0683) 25%,rgb(236 160 92 / 0.06) 33.3%,rgb(236 160 92 / 0.0504) 41.7%,rgb(236 160 92 / 0.04) 50%,rgb(236 160 92 / 0.0296) 58.3%,rgb(236 160 92 / 0.02) 66.7%,rgb(236 160 92 / 0.0117) 75%,rgb(236 160 92 / 0.0054) 83.3%,rgb(236 160 92 / 0.0014) 91.7%,rgb(236 160 92 / 0) 100%),
+    radial-gradient(520px 640px at 8% 0%,color(srgb 0.22816 0.15822 0.10657) 0%,color(srgb 0.22534 0.15652 0.10589) 8.3%,color(srgb 0.21708 0.15156 0.1039) 16.7%,color(srgb 0.20393 0.14366 0.10073) 25%,color(srgb 0.1868 0.13337 0.09659) 33.3%,color(srgb 0.16686 0.12138 0.09178) 41.7%,color(srgb 0.14545 0.10852 0.08662) 50%,color(srgb 0.12405 0.09566 0.08145) 58.3%,color(srgb 0.1041 0.08367 0.07664) 66.7%,color(srgb 0.08697 0.07338 0.07251) 75%,color(srgb 0.07383 0.06548 0.06934) 83.3%,color(srgb 0.06556 0.06052 0.06735) 91.7%,color(srgb 0.06275 0.05882 0.06667) 100%);
+  --ground-auth-light-phone:
+    radial-gradient(520px 560px at 108% 106%,rgb(255 178 96 / 0.065) 0%,rgb(255 178 96 / 0.0639) 8.3%,rgb(255 178 96 / 0.0606) 16.7%,rgb(255 178 96 / 0.0555) 25%,rgb(255 178 96 / 0.0488) 33.3%,rgb(255 178 96 / 0.0409) 41.7%,rgb(255 178 96 / 0.0325) 50%,rgb(255 178 96 / 0.0241) 58.3%,rgb(255 178 96 / 0.0163) 66.7%,rgb(255 178 96 / 0.0095) 75%,rgb(255 178 96 / 0.0044) 83.3%,rgb(255 178 96 / 0.0011) 91.7%,rgb(255 178 96 / 0) 100%),
+    radial-gradient(520px 640px at 8% 0%,color(srgb 0.98333 0.9298 0.87098) 0%,color(srgb 0.98328 0.93067 0.87284) 8.3%,color(srgb 0.98314 0.93319 0.87831) 16.7%,color(srgb 0.9829 0.93721 0.887) 25%,color(srgb 0.9826 0.94245 0.89833) 33.3%,color(srgb 0.98224 0.94855 0.91153) 41.7%,color(srgb 0.98186 0.9551 0.92569) 50%,color(srgb 0.98148 0.96164 0.93985) 58.3%,color(srgb 0.98113 0.96775 0.95304) 66.7%,color(srgb 0.98082 0.97298 0.96437) 75%,color(srgb 0.98059 0.977 0.97306) 83.3%,color(srgb 0.98044 0.97953 0.97853) 91.7%,color(srgb 0.98039 0.98039 0.98039) 100%);
+  --ground-brand:
+    radial-gradient(900px 760px at 104% 108%,color(srgb 0.19878 0.15663 0.12878) 0%,color(srgb 0.19693 0.15543 0.12819) 8.3%,color(srgb 0.19151 0.15191 0.12646) 16.7%,color(srgb 0.18288 0.14632 0.12371) 25%,color(srgb 0.17164 0.13904 0.12012) 33.3%,color(srgb 0.15854 0.13056 0.11594) 41.7%,color(srgb 0.14449 0.12145 0.11145) 50%,color(srgb 0.13044 0.11235 0.10696) 58.3%,color(srgb 0.11734 0.10386 0.10278) 66.7%,color(srgb 0.1061 0.09658 0.09919) 75%,color(srgb 0.09747 0.09099 0.09644) 83.3%,color(srgb 0.09205 0.08747 0.09471) 91.7%,color(srgb 0.0902 0.08627 0.09412) 100%);
+  /* ── Ground switch (see the comment at the top) ── */
+  --ground: var(--ground-light);
+  --ground-auth: var(--ground-auth-light);
+  --panel: var(--glass-panel);
+  --panel-blur: blur(16px);
+  --panel-shine: inset 0 1px 0 var(--shine);
+  --brand-pane: var(--ground-brand), #171618;
 }
 
 .dark {
-  --background: oklch(0.165 0.012 170);
-  --foreground: oklch(0.96 0.006 150);
-  --card: oklch(0.205 0.014 170);
-  --card-foreground: oklch(0.96 0.006 150);
-  --popover: oklch(0.205 0.014 170);
-  --popover-foreground: oklch(0.96 0.006 150);
+  color-scheme: dark;
 
-  --primary: oklch(0.7 0.14 160);
-  --primary-foreground: oklch(0.16 0.03 165);
+  --background: #100f11;
+  --foreground: #ededed;
+  --card: #171618;
+  --card-foreground: #ededed;
+  --popover: #1e1d1f;
+  --popover-foreground: #ededed;
 
-  --secondary: oklch(0.26 0.016 170);
-  --secondary-foreground: oklch(0.96 0.006 150);
-  --muted: oklch(0.25 0.014 170);
-  --muted-foreground: oklch(0.7 0.014 160);
-  --accent: oklch(0.3 0.03 165);
-  --accent-foreground: oklch(0.95 0.02 155);
+  --primary: #f58a58;
+  --primary-hover: #ff9d6f;
+  --primary-foreground: #140a05;
 
-  --destructive: oklch(0.7 0.19 22);
+  --secondary: #282729;
+  --secondary-foreground: #ededed;
+  --muted: rgb(255 255 255 / 0.07);
+  --muted-foreground: #a8a8a8;
+  --accent: rgb(255 255 255 / 0.09);
+  --accent-foreground: #ededed;
+  --disabled-foreground: #757575;
 
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 13%);
-  --ring: oklch(0.7 0.14 160);
+  --destructive: #f0605f;
 
-  --chart-1: oklch(0.7 0.14 160);
-  --chart-2: oklch(0.72 0.13 188);
-  --chart-3: oklch(0.66 0.14 240);
-  --chart-4: oklch(0.8 0.16 85);
-  --chart-5: oklch(0.7 0.18 45);
+  --border: rgb(255 255 255 / 0.085);
+  --line-strong: rgb(255 255 255 / 0.17);
+  --input: #7c7c7c;
+  --field: #171618;
+  --ring: #f58a58;
 
-  --status-online: oklch(0.72 0.17 150);
-  --status-offline: oklch(0.62 0.01 160);
-  --status-paused: oklch(0.8 0.15 80);
+  --hover: rgb(255 255 255 / 0.045);
+  --selected: rgb(255 255 255 / 0.09);
 
-  --sidebar: oklch(0.195 0.014 170);
-  --sidebar-foreground: oklch(0.95 0.006 150);
-  --sidebar-primary: oklch(0.7 0.14 160);
-  --sidebar-primary-foreground: oklch(0.16 0.03 165);
-  --sidebar-accent: oklch(0.28 0.024 167);
-  --sidebar-accent-foreground: oklch(0.95 0.02 155);
-  --sidebar-border: oklch(1 0 0 / 9%);
-  --sidebar-ring: oklch(0.7 0.14 160);
+  --chart-1: #ededed;
+  --chart-2: #bdbdbd;
+  --chart-3: #8f8f8f;
+  --chart-4: #6b6b6b;
+  --chart-5: #4d4d4d;
+  --chart-point: #f58a58;
+  --chart-grid: rgb(255 255 255 / 0.05);
+  --chart-area: rgb(255 255 255 / 0.11);
+
+  --status-online: #4fae62;
+  --status-offline: #909090;
+  --status-paused: #e0a33a;
+
+  --logo-square: #ededed;
+  --logo-arc: #f58a58;
+
+  --sidebar: #171618;
+  --sidebar-foreground: #ededed;
+  --sidebar-primary: #f58a58;
+  --sidebar-primary-foreground: #140a05;
+  --sidebar-accent: rgb(255 255 255 / 0.09);
+  --sidebar-accent-foreground: #ededed;
+  --sidebar-border: rgb(255 255 255 / 0.085);
+  --sidebar-ring: #f58a58;
+
+  --glass-bar: rgb(38 37 40 / 0.42);
+  --glass-side: rgb(34 33 36 / 0.36);
+  --glass-menu: rgb(60 59 63 / 0.42);
+  --glass-dialog: rgb(54 53 57 / 0.4);
+  --glass-sheet: rgb(42 41 44 / 0.44);
+  --glass-panel: rgb(255 255 255 / 0.04);
+  --glass-muted-foreground: #bababa;
+  --glass-bar-muted-foreground: #c2c2c2;
+  --edge: rgb(255 255 255 / 0.085);
+  --edge-pop: rgb(255 255 255 / 0.13);
+  --shine: rgb(255 255 255 / 0.06);
+  --shine-pop: rgb(255 255 255 / 0.11);
+  --scrim: rgb(8 8 9 / 0.3);
+  --lift: 0 12px 32px rgb(0 0 0 / 0.36);
+  --avatar: rgb(255 255 255 / 0.1);
+
+  --ground: var(--ground-dark);
+  --ground-auth: var(--ground-auth-dark);
+  /* dark: the sign-in brand side is a pane on the same light */
+  --brand-pane: rgb(255 255 255 / 0.028);
+}
+
+@media (min-width: 768px) {
+  :root {
+    /* the first light starts just right of the sidebar (15rem) */
+    --ground-inset: 240px;
+  }
+}
+@media (max-width: 767px) {
+  :root {
+    --ground: var(--ground-light-phone);
+    --ground-auth: var(--ground-auth-light-phone);
+  }
+  .dark {
+    --ground: var(--ground-dark-phone);
+    --ground-auth: var(--ground-auth-dark-phone);
+  }
+}
+
+/* Ground switch, off: no light, solid panels. Must stay after the theme blocks. */
+html[data-ground="off"] {
+  --ground: none;
+  --ground-auth: none;
+  --panel: var(--card);
+  --panel-blur: none;
+  --panel-shine: 0 0 #0000;
+  --brand-pane: #171618;
 }
 
 @layer base {
@@ -157,8 +322,22 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "cv11", "ss01";
+    letter-spacing: -0.006em;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  /* The ground light: fixed behind everything, so glass has something to let through. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: var(--ground);
+  }
+  /* Sign-in and the other auth pages: the source moves behind the card's upper left. */
+  body:has([data-screen="auth"])::before {
+    background: var(--ground-auth);
   }
   html {
     @apply font-sans;
@@ -167,32 +346,146 @@
     font-family: var(--font-display);
     letter-spacing: -0.018em;
   }
+  ::placeholder {
+    color: var(--muted-foreground);
+    opacity: 1;
+  }
 }
 
-@layer utilities {
-  /* Subtle dotted texture for empty/hero surfaces */
-  .bg-grid {
-    background-image: radial-gradient(currentColor 0.5px, transparent 0.5px);
-    background-size: 16px 16px;
-  }
+/*
+  Glass layers. Unlayered on purpose, so they win over Tailwind's bg-* and
+  shadow-* utilities on the same element. Each blur is written twice with
+  literal values, -webkit- first: Safari below 18 needs the prefix.
+  Layers are portalled or fixed siblings of the page; a blur nested inside
+  another blurred element would not see the page.
+*/
+.glass-bar {
+  --muted-foreground: var(--glass-bar-muted-foreground);
+  background: var(--glass-bar);
+  border-bottom: 1px solid var(--edge);
+  box-shadow: inset 0 1px 0 var(--shine);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  backdrop-filter: blur(12px) saturate(140%);
+}
+.glass-side {
+  background: var(--glass-side);
+  box-shadow: inset 0 1px 0 var(--shine);
+  -webkit-backdrop-filter: blur(24px) saturate(125%);
+  backdrop-filter: blur(24px) saturate(125%);
+}
+.glass-menu {
+  --muted-foreground: var(--glass-muted-foreground);
+  background: var(--glass-menu);
+  border: 1px solid var(--edge-pop);
+  box-shadow: inset 0 1px 0 var(--shine-pop), var(--lift);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(10px) saturate(140%);
+}
+.glass-dialog {
+  background: var(--glass-dialog);
+  border: 1px solid var(--edge-pop);
+  box-shadow: inset 0 1px 0 var(--shine-pop), var(--lift);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+.glass-sheet {
+  --muted-foreground: var(--glass-muted-foreground);
+  background: var(--glass-sheet);
+  border-color: var(--edge-pop);
+  box-shadow: inset 0 1px 0 var(--shine-pop), var(--lift);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+/* Cards and the sign-in card: glass only while the ground light is on. No
+   saturate here: on a blurred near-black gradient it turns 8-bit rounding
+   into olive blotches. */
+.glass-panel {
+  background: var(--panel);
+  border: 1px solid var(--edge);
+  box-shadow: var(--panel-shine);
+  -webkit-backdrop-filter: var(--panel-blur);
+  backdrop-filter: var(--panel-blur);
+}
+/* Metrics drawn as one ruled block (KpiGroup): the cells are bare, the group is the panel. */
+.kpi-group > [data-slot="card"] {
+  background: none;
+  border: 0;
+  border-left: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  border-radius: 0;
+  box-shadow: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+/* Sign-in brand side. Light theme: direction 1's inverted panel with a light of its own. */
+.auth-brand {
+  --foreground: #ededed;
+  --muted-foreground: #a8a8a8;
+  --border: rgb(255 255 255 / 0.17);
+  background: var(--brand-pane);
+  color: var(--foreground);
+  border-left: 1px solid var(--edge);
+}
+.dark .auth-brand {
+  --border: rgb(255 255 255 / 0.14);
+}
+/* Toasts (sonner): the same glass as menus; the icon carries the status colour. */
+[data-sonner-toast].cn-toast {
+  background: var(--glass-menu);
+  border: 1px solid var(--edge-pop);
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 var(--shine-pop), var(--lift);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(10px) saturate(140%);
+}
+[data-sonner-toast].cn-toast [data-description] {
+  color: var(--glass-muted-foreground);
+}
+[data-sonner-toast].cn-toast[data-type="success"] [data-icon] { color: var(--status-online); }
+[data-sonner-toast].cn-toast[data-type="warning"] [data-icon] { color: var(--status-paused); }
+[data-sonner-toast].cn-toast[data-type="error"] [data-icon] { color: var(--destructive); }
 
-  /* Receipt "tear edge" — a perforated hairline beneath the app header.
-     The brand motif: the top bar reads as a digital receipt slip. */
-  .edge-perforation {
-    position: relative;
+/* Glass off: no support, or the reader asked for less transparency. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-bar,
+  .glass-side,
+  .glass-menu,
+  .glass-dialog,
+  .glass-sheet,
+  [data-sonner-toast].cn-toast {
+    background: var(--popover);
   }
-  .edge-perforation::after {
-    content: "";
-    position: absolute;
-    inset-inline: 0;
-    bottom: 0;
-    height: 2px;
-    background-image: radial-gradient(
-      circle at center,
-      var(--border) 0 1.1px,
-      transparent 1.5px
-    );
-    background-size: 7px 2px;
-    background-repeat: repeat-x;
+  .glass-panel {
+    background: var(--card);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass-bar,
+  .glass-side,
+  .glass-menu,
+  .glass-dialog,
+  .glass-sheet,
+  [data-sonner-toast].cn-toast {
+    background: var(--popover);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .glass-panel {
+    background: var(--card);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+/* Motion: colour on hover/focus (120 ms), fade + scale on menus and dialogs
+   (140 ms). All of it off when the reader asks for less motion; the loading
+   spinner is the one exception, because a frozen spinner reads as a hang. */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.animate-spin),
+  *:not(.animate-spin)::before,
+  *:not(.animate-spin)::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }

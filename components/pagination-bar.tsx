@@ -29,12 +29,12 @@ export function PaginationBar({
   };
   const linkCls = (disabled: boolean) =>
     cn(
-      "inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm",
-      disabled ? "pointer-events-none text-muted-foreground/40" : "hover:bg-muted",
+      "-mx-2 inline-flex h-7 items-center gap-1.5 rounded-md px-2 transition-colors duration-[120ms] [&_svg]:stroke-[1.6]",
+      disabled ? "pointer-events-none text-disabled-foreground" : "text-foreground hover:bg-hover",
     );
 
   return (
-    <nav className="flex items-center justify-between text-sm text-muted-foreground" aria-label="Pagination">
+    <nav className="flex items-center justify-between text-[13px] text-muted-foreground" aria-label="Pagination">
       <Link href={href(page - 1)} className={linkCls(page <= 1)} aria-disabled={page <= 1}>
         <ChevronLeft className="size-4" /> Previous
       </Link>

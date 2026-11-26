@@ -42,9 +42,9 @@ const STATUS_LABELS: Record<string, string> = {
   expired: "Expired",
 };
 const STATUS_DOTS: Record<string, string> = {
-  pending: "bg-amber-500",
-  acked: "bg-emerald-500",
-  failed: "bg-red-500",
+  pending: "bg-status-paused",
+  acked: "bg-status-online",
+  failed: "bg-destructive",
   expired: "bg-muted-foreground/40",
 };
 

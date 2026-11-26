@@ -53,12 +53,14 @@ export function ListControls({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <div className="relative w-full max-w-sm">
-        <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+      <div className="relative w-full md:max-w-xs">
+        <Search aria-hidden
+          className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 stroke-[1.6] text-muted-foreground" />
         <Input
           value={value}
           placeholder={placeholder}
-          className="pl-9"
+          aria-label={placeholder.replace(/…$/, "")}
+          className="pl-[34px]"
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
@@ -69,7 +71,7 @@ export function ListControls({
         />
       </div>
       {tabs && (
-        <div className="flex flex-wrap items-center gap-1">
+        <div className="flex max-w-full min-w-0 flex-wrap items-center gap-0.5 rounded-lg border bg-field p-0.5 max-sm:w-full max-sm:flex-nowrap max-sm:justify-between max-sm:gap-0">
           {tabs.map((t) => (
             <button
               key={t.value}
@@ -78,11 +80,12 @@ export function ListControls({
                 if (timer.current) clearTimeout(timer.current);
                 apply({ status: t.value === "all" ? null : t.value, q: value.trim() });
               }}
+              aria-pressed={t.active}
               className={cn(
-                "rounded-full px-3 py-1 text-sm tabular-nums transition-colors",
+                "h-[26px] rounded-[5px] px-2.5 text-[13px] whitespace-nowrap tabular-nums transition-colors duration-[120ms] outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring max-sm:px-[5px] max-sm:text-xs max-sm:tracking-[-0.01em]",
                 t.active
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted",
+                  ? "bg-secondary font-medium text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               {t.label} · {t.count}

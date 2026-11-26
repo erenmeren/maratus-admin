@@ -11,7 +11,7 @@ import {
 } from "@/lib/actions/members";
 import { INVITE_ROLES, ROLE_LABELS } from "@/lib/members";
 
-const SELECT_CLASS = "h-8 rounded-lg border border-input bg-transparent px-2 text-sm";
+const SELECT_CLASS = "h-8 rounded-lg border border-input bg-field px-2 text-sm";
 
 function roleLabel(role: string): string {
   return Object.hasOwn(ROLE_LABELS, role) ? ROLE_LABELS[role as keyof typeof ROLE_LABELS].label : role;

@@ -1,17 +1,11 @@
 import { cn } from "@/lib/utils";
+import { StatusGlyph } from "@/components/status-badge";
 import type { TenantStatus } from "@/lib/types";
 
-const META: Record<TenantStatus, { label: string; cls: string; dot: string }> = {
-  active: {
-    label: "Active",
-    cls: "bg-status-online/10 text-status-online",
-    dot: "bg-status-online",
-  },
-  suspended: {
-    label: "Suspended",
-    cls: "bg-destructive/10 text-destructive",
-    dot: "bg-destructive",
-  },
+// Shape plus word: filled dot (active), triangle (suspended).
+const META: Record<TenantStatus, { label: string; glyph: string }> = {
+  active: { label: "Active", glyph: "text-status-online" },
+  suspended: { label: "Suspended", glyph: "text-destructive" },
 };
 
 export function TenantStatusBadge({
@@ -25,12 +19,11 @@ export function TenantStatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium",
-        m.cls,
+        "inline-flex items-center gap-[7px] text-[13px] font-normal whitespace-nowrap text-foreground",
         className,
       )}
     >
-      <span className={cn("size-1.5 rounded-full", m.dot)} />
+      <StatusGlyph kind={status} className={m.glyph} />
       {m.label}
     </span>
   );
